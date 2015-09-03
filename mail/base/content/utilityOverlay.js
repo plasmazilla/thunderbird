@@ -1,8 +1,8 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/PlacesUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
 var gShowBiDi = false;
@@ -55,7 +55,7 @@ function goUpdateFindTypeMenuItems()
 }
 
 // Gather all descendent text under given document node.
-function gatherTextUnder ( root ) 
+function gatherTextUnder ( root )
 {
   var text = "";
   var node = root.firstChild;
@@ -171,13 +171,38 @@ function togglePaneSplitter(splitterId)
 // We currently only react to left click in Thunderbird.
 function openUILink(url, event)
 {
-  if (!event.button)
+  if (!event.button) {
+    PlacesUtils.asyncHistory.updatePlaces({
+      uri: makeURI(url),
+      visits:  [{
+        visitDate: Date.now() * 1000,
+        transitionType: Components.interfaces.nsINavHistoryService.TRANSITION_LINK
+      }]
+    });
     messenger.launchExternalURL(url);
+  }
 }
 
 function openWhatsNew()
 {
   openContentTab(Services.urlFormatter.formatURLPref("mailnews.start_page.override_url"));
+}
+
+/**
+ * Open a web search in the default browser for a given query.
+ *
+ * @param query the string to search for
+ * @param engine (optional) the search engine to use
+ */
+function openWebSearch(query, engine)
+{
+  Services.search.init({
+    onInitComplete: function() {
+      if (!engine)
+        engine = Services.search.currentEngine;
+      openLinkExternally(engine.getSubmission(query).uri.spec);
+    }
+  });
 }
 
 /**
@@ -234,33 +259,26 @@ function openContentTab(url, where, handlerRegExp)
 }
 
 /**
- * Open a search page for the specified query in a new tab, window, or
- * externally. If mail.websearch.open_externally is true, always open
- * externally.
+ * Open the preferences page for the specified query in a new tab.
  *
- * @param query the term to search for
- * @param where 'tab' to open in a new tab (default), 'window' to open in a
- *        new window, or 'external' to open in the default browser
+ * @param paneID     ID of prefpane to select automatically.
+ * @param tabID      ID of tab to select on the prefpane.
+ * @param otherArgs  other prefpane specific arguments.
  */
-function openSearchTab(query, where) {
-  let currentEngine = Services.search.currentEngine;
-  let submission = currentEngine.getSubmission(query);
-
-  if (where == "external" ||
-      Services.prefs.getBoolPref("mail.websearch.open_externally")) {
-    openLinkExternally(submission.uri.spec);
-    return;
-  }
-
+function openPreferencesTab(paneID, tabID, otherArgs)
+{
+  let url = "about:preferences";
   let params = {
-    background: false,
-    contentPage: submission.uri.spec,
-    postData: submission.postData,
-    query: query,
-    engine: currentEngine,
-    clickHandler: "webSearchTabType.siteClickHandler(event)",
+    contentPage: url,
+    paneID: paneID,
+    tabID: tabID,
+    otherArgs: otherArgs,
+    onLoad: function(aEvent, aBrowser) {
+      let prefWindow = aBrowser.contentDocument.getElementById("MailPreferences");
+      aBrowser.contentWindow.selectPaneAndTab(prefWindow, paneID, tabID, otherArgs);
+    }
   };
-  openTab("webSearchTab", params, where);
+  openTab("preferencesTab", params);
 }
 
 /**

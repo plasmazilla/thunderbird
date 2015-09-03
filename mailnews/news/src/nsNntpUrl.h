@@ -30,11 +30,11 @@ public:
 
   // nsNntpUrl
   nsNntpUrl();
-  virtual ~nsNntpUrl();
 
   NS_DECL_ISUPPORTS_INHERITED
 
 private:
+  virtual ~nsNntpUrl();
   nsresult DetermineNewsAction();
   nsresult ParseNewsURL();
   nsresult ParseNntpURL();
@@ -57,7 +57,7 @@ private:
 
   nsCString m_group;
   nsCString m_messageID;
-  uint32_t m_key;
+  nsMsgKey m_key;
 };
 
 #endif // nsNntpUrl_h__

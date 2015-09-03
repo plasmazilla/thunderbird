@@ -18,7 +18,7 @@ interface prplIMessageAction: nsIRunnable
   readonly attribute AUTF8String label;
 };
 
-[scriptable, uuid(d9f0ca7f-ee59-4657-a3dd-f458c204ca45)]
+[scriptable, uuid(d6accb66-cdd2-4a91-8854-1156e65d5a43)]
 interface prplIMessage: nsISupports {
   /* The uniqueness of the message id is only guaranteed across
      messages of a conversation, not across all messages created
@@ -29,12 +29,9 @@ interface prplIMessage: nsISupports {
   readonly attribute AUTF8String originalMessage;
            attribute AUTF8String message;
   readonly attribute AUTF8String iconURL;
+  // Value in seconds.
   readonly attribute PRTime time;
   readonly attribute prplIConversation conversation;
-
-  /* Holds the sender color for Chats.
-     Empty string by default, it is set by the conversation binding. */
-  attribute AUTF8String color;
 
   /*  PURPLE_MESSAGE_SEND        = 0x0001, /**< Outgoing message. */
   readonly attribute boolean outgoing;

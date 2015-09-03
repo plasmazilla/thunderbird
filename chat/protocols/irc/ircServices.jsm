@@ -41,7 +41,7 @@ function ServiceMessage(aAccount, aMessage) {
     "nickserv": "NickServ"
   }
 
-  let nickname = aAccount.normalize(aMessage.nickname);
+  let nickname = aAccount.normalize(aMessage.origin);
   if (nicknameToServiceName.hasOwnProperty(nickname))
     aMessage.serviceName = nicknameToServiceName[nickname];
 
@@ -64,7 +64,7 @@ var ircServices = {
     // If we automatically reply to a NOTICE message this does not abide by RFC
     // 2812. Oh well.
     "NOTICE": function(aMessage) {
-      if (!ircHandlers.hasServicesHandlers || !aMessage.hasOwnProperty("nickname"))
+      if (!ircHandlers.hasServicesHandlers)
         return false;
 
       let message = ServiceMessage(this, aMessage);
@@ -84,11 +84,9 @@ var ircServices = {
       if (this.normalize(newNick) != this.normalize(this._accountNickname))
         return false;
 
-      // We may still be authenticated, but we try to authenticate with the
-      // new nick anyway, since there is no good way to tell if we are still
-      // authenticated.
-      delete this.isAuthenticated;
-      ircServices.sendIdentify(this);
+      // If we're not identified already, try to identify.
+      if (!this.isAuthenticated)
+        ircServices.sendIdentify(this);
 
       // We always want the RFC 2812 handler to handle NICK, so return false.
       return false;
@@ -135,7 +133,7 @@ var servicesBase = {
       // Remove the [ and ].
       channel = channel.slice(1, -1);
       // If it isn't a channel or doesn't exist, return early.
-      if (!this.isMUCName(channel) || !this.hasConversation(channel))
+      if (!this.isMUCName(channel) || !this.conversations.has(channel))
         return false;
 
       // Otherwise, display the message in that conversation.
@@ -146,7 +144,7 @@ var servicesBase = {
       // The message starts after the channel name, plus [, ] and a space.
       let message = aMessage.params[1].slice(channel.length + 3);
       this.getConversation(channel)
-          .writeMessage(aMessage.nickname, message, params);
+          .writeMessage(aMessage.origin, message, params);
       return true;
     },
 
@@ -161,9 +159,8 @@ var servicesBase = {
       else if (text == "*** \u0002End of Message(s) of the Day\u0002 ***") {
         if (this._showServerTab && this._infoServMotd) {
           this._infoServMotd.push(text);
-          this.getConversation(aMessage.servername || this._currentServerName)
-              .writeMessage(aMessage.servername || aMessage.nickname,
-                            this._infoServMotd.join("\n"),
+          this.getConversation(aMessage.origin)
+              .writeMessage(aMessage.origin, this._infoServMotd.join("\n"),
                             {incoming: true});
           delete this._infoServMotd;
         }

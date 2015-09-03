@@ -115,7 +115,7 @@ PlacesTreeView.prototype = {
     // A node is removed form the view either if it has no parent or if its
     // root-ancestor is not the root node (in which case that's the node
     // for which nodeRemoved was called).
-    let ancestors = [x for each (x in PlacesUtils.nodeAncestors(aNode))];
+    let ancestors = [x for (x of PlacesUtils.nodeAncestors(aNode))];
     if (ancestors.length == 0 ||
         ancestors[ancestors.length - 1] != this._rootNode) {
       throw new Error("Removed node passed to _getRowForNode");
@@ -244,8 +244,6 @@ PlacesTreeView.prototype = {
     if (this._isPlainContainer(aContainer))
       return cc;
 
-    const openLiteral = PlacesUIUtils.RDF.GetResource("http://home.netscape.com/NC-rdf#open");
-    const trueLiteral = PlacesUIUtils.RDF.GetLiteral("true");
     var sortingMode = this._result.sortingMode;
 
     var rowsInserted = 0;
@@ -260,10 +258,9 @@ PlacesTreeView.prototype = {
 
       // recursively do containers
       if (curChild instanceof Components.interfaces.nsINavHistoryContainerResultNode) {
-        var resource = this._getResourceForNode(curChild);
-        var isopen = resource != null &&
-                     PlacesUIUtils.localStore.HasAssertion(resource, openLiteral,
-                                                           trueLiteral, true);
+        NS_ASSERT(curChild.uri, "if there is no uri, we can't persist the open state");
+        var isopen = curChild.uri &&
+                     PlacesUIUtils.xulStore.hasValue(location, curChild.uri, "open");
         if (isopen != curChild.containerOpen)
           aToOpen.push(curChild);
         else if (curChild.containerOpen && curChild.childCount > 0)
@@ -358,7 +355,7 @@ PlacesTreeView.prototype = {
       // However, if any of the node's ancestor is closed, the node is
       // invisible.
       let ancestors = PlacesUtils.nodeAncestors(aOldNode);
-      for (let ancestor in ancestors) {
+      for (let ancestor of ancestors) {
         if (!ancestor.containerOpen)
           return -1;
       }
@@ -504,7 +501,7 @@ PlacesTreeView.prototype = {
     this._rows.splice(row, 0, aNode);
     this._tree.rowCountChanged(row, 1);
 
-    if (PlacesUtils.nodeIsContainer(aNode) && asContainer(aNode).containerOpen)
+    if (PlacesUtils.nodeIsContainer(aNode) && PlacesUtils.asContainer(aNode).containerOpen)
       this.invalidateContainer(aNode);
   },
 
@@ -848,13 +845,6 @@ PlacesTreeView.prototype = {
     return Components.interfaces.nsINavHistoryResultTreeViewer.INDEX_INVISIBLE;
   },
 
-  _getResourceForNode: function PTV_getResourceForNode(aNode)
-  {
-    var uri = aNode.uri;
-    NS_ASSERT(uri, "if there is no uri, we can't persist the open state");
-    return uri ? PlacesUIUtils.RDF.GetResource(uri) : null;
-  },
-
   // nsITreeView
   get rowCount() {
     return this._rows.length;
@@ -910,7 +900,7 @@ PlacesTreeView.prototype = {
         if ((PlacesUtils.nodeIsQuery(parent) ||
              PlacesUtils.nodeIsFolder(parent)) &&
             !node.hasChildren)
-          return asQuery(parent).queryOptions.expandQueries;
+          return PlacesUtils.asQuery(parent).queryOptions.expandQueries;
       }
       return true;
     }
@@ -1025,8 +1015,10 @@ PlacesTreeView.prototype = {
       if (hasOldTree) {
         // detach from result when we are detaching from the tree.
         // This breaks the reference cycle between us and the result.
-        if (!aTree)
-          this._result.viewer = null;
+        if (!aTree) {
+          this._result.removeObserver(this);
+          this._rootNode.containerOpen = false;
+        }
       }
       if (aTree)
         this._finishInit();
@@ -1038,20 +1030,17 @@ PlacesTreeView.prototype = {
       throw Components.results.NS_ERROR_UNEXPECTED;
 
     var node = this._rows[aRow];
+    NS_ASSERT(node.uri, "if there is no uri, we can't persist the open state");
 
-    var resource = this._getResourceForNode(node);
-    if (resource) {
-      const openLiteral = PlacesUIUtils.RDF.GetResource("http://home.netscape.com/NC-rdf#open");
-      const trueLiteral = PlacesUIUtils.RDF.GetLiteral("true");
-
+    if (node.uri) {
       if (node.containerOpen)
-        PlacesUIUtils.localStore.Unassert(resource, openLiteral, trueLiteral);
+        PlacesUIUtils.xulStore.removeValue(location, node.uri, "open");
       else
-        PlacesUIUtils.localStore.Assert(resource, openLiteral, trueLiteral, true);
+        PlacesUIUtils.xulStore.setValue(location, node.uri, "open", "true");
     }
 
     // 474287 Places enforces title sorting for groups, which we don't want.
-    if (!node.containerOption && asQuery(node).queryOptions.resultType ==
+    if (!node.containerOption && PlacesUtils.asQuery(node).queryOptions.resultType ==
         Components.interfaces.nsINavHistoryQueryOptions.RESULTS_AS_URI)
       node.queryOptions.sortingMode = this._result.sortingMode;
     node.containerOpen = !node.containerOpen;

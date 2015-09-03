@@ -1407,7 +1407,7 @@
           }
 
           if (insideScrollZone) {
-              let sbo = scrollbox.boxObject.QueryInterface(Components.interfaces.nsIScrollBoxObject);
+              let sbo = scrollbox.boxObject;
               let timeout = MAXTIMEOUT - insideScrollZone * (MAXTIMEOUT - MINTIMEOUT) / SCROLLZONE;
               this.mMagicScrollTimer = setTimeout(function() {
                   sbo.scrollBy(orient == "horizontal" && scrollBy,
@@ -1603,7 +1603,7 @@
                                  sizeattr);
 
           // update the labels
-          let lateralColumns = col.firstLastShadowColumns(currentOffset, currentShadows);
+          lateralColumns = col.firstLastShadowColumns(currentOffset, currentShadows);
           col.updateDragLabels(lateralColumns.firstCol, lateralColumns.lastCol);
 
           col.mDragState.offset = currentOffset;
@@ -2500,7 +2500,8 @@
           <xul:box anonid="headerdaybox" class="multiday-view-header-day-box" flex="1" equalsize="always" />
           <xul:box anonid="headerscrollbarspacer" class="multiday-headerscrollbarspacer"/>
         </xul:box>
-        <xul:scrollbox anonid="scrollbox" flex="1">
+        <xul:scrollbox anonid="scrollbox" flex="1"
+                       onoverflow="adjustScrollBarSpacers();" onunderflow="adjustScrollBarSpacers();">
           <!-- the orient of the calendar-time-bar needs to be the opposite of the parent -->
           <xul:calendar-time-bar xbl:inherits="orient" anonid="timebar"/>
           <xul:box anonid="daybox" class="multiday-view-day-box" flex="1"
@@ -2840,93 +2841,53 @@
         <body><![CDATA[
           this.rangeStartDate = aStartDate;
           this.rangeEndDate = aEndDate;
-          // normalize dates to display timezone
-          var startDate = aStartDate.getInTimezone(this.mTimezone);
-          startDate.isDate = true;
-          var endDate = aEndDate.getInTimezone(this.mTimezone);
-          endDate.isDate = true;
-          // make sure unnormalized version not used below
-          aStartDate = aEndDate = null;
 
-          if (this.mStartDate && this.mEndDate &&
-              this.mStartDate.compare(startDate) == 0 &&
-              this.mEndDate.compare(endDate) == 0) {
-              // Do not change anything if the date range already matches.
-              // XXX In general it should be possible to return here, but
-              // lightning doesn't like it when first initializing the view.
-              // return;
+          let viewStart = aStartDate.getInTimezone(this.mTimezone);
+          let viewEnd = aEndDate.getInTimezone(this.mTimezone);
+
+          viewStart.isDate = true;
+          viewStart.makeImmutable();
+          viewEnd.isDate = true;
+          viewEnd.makeImmutable();
+          this.mStartDate = viewStart;
+          this.mEndDate = viewEnd;
+
+          // goToDay are called when toggle the values below. The attempt to fix
+          // Bug 872063 has modified the behavior of setDateRange, which doesn't
+          // always refresh the view anymore. That is not the expected behavior
+          // by goToDay. Add checks here to determine if the view need to be
+          // refreshed.
+
+          // First, check values of tasksInView, workdaysOnly, showCompleted.
+          // Their status will determine the value of toggleStatus, which is
+          // saved to this.mToggleStatus during last call to relayout()
+          let toggleStatus = 0;
+
+          if (this.mTasksInView) {
+              toggleStatus |= this.mToggleStatusFlag.TasksInView;
+          }
+          if (this.mWorkdaysOnly) {
+              toggleStatus |= this.mToggleStatusFlag.WorkdaysOnly;
+          }
+          if (this.mShowCompleted) {
+              toggleStatus |= this.mToggleStatusFlag.ShowCompleted;
           }
 
-          if (this.mDisplayDaysOff) {
-            // tell old date columns to forget old selected occurrences.
-            var selectedItems = this.getSelectedItems({});
-            this.setSelectedItems(0, [], true); // suppress event, will restore
-
-            startDate.makeImmutable();
-            endDate.makeImmutable();
-            this.mDateList = null;
-            this.mStartDate = startDate;
-            this.mEndDate = endDate;
-            //
-            // For a true multiday view (e.g, 3 days advanced by one day
-            // at a time), a smarter refresh could reuse boxes, comparing
-            // the current date range and add/remove, instead of just
-            // replacing.
-            //
-            this.refresh();
-
-            // restore selected item occurrences in view with new date columns.
-            this.setSelectedItems(selectedItems.length, selectedItems, true);
-          } else { // workdays only
-            var dateList = new Array();
-            for (var d = startDate.clone(); d.compare(endDate) <= 0;) {
-              if (this.mDaysOffArray.indexOf(d.weekday) == -1) {
-                var workday = d.clone();
-                workday.makeImmutable();
-                dateList.push(workday);
-              }
-              d.day += 1;
-            }
-            this.setDateList(dateList.length, dateList);
+          // Update the navigation bar only when changes are related to the current view.
+          if (this.isVisible()) {
+              cal.navigationBar.setDateRange(viewStart, viewEnd);
           }
 
-          // Update the navigation bar.
-          cal.navigationBar.setDateRange(startDate, endDate);
-        ]]></body>
-      </method>
+          // Check whether view range has been changed since last call to
+          // relayout()
+          if (!this.mViewStart || !this.mViewEnd ||
+              this.mViewEnd.compare(viewEnd) != 0 ||
+              this.mViewStart.compare(viewStart) != 0 ||
+              this.mToggleStatus != toggleStatus) {
 
-      <method name="setDateList">
-        <parameter name="aCount"/>
-        <parameter name="aDates"/>
-        <body><![CDATA[
-          // tell old date columns to forget old selected occurrences.
-          var selectedItems = this.getSelectedItems({});
-          this.setSelectedItems(0, [], true); // suppress event, will restore
-
-          this.mStartDate = null;
-          this.mEndDate = null;
-
-          if (aCount == 0) {
-              this.mDateList = null;
-          } else {
-              aDates.sort (function(a, b) { return a.compare(b); });
-              this.mDateList = aDates.map(
-                  function dateMapper(d) {
-                      if (d.isDate && !d.isMutable)
-                          return d;
-
-                      var newDate = d.clone();
-                      newDate.isDate = true;
-                      newDate.makeImmutable();
-                      return newDate;
-                  }
-              );
+              this.refresh();
           }
 
-          this.refresh();
-
-          // restore selected item occurrences in view with new date columns.
-          this.setSelectedItems(selectedItems.length, selectedItems, true);
         ]]></body>
       </method>
 
@@ -3285,45 +3246,52 @@
 
       <method name="relayout">
         <body><![CDATA[
+          if (!this.mStartDate || !this.mEndDate) {
+              return;
+          }
+
           var orient = this.getAttribute("orient");
           if (!orient) orient = "horizontal";
           var otherorient = getOtherOrientation(orient);
 
-          var computedDateList;
-          if (this.mDateList) {
-              computedDateList = this.mDateList;
-          } else if (this.mStartDate && this.mEndDate) {
-              computedDateList = new Array();
-
-              var theDate = this.mStartDate.clone();
-              while (theDate.compare(this.mEndDate) <= 0) {
-                  computedDateList.push(theDate.clone());
-                  theDate.day += 1;
+          let computedDateList = new Array();
+          let startDate = this.mStartDate.clone();
+          while (startDate.compare(this.mEndDate) <= 0) {
+              let workday = startDate.clone();
+              workday.makeImmutable();
+              if (this.mDisplayDaysOff) {
+                  computedDateList.push(workday);
+              } else if (this.mDaysOffArray.indexOf(startDate.weekday) == -1) {
+                  computedDateList.push(workday);
               }
+              startDate.day += 1;
           }
+          this.mDateList = computedDateList;
+
+          // unselect previous selected event upon switch views, otherwise those
+          // events will stay selected forever, if select other events after
+          // change week view.
+          this.setSelectedItems(0, [], true);
 
           var daybox = document.getAnonymousElementByAttribute(this, "anonid", "daybox");
           var headerdaybox = document.getAnonymousElementByAttribute(this, "anonid", "headerdaybox");
 
-          if (!computedDateList || computedDateList.length == 0)
-              return;
-
           var calView = this;
           var dayStartMin = this.mDayStartMin;
           var dayEndMin = this.mDayEndMin;
-          function setUpDayEventsBox(aDayBox) {
+          function setUpDayEventsBox(aDayBox, date) {
               aDayBox.setAttribute("class", "calendar-event-column-" + (counter % 2 == 0 ? "even" : "odd"));
               aDayBox.setAttribute("context", calView.getAttribute("context"));
               aDayBox.setAttribute("item-context", calView.getAttribute("item-context") || calView.getAttribute("context"));
               aDayBox.startLayoutBatchChange();
-              aDayBox.date = d;
+              aDayBox.date = date;
               aDayBox.setAttribute("orient", orient);
               aDayBox.calendarView = calView;
               aDayBox.setDayStartEndMinutes(dayStartMin, dayEndMin);
           }
 
-          function setUpDayHeaderBox(aDayBox) {
-              aDayBox.date = d;
+          function setUpDayHeaderBox(aDayBox, date) {
+              aDayBox.date = date;
               aDayBox.calendarView = calView;
               aDayBox.setAttribute("orient", "vertical");
               // Since the calendar-header-container boxes have the same vertical
@@ -3354,7 +3322,7 @@
                   dayEventsBox.setAttribute("flex", "1");
                   daybox.appendChild(dayEventsBox);
               }
-              setUpDayEventsBox(dayEventsBox);
+              setUpDayEventsBox(dayEventsBox, d);
 
               var dayHeaderBox;
               if (counter < headerboxkids.length) {
@@ -3370,7 +3338,7 @@
                   dayHeaderBox.setAttribute("flex", "1");
                   headerdaybox.appendChild(dayHeaderBox);
               }
-              setUpDayHeaderBox(dayHeaderBox);
+              setUpDayHeaderBox(dayHeaderBox, d);
 
               if (0 <= this.mDaysOffArray.indexOf(d.weekday)) {
                   dayEventsBox.dayOff = true;
@@ -3455,6 +3423,26 @@
 
           // Adjust scrollbar spacers
           this.adjustScrollBarSpacers();
+
+          // Store the start and end of current view. Next time when
+          // setDateRange is called, it will use mViewStart and mViewEnd to
+          // check if view range has been changed.
+          this.mViewStart = this.mStartDate;
+          this.mViewEnd = this.mEndDate;
+
+          let toggleStatus = 0;
+
+          if (this.mTasksInView) {
+              toggleStatus |= this.mToggleStatusFlag.TasksInView;
+          }
+          if (this.mWorkdaysOnly) {
+              toggleStatus |= this.mToggleStatusFlag.WorkdaysOnly;
+          }
+          if (this.mShowCompleted) {
+              toggleStatus |= this.mToggleStatusFlag.ShowCompleted;
+          }
+
+          this.mToggleStatus = toggleStatus;
         ]]></body>
       </method>
 
@@ -3725,7 +3713,7 @@
         <parameter name="aMinute"/>
         <body><![CDATA[
           let scrollbox = document.getAnonymousElementByAttribute(this, "anonid", "scrollbox");
-          let scrollBoxObject = scrollbox.boxObject.QueryInterface(Components.interfaces.nsIScrollBoxObject);
+          let scrollBoxObject = scrollbox.boxObject;
           // 'aMinute' will be the first minute showed in the view, so it must
           // belong to the range 0 <-> (24*60 - minutes_showed_in_the_view) but
           // we consider 25 hours instead of 24 to let the view scroll until
@@ -3845,7 +3833,7 @@
 
       <handler event="scroll" phase="bubbling"><![CDATA[
         let scrollbox = document.getAnonymousElementByAttribute(this, "anonid", "scrollbox");
-        let scrollBoxObject = scrollbox.boxObject.QueryInterface(Components.interfaces.nsIScrollBoxObject);
+        let scrollBoxObject = scrollbox.boxObject;
         if (scrollBoxObject && scrollbox.scrollHeight > 0) {
             // We need to update the first visible minute, but only if the
             // scrollbox has been sized.

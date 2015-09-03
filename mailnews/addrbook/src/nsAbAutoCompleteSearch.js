@@ -85,7 +85,7 @@ nsAbAutoCompleteSearch.prototype = {
   _commentColumn: 0,
   _parser: MailServices.headerParser,
   _abManager: MailServices.ab,
-  applicableHeaders: Set(["addr_to", "addr_cc", "addr_bcc", "addr_reply"]),
+  applicableHeaders: new Set(["addr_to", "addr_cc", "addr_bcc", "addr_reply"]),
 
   // Private methods
 
@@ -129,17 +129,27 @@ nsAbAutoCompleteSearch.prototype = {
    * results that match the beginning of a "word" in the result to score better
    * than a result that matches only in the middle of the word.
    *
+   * @param aCard - the card whose score is being decided
    * @param aAddress - full lower-cased address, including display name and address
    * @param aSearchString - search string provided by user
    * @return a score; a higher score is better than a lower one
    */
-  _getScore: function(aAddress, aSearchString) {
+  _getScore: function(aCard, aAddress, aSearchString) {
     const BEST = 100;
+
+    // We will firstly check if the search term provided by the user
+    // is the nick name for the card or at least in the beginning of it.
+    let nick = aCard.getProperty("NickName", "").toLocaleLowerCase();
+    aSearchString = aSearchString.toLocaleLowerCase();
+    if (nick == aSearchString)
+      return BEST + 1;
+    if (nick.indexOf(aSearchString) == 0)
+      return BEST;
+
     // We'll do this case-insensitively and ignore the domain.
     let atIdx = aAddress.lastIndexOf("@");
     if (atIdx != -1) // mail lists don't have an @
       aAddress = aAddress.substr(0, atIdx);
-    aSearchString = aSearchString.toLocaleLowerCase();
     let idx = aAddress.indexOf(aSearchString);
     if (idx == 0)
       return BEST;
@@ -148,13 +158,11 @@ nsAbAutoCompleteSearch.prototype = {
 
     // We want to treat firstname, lastname and word boundary(ish) parts of
     // the email address the same. E.g. for "John Doe (:xx) <jd.who@example.com>"
-    // all of these should score (almost) the same: "John", "Doe", "xx",
-    // ":xx:", "jd", "who".
+    // all of these should score the same: "John", "Doe", "xx",
+    // ":xx", "jd", "who".
     let prevCh = aAddress.charAt(idx - 1);
-    if (/[ :."'(\-_<&]/.test(prevCh)) {
-      // -1, so exact begins-with match will still be the first hit.
-      return BEST - 1;
-    }
+    if (/[ :."'(\-_<&]/.test(prevCh))
+      return BEST;
 
     // The match was inside a word -> we don't care about the position.
     return 0;
@@ -169,7 +177,7 @@ nsAbAutoCompleteSearch.prototype = {
    * @param directory    An nsIAbDirectory to search.
    * @param result       The result element to append results to.
    */
-  _searchCards: function _searchCards(searchQuery, directory, result) {
+  _searchCards: function(searchQuery, directory, result) {
     let childCards;
     try {
       childCards = this._abManager.getDirectory(directory.URI + searchQuery).childCards;
@@ -296,7 +304,7 @@ nsAbAutoCompleteSearch.prototype = {
       isPrimaryEmail: isPrimaryEmail,
       emailToUse: emailToUse,
       popularity: this._getPopularityIndex(directory, card),
-      score: this._getScore(lcEmailAddress, result.searchString)
+      score: this._getScore(card, lcEmailAddress, result.searchString)
     });
   },
 
@@ -334,8 +342,9 @@ nsAbAutoCompleteSearch.prototype = {
     }
 
     // Array of all the terms from the fullString search query
-    // (separated on the basis of spaces).
-    let searchWords = fullString.split(/\s+/);
+    // (separated on the basis of spaces or exact terms on the
+    // basis of quotes).
+    let searchWords = getSearchTokens(fullString);
 
     // Find out about the comment column
     try {
@@ -348,18 +357,22 @@ nsAbAutoCompleteSearch.prototype = {
       // We have successful previous matches, therefore iterate through the
       // list and reduce as appropriate
       for (let i = 0; i < aPreviousResult.matchCount; ++i) {
-        if (this._checkEntry(aPreviousResult.getCardAt(i),
-                             aPreviousResult.getEmailToUse(i), searchWords))
-          // If it matches, just add it straight onto the array, these will
-          // already be in order because the previous search returned them
-          // in the correct order.
+        let card = aPreviousResult.getCardAt(i);
+        let email = aPreviousResult.getEmailToUse(i);
+        if (this._checkEntry(card, email, searchWords)) {
+          // Add matches into the results array. We re-sort as needed later.
           result._searchResults.push({
             value: aPreviousResult.getValueAt(i),
             comment: aPreviousResult.getCommentAt(i),
-            card: aPreviousResult.getCardAt(i),
-            emailToUse: aPreviousResult.getEmailToUse(i),
-            popularity: parseInt(aPreviousResult.getCardAt(i).getProperty("PopularityIndex", "0"))
+            card: card,
+            isPrimaryEmail: (card.primaryEmail == email),
+            emailToUse: email,
+            popularity: parseInt(card.getProperty("PopularityIndex", "0")),
+            score: this._getScore(card,
+              aPreviousResult.getValueAt(i).toLocaleLowerCase(),
+              fullString)
           });
+        }
       }
     }
     else
@@ -371,14 +384,14 @@ nsAbAutoCompleteSearch.prototype = {
       // for each word separately so that each result contains all the words
       // from the fullstring in the fields of the addressbook card
       // (see bug 558931 for explanations).
-      let searchQuery = "";
       let modelQuery = "(or(DisplayName,c,@V)(FirstName,c,@V)(LastName,c,@V)" +
                        "(NickName,c,@V)(PrimaryEmail,c,@V)(SecondEmail,c,@V)" +
                        "(and(IsMailList,=,TRUE)(Notes,c,@V)))";
-      for (let searchWord of searchWords) {
-        searchQuery += modelQuery.replace(/@V/g, encodeABTermValue(searchWord));
-      }
-      searchQuery = "?(and" + searchQuery + ")";
+      // Use helper method to split up search query to multi-word search
+      // query against multiple fields.
+      let searchWords = getSearchTokens(fullString);
+      let searchQuery = generateQueryURI(modelQuery, searchWords);
+
       // Now do the searching
       let allABs = this._abManager.directories;
 
@@ -395,17 +408,19 @@ nsAbAutoCompleteSearch.prototype = {
       }
 
       result._searchResults = [...result._collectedValues.values()];
-      result._searchResults.sort(function(a, b) {
-        // Order by 1) descending score, then 2) descending popularity,
-        // then 3) primary email before secondary for the same card, then
-        // 4) by differing cards sort by email.
-        return (b.score - a.score) ||
-               (b.popularity - a.popularity) ||
-               ((a.card == b.card && a.isPrimaryEmail) ? -1 : 0) ||
-               ((a.value < b.value) ? -1 : (a.value == b.value) ? 0 : 1);
-        // TODO: this should actually use a.value.localeCompare(b.value) .
-      });
     }
+
+    // Sort the results. Scoring may have changed so do it even if this is
+    // just filtered previous results.
+    result._searchResults.sort(function(a, b) {
+      // Order by 1) descending score, then 2) descending popularity,
+      // then 3) primary email before secondary for the same card, then
+      // 4) by emails sorted alphabetically.
+      return (b.score - a.score) ||
+             (b.popularity - a.popularity) ||
+             ((a.card == b.card && a.isPrimaryEmail) ? -1 : 0) ||
+             a.value.localeCompare(b.value);
+    });
 
     if (result.matchCount) {
       result.searchResult = ACR.RESULT_SUCCESS;
@@ -432,6 +447,79 @@ nsAbAutoCompleteSearch.prototype = {
  */
 function encodeABTermValue(aString) {
   return encodeURIComponent(aString).replace(/\(/g, "%28").replace(/\)/g, "%29");
+}
+
+/**
+ * This is an exact replica of the method in abCommon.js and needs to
+ * be merged to remove this duplication.
+ *
+ * Parse the multiword search string to extract individual search terms
+ * (separated on the basis of spaces) or quoted exact phrases to search
+ * against multiple fields of the addressbook cards.
+ *
+ * @param aSearchString The full search string entered by the user.
+ *
+ * @return  an array of separated search terms from the full search string.
+ */
+function getSearchTokens(aSearchString)
+{
+  let searchString = aSearchString.trim();
+
+  if (searchString == "")
+    return [];
+
+  let quotedTerms = [];
+
+  // Split up multiple search words to create a *foo* and *bar* search against
+  // search fields, using the OR-search template from modelQuery for each word.
+  // If the search query has quoted terms as "foo bar", extract them as is.
+  let startIndex;
+  while ((startIndex = searchString.indexOf('"')) != -1) {
+    let endIndex = searchString.indexOf('"', startIndex + 1);
+    if (endIndex == -1)
+      endIndex = searchString.length;
+
+    quotedTerms.push(searchString.substring(startIndex + 1, endIndex));
+    let query = searchString.substring(0, startIndex);
+    if (endIndex < searchString.length)
+      query += searchString.substr(endIndex + 1);
+
+    searchString = query.trim();
+  }
+
+  let searchWords = [];
+  if (searchString.length != 0) {
+    searchWords = quotedTerms.concat(searchString.split(/\s+/));
+  } else {
+    searchWords = quotedTerms;
+  }
+
+  return searchWords;
+}
+
+/*
+ * Given a database model query and a list of search tokens,
+ * return query URI.
+ *
+ * @param aModelQuery database model query
+ * @param aSearchWords an array of search tokens.
+ *
+ * @return query URI.
+ */
+function generateQueryURI(aModelQuery, aSearchWords)
+{
+  // If there are no search tokens, we simply return an empty string.
+  if (!aSearchWords || aSearchWords.length == 0)
+    return "";
+
+  let queryURI = "";
+  aSearchWords.forEach(searchWord =>
+    queryURI += aModelQuery.replace(/@V/g, encodeABTermValue(searchWord)));
+
+  // queryURI has all the (or(...)) searches, link them up with (and(...)).
+  queryURI = "?(and" + queryURI + ")";
+
+  return queryURI;
 }
 
 // Module

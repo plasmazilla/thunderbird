@@ -9,11 +9,6 @@
   Outlook Express (Win32) import mail and addressbook interfaces
 
 */
-#ifdef MOZ_LOGGING
-// sorry, this has to be before the pre-compiled header
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
-
 #include "nscore.h"
 #include "nsMsgUtils.h"
 #include "nsStringGlue.h"
@@ -55,7 +50,6 @@ class ImportOEMailImpl : public nsIImportMail
 {
 public:
   ImportOEMailImpl();
-  virtual ~ImportOEMailImpl();
 
   static nsresult Create(nsIImportMail** aImport);
 
@@ -87,6 +81,7 @@ public:
   static void SetLogs(nsString& success, nsString& error, char16_t **pError, char16_t **pSuccess);
 
 private:
+  virtual ~ImportOEMailImpl();
   uint32_t m_bytesDone;
 };
 
@@ -95,7 +90,6 @@ class ImportOEAddressImpl : public nsIImportAddressBooks
 {
 public:
     ImportOEAddressImpl();
-    virtual ~ImportOEAddressImpl();
 
   static nsresult Create(nsIImportAddressBooks** aImport);
 
@@ -133,6 +127,7 @@ public:
   NS_IMETHOD SetSampleLocation(nsIFile *) { return NS_OK; }
 
 private:
+  virtual ~ImportOEAddressImpl();
   static void ReportSuccess(nsString& name, nsString *pStream);
 
 private:

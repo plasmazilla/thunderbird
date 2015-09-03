@@ -6,7 +6,7 @@
 # directory
 relativesrcdir = calendar/locales
 
-export MOZ_CHROME_FILE_FORMAT=jar
+USE_EXTENSION_MANIFEST = 1
 
 DEFINES += -DAB_CD=$(AB_CD) \
            -DTHEME=$(THEME) \

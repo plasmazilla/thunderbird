@@ -4,7 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 if ("@mozilla.org/suite/shell-service;1" in Components.classes)
-  const nsIShellService = Components.interfaces.nsIShellService;
+  var nsIShellService = Components.interfaces.nsIShellService;
 
 function Startup()
 {
@@ -56,4 +56,16 @@ function onSetDefault(aButton, aType)
   shellService.shouldBeDefaultClientFor |= nsIShellService[aType];
 
   aButton.disabled = true;
+}
+
+function onNewsChange(aChecked)
+{
+  let snews = document.getElementById("network.protocol-handler.external.snews");
+  let nntp = document.getElementById("network.protocol-handler.external.nntp");
+
+  if (!snews.locked)
+    snews.value = aChecked;
+
+  if (!nntp.locked)
+    nntp.value = aChecked;
 }

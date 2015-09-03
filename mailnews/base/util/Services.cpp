@@ -32,7 +32,7 @@ namespace mozilla {
 namespace services {
 
 namespace {
-class ShutdownObserver MOZ_FINAL : public nsIObserver
+class ShutdownObserver final : public nsIObserver
 {
 public:
   NS_DECL_ISUPPORTS
@@ -40,6 +40,8 @@ public:
 
   static void EnsureInitialized();
 private:
+  ~ShutdownObserver() {}
+
   void ShutdownServices();
   static ShutdownObserver *sShutdownObserver;
   static bool sShuttingDown;

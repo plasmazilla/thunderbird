@@ -33,6 +33,19 @@
     </content>
     <implementation implements="nsIObserver">
 
+     <constructor>
+      <![CDATA[
+        new MutationObserver(aMutations => {
+          if (!this.convView || !this.convView.loaded)
+            return;
+          if (this.hasAttribute("selected"))
+            this.convView.switchingToPanel();
+          else
+            this.convView.switchingAwayFromPanel();
+        }).observe(this, {attributes: true, attributeFilter: ["selected"]});
+      ]]>
+     </constructor>
+
      <destructor>
       <![CDATA[
         if (this.conv) {
@@ -74,6 +87,7 @@
              aTopic == "update-buddy-status" ||
              aTopic == "update-buddy-status" ||
              aTopic == "update-conv-chatleft" ||
+             aTopic == "update-conv-chatjoining" ||
              aTopic == "chat-update-topic")
            this.update();
          if (aTopic == "update-conv-title")
@@ -102,7 +116,7 @@
       <body>
       <![CDATA[
         this.setAttribute("displayname", this.displayName);
-        if (this.selected) {
+        if (this.selected && document.hasFocus()) {
           if (this.convView && this.convView.loaded) {
             this.conv.markAsRead();
             this.directedUnreadCount = 0;
@@ -135,7 +149,9 @@
         }
 
         if (this.conv.isChat) {
-          if (!this.conv.account.connected || this.conv.left)
+          if (this.conv.joining)
+            this.setAttribute("status", "joining");
+          else if (!this.conv.account.connected || this.conv.left)
             this.setAttribute("status", "left");
           else
             this.removeAttribute("status");

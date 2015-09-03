@@ -477,6 +477,13 @@ void nsPop3Service::AlertServerBusy(nsIMsgMailNewsUrl *url)
 
 NS_IMETHODIMP nsPop3Service::NewChannel(nsIURI *aURI, nsIChannel **_retval)
 {
+  return NewChannel2(aURI, nullptr, _retval);
+}
+
+NS_IMETHODIMP nsPop3Service::NewChannel2(nsIURI *aURI,
+                                         nsILoadInfo *aLoadInfo,
+                                         nsIChannel **_retval)
+{
   NS_ENSURE_ARG_POINTER(aURI);
   nsresult rv;
 
@@ -506,6 +513,9 @@ NS_IMETHODIMP nsPop3Service::NewChannel(nsIURI *aURI, nsIChannel **_retval)
   NS_ENSURE_TRUE(protocol, NS_ERROR_OUT_OF_MEMORY);
 
   rv = protocol->Initialize(aURI);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = protocol->SetLoadInfo(aLoadInfo);
   NS_ENSURE_SUCCESS(rv, rv);
 
   protocol->SetUsername(realUserName.get());

@@ -14,6 +14,9 @@ var gAddressBookBundle;
 const kDefaultSortColumn = "GeneratedName";
 const kDefaultAscending = "ascending";
 const kDefaultDescending = "descending";
+// kDefaultYear will be used in birthday calculations when no year is given;
+// this is a leap year so that Feb 29th works.
+const kDefaultYear = 2000;
 const kLdapUrlPrefix = "moz-abldapdirectory://";
 const kPersonalAddressbookURI = "moz-abmdbdirectory://abook.mab";
 const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
@@ -29,7 +32,7 @@ var DirPaneController =
       case "cmd_selectAll":
       case "cmd_delete":
       case "button_delete":
-      case "button_edit":
+      case "cmd_properties":
       case "cmd_newlist":
         return true;
       default:
@@ -85,17 +88,10 @@ var DirPaneController =
         }
         else
           return false;
-      case "button_edit":
+      case "cmd_properties":
         return (GetSelectedDirectory() != null);
       case "cmd_newlist":
-        selectedDir = GetSelectedDirectory();
-        if (selectedDir) {
-          var abDir = GetDirectoryFromURI(selectedDir);
-          if (abDir) {
-            return abDir.supportsMailingLists;
-          }
-        }
-        return false;
+        return true;
       default:
         return false;
     }
@@ -112,7 +108,7 @@ var DirPaneController =
         if (gDirTree)
           AbDeleteSelectedDirectory();
         break;
-      case "button_edit":
+      case "cmd_properties":
         AbEditSelectedDirectory();
         break;
       case "cmd_newlist":
@@ -504,10 +500,19 @@ function goNewListDialog(selectedAB)
 
 function goEditListDialog(abCard, listURI)
 {
+  var params = {
+    abCard: abCard,
+    listURI: listURI,
+    refresh: false, // This is an out param, true if OK in dialog is clicked.
+  };
+
   window.openDialog("chrome://messenger/content/addressbook/abEditListDialog.xul",
                     "",
                     "chrome,modal,resizable,centerscreen",
-                    {abCard:abCard, listURI:listURI});
+                    params);
+
+  if (params.refresh)
+    ChangeDirectoryByURI(listURI); // force refresh
 }
 
 function goNewCardDialog(selectedAB)
@@ -765,4 +770,13 @@ function makePhotoFile(aDir, aExtension) {
  */
 function encodeABTermValue(aString) {
   return encodeURIComponent(aString).replace(/\(/g, "%28").replace(/\)/g, "%29");
+}
+
+/**
+ * Validates the given year and returns it, if it looks sane.
+ * Returns kDefaultYear (a leap year), if no valid date is given.
+ * This ensures that month/day calculations still work.
+ */
+function saneBirthYear(aYear) {
+  return aYear && aYear < 10000 && aYear > 0 ? aYear : kDefaultYear;
 }

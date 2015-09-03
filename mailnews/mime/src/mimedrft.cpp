@@ -33,6 +33,7 @@
 #include "nsIIOService.h"
 #include "nsNetUtil.h"
 #include "comi18n.h"
+#include "nsIMsgAttachment.h"
 #include "nsIMsgCompFields.h"
 #include "nsMsgCompCID.h"
 #include "nsIMsgComposeService.h"
@@ -326,7 +327,6 @@ CreateCompositionFields(const char        *from,
                         const char        *organization,
                         const char        *subject,
                         const char        *references,
-                        const char        *other_random_headers,
                         const char        *priority,
                         const char        *newspost_url,
                         char              *charset,
@@ -402,11 +402,6 @@ CreateCompositionFields(const char        *from,
   if (references) {
     MIME_DecodeMimeHeader(references, charset, false, true, val);
     cFields->SetReferences(!val.IsEmpty() ? val.get() : references);
-  }
-
-  if (other_random_headers) {
-    MIME_DecodeMimeHeader(other_random_headers, charset, false, true, val);
-    cFields->SetOtherRandomHeaders(NS_ConvertUTF8toUTF16(!val.IsEmpty() ? val.get() : other_random_headers));
   }
 
   if (priority) {
@@ -1204,6 +1199,7 @@ mime_parse_stream_complete (nsMIMESession *stream)
     }
     else
     {
+      from = MimeHeaders_get(mdd->headers, HEADER_FROM,     false, false);
       repl = MimeHeaders_get(mdd->headers, HEADER_REPLY_TO, false, false);
       to   = MimeHeaders_get(mdd->headers, HEADER_TO,       false, true);
       cc   = MimeHeaders_get(mdd->headers, HEADER_CC,       false, true);
@@ -1241,7 +1237,7 @@ mime_parse_stream_complete (nsMIMESession *stream)
 
 
     CreateCompositionFields( from, repl, to, cc, bcc, fcc, grps, foll,
-      org, subj, refs, 0, priority, news_host,
+      org, subj, refs, priority, news_host,
       mdd->mailcharset,
       getter_AddRefs(fields));
 
@@ -1527,7 +1523,7 @@ mime_parse_stream_complete (nsMIMESession *stream)
   else
   {
     CreateCompositionFields( from, repl, to, cc, bcc, fcc, grps, foll,
-      org, subj, refs, 0, priority, news_host,
+      org, subj, refs, priority, news_host,
       mdd->mailcharset,
       getter_AddRefs(fields));
     if (fields)
@@ -1652,7 +1648,6 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
   int nAttachments = 0;
   //char *hdr_value = NULL;
   char *parm_value = NULL;
-  bool needURL = false;
   bool creatingMsgBody = true;
   bool bodyPart = false;
 
@@ -1702,7 +1697,6 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
   else
   {
     /* always allocate one more extra; don't ask me why */
-    needURL = true;
     newAttachment = new nsMsgAttachedFile;
     if (!newAttachment)
       return MIME_OUT_OF_MEMORY;

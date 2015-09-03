@@ -9,16 +9,6 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
-THEME = osx
-else
-THEME = windows
-endif
-
-DEFINES += -DTHEME=$(THEME)
-
-ifdef MOZ_UPDATER
-DEFINES += -DMOZ_UPDATER=1
-endif
+USE_EXTENSION_MANIFEST = 1
 
 include $(topsrcdir)/config/rules.mk

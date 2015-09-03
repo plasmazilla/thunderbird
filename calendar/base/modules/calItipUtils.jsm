@@ -283,20 +283,11 @@ cal.itip = {
                     if (itipItem.getItemList({}).length > 1 || isRecurringMaster) {
                         data.buttons.push("imipAcceptRecurrencesButton");
                         data.buttons.push("imipDeclineRecurrencesButton");
-                        // if imipMoreButton is used, the following should be removed to not
-                        // extend the number of buttons:
-                        data.buttons.push("imipTentativeRecurrencesButton");
-                        data.hideMenuItems.push("imipAcceptRecurrencesButton_Tentative");
                     } else {
                         data.buttons.push("imipAcceptButton");
                         data.buttons.push("imipDeclineButton");
-                        // if imipMoreButton is used, the following should be removed to not
-                        // extend the number of buttons:
-                        data.buttons.push("imipTentativeButton");
-                        data.hideMenuItems.push("imipAcceptButton_Tentative");
                     }
-                    // Add here data.buttons.push("imipMoreButton") once additional
-                    // options are implemented.
+                    data.buttons.push("imipMoreButton");
                     // Use data.hideMenuItems.push("idOfMenuItem") to hide specific menuitems
                     // from the dropdown menu of a button.  This might be useful to to remove
                     // a generally available option for a specific invitation, because the
@@ -373,22 +364,19 @@ cal.itip = {
             }
         }
 
-        let hdrParser = MailServices.headerParser;
-        let emails = {};
-
         // First check the recipient list
-        hdrParser.parseHeadersWithArray(aMsgHdr.recipients, emails, {}, {});
-        for each (let recipient in emails.value) {
-            if (recipient.toLowerCase() in emailMap) {
+        let toList = MailServices.headerParser.makeFromDisplayAddress(aMsgHdr.recipients);
+        for (let recipient of toList) {
+            if (recipient.name.toLowerCase() in emailMap) {
                 // Return the first found recipient
                 return recipient;
             }
         }
 
         // Maybe we are in the CC list?
-        hdrParser.parseHeadersWithArray(aMsgHdr.ccList, emails, {}, {});
-        for each (let recipient in emails.value) {
-            if (recipient.toLowerCase() in emailMap) {
+        let ccList = MailServices.headerParser.makeFromDisplayAddress(aMsgHdr.ccList);
+        for (let recipient of ccList) {
+            if (recipient.name.toLowerCase() in emailMap) {
                 // Return the first found recipient
                 return recipient;
             }
@@ -623,6 +611,11 @@ cal.itip = {
                     aItem = aItem.clone();
                     aItem.removeAllAttendees();
                     aItem.addAttendee(invitedAttendee);
+                    // we remove X-MS-OLK-SENDER to avoid confusing Outlook 2007+ (w/o Exchange)
+                    // about the notification sender (see bug 603933)
+                    if (aItem.hasProperty("X-MS-OLK-SENDER")) {
+                        aItem.deleteProperty("X-MS-OLK-SENDER");
+                    }
                     sendMessage(aItem, "REPLY", [aItem.organizer], autoResponse);
                 }
             }
@@ -800,6 +793,34 @@ cal.itip = {
         }
 
         return newItem;
+    },
+
+    /**
+     * Returns a copy of an itipItem with modified properties and items build from scratch
+     * Use itipItem.clone() instead if only a simple copy is required
+     *
+     * @param aItipItem     ItipItem to derive a new one from
+     * @param aItems        List of items to be contained in the new itipItem
+     * @param aProps        List of properties to be different in the new itipItem
+     */
+    getModifiedItipItem: function cal_getModifiedItipItem(aItipItem, aItems, aProps) {
+
+        let itipItem = Components.classes["@mozilla.org/calendar/itip-item;1"]
+                                 .createInstance(Components.interfaces.calIItipItem);
+        let serializedItems = "";
+        (aItems || []).forEach(function(item) serializedItems += cal.getSerializedItem(item));
+        itipItem.init(serializedItems);
+
+        let props = aProps || {};
+        itipItem.autoResponse = ("autoResponse" in props) ? props.autoResponse : aItipItem.autoResponse;
+        itipItem.identity = ("identity" in props) ? props.identity : aItipItem.identity;
+        itipItem.isSend = ("isSend" in props) ? props.isSend : aItipItem.isSend;
+        itipItem.localStatus = ("localStatus" in props) ? props.localStatus : aItipItem.localStatus;
+        itipItem.receivedMethod = ("receivedMethod" in props) ? props.receivedMethod : aItipItem.receivedMethod;
+        itipItem.responseMethod = ("responseMethod" in props) ? props.responseMethod : aItipItem.responseMethod;
+        itipItem.targetCalendar = ("targetCalendar" in props) ? properties.targetCalendar : aItipItem.targetCalendar;
+
+        return itipItem;
     }
 };
 

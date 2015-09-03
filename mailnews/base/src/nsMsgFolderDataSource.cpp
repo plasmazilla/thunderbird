@@ -118,6 +118,8 @@ nsIAtom * nsMsgFolderDataSource::kInVFEditSearchScopeAtom = nullptr;
 
 static const uint32_t kDisplayBlankCount = 0xFFFFFFFE;
 static const uint32_t kDisplayQuestionCount = 0xFFFFFFFF;
+static const int64_t kDisplayBlankCount64 = -2;
+static const int64_t kDisplayQuestionCount64 = -1;
 
 nsMsgFolderDataSource::nsMsgFolderDataSource()
 {
@@ -806,8 +808,8 @@ nsMsgFolderDataSource::OnItemPropertyChanged(nsIMsgFolder *resource,
 NS_IMETHODIMP
 nsMsgFolderDataSource::OnItemIntPropertyChanged(nsIMsgFolder *folder,
                                                 nsIAtom *property,
-                                                int32_t oldValue,
-                                                int32_t newValue)
+                                                int64_t oldValue,
+                                                int64_t newValue)
 {
   nsCOMPtr<nsIRDFResource> resource(do_QueryInterface(folder));
   if (kTotalMessagesAtom == property)
@@ -1454,19 +1456,19 @@ nsMsgFolderDataSource::createFolderSizeNode(nsIMsgFolder *folder, nsIRDFNode **t
   nsresult rv = folder->GetIsServer(&isServer);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  int32_t folderSize;
-  if(isServer)
-    folderSize = kDisplayBlankCount;
+  int64_t folderSize;
+  if (isServer) {
+    folderSize = kDisplayBlankCount64;
+  }
   else
   {
     // XXX todo, we are asserting here for news
-    // for offline news, we'd know the size on disk, right?
-    rv = folder->GetSizeOnDisk((uint32_t *) &folderSize);
+    // for offline news, we'd know the size on disk, right? Yes, bug 851275.
+    rv = folder->GetSizeOnDisk(&folderSize);
     NS_ENSURE_SUCCESS(rv, rv);
   }
-  GetFolderSizeNode(folderSize, target);
 
-  return rv;
+  return GetFolderSizeNode(folderSize, target);
 }
 
 nsresult
@@ -1758,7 +1760,7 @@ nsMsgFolderDataSource::OnFolderSortOrderPropertyChanged(nsIRDFResource *folderRe
 }
 
 nsresult
-nsMsgFolderDataSource::OnFolderSizePropertyChanged(nsIRDFResource *folderResource, int32_t oldValue, int32_t newValue)
+nsMsgFolderDataSource::OnFolderSizePropertyChanged(nsIRDFResource *folderResource, int64_t oldValue, int64_t newValue)
 {
   nsCOMPtr<nsIRDFNode> newNode;
   GetFolderSizeNode(newValue, getter_AddRefs(newNode));
@@ -1789,18 +1791,17 @@ nsMsgFolderDataSource::GetNumMessagesNode(int32_t aNumMessages, nsIRDFNode **nod
 }
 
 nsresult
-nsMsgFolderDataSource::GetFolderSizeNode(int32_t aFolderSize, nsIRDFNode **aNode)
+nsMsgFolderDataSource::GetFolderSizeNode(int64_t aFolderSize, nsIRDFNode **aNode)
 {
   nsresult rv;
-  uint32_t folderSize = aFolderSize;
-  if (folderSize == kDisplayBlankCount || folderSize == 0)
+  if (aFolderSize == kDisplayBlankCount64 || aFolderSize == 0)
     createNode(EmptyString().get(), aNode, getRDFService());
-  else if(folderSize == kDisplayQuestionCount)
+  else if (aFolderSize == kDisplayQuestionCount64)
     createNode(MOZ_UTF16("???"), aNode, getRDFService());
   else
   {
     nsAutoString sizeString;
-    rv = FormatFileSize(folderSize, true, sizeString);
+    rv = FormatFileSize(aFolderSize, true, sizeString);
     NS_ENSURE_SUCCESS(rv, rv);
 
     createNode(sizeString.get(), aNode, getRDFService());
@@ -2258,7 +2259,7 @@ bool nsMsgFlatFolderDataSource::ResourceIsOurRoot(nsIRDFResource *resource)
 bool nsMsgFlatFolderDataSource::WantsThisFolder(nsIMsgFolder *folder)
 {
   EnsureFolders();
-  return m_folders.IndexOf(folder) != kNotFound;
+  return m_folders.Contains(folder);
 }
 
 nsresult nsMsgFlatFolderDataSource::GetFolderDisplayName(nsIMsgFolder *folder, nsString& folderName)
@@ -2313,7 +2314,7 @@ nsresult nsMsgUnreadFoldersDataSource::NotifyPropertyChanged(nsIRDFResource *res
       folder->GetNumUnread(false, &numUnread);
       if (numUnread > 0)
       {
-        if (m_folders.IndexOf(folder) == kNotFound)
+        if (!m_folders.Contains(folder))
           m_folders.AppendObject(folder);
         NotifyObservers(kNC_UnreadFolders, kNC_Child, resource, nullptr, true, false);
       }
@@ -2395,13 +2396,13 @@ void nsMsgRecentFoldersDataSource::EnsureFolders()
           }
           index++;
         }
-        if (curFolderDate > oldestFaveDate && m_folders.IndexOf(curFolder) == kNotFound)
+        if (curFolderDate > oldestFaveDate && !m_folders.Contains(curFolder))
           m_folders.ReplaceObjectAt(curFolder, indexOfOldestFolder);
 
         NS_ASSERTION(newOldestFaveDate >= m_cutOffDate, "cutoff date should be getting bigger");
         m_cutOffDate = newOldestFaveDate;
       }
-      else if (m_folders.IndexOf(curFolder) == kNotFound)
+      else if (!m_folders.Contains(curFolder))
         m_folders.AppendObject(curFolder);
     }
 #ifdef DEBUG_David_Bienvenu
@@ -2428,7 +2429,7 @@ NS_IMETHODIMP nsMsgRecentFoldersDataSource::OnItemAdded(nsIMsgFolder *parentItem
   if (m_builtFolders)
   {
     nsCOMPtr<nsIMsgFolder> folder(do_QueryInterface(item));
-    if (folder && m_folders.IndexOf(folder) == kNotFound)
+    if (folder && !m_folders.Contains(folder))
     {
       m_folders.AppendObject(folder);
       nsCOMPtr<nsIRDFResource> resource = do_QueryInterface(item);
@@ -2454,7 +2455,7 @@ nsresult nsMsgRecentFoldersDataSource::NotifyPropertyChanged(nsIRDFResource *res
       folder->GetHasNewMessages(&hasNewMessages);
       if (hasNewMessages > 0)
       {
-        if (m_folders.IndexOf(folder) == kNotFound)
+        if (!m_folders.Contains(folder))
         {
           m_folders.AppendObject(folder);
           NotifyObservers(kNC_RecentFolders, kNC_Child, resource, nullptr, true, false);

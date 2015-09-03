@@ -61,7 +61,7 @@ function filterEditorOnLoad()
       // deferred, (you must define them on the deferredTo server instead).
       let server = gFilterList.folder.server;
       if (server.rootFolder != server.rootMsgFolder)
-        gFilterTypeSelector.disableAfterPlugins();
+        gFilterTypeSelector.disableDeferredAccount();
     }
 
     if ("filterPosition" in args)
@@ -90,7 +90,17 @@ function filterEditorOnLoad()
 
         var term = gFilter.createTerm();
 
-        term.attrib = Components.interfaces.nsMsgSearchAttrib.Sender;
+        term.attrib = Components.interfaces.nsMsgSearchAttrib.Default;
+        if (("fieldName" in args) && args.fieldName) {
+          // fieldName should contain the name of the field in which to search,
+          // from nsMsgSearchTerm.cpp::SearchAttribEntryTable, e.g. "to" or "cc"
+          try {
+            term.attrib = term.getAttributeFromString(args.fieldName);
+          } catch (e) { /* Invalid string is fine, just ignore it. */ }
+        }
+        if (term.attrib == Components.interfaces.nsMsgSearchAttrib.Default)
+          term.attrib = Components.interfaces.nsMsgSearchAttrib.Sender;
+
         term.op = Components.interfaces.nsMsgSearchOp.Is;
         term.booleanAnd = gSearchBooleanRadiogroup.value == "and";
 
@@ -240,6 +250,9 @@ function initializeFilterTypeSelector()
     menuitemBeforePlugins: document.getElementById("runBeforePlugins"),
     menuitemAfterPlugins: document.getElementById("runAfterPlugins"),
 
+    checkBoxArchive: document.getElementById("runArchive"),
+    checkBoxOutgoing: document.getElementById("runOutgoing"),
+
     /**
      * Returns the currently set filter type (checkboxes) in terms
      * of a Components.interfaces.nsMsgFilterType value.
@@ -264,6 +277,12 @@ function initializeFilterTypeSelector()
         }
       }
 
+      if (this.checkBoxArchive.checked)
+        type |= nsMsgFilterType.Archive;
+
+      if (this.checkBoxOutgoing.checked)
+        type |= nsMsgFilterType.PostOutgoing;
+
       return type;
     },
 
@@ -287,6 +306,10 @@ function initializeFilterTypeSelector()
       this.menulistIncoming.selectedItem = aType & nsMsgFilterType.PostPlugin ?
         this.menuitemAfterPlugins : this.menuitemBeforePlugins;
 
+      this.checkBoxArchive.checked  = aType & nsMsgFilterType.Archive;
+
+      this.checkBoxOutgoing.checked = aType & nsMsgFilterType.PostOutgoing;
+
       this.updateClassificationMenu();
     },
 
@@ -301,11 +324,12 @@ function initializeFilterTypeSelector()
     },
 
     /**
-     * Disable the "After classification" option for this filter.
+     * Disable the options unsuitable for deferred accounts.
      */
-    disableAfterPlugins: function()
+    disableDeferredAccount: function()
     {
       this.menuitemAfterPlugins.disabled = true;
+      this.checkBoxOutgoing.disabled = true;
     }
   };
 }
@@ -781,5 +805,10 @@ function getFilterScope(aServerFilterScope, aFilterType, aFilterList)
  */
 function setLastActionFocus() {
   let lastAction = gFilterActionList.getAttribute("focusedAction");
+  if (!lastAction || lastAction < 0)
+    lastAction = 0;
+  if (lastAction >= gFilterActionList.itemCount)
+    lastAction = gFilterActionList.itemCount - 1;
+
   gFilterActionList.getItemAtIndex(lastAction).mRuleActionType.menulist.focus();
 }

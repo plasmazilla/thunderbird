@@ -24,13 +24,12 @@ class nsLocalMoveCopyMsgTxn : public nsIFolderListener, public nsMsgTxn
 {
 public:
     nsLocalMoveCopyMsgTxn();
-    virtual ~nsLocalMoveCopyMsgTxn();
     NS_DECL_ISUPPORTS_INHERITED
     NS_DECL_NSIFOLDERLISTENER
 
     // overloading nsITransaction methods
-    NS_IMETHOD UndoTransaction(void) MOZ_OVERRIDE;
-    NS_IMETHOD RedoTransaction(void) MOZ_OVERRIDE;
+    NS_IMETHOD UndoTransaction(void) override;
+    NS_IMETHOD RedoTransaction(void) override;
 
     // helper
     nsresult AddSrcKey(nsMsgKey aKey);
@@ -54,6 +53,7 @@ public:
     void SetCanUndelete(bool canUndelete) {m_canUndelete = canUndelete;}
 
 private:
+    virtual ~nsLocalMoveCopyMsgTxn();
     nsWeakPtr m_srcFolder;
     nsTArray<nsMsgKey> m_srcKeyArray; // used when src is local or imap
     nsTArray<uint32_t> m_srcStatusOffsetArray; // used when src is local
@@ -64,7 +64,7 @@ private:
     bool m_canUndelete;
     nsTArray<uint32_t> m_dstSizeArray;
     bool m_undoing; // if false, re-doing
-    int32_t m_numHdrsCopied;
+    uint32_t m_numHdrsCopied;
     nsTArray<nsCString> m_copiedMsgIds;
     nsLocalUndoFolderListener *mUndoFolderListener;
 };
@@ -76,9 +76,9 @@ public:
   NS_DECL_NSIFOLDERLISTENER
 
   nsLocalUndoFolderListener(nsLocalMoveCopyMsgTxn *aTxn, nsIMsgFolder *aFolder);
-  virtual ~nsLocalUndoFolderListener();
 
 private:
+  virtual ~nsLocalUndoFolderListener();
   nsLocalMoveCopyMsgTxn *mTxn;
   nsIMsgFolder *mFolder;
 };

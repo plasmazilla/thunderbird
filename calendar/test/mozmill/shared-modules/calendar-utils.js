@@ -303,9 +303,8 @@ function deleteCalendars(controller, name){
   let cals = manager.getCalendars({});
 
   for (let i = 0; i < cals.length; i++)
-    if (cals[i].name == name){
-      manager.unregisterCalendar(cals[i]);
-      manager.deleteCalendar(cals[i]);
+    if (cals[i].name == name) {
+        manager.removeCalendar(cals[i]);
     }
 }
 

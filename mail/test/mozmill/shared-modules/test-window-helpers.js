@@ -223,7 +223,7 @@ var WindowWatcher = {
     //  window type yet.
     // because this iterates from old to new, this does the right thing in that
     //  side-effects of consider will pick the most recent window.
-    for each (let xulWindow in fixIterator(
+    for (let xulWindow in fixIterator(
                                  mozmill.wm.getXULWindowEnumerator(null),
                                  Ci.nsIXULWindow)) {
       if (!this.consider(xulWindow))
@@ -261,7 +261,7 @@ var WindowWatcher = {
     //  time in the sun.
     controller.sleep(0);
     this._firstWindowOpened = true;
-    // wrap the creation because 
+    // wrap the creation because
     mark_action("winhelp", "new MozMillController()", [aWindowType]);
     let c = new controller.MozMillController(domWindow);
     mark_action("winhelp", "/new MozMillController()", [aWindowType]);
@@ -312,6 +312,7 @@ var WindowWatcher = {
 
       let self = this;
       function startTest() {
+        self.planForWindowClose(troller.window);
         try {
           let runner = new frame.Runner(collector);
           runner.wrapper(self.subTestFunc, troller);
@@ -324,6 +325,7 @@ var WindowWatcher = {
         // except I'm not sure how to easily figure that out...
         // so just close it no matter what.
         troller.window.close();
+        self.waitForWindowClose();
 
         self.waitingList.delete(self.waitingForOpen);
         // now we are waiting for it to close...
@@ -399,8 +401,8 @@ var WindowWatcher = {
                   "Timeout waiting for window to close!",
       WINDOW_CLOSE_TIMEOUT_MS, WINDOW_CLOSE_CHECK_INTERVAL_MS, this);
     let didDisappear = (this.waitingList.get(this.waitingForClose) == null);
-    this.waitingList.delete(windowType);
     let windowType = this.waitingForClose;
+    this.waitingList.delete(windowType);
     this.waitingForClose = null;
     if (!didDisappear)
       throw new Error(windowType + " window did not disappear!");
@@ -723,7 +725,7 @@ function wait_for_frame_load(aFrame, aURLOrPredicate) {
  * Generic function to wait for some sort of document to load. We expect
  * aDetails to have three fields:
  * - webProgress: an nsIWebProgress associated with the contentWindow.
- * - currentURI: the currently loaded page (nsIURI). 
+ * - currentURI: the currently loaded page (nsIURI).
  * - contentWindow: the content window.
  */
 function _wait_for_generic_load(aDetails, aURLOrPredicate) {
@@ -950,12 +952,11 @@ var AugmentEverybodyWith = {
      * @param aKeepOpen  If set to true the popups are not closed after last click.
      *
      * @return  An array of popup elements that were left open. It will be
-     *          an empty array if aKeepOpen was set to true.
+     *          an empty array if aKeepOpen was set to false.
      */
     click_menus_in_sequence: function _click_menus(aRootPopup, aActions, aKeepOpen) {
       if (aRootPopup.state == "closed")
         aRootPopup.openPopup(null, "", 0, 0, true, true);
-      aRootPopup.focus(); // This is a hack that can be removed once the focus issues on Linux are solved.
       if (aRootPopup.state != "open") { // handle "showing"
         utils.waitFor(function() { return aRootPopup.state == "open"; },
                       "Popup never opened! id=" + aRootPopup.id +
@@ -1009,7 +1010,6 @@ var AugmentEverybodyWith = {
                           iAction + ": " + JSON.stringify(actionObj));
 
         this.click(new elib.Elem(matchingNode));
-        matchingNode.focus(); // This is a hack that can be removed once the focus issues on Linux are solved.
         if ("menupopup" in matchingNode) {
           curPopup = matchingNode.menupopup;
           closeStack.push(curPopup);
@@ -1179,11 +1179,11 @@ var PerWindowTypeAugmentations = {
       aController.window.MessageDisplayWidget.prototype
                  .SUMMARIZATION_SELECTION_STABILITY_INTERVAL_MS = 0;
     },
-    
+
     /**
      * Used to wrap methods on a class prototype in order to generate
      *  mark_action data about the call.
-     */         
+     */
     debugTrace: [
       // wrap 3pane unload function to notice when it explodes
       {
@@ -1246,21 +1246,21 @@ var PerWindowTypeAugmentations = {
       },
       // Message summarization annotations
       {
-        method: "summarize",
-        onConstructor: "MultiMessageSummary",
-        reportAs: "MD_MultiMessageSummary_summarize",
+        method: "summarizeThread",
+        onGlobal: true,
+        reportAs: "summarizeThread",
         showArgs: false,
       },
       {
-        method: "onQueryCompleted",
-        onConstructor: "MultiMessageSummary",
-        reportAs: "MD_*Summary_onQueryCompleted",
+        method: "summarizeMultipleSelection",
+        onGlobal: true,
+        reportAs: "summarizeMultipleSelection",
         showArgs: false,
       },
       {
-        method: "summarize",
-        onConstructor: "ThreadSummary",
-        reportAs: "MD_ThreadSummary_summarize",
+        method: "summarizeFolder",
+        onGlobal: true,
+        reportAs: "summarizeFolder",
         showArgs: false,
       },
     ],

@@ -87,10 +87,10 @@ pref("app.update.certs.2.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US"
 pref("app.update.certs.2.commonName", "aus4.mozilla.org");
 
 // Whether or not app updates are enabled
-pref("app.update.enabled", true);               
+pref("app.update.enabled", true);
 
 // This preference turns on app.update.mode and allows automatic download and
-// install to take place. We use a separate boolean toggle for this to make     
+// install to take place. We use a separate boolean toggle for this to make
 // the UI easier to construct.
 pref("app.update.auto", true);
 
@@ -119,7 +119,7 @@ pref("app.update.url", "https://aus4.mozilla.org/update/3/%PRODUCT%/%VERSION%/%B
 // attempts fail.
 pref("app.update.url.manual", "http://www.getthunderbird.com");
 // A default value for the "More information about this update" link
-// supplied in the "An update is available" page of the update wizard. 
+// supplied in the "An update is available" page of the update wizard.
 pref("app.update.url.details", "http://www.mozilla.org/%LOCALE%/%APP%/releases/");
 // User-settable override to app.update.url for testing purposes.
 //pref("app.update.url.override", "");
@@ -130,7 +130,7 @@ pref("app.update.url.details", "http://www.mozilla.org/%LOCALE%/%APP%/releases/"
 pref("app.update.idletime", 60);
 
 // Whether or not we show a dialog box informing the user that the update was
-// successfully applied. This is off in Firefox by default since we show a 
+// successfully applied. This is off in Firefox by default since we show a
 // upgrade start page instead! Other apps may wish to show this UI, and supply
 // a whatsNewURL field in their brand.properties that contains a link to a page
 // which tells users what's new in this new update.
@@ -144,8 +144,15 @@ pref("app.update.service.enabled", true);
 // Release notes URL
 pref("app.releaseNotesURL", "http://live.mozillamessaging.com/%APP%/releasenotes?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
 
+// URL for "Learn More" for Crash Reporter.
+pref("toolkit.crashreporter.infoURL",
+     "http://www.mozilla.org/thunderbird/legal/privacy/#crash-reporter");");
+
 // Base URL for web-based support pages.
 pref("app.support.baseURL", "http://support.live.mozillamessaging.com/%LOCALE%/%APP%/%APPBUILDID%/");
+
+// Show error messages in error console.
+pref("javascript.options.showInConsole", true);
 
 // Controls enabling of the extension system logging (can reduce performance)
 pref("extensions.logging.enabled", false);
@@ -158,6 +165,10 @@ pref("extensions.strictCompatibility", false);
 pref("extensions.minCompatibleAppVersion", "5.0");
 
 pref("extensions.update.autoUpdateDefault", true);
+
+pref("extensions.hotfix.id", "thunderbird-hotfix@mozilla.org");
+pref("extensions.hotfix.cert.checkAttributes", true);
+pref("extensions.hotfix.certs.1.sha1Fingerprint", "91:53:98:0C:C1:86:DF:47:8F:35:22:9E:11:C9:A7:31:04:49:A1:AA");
 
 // Disable add-ons installed into the shared user and shared system areas by
 // default. This does not include the application directory. See the SCOPE
@@ -176,12 +187,12 @@ pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%
 // Blocklist preferences
 pref("extensions.blocklist.enabled", true);
 pref("extensions.blocklist.interval", 86400);
-pref("extensions.blocklist.url", "https://addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
+pref("extensions.blocklist.url", "https://blocklist.addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
 pref("extensions.blocklist.detailsURL", "https://addons.mozilla.org/%LOCALE%/%APP%/blocked/");
-pref("extensions.blocklist.itemURL", "https://addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
+pref("extensions.blocklist.itemURL", "https://blocklist.addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
 
-// Enables some extra Extension System Logging (can reduce performance) 
-pref("extensions.logging.enabled", false); 
+// Enables some extra Extension System Logging (can reduce performance)
+pref("extensions.logging.enabled", false);
 
 // Symmetric (can be overridden by individual extensions) update preferences.
 // e.g.
@@ -193,10 +204,12 @@ pref("extensions.logging.enabled", false);
 pref("extensions.update.enabled", true);
 pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
 
-pref("extensions.update.interval", 86400);  // Check for updates to Extensions and 
+pref("extensions.update.background.url", "https://versioncheck-bg.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
+
+pref("extensions.update.interval", 86400);  // Check for updates to Extensions and
                                             // Themes every day
 
-pref("extensions.dss.enabled", false);          // Dynamic Skin Switching                                               
+pref("extensions.dss.enabled", false);          // Dynamic Skin Switching
 pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
 
 pref("extensions.{972ce4c6-7e08-4474-a285-3208198ce6fd}.name", "chrome://messenger/locale/messenger.properties");
@@ -218,6 +231,14 @@ pref("mail.spellcheck.inline", true);
 
 pref("mail.folder.views.version", 0);
 
+pref("mail.folderpane.showColumns", false);
+// Force the unit shown for the size of all folders. If empty, the unit
+// is determined automatically for each folder. Allowed values: KB/MB/<empty string>
+pref("mail.folderpane.sizeUnits", "");
+// Summarize messages count and size of subfolders into a collapsed parent?
+// Allowed values: true/false
+pref("mail.folderpane.sumSubfolders", true);
+
 // target folder URI used for the last move or copy
 pref("mail.last_msg_movecopy_target_uri", "");
 // last move or copy operation was a move
@@ -237,6 +258,9 @@ pref("browser.preferences.animateFadeIn", true);
 pref("browser.preferences.animateFadeIn", false);
 #endif
 
+// load the Preferences in a tab
+pref("mail.preferences.inContent", false);
+
 pref("browser.download.show_plugins_in_list", false);
 pref("browser.download.hide_plugins_without_extensions", true);
 
@@ -252,7 +276,7 @@ pref("mail.close_message_window.on_delete", false);
 pref("mailnews.headers.show_n_lines_before_more", 1);
 
 // We want to keep track of what items are appropriate in
-// localstore.rdf.  We use versioning to scrub out the things
+// XULStore.json. We use versioning to scrub out the things
 // that have become obsolete.
 pref("mail.ui-rdf.version", 0);
 
@@ -302,7 +326,7 @@ pref("mail.default_html_action", 3);
 
 /////////////////////////////////////////////////////////////////
 // End core mailnews.js pref overrides
-///////////////////////////////////////////////////////////////// 
+/////////////////////////////////////////////////////////////////
 
 /////////////////////////////////////////////////////////////////
 // Overrides for generic app behavior from the core all.js
@@ -324,9 +348,9 @@ pref("offline.download.download_messages",  0);
 #ifdef UNIX_BUT_NOT_MAC
 pref("offline.autoDetect", false);
 #else
-// Windows and Mac can automatically move the user offline or online based on 
+// Windows and Mac can automatically move the user offline or online based on
 // the network connection.
-pref("offline.autoDetect", true); 
+pref("offline.autoDetect", true);
 #endif
 
 // Expose only select protocol handlers. All others should go
@@ -372,10 +396,10 @@ pref("toolkit.telemetry.infoURL", "http://www.mozilla.org/thunderbird/legal/priv
 pref("mousewheel.withcontrolkey.action", 3);
 /////////////////////////////////////////////////////////////////
 // End core all.js pref overrides
-///////////////////////////////////////////////////////////////// 
+/////////////////////////////////////////////////////////////////
 
 /////////////////////////////////////////////////////////////////
-// Generic browser related prefs. 
+// Generic browser related prefs.
 /////////////////////////////////////////////////////////////////
 pref("browser.send_pings", false);
 pref("browser.chrome.toolbar_tips",         true);
@@ -389,19 +413,21 @@ pref("browser.download.folderList", 0);
 pref("browser.download.manager.showAlertOnComplete", false);
 pref("browser.download.manager.showAlertInterval", 2000);
 pref("browser.download.manager.retention", 1);
-pref("browser.download.manager.showWhenStarting", true);
+pref("browser.download.manager.showWhenStarting", false);
 pref("browser.download.manager.closeWhenDone", true);
-pref("browser.download.manager.openDelay", 100);
 pref("browser.download.manager.focusWhenStarting", false);
 pref("browser.download.manager.flashCount", 0);
 pref("browser.download.manager.addToRecentDocs", true);
+#ifndef XP_MACOSX
+pref("browser.helperApps.deleteTempFileOnExit", true);
+#endif
 
 pref("spellchecker.dictionary", "");
 // Dictionary download preference
 pref("spellchecker.dictionaries.download.url", "https://addons.mozilla.org/%LOCALE%/%APP%/dictionaries/");
 
 // profile.force.migration can be used to bypass the migration wizard, forcing migration from a particular
-// mail application without any user intervention. Possible values are: 
+// mail application without any user intervention. Possible values are:
 // seamonkey (mozilla suite), eudora, oexpress, outlook.
 pref("profile.force.migration", "");
 
@@ -413,29 +439,10 @@ pref("alerts.totalOpenTime", 10000);
 pref("mail.phishing.detection.enabled", true);
 // If phishing detection is enabled, allow fine grained control
 // of the local, static tests
-pref("mail.phishing.detection.ipaddresses", true); 
+pref("mail.phishing.detection.ipaddresses", true);
 pref("mail.phishing.detection.mismatched_hosts", true);
 
-pref("browser.safebrowsing.enabled", false);
-
-// Non-enhanced mode (local url lists) URL list to check for updates
-pref("browser.safebrowsing.provider.0.updateURL", "");
-pref("browser.safebrowsing.dataProvider", 0);
-
-// Does the provider name need to be localizable?
-pref("browser.safebrowsing.provider.0.name", "");
-pref("browser.safebrowsing.provider.0.lookupURL", "");
-pref("browser.safebrowsing.provider.0.keyURL", "");
-pref("browser.safebrowsing.provider.0.reportURL", "");
-
-// HTML report pages
-pref("browser.safebrowsing.provider.0.reportGenericURL", "http://{moz:locale}.phish-generic.mozilla.com/?hl={moz:locale}");
-pref("browser.safebrowsing.provider.0.reportErrorURL", "http://{moz:locale}.phish-error.mozilla.com/?hl={moz:locale}");
-pref("browser.safebrowsing.provider.0.reportPhishURL", "http://{moz:locale}.phish-report.mozilla.com/?hl={moz:locale}");
-
-// FAQ URL
-// XXX Firefox is hard-coded because we haven't got our own version yet.
-pref("browser.safebrowsing.warning.infoURL", "https://www.mozilla.org/%LOCALE%/firefox/phishing-protection/");
+pref("browser.safebrowsing.reportPhishURL", "http://%LOCALE%.phish-report.mozilla.com/?hl=%LOCALE%");
 
 // prevent status-bar spoofing even if people are foolish enough to turn on JS
 pref("dom.disable_window_status_change",          true);
@@ -465,7 +472,7 @@ pref("mail.tabs.closeWindowWithLastTab", true);
 pref("mail.tabs.closeButtons", 1);
 
 // Allow the tabs to be in the titlebar on supported systems
-#ifdef XP_MACOSX
+#ifdef UNIX_BUT_NOT_MAC
 pref("mail.tabs.drawInTitlebar", false);
 #else
 pref("mail.tabs.drawInTitlebar", true);
@@ -561,11 +568,8 @@ pref("mailnews.migration.header_addons_url","http://live.mozillamessaging.com/%A
 pref("font.default", "sans-serif");
 pref("font.default.x-unicode", "sans-serif");
 pref("font.default.x-western", "sans-serif");
-pref("font.default.x-central-euro", "sans-serif");
 pref("font.default.x-cyrillic", "sans-serif");
-pref("font.default.x-baltic", "sans-serif");
 pref("font.default.el", "sans-serif");
-pref("font.default.tr", "sans-serif");
 
 #ifdef XP_MACOSX
 pref("font.name.sans-serif.x-unicode", "Lucida Grande");
@@ -582,13 +586,6 @@ pref("font.name-list.monospace.x-western", "Menlo, Monaco");
 pref("font.size.variable.x-western", 15);
 pref("font.size.fixed.x-western", 12);
 
-pref("font.name.sans-serif.x-central-euro", "Lucida Grande");
-pref("font.name.monospace.x-central-euro", "Menlo");
-pref("font.name-list.sans-serif.x-central-euro", "Lucida Grande");
-pref("font.name-list.monospace.x-central-euro", "Menlo, Monaco");
-pref("font.size.variable.x-central-euro", 15);
-pref("font.size.fixed.x-central-euro", 12);
-
 pref("font.name.sans-serif.x-cyrillic", "Lucida Grande");
 pref("font.name.monospace.x-cyrillic", "Menlo");
 pref("font.name-list.sans-serif.x-cyrillic", "Lucida Grande");
@@ -596,26 +593,12 @@ pref("font.name-list.monospace.x-cyrillic", "Menlo, Monaco");
 pref("font.size.variable.x-cyrillic", 15);
 pref("font.size.fixed.x-cyrillic", 12);
 
-pref("font.name.sans-serif.x-baltic", "Lucida Grande");
-pref("font.name.monospace.x-baltic", "Menlo");
-pref("font.name-list.sans-serif.x-baltic", "Lucida Grande");
-pref("font.name-list.monospace.x-baltic", "Menlo, Monaco");
-pref("font.size.variable.x-baltic", 15);
-pref("font.size.fixed.x-baltic", 12);
-
 pref("font.name.sans-serif.el", "Lucida Grande");
 pref("font.name.monospace.el", "Menlo");
 pref("font.name-list.sans-serif.el", "Lucida Grande");
 pref("font.name-list.monospace.el", "Menlo, Monaco");
 pref("font.size.variable.el", 15);
 pref("font.size.fixed.el", 12);
-
-pref("font.name.sans-serif.tr", "Lucida Grande");
-pref("font.name.monospace.tr", "Menlo");
-pref("font.name-list.sans-serif.tr", "Lucida Grande");
-pref("font.name-list.monospace.tr", "Menlo, Monaco");
-pref("font.size.variable.tr", 15);
-pref("font.size.fixed.tr", 12);
 #endif
 
 // Since different versions of Windows need different settings, we'll handle
@@ -634,25 +617,13 @@ pref("font.name-list.serif.x-western", "serif");
 pref("font.name-list.sans-serif.x-western", "sans-serif");
 pref("font.name-list.monospace.x-western", "monospace");
 
-pref("font.name-list.serif.x-central-euro", "serif");
-pref("font.name-list.sans-serif.x-central-euro", "sans-serif");
-pref("font.name-list.monospace.x-central-euro", "monospace");
-
 pref("font.name-list.serif.x-cyrillic", "serif");
 pref("font.name-list.sans-serif.x-cyrillic", "sans-serif");
 pref("font.name-list.monospace.x-cyrillic", "monospace");
 
-pref("font.name-list.serif.x-baltic", "serif");
-pref("font.name-list.sans-serif.x-baltic", "sans-serif");
-pref("font.name-list.monospace.x-baltic", "monospace");
-
 pref("font.name-list.serif.el", "serif");
 pref("font.name-list.sans-serif.el", "sans-serif");
 pref("font.name-list.monospace.el", "monospace");
-
-pref("font.name-list.serif.tr", "serif");
-pref("font.name-list.sans-serif.tr", "sans-serif");
-pref("font.name-list.monospace.tr", "monospace");
 #endif
 
 pref("mail.font.windows.version", 0);
@@ -686,10 +657,10 @@ pref("browser.tabs.loadDivertedInBackground", false);
 pref("browser.chrome.site_icons", true);
 pref("browser.chrome.favicons", true);
 
-// Disable places by default as we don't want to store global history
+// Enable places by default as we want to store global history for visited links
 // Below we define reasonable defaults as copied from Firefox so that we have
-// something sensible should an extension wish to enable this.
-pref("places.history.enabled", false);
+// something sensible.
+pref("places.history.enabled", true);
 
 // With places disabled by default, the default growth increment is set to zero
 // as it would otherwise default to 10MB as the minimum space occupied by the
@@ -769,9 +740,8 @@ pref("pfs.datasource.url", "https://pfs.mozilla.org/plugins/PluginFinderService.
 php?mimetype=%PLUGIN_MIMETYPE%&appID=%APP_ID%&appVersion=%APP_VERSION%&clientOS=
 %CLIENT_OS%&chromeLocale=%CHROME_LOCALE%&appRelease=%APP_RELEASE%");
 
-// By default we show an infobar message when pages require plugins the user has
-// not installed, or are outdated.
-pref("plugins.hide_infobar_for_missing_plugin", false);
+// By default we show an infobar message when pages require plugins that are
+// outdated.
 pref("plugins.hide_infobar_for_outdated_plugin", false);
 
 #ifdef XP_MACOSX
@@ -783,9 +753,19 @@ pref("plugins.update.url", "https://www.mozilla.org/%LOCALE%/plugincheck/");
 pref("plugins.update.notifyUser", false);
 pref("plugins.crash.supportUrl", "https://live.mozillamessaging.com/%APP%/plugin-crashed?locale=%LOCALE%&version=%VERSION%&os=%OS%&buildid=%APPBUILDID%");
 
-// let all plugins except Flash default to click-to-play
-pref("plugin.default.state", 1);
+// Click-to-play has not been ported for TB yet, see bug 814168.
+// The default plugin state should be changed to "ask to activate" when this
+// has been done.
+pref("plugins.click_to_play", false);
+// Disable by default.
+pref("plugin.default.state", 0);
+
+// Plugins bundled in XPIs are enabled by default.
+pref("plugin.defaultXpi.state", 2);
+
+// Flash is enabled and Java is disabled by default.
 pref("plugin.state.flash", 2);
+pref("plugin.state.java", 0);
 
 // Windows taskbar support
 #ifdef XP_WIN
@@ -793,12 +773,17 @@ pref("mail.taskbar.lists.enabled", true);
 pref("mail.taskbar.lists.tasks.enabled", true);
 #endif
 
+// Disable hardware accelerated layers
+pref("layers.acceleration.disabled", true);
+#ifdef XP_WIN
+// and direct2d support on Windows.
+pref("gfx.direct2d.disabled", true);
+#endif
+ 
 // Account provisioner.
 pref("mail.provider.providerList", "https://broker-live.mozillamessaging.com/provider/list");
 pref("mail.provider.suggestFromName", "https://broker-live.mozillamessaging.com/provider/suggest");
 pref("mail.provider.enabled", true);
-
-pref("mail.websearch.open_externally", false);
 
 // Pointer to the default engine name.
 pref("browser.search.defaultenginename", "chrome://messenger-region/locale/region.properties");
@@ -808,24 +793,36 @@ pref("browser.search.order.1", "chrome://messenger-region/locale/region.properti
 pref("browser.search.order.2", "chrome://messenger-region/locale/region.properties");
 pref("browser.search.order.3", "chrome://messenger-region/locale/region.properties");
 
+pref("browser.search.defaultenginename.US", "data:text/plain,browser.search.defaultenginename.US=Bing");
+pref("browser.search.order.US.1", "data:text/plain,browser.search.defaultenginename.US=Bing");
+pref("browser.search.order.US.2", "data:text/plain,browser.search.defaultenginename.US=Yahoo");
+pref("browser.search.order.US.3", "data:text/plain,browser.search.defaultenginename.US=");
+
 // XXX Don't update yet, until we've verified how that affects us.
 pref("browser.search.update", false);
 
 // Check whether we need to perform engine updates every 6 hours
 pref("browser.search.update.interval", 21600);
 
+// Disable search suggestions for now
+pref("browser.search.suggest.enabled", false);
+
 // Disable remote debugging protocol logging
 pref("devtools.debugger.log", false);
 
 pref("mail.chat.enabled", true);
+// Whether to show chat notifications or not.
 pref("mail.chat.show_desktop_notifications", true);
+// Decide how much information is to be shown in the notification.
+// 0 == Show all info (sender, chat message message preview),
+// 1 == Show sender's info only (not message preview),
+// 2 == No info (fill dummy values).
+pref("mail.chat.notification_info", 0);
 pref("mail.chat.play_sound", true);
 // 0 == default system sound, 1 == user specified wav
 pref("mail.chat.play_sound.type", 0);
 // if sound is user specified, this needs to be a file url
 pref("mail.chat.play_sound.url", "");
-// Send typing notification in private conversations
-pref("purple.conversations.im.send_typing", true);
 
 // BigFiles
 pref("mail.cloud_files.enabled", true);
@@ -836,6 +833,7 @@ pref("mail.cloud_files.learn_more_url", "https://support.mozillamessaging.com/kb
 pref("mail.ignore_thread.learn_more_url", "https://support.mozillamessaging.com/kb/ignore-threads");
 
 // Sanitize dialog window
+pref("privacy.cpd.history", true);
 pref("privacy.cpd.cookies", true);
 pref("privacy.cpd.cache", true);
 
@@ -853,6 +851,14 @@ pref("mail.pgpmime.addon_url", "https://addons.mozilla.org/thunderbird/addon/eni
 // If set to true, Thunderbird will collapse the main menu for new profiles
 // (or, more precisely, profiles that start with no accounts created).
 pref("mail.main_menu.collapse_by_default", true);
+
 // If set to true, when saving a message to a file, use underscore
 // instead of space in the file name.
 pref("mail.save_msg_filename_underscores_for_space", false);
+
+// Disable cache v2 since migration has not been done, it is pending in bug 1021843.
+pref("browser.cache.use_new_backend",       0);
+pref("browser.cache.use_new_backend_temp",  false);
+
+// calendar promotion status
+pref("mail.calendar-integration.opt-out", false);

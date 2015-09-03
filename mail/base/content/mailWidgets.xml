@@ -280,9 +280,8 @@
       <method name="_fireOnSelect">
         <body><![CDATA[
           if (!this._suppressOnSelect && !this.suppressOnSelect) {
-            let evt = document.createEvent("Events");
-            evt.initEvent("select", false, true);
-            this.dispatchEvent(evt);
+            this.dispatchEvent(new Event("select",
+                                         { bubbles: false, cancelable: true }));
           }
         ]]></body>
       </method>
@@ -589,6 +588,17 @@
         <body>
           <![CDATA[
             this.mAddresses.push(aAddress);
+          ]]>
+        </body>
+      </method>
+
+      <!-- resetAddressView: a public method used to reset addresses shown by
+           this widget
+      -->
+      <method name="resetAddressView">
+        <body>
+          <![CDATA[
+            this.mAddresses.length = 0;
           ]]>
         </body>
       </method>
@@ -913,7 +923,7 @@
             // don't interact properly (bug 492645), without which we
             // would be inadvertently occluding too much of the message header
             // text and forcing the user to scroll unnecessarily (bug 525225).
-            // 
+            //
             // Fake the "All Headers" mode, so that we get a scroll bar
             // Will be reset when a new message loads
             document.getElementById("expandedHeaderView").setAttribute("show_header_mode","all");
@@ -1026,7 +1036,7 @@
   </binding>
 
   <!-- The value of the Newsgroups: headers, as displayed in the message,
-       header, composed of <mail-newsgroup> nodes.  -->      
+       header, composed of <mail-newsgroup> nodes.  -->
   <binding id="mail-newsgroups-headerfield">
     <content>
       <xul:hbox class="headerValueBox" flex="1">
@@ -1441,7 +1451,7 @@
       <property name="label" onget="return document.getAnonymousNodes(this)[0].selectedItem.getAttribute('label');">
       </property>
       <property name="validMenuitem" readonly="true">
-      <!-- Prepare menulist selection, adding a missing hidden menuitem if needed, and 
+      <!-- Prepare menulist selection, adding a missing hidden menuitem if needed, and
         updating the disabled state of the menulist label. -->
         <getter>
           <![CDATA[
@@ -1545,6 +1555,10 @@
               if (args.selectedVal) {
                 let menuitem = menulist.querySelector('[label="' + args.selectedVal + '"]');
                 this.value = menuitem.value;
+              } else {
+                // Nothing was picked in the custom headers editor so just pick something
+                // instead of the current "Customize" menuitem.
+                this.value = menulist.getItemAtIndex(0).value;
               }
             }
             else
@@ -1826,9 +1840,9 @@
             }
 
               // if it's not sender, to, cc, alladdresses, or toorcc, we don't care
-              if (this.searchAttribute != Components.interfaces.nsMsgSearchAttrib.Sender && 
-                this.searchAttribute != Components.interfaces.nsMsgSearchAttrib.To && 
-                this.searchAttribute != Components.interfaces.nsMsgSearchAttrib.ToOrCC && 
+              if (this.searchAttribute != Components.interfaces.nsMsgSearchAttrib.Sender &&
+                this.searchAttribute != Components.interfaces.nsMsgSearchAttrib.To &&
+                this.searchAttribute != Components.interfaces.nsMsgSearchAttrib.ToOrCC &&
                 this.searchAttribute != Components.interfaces.nsMsgSearchAttrib.AllAddresses &&
                 this.searchAttribute != Components.interfaces.nsMsgSearchAttrib.CC ) {
               this.internalOperator = val;
@@ -2178,7 +2192,7 @@
 
         // initialize the has attachment status picker
         this.initialize(document.getAnonymousNodes(this)[7], bundle);
-        
+
         // initialize the junk score origin picker
         this.initialize(document.getAnonymousNodes(this)[8], bundle);
 
@@ -2542,10 +2556,10 @@
                   catch (ex) { }
                 }
 
-                var names = {};
-                var emails = {};
-                let numAddresses = MailServices.headerParser.parseHeadersWithArray(msgHdr.mime2DecodedAuthor, emails, names, {});
-                msgPopup.setAttribute('sender', names.value[0] ? names.value[0] : emails.value[0]);
+                let addrs = MailServices.headerParser.parseEncodedHeader(
+                  msgHdr.author, msgHdr.effectiveCharset, false);
+                if (addrs.length > 0)
+                  msgPopup.setAttribute('sender', addrs[0].name || addrs[0].email);
                 msgPopup.msgHdr = msgHdr;
                 document.getAnonymousNodes(this)[0].appendChild(msgPopup);
               }
@@ -2737,9 +2751,8 @@
         if (this.getAttribute("active") != "true") {
           this.setAttribute("active", "true");
 
-          let event = document.createEvent("Events");
-          event.initEvent("DOMMenuItemActive", true, false);
-          this.dispatchEvent(event);
+          this.dispatchEvent(new Event("DOMMenuItemActive",
+                                       { bubbles: true, cancelable: false }));
 
           if (this.getAttribute("disabled") != "true") {
             let self = this;

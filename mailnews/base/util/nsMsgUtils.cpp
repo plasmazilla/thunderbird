@@ -49,7 +49,7 @@
 #include "nsMsgFileStream.h"
 #include "nsIFileURL.h"
 #include "nsNetUtil.h"
-#include "nsIProtocolProxyService2.h"
+#include "nsProtocolProxyService.h"
 #include "nsIMsgDatabase.h"
 #include "nsIMutableArray.h"
 #include "nsIMsgMailNewsUrl.h"
@@ -374,6 +374,8 @@ static bool ConvertibleToNative(const nsAutoString& str)
 
 nsresult NS_MsgHashIfNecessary(nsAutoCString &name)
 {
+  if (name.IsEmpty())
+    return NS_OK; // Nothing to do.
   nsAutoCString str(name);
 
   // Given a filename, make it safe for filesystem
@@ -432,6 +434,8 @@ nsresult NS_MsgHashIfNecessary(nsAutoCString &name)
 // because MAX_LEN is defined rather conservatively in the first place.
 nsresult NS_MsgHashIfNecessary(nsAutoString &name)
 {
+  if (name.IsEmpty())
+    return NS_OK; // Nothing to do.
   int32_t illegalCharacterIndex = MsgFindCharInSet(name,
                                                    FILE_PATH_SEPARATOR
                                                    FILE_ILLEGAL_CHARACTERS
@@ -471,7 +475,7 @@ nsresult NS_MsgHashIfNecessary(nsAutoString &name)
   return NS_OK;
 }
 
-nsresult FormatFileSize(uint64_t size, bool useKB, nsAString &formattedSize)
+nsresult FormatFileSize(int64_t size, bool useKB, nsAString &formattedSize)
 {
   NS_NAMED_LITERAL_STRING(byteAbbr, "byteAbbreviation2");
   NS_NAMED_LITERAL_STRING(kbAbbr,   "kiloByteAbbreviation2");
@@ -493,7 +497,7 @@ nsresult FormatFileSize(uint64_t size, bool useKB, nsAString &formattedSize)
                                getter_AddRefs(bundle));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  float unitSize = size;
+  float unitSize = size < 0 ? 0.0 : size;
   uint32_t unitIndex = 0;
 
   if (useKB) {
@@ -721,11 +725,15 @@ bool NS_MsgStripRE(const char **stringP, uint32_t *lengthP, char **modifiedSubje
           char charset[nsIMimeConverter::MAX_CHARSET_NAME_LENGTH] = "";
           if (nsIMimeConverter::MAX_CHARSET_NAME_LENGTH >= (p2 - p1))
             strncpy(charset, p1, p2 - p1);
-          rv = mimeConverter->EncodeMimePartIIStr_UTF8(nsDependentCString(s), false, charset,
-            sizeof("Subject:"), nsIMimeConverter::MIME_ENCODED_WORD_SIZE,
-            modifiedSubject);
+          nsAutoCString encodedString;
+          rv = mimeConverter->EncodeMimePartIIStr_UTF8(nsDependentCString(s),
+            false, charset, sizeof("Subject:"),
+            nsIMimeConverter::MIME_ENCODED_WORD_SIZE, encodedString);
           if (NS_SUCCEEDED(rv))
+          {
+            *modifiedSubject = PL_strdup(encodedString.get());
             return result;
+          }
         }
       }
     }
@@ -1648,21 +1656,18 @@ NS_MSG_BASE void MsgStripQuotedPrintable (unsigned char *src)
 
   while (src[srcIdx] != 0)
   {
+    // Decode sequence of '=XY' into a character with code XY.
     if (src[srcIdx] == '=')
     {
-      unsigned char *token = &src[srcIdx];
-      unsigned char c = 0;
-
-      // decode the first quoted char
-      if (token[1] >= '0' && token[1] <= '9')
-        c = token[1] - '0';
-      else if (token[1] >= 'A' && token[1] <= 'F')
-        c = token[1] - ('A' - 10);
-      else if (token[1] >= 'a' && token[1] <= 'f')
-        c = token[1] - ('a' - 10);
+      if (MsgIsHex((const char*)src + srcIdx + 1, 2)) {
+        // If we got here, we successfully decoded a quoted printable sequence,
+        // so bump each pointer past it and move on to the next char.
+        dest[destIdx++] = MsgUnhex((const char*)src + srcIdx + 1, 2);
+        srcIdx += 3;
+      }
       else
       {
-        // first char after '=' isn't hex. check if it's a normal char
+        // If first char after '=' isn't hex check if it's a normal char
         // or a soft line break. If it's a soft line break, eat the
         // CR/LF/CRLF.
         if (src[srcIdx + 1] == '\r' || src[srcIdx + 1] == '\n')
@@ -1675,33 +1680,12 @@ NS_MSG_BASE void MsgStripQuotedPrintable (unsigned char *src)
               srcIdx++;
           }
         }
-        else // normal char, copy it.
+        else // The first or second char after '=' isn't hex, just copy the '='.
         {
-          dest[destIdx++] = src[srcIdx++]; // aka token[0]
+          dest[destIdx++] = src[srcIdx++];
         }
         continue;
       }
-
-      // decode the second quoted char
-      c = (c << 4);
-      if (token[2] >= '0' && token[2] <= '9')
-        c += token[2] - '0';
-      else if (token[2] >= 'A' && token[2] <= 'F')
-        c += token[2] - ('A' - 10);
-      else if (token[2] >= 'a' && token[2] <= 'f')
-        c += token[2] - ('a' - 10);
-      else
-      {
-        // second char after '=' isn't hex. copy the '=' as a normal char and keep going
-        dest[destIdx++] = src[srcIdx++]; // aka token[0]
-        continue;
-      }
-
-      // if we got here, we successfully decoded a quoted printable sequence,
-      // so bump each pointer past it and move on to the next char;
-      dest[destIdx++] = c;
-      srcIdx += 3;
-
     }
     else
       dest[destIdx++] = src[srcIdx++];
@@ -1904,6 +1888,7 @@ NS_MSG_BASE void MsgCompressWhitespace(nsCString& aString)
   aString.SetLength(end - start);
 }
 
+
 NS_MSG_BASE void MsgReplaceChar(nsString& str, const char *set, const char16_t replacement)
 {
   char16_t *c_str = str.BeginWriting();
@@ -2044,7 +2029,7 @@ NS_MSG_BASE nsresult MsgGetHeadersFromKeys(nsIMsgDatabase *aDB, const nsTArray<n
   for (uint32_t kindex = 0; kindex < count; kindex++)
   {
     nsMsgKey key = aMsgKeys.ElementAt(kindex);
-    nsCOMPtr<nsIMsgDBHdr> msgHdr;
+
     bool hasKey;
     rv = aDB->ContainsKey(key, &hasKey);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -2052,6 +2037,7 @@ NS_MSG_BASE nsresult MsgGetHeadersFromKeys(nsIMsgDatabase *aDB, const nsTArray<n
     // This function silently skips when the key is not found. This is an expected case.
     if (hasKey)
     {
+      nsCOMPtr<nsIMsgDBHdr> msgHdr;
       rv = aDB->GetMsgHdrForKey(key, getter_AddRefs(msgHdr));
       NS_ENSURE_SUCCESS(rv, rv);
 
@@ -2060,6 +2046,35 @@ NS_MSG_BASE nsresult MsgGetHeadersFromKeys(nsIMsgDatabase *aDB, const nsTArray<n
   }
 
   return rv;
+}
+
+NS_MSG_BASE nsresult MsgGetHdrsFromKeys(nsIMsgDatabase *aDB, nsMsgKey *aMsgKeys,
+                                        uint32_t aNumKeys, nsIMutableArray **aHeaders)
+{
+  NS_ENSURE_ARG_POINTER(aDB);
+  NS_ENSURE_ARG_POINTER(aMsgKeys);
+  NS_ENSURE_ARG_POINTER(aHeaders);
+
+  nsresult rv;
+  nsCOMPtr<nsIMutableArray> messages(do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  for (uint32_t kindex = 0; kindex < aNumKeys; kindex++) {
+    nsMsgKey key = aMsgKeys[kindex];
+    bool hasKey;
+    rv = aDB->ContainsKey(key, &hasKey);
+    // This function silently skips when the key is not found. This is an expected case.
+    if (NS_SUCCEEDED(rv) && hasKey)
+    {
+      nsCOMPtr<nsIMsgDBHdr> msgHdr;
+      rv = aDB->GetMsgHdrForKey(key, getter_AddRefs(msgHdr));
+      if (NS_SUCCEEDED(rv))
+        messages->AppendElement(msgHdr, false);
+    }
+  }
+
+  messages.forget(aHeaders);
+  return NS_OK;
 }
 
 bool MsgAdvanceToNextLine(const char *buffer, uint32_t &bufferOffset, uint32_t maxBufferOffset)
@@ -2080,32 +2095,31 @@ bool MsgAdvanceToNextLine(const char *buffer, uint32_t &bufferOffset, uint32_t m
 }
 
 NS_MSG_BASE nsresult
-MsgExamineForProxy(const char *scheme, const char *host,
-                   int32_t port, nsIProxyInfo **proxyInfo)
+MsgExamineForProxy(nsIChannel *channel, nsIProxyInfo **proxyInfo)
 {
   nsresult rv;
-  nsCOMPtr<nsIProtocolProxyService2> pps =
-          do_GetService(NS_PROTOCOLPROXYSERVICE_CONTRACTID, &rv);
-  if (NS_SUCCEEDED(rv)) {
-    nsAutoCString spec(scheme);
-    spec.Append("://");
-    spec.Append(host);
-    spec.Append(':');
-    spec.AppendInt(port);
-    // XXXXX - Under no circumstances whatsoever should any code which
-    // wants a uri do this. I do this here because I do not, in fact,
-    // actually want a uri (the dummy uris created here may not be
-    // syntactically valid for the specific protocol), and all we need
-    // is something which has a valid scheme, hostname, and a string
-    // to pass to PAC if needed - bbaetz
-    nsCOMPtr<nsIURI> uri = do_CreateInstance(NS_STANDARDURL_CONTRACTID, &rv);
-    if (NS_SUCCEEDED(rv)) {
-      rv = uri->SetSpec(spec);
-      if (NS_SUCCEEDED(rv))
-        rv = pps->DeprecatedBlockingResolve(uri, 0, proxyInfo);
-    }
-  }
-  return rv;
+
+#ifdef DEBUG
+  nsCOMPtr<nsIURI> uri;
+  rv = channel->GetURI(getter_AddRefs(uri));
+  NS_ASSERTION(NS_SUCCEEDED(rv) && uri,
+    "The URI needs to be set before calling the proxy service");
+#endif
+
+  nsCOMPtr<nsIProtocolProxyService> proxyService =
+      do_GetService(NS_PROTOCOLPROXYSERVICE_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // XXX: This "interface" ID is exposed, but it's not hooked up to the QI.
+  // Until it is, use a static_cast for now.
+#if 0
+  nsRefPtr<nsProtocolProxyService> rawProxyService = do_QueryObject(proxyService, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+#else
+  nsProtocolProxyService *rawProxyService = static_cast<nsProtocolProxyService*>(proxyService.get());
+#endif
+
+  return rawProxyService->DeprecatedBlockingResolve(channel, 0, proxyInfo);
 }
 
 NS_MSG_BASE nsresult MsgPromptLoginFailed(nsIMsgWindow *aMsgWindow,
@@ -2236,6 +2250,42 @@ NS_MSG_BASE uint64_t ParseUint64Str(const char *str)
 #endif
 }
 
+NS_MSG_BASE uint64_t MsgUnhex(const char *aHexString, size_t aNumChars)
+{
+  // Large numbers will not fit into uint64_t.
+  NS_ASSERTION(aNumChars <= 16, "Hex literal too long to convert!");
+
+  uint64_t result = 0;
+  for (size_t i = 0; i < aNumChars; i++)
+  {
+    unsigned char c = aHexString[i];
+    uint8_t digit;
+    if ((c >= '0') && (c <= '9'))
+      digit = (c - '0');
+    else if ((c >= 'a') && (c <= 'f'))
+      digit = ((c - 'a') + 10);
+    else if ((c >= 'A') && (c <= 'F'))
+      digit = ((c - 'A') + 10);
+    else
+      break;
+
+    result = (result << 4) | digit;
+  }
+
+  return result;
+}
+
+NS_MSG_BASE bool MsgIsHex(const char *aHexString, size_t aNumChars)
+{
+  for (size_t i = 0; i < aNumChars; i++)
+  {
+    if (!isxdigit(aHexString[i]))
+      return false;
+  }
+  return true;
+}
+
+
 NS_MSG_BASE nsresult
 MsgStreamMsgHeaders(nsIInputStream *aInputStream, nsIStreamListener *aConsumer)
 {
@@ -2276,7 +2326,6 @@ class CharsetDetectionObserver : public nsICharsetDetectionObserver
 public:
   NS_DECL_ISUPPORTS
   CharsetDetectionObserver() {};
-  virtual ~CharsetDetectionObserver() {};
   NS_IMETHOD Notify(const char* aCharset, nsDetectionConfident aConf)
   {
     mCharset = aCharset;
@@ -2285,6 +2334,7 @@ public:
   const char *GetDetectedCharset() { return mCharset.get(); }
 
 private:
+  virtual ~CharsetDetectionObserver() {}
   nsCString mCharset;
 };
 
@@ -2363,21 +2413,28 @@ MsgDetectCharsetFromFile(nsIFile *aFile, nsACString &aCharset)
     }
   }
 
-  if (aCharset.IsEmpty()) {
-    // no charset detected, default to the system charset
-    nsCOMPtr<nsIPlatformCharset> platformCharset =
-      do_GetService(NS_PLATFORMCHARSET_CONTRACTID, &rv);
-    if (NS_SUCCEEDED(rv)) {
-      rv = platformCharset->GetCharset(kPlatformCharsetSel_PlainTextInFile,
-                                       aCharset);
+  if (aCharset.IsEmpty()) { // No sniffed or charset.
+    nsAutoCString buffer;
+    nsCOMPtr<nsILineInputStream> lineInputStream =
+      do_QueryInterface(inputStream, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    bool isMore = true;
+    bool isUTF8Compat = true;
+    while (isMore && isUTF8Compat &&
+           NS_SUCCEEDED(lineInputStream->ReadLine(buffer, &isMore))) {
+      isUTF8Compat = MsgIsUTF8(buffer);
     }
+
+    // If the file content is UTF-8 compatible, use that. Otherwise let's not
+    // make a bad guess.
+    if (isUTF8Compat)
+      aCharset.AssignLiteral("UTF-8");
   }
 
   if (aCharset.IsEmpty()) {
-    // no sniffed or default charset, try UTF-8
-    aCharset.AssignLiteral("UTF-8");
+    return NS_ERROR_FAILURE;
   }
-
   return NS_OK;
 }
 
@@ -2418,4 +2475,15 @@ ConvertBufToPlainText(nsString &aConBuf, bool formatFlowed /* = false */, bool f
                                    converterFlags,
                                    wrapWidth,
                                    aConBuf);
+}
+
+NS_MSG_BASE nsMsgKey msgKeyFromInt(uint32_t aValue)
+{
+  return aValue;
+}
+
+NS_MSG_BASE nsMsgKey msgKeyFromInt(uint64_t aValue)
+{
+  NS_ASSERTION(aValue <= PR_UINT32_MAX, "Msg key value too big!");
+  return aValue;
 }

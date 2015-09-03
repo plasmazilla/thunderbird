@@ -680,20 +680,37 @@ function onFontFaceChange(fontFaceMenuList, commandID)
   var commandNode = document.getElementById(commandID);
   var state = commandNode.getAttribute("state");
 
-  if (state == "mixed")
-  {
+  switch (state) {
+  case "mixed":
     //Selection is the "mixed" ( > 1 style) state
     fontFaceMenuList.selectedItem = null;
     fontFaceMenuList.setAttribute("label",GetString('Mixed'));
-  }
-  else
-  {
+    break;
+  case "":
+  case "serif":
+  case "sans-serif":
+    // Generic variable width.
+    fontFaceMenuList.selectedIndex = 0;
+    break;
+  case "tt":
+  case "monospace":
+    // Generic fixed width.
+    fontFaceMenuList.selectedIndex = 1;
+    break;
+  default:
     var menuPopup = document.getElementById("FontFacePopup");
     var menuItems = menuPopup.childNodes;
+
+    // Bug 1139524: Normalise before we compare: Make it lower case
+    // and replace ", " with "," so that entries like
+    // "Helvetica, Arial, sans-serif" are always recognised correctly
+    var stateToLower = state.toLowerCase().replace(/, /g, ",");
+
     for (var i=0; i < menuItems.length; i++)
     {
       var menuItem = menuItems.item(i);
-      if (menuItem.getAttribute("label") && ("value" in menuItem && menuItem.value.toLowerCase() == state.toLowerCase()))
+      if (menuItem.getAttribute("label") && ("value" in menuItem &&
+          menuItem.value.toLowerCase().replace(/, /g, ",") == stateToLower))
       {
         fontFaceMenuList.selectedItem = menuItem;
         break;
@@ -849,7 +866,11 @@ function initLocalFontFaceMenu(menuPopup)
     }
     for (var i = 0; i < gLocalFonts.length; ++i)
     {
-      if (gLocalFonts[i] != "")
+      // Remove Linux system generic fonts that collide with CSS generic fonts.
+      if (gLocalFonts[i] != "" &&
+          gLocalFonts[i] != "serif" &&
+          gLocalFonts[i] != "sans-serif" &&
+          gLocalFonts[i] != "monospace")
       {
         var itemNode = document.createElementNS(XUL_NS, "menuitem");
         itemNode.setAttribute("label", gLocalFonts[i]);

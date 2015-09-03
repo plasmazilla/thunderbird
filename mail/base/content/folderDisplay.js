@@ -1125,10 +1125,9 @@ FolderDisplayWidget.prototype = {
     // only do this if we're currently active.  no need to queue it because we
     //  always update the mail view whenever we are made active.
     if (this.active) {
-      let event = document.createEvent("Events");
       // you cannot cancel a view change!
-      event.initEvent("MailViewChanged", false, false);
-      window.dispatchEvent(event);
+      window.dispatchEvent(new Event("MailViewChanged",
+        { bubbles: false, cancelable: false }));
     }
   },
 
@@ -1289,13 +1288,6 @@ FolderDisplayWidget.prototype = {
     let viewIndex = this.view.dbView.currentlyDisplayedMessage;
     let msgHdr = (viewIndex != nsMsgViewIndex_None) ?
                    this.view.dbView.getMsgHdrAt(viewIndex) : null;
-
-    if (this._tabInfo && !FeedMessageHandler.shouldShowSummary(msgHdr, false)) {
-      // Load a web page if we have a tabInfo (i.e. 3pane), but not for a
-      // standalone window instance; it has its own method.
-      FeedMessageHandler.setContent(msgHdr, false);
-    }
-
     this.messageDisplay.onDisplayingMessage(msgHdr);
 
     // Although deletes should now be so fast that the user has no time to do
@@ -2045,13 +2037,7 @@ FolderDisplayWidget.prototype = {
   get selectedMessages() {
     if (!this.view.dbView)
       return [];
-    // getMsgHdrsForSelection returns an nsIMutableArray.  We want our callers
-    //  to have a user-friendly JS array and not have to worry about
-    //  QueryInterfacing the values (or needing to know to use fixIterator).
-    return [msgHdr for
-              (msgHdr in fixIterator(
-                          this.view.dbView.getMsgHdrsForSelection(),
-                          Components.interfaces.nsIMsgDBHdr))];
+    return this.view.dbView.getSelectedMsgHdrs();
   },
 
   /**

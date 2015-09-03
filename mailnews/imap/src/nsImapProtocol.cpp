@@ -3,11 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-// sorry, this has to be before the pre-compiled header
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
-
 // as does this
 #include "msgCore.h"  // for pre-compiled headers
 #include "nsMsgUtils.h"
@@ -19,7 +14,6 @@
 
 #include "nsMsgImapCID.h"
 #include "nsThreadUtils.h"
-#include "nsISupportsObsolete.h"
 #include "nsIMsgStatusFeedback.h"
 #include "nsImapCore.h"
 #include "nsImapProtocol.h"
@@ -51,6 +45,7 @@
 #include "nsIPrompt.h"
 #include "nsIDocShell.h"
 #include "nsIDocShellLoadInfo.h"
+#include "nsILoadInfo.h"
 #include "nsIMessengerWindowService.h"
 #include "nsIWindowMediator.h"
 #include "nsIWindowWatcher.h"
@@ -714,10 +709,19 @@ nsresult nsImapProtocol::SetupWithUrl(nsIURI * aURL, nsISupports* aConsumer)
     imapServer->GetIsGMailServer(&m_isGmailServer);
     if (!m_mockChannel)
     {
+
+      nsCOMPtr<nsIPrincipal> nullPrincipal =
+        do_CreateInstance("@mozilla.org/nullprincipal;1", &rv);
+      NS_ENSURE_SUCCESS(rv, rv);
+
       // there are several imap operations that aren't initiated via a nsIChannel::AsyncOpen call on the mock channel.
       // such as selecting a folder. nsImapProtocol now insists on a mock channel when processing a url.
       nsCOMPtr<nsIChannel> channel;
-      rv = NS_NewChannel(getter_AddRefs(channel), aURL, nullptr, nullptr, nullptr, 0);
+      rv = NS_NewChannel(getter_AddRefs(channel),
+                         aURL,
+                         nullPrincipal,
+                         nsILoadInfo::SEC_NORMAL,
+                         nsIContentPolicy::TYPE_OTHER);
       m_mockChannel = do_QueryInterface(channel);
 
       // Certain imap operations (not initiated by the IO Service via AsyncOpen) can be interrupted by  the stop button on the toolbar.
@@ -768,7 +772,7 @@ nsresult nsImapProtocol::SetupWithUrl(nsIURI * aURL, nsISupports* aConsumer)
     server->GetRealHostName(m_realHostName);
     int32_t authMethod;
     (void) server->GetAuthMethod(&authMethod);
-    InitPrefAuthMethods(authMethod);
+    InitPrefAuthMethods(authMethod, server);
     (void) server->GetSocketType(&m_socketType);
     bool shuttingDown;
     (void) imapServer->GetShuttingDown(&shuttingDown);
@@ -831,7 +835,8 @@ nsresult nsImapProtocol::SetupWithUrl(nsIURI * aURL, nsISupports* aConsumer)
           connectionType =  "starttls";
 
         nsCOMPtr<nsIProxyInfo> proxyInfo;
-        rv = MsgExamineForProxy("imap", m_realHostName.get(), port, getter_AddRefs(proxyInfo));
+        if (m_mockChannel)
+          rv = MsgExamineForProxy(m_mockChannel, getter_AddRefs(proxyInfo));
         if (NS_FAILED(rv))
           proxyInfo = nullptr;
 
@@ -1087,7 +1092,7 @@ NS_IMETHODIMP nsImapProtocol::Run()
 NS_IMETHODIMP nsImapProtocol::CloseStreams()
 {
   // make sure that it is called by the UI thread
-  NS_ABORT_IF_FALSE(NS_IsMainThread(), "CloseStreams() should not be called from an off UI thread");
+  MOZ_ASSERT(NS_IsMainThread(), "CloseStreams() should not be called from an off UI thread");
 
   {
     MutexAutoLock mon(mLock);
@@ -2533,7 +2538,7 @@ void nsImapProtocol::ProcessSelectedStateURL()
              || m_imapAction == nsIImapUrl::nsImapMsgPreview)
           {
             // multiple messages, fetch them all
-            SetProgressString("imapFolderReceivingMessageOf");
+            SetProgressString("imapFolderReceivingMessageOf2");
 
             m_progressIndex = 0;
             m_progressCount = CountMessagesInIdString(messageIdString.get());
@@ -2953,7 +2958,7 @@ void nsImapProtocol::ProcessSelectedStateURL()
           nsresult rv = m_runningUrl->GetListOfMessageIds(messageIdString);
           if (NS_SUCCEEDED(rv))
           {
-            SetProgressString("imapFolderReceivingMessageOf");
+            SetProgressString("imapFolderReceivingMessageOf2");
             m_progressIndex = 0;
             m_progressCount = CountMessagesInIdString(messageIdString.get());
 
@@ -4197,13 +4202,13 @@ void nsImapProtocol::FolderMsgDump(uint32_t *msgUids, uint32_t msgCount, nsIMAPe
   // lets worry about this progress stuff later.
   switch (fields) {
   case kHeadersRFC822andUid:
-    SetProgressString("imapReceivingMessageHeaders");
+    SetProgressString("imapReceivingMessageHeaders2");
     break;
   case kFlags:
-    SetProgressString("imapReceivingMessageFlags");
+    SetProgressString("imapReceivingMessageFlags2");
     break;
   default:
-    SetProgressString("imapFolderReceivingMessageOf");
+    SetProgressString("imapFolderReceivingMessageOf2");
     break;
   }
 
@@ -4850,11 +4855,33 @@ nsImapProtocol::DiscoverMailboxSpec(nsImapMailboxSpec * adoptedBoxSpec)
     }
     NS_IF_RELEASE(adoptedBoxSpec);
     break;
+  case kListingForFolderFlags:
+    {
+      // store mailbox flags from LIST for use by LSUB
+      nsCString mailboxName(adoptedBoxSpec->mAllocatedPathName);
+      m_standardListMailboxes.Put(mailboxName, adoptedBoxSpec->mBoxFlags);
+    }
+    NS_IF_RELEASE(adoptedBoxSpec);
+    break;
   case kListingForCreate:
   case kNoOperationInProgress:
   case kDiscoverTrashFolderInProgress:
   case kListingForInfoAndDiscovery:
     {
+      // standard mailbox specs are stored in m_standardListMailboxes
+      // because LSUB does necessarily return all mailbox flags.
+      // count should be > 0 only when we are looking at response of LSUB
+      if (m_standardListMailboxes.Count() > 0)
+      {
+        int32_t hashValue = 0;
+        nsCString strHashKey(adoptedBoxSpec->mAllocatedPathName);
+        if (m_standardListMailboxes.Get(strHashKey, &hashValue))
+          adoptedBoxSpec->mBoxFlags |= hashValue;
+        else
+          // if mailbox is not in hash list, then it is subscribed but does not
+          // exist, so we make sure it can't be selected
+          adoptedBoxSpec->mBoxFlags |= kNoselect;
+      }
       if (ns && nsPrefix) // if no personal namespace, there can be no Trash folder
       {
         bool onlineTrashFolderExists = false;
@@ -5474,7 +5501,8 @@ void nsImapProtocol::EscapeUserNamePasswordString(const char *strToEscape, nsCSt
   }
 }
 
-void nsImapProtocol::InitPrefAuthMethods(int32_t authMethodPrefValue)
+void nsImapProtocol::InitPrefAuthMethods(int32_t authMethodPrefValue,
+                                         nsIMsgIncomingServer *aServer)
 {
     // for m_prefAuthMethods, using the same flags as server capablities.
     switch (authMethodPrefValue)
@@ -5517,9 +5545,21 @@ void nsImapProtocol::InitPrefAuthMethods(int32_t authMethodPrefValue)
             kHasAuthLoginCapability | kHasAuthPlainCapability |
             kHasCRAMCapability | kHasAuthGssApiCapability |
             kHasAuthNTLMCapability | kHasAuthMSNCapability |
-            kHasAuthExternalCapability;
+            kHasAuthExternalCapability | kHasXOAuth2Capability;
+        break;
+      case nsMsgAuthMethod::OAuth2:
+        m_prefAuthMethods = kHasXOAuth2Capability;
         break;
     }
+
+    if (m_prefAuthMethods & kHasXOAuth2Capability)
+      mOAuth2Support = new mozilla::mailnews::OAuth2ThreadHelper(aServer);
+
+    // Disable OAuth2 support if we don't have the prefs installed.
+    if (m_prefAuthMethods & kHasXOAuth2Capability &&
+        (!mOAuth2Support || !mOAuth2Support->SupportsOAuth2()))
+      m_prefAuthMethods &= ~kHasXOAuth2Capability;
+
     NS_ASSERTION(m_prefAuthMethods != kCapabilityUndefined,
          "IMAP: InitPrefAuthMethods() didn't work");
 }
@@ -5534,14 +5574,14 @@ nsresult nsImapProtocol::ChooseAuthMethod()
   eIMAPCapabilityFlags serverCaps = GetServerStateParser().GetCapabilityFlag();
   eIMAPCapabilityFlags availCaps = serverCaps & m_prefAuthMethods & ~m_failedAuthMethods;
 
-  PR_LOG(IMAP, PR_LOG_DEBUG, ("IMAP auth: server caps 0x%X, pref 0x%X, failed 0x%X, avail caps 0x%X",
+  PR_LOG(IMAP, PR_LOG_DEBUG, ("IMAP auth: server caps 0x%llx, pref 0x%llx, failed 0x%llx, avail caps 0x%llx",
         serverCaps, m_prefAuthMethods, m_failedAuthMethods, availCaps));
-  PR_LOG(IMAP, PR_LOG_DEBUG, ("(GSSAPI = 0x%X, CRAM = 0x%X, NTLM = 0x%X, "
-        "MSN =  0x%X, PLAIN = 0x%X, LOGIN = 0x%X, old-style IMAP login = 0x%X)"
-        "auth external IMAP login = 0x%X",
+  PR_LOG(IMAP, PR_LOG_DEBUG, ("(GSSAPI = 0x%llx, CRAM = 0x%llx, NTLM = 0x%llx, "
+        "MSN = 0x%llx, PLAIN = 0x%llx,\n  LOGIN = 0x%llx, old-style IMAP login = 0x%llx"
+        ", auth external IMAP login = 0x%llx, OAUTH2 = 0x%llx)",
         kHasAuthGssApiCapability, kHasCRAMCapability, kHasAuthNTLMCapability,
         kHasAuthMSNCapability, kHasAuthPlainCapability, kHasAuthLoginCapability,
-        kHasAuthOldLoginCapability, kHasAuthExternalCapability));
+        kHasAuthOldLoginCapability, kHasAuthExternalCapability, kHasXOAuth2Capability));
 
   if (kHasAuthExternalCapability & availCaps)
     m_currentAuthMethod = kHasAuthExternalCapability;
@@ -5553,6 +5593,8 @@ nsresult nsImapProtocol::ChooseAuthMethod()
     m_currentAuthMethod = kHasAuthNTLMCapability;
   else if (kHasAuthMSNCapability & availCaps)
     m_currentAuthMethod = kHasAuthMSNCapability;
+  else if (kHasXOAuth2Capability & availCaps)
+    m_currentAuthMethod = kHasXOAuth2Capability;
   else if (kHasAuthPlainCapability & availCaps)
     m_currentAuthMethod = kHasAuthPlainCapability;
   else if (kHasAuthLoginCapability & availCaps)
@@ -5565,13 +5607,13 @@ nsresult nsImapProtocol::ChooseAuthMethod()
     m_currentAuthMethod = kCapabilityUndefined;
     return NS_ERROR_FAILURE;
   }
-  PR_LOG(IMAP, PR_LOG_DEBUG, ("trying auth method 0x%X", m_currentAuthMethod));
+  PR_LOG(IMAP, PR_LOG_DEBUG, ("trying auth method 0x%llx", m_currentAuthMethod));
   return NS_OK;
 }
 
 void nsImapProtocol::MarkAuthMethodAsFailed(eIMAPCapabilityFlags failedAuthMethod)
 {
-  PR_LOG(IMAP, PR_LOG_DEBUG, ("marking auth method 0x%X failed", failedAuthMethod));
+  PR_LOG(IMAP, PR_LOG_DEBUG, ("marking auth method 0x%llx failed", failedAuthMethod));
   m_failedAuthMethods |= failedAuthMethod;
 }
 
@@ -5593,7 +5635,7 @@ nsresult nsImapProtocol::AuthLogin(const char *userName, const nsCString &passwo
   char * currentCommand=nullptr;
   nsresult rv;
 
-  PR_LOG(IMAP, PR_LOG_DEBUG, ("IMAP: trying auth method 0x%X", m_currentAuthMethod));
+  PR_LOG(IMAP, PR_LOG_DEBUG, ("IMAP: trying auth method 0x%llx", m_currentAuthMethod));
 
   if (flag & kHasAuthExternalCapability)
   {
@@ -5803,6 +5845,33 @@ nsresult nsImapProtocol::AuthLogin(const char *userName, const nsCString &passwo
     EscapeUserNamePasswordString(password.get(), &correctedPassword);
     command.Append(correctedPassword);
     command.Append("\"" CRLF);
+    rv = SendData(command.get(), true /* suppress logging */);
+    NS_ENSURE_SUCCESS(rv, rv);
+    ParseIMAPandCheckForNewMail();
+  }
+  else if (flag & kHasXOAuth2Capability)
+  {
+    PR_LOG(IMAP, PR_LOG_DEBUG, ("XOAUTH2 auth"));
+
+    // Get the XOAuth2 base64 string.
+    NS_ASSERTION(mOAuth2Support,
+      "What are we doing here without OAuth2 helper?");
+    if (!mOAuth2Support)
+      return NS_ERROR_UNEXPECTED;
+    nsAutoCString base64Str;
+    mOAuth2Support->GetXOAuth2String(base64Str);
+    mOAuth2Support = nullptr; // Its purpose has been served.
+    if (base64Str.IsEmpty())
+    {
+      PR_LOG(IMAP, PR_LOG_DEBUG, ("OAuth2 failed"));
+      return NS_ERROR_FAILURE;
+    }
+
+    // Send the data on the network.
+    nsAutoCString command (GetServerCommandTag());
+    command += " AUTHENTICATE XOAUTH2 ";
+    command += base64Str;
+    command += CRLF;
     rv = SendData(command.get(), true /* suppress logging */);
     NS_ENSURE_SUCCESS(rv, rv);
     ParseIMAPandCheckForNewMail();
@@ -7270,8 +7339,24 @@ void nsImapProtocol::DiscoverMailboxList()
             // pattern2 = PR_smprintf("%s%%%c%%", prefix, delimiter);
           }
         }
-        if (usingSubscription) // && !GetSubscribingNow())  should never get here from subscribe pane
-          Lsub(pattern.get(), true);
+        // Note: It is important to make sure we are respecting the server_sub_directory
+        //       preference when calling List and Lsub (2nd arg = true), otherwise
+        //       we end up with performance issues or even crashes when connecting to
+        //       servers that expose the users entire home directory (like UW-IMAP).
+        if (usingSubscription) { // && !GetSubscribingNow())  should never get here from subscribe pane
+          if (GetServerStateParser().GetCapabilityFlag() & kHasListExtendedCapability)
+            Lsub(pattern.get(), true); // do LIST (SUBSCRIBED)
+          else {
+            // store mailbox flags from LIST
+            EMailboxHierarchyNameState currentState = m_hierarchyNameState;
+            m_hierarchyNameState = kListingForFolderFlags;
+            List(pattern.get(), true);
+            m_hierarchyNameState = currentState;
+            // then do LSUB using stored flags
+            Lsub(pattern.get(), true);
+            m_standardListMailboxes.Clear();
+          }
+        }
         else
         {
           List(pattern.get(), true, hasXLIST);
@@ -7556,14 +7641,19 @@ void nsImapProtocol::Lsub(const char *mailboxPattern, bool addDirectoryIfNecessa
                         mailboxPattern, escapedPattern);
 
   nsCString command (GetServerCommandTag());
-  if ((GetServerStateParser().GetCapabilityFlag() & kHasListExtendedCapability) &&
-      !GetListSubscribedIsBrokenOnServer())
+  eIMAPCapabilityFlags flag = GetServerStateParser().GetCapabilityFlag();
+  bool useListSubscribed = (flag & kHasListExtendedCapability) &&
+                           !GetListSubscribedIsBrokenOnServer();
+  if (useListSubscribed)
     command += " list (subscribed)";
   else
     command += " lsub";
   command += " \"\" \"";
   command += escapedPattern;
-  command += "\"" CRLF;
+  if (useListSubscribed && (flag & kHasSpecialUseCapability))
+    command += "\" return (special-use)" CRLF;
+  else
+    command += "\"" CRLF;
 
   PR_Free(boxnameWithOnlineDirectory);
 
@@ -8333,6 +8423,7 @@ bool nsImapProtocol::TryToLogon()
       // Get password
       if (m_currentAuthMethod != kHasAuthGssApiCapability && // GSSAPI uses no pw in apps
           m_currentAuthMethod != kHasAuthExternalCapability &&
+          m_currentAuthMethod != kHasXOAuth2Capability &&
           m_currentAuthMethod != kHasAuthNoneCapability)
       {
           rv = GetPassword(password, newPasswordRequested);
@@ -8366,6 +8457,15 @@ bool nsImapProtocol::TryToLogon()
             // GSSAPI failed, and it's the only available method,
             // and it's password-less, so nothing left to do.
             AlertUserEventUsingName("imapAuthGssapiFailed");
+            break;
+          }
+
+          if (m_prefAuthMethods & kHasXOAuth2Capability)
+          {
+            // OAuth2 failed. We don't have an error message for this, and we
+            // in a string freeze, so use a generic error message. Entering
+            // a password does not help.
+            AlertUserEventUsingName("imapUnknownHostError");
             break;
           }
 
@@ -8567,10 +8667,10 @@ public:
   NS_DECL_NSISTREAMLISTENER
 
   nsImapCacheStreamListener ();
-  virtual ~nsImapCacheStreamListener();
 
   nsresult Init(nsIStreamListener * aStreamListener, nsIImapMockChannel * aMockChannelToUse);
 protected:
+  virtual ~nsImapCacheStreamListener();
   nsCOMPtr<nsIImapMockChannel> mChannelToUse;
   nsCOMPtr<nsIStreamListener> mListener;
 };
@@ -8780,6 +8880,19 @@ NS_IMETHODIMP nsImapMockChannel::GetLoadGroup(nsILoadGroup * *aLoadGroup)
 {
   *aLoadGroup = m_loadGroup;
   NS_IF_ADDREF(*aLoadGroup);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsImapMockChannel::GetLoadInfo(nsILoadInfo * *aLoadInfo)
+{
+  *aLoadInfo = m_loadInfo;
+  NS_IF_ADDREF(*aLoadInfo);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsImapMockChannel::SetLoadInfo(nsILoadInfo * aLoadInfo)
+{
+  m_loadInfo = aLoadInfo;
   return NS_OK;
 }
 
@@ -9520,7 +9633,7 @@ nsImapMockChannel::SetNotificationCallbacks(nsIInterfaceRequestor* aNotification
 
 NS_IMETHODIMP
 nsImapMockChannel::OnTransportStatus(nsITransport *transport, nsresult status,
-                                     uint64_t progress, uint64_t progressMax)
+                                     int64_t progress, int64_t progressMax)
 {
   if (NS_FAILED(m_cancelStatus) || (mLoadFlags & LOAD_BACKGROUND) || !m_url)
     return NS_OK;

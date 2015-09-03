@@ -30,6 +30,9 @@ struct MimeSimpleStub {
     nsCOMPtr<nsISimpleMimeConverter> innerScriptable;
 };
 
+#define MimeSimpleStubClassInitializer(ITYPE,CSUPER) \
+  { MimeInlineTextClassInitializer(ITYPE,CSUPER) }
+
 MimeDefClass(MimeSimpleStub, MimeSimpleStubClass, mimeSimpleStubClass, NULL);
 
 static int
@@ -159,7 +162,6 @@ class nsSimpleMimeConverterStub : public nsIMimeContentTypeHandler
 {
 public:
     nsSimpleMimeConverterStub(const char *aContentType) : mContentType(aContentType) { }
-    virtual ~nsSimpleMimeConverterStub() { }
 
     NS_DECL_ISUPPORTS
 
@@ -172,6 +174,7 @@ public:
                                              contentTypeHandlerInitStruct *initString,
                                              MimeObjectClass **objClass);
 private:
+    virtual ~nsSimpleMimeConverterStub() { }
     nsCString mContentType;
 };
 

@@ -83,7 +83,6 @@ comm.jar:
    content/communicator/openLocation.js
    content/communicator/openLocation.xul
    content/communicator/passwordManager.xul
-   content/communicator/printPreviewBindings.xml
    content/communicator/safeMode.js
    content/communicator/safeMode.xul
    content/communicator/sanitize.xul
@@ -152,7 +151,6 @@ comm.jar:
    content/communicator/history/placesOverlay.xul                   (history/placesOverlay.xul)
    content/communicator/history/tree.xml                            (history/tree.xml)
    content/communicator/history/treeView.js                         (history/treeView.js)
-*  content/communicator/history/utils.js                            (history/utils.js)
    content/communicator/permissions/cookieViewer.js                 (permissions/cookieViewer.js)
    content/communicator/permissions/cookieViewer.xul                (permissions/cookieViewer.xul)
    content/communicator/permissions/permissionsManager.js           (permissions/permissionsManager.js)
@@ -226,7 +224,7 @@ comm.jar:
    content/communicator/pref/pref-search.js                         (pref/pref-search.js)
    content/communicator/pref/pref-search.xul                        (pref/pref-search.xul)
    content/communicator/pref/pref-security.js                       (pref/pref-security.js)
-   content/communicator/pref/pref-security.xul                      (pref/pref-security.xul)
+*  content/communicator/pref/pref-security.xul                      (pref/pref-security.xul)
    content/communicator/pref/pref-smartupdate.js                    (pref/pref-smartupdate.js)
    content/communicator/pref/pref-smartupdate.xul                   (pref/pref-smartupdate.xul)
    content/communicator/pref/pref-spelling.js                       (pref/pref-spelling.js)

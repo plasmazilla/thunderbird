@@ -3,9 +3,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
 #include "nsMsgCopyService.h"
 #include "nsCOMArray.h"
 #include "nspr.h"
@@ -288,7 +285,7 @@ nsMsgCopyService::DoNextCopy()
       {
         // if the target folder of this request already has an active
         // copy request, skip this request for now.
-        if (activeTargets.IndexOfObject(copyRequest->m_dstFolder) != kNotFound)
+        if (activeTargets.ContainsObject(copyRequest->m_dstFolder))
         {
           copyRequest = nullptr;
           continue;
@@ -463,6 +460,18 @@ nsMsgCopyService::CopyMessages(nsIMsgFolder* srcFolder, /* UI src folder */
   // make sure dest folder exists
   // and has proper flags, before we start copying?
 
+  // bail early if nothing to do
+  messages->GetLength(&cnt);
+  if (!cnt)
+  {
+    if (listener)
+    {
+      listener->OnStartCopy();
+      listener->OnStopCopy(NS_OK);
+    }
+    return NS_OK;
+  }
+
   copyRequest = new nsCopyRequest();
   if (!copyRequest)
     return NS_ERROR_OUT_OF_MEMORY;
@@ -474,8 +483,6 @@ nsMsgCopyService::CopyMessages(nsIMsgFolder* srcFolder, /* UI src folder */
                         listener, window, allowUndo);
   if (NS_FAILED(rv))
     goto done;
-
-  messages->GetLength(&cnt);
 
   if (PR_LOG_TEST(gCopyServiceLog, PR_LOG_ALWAYS))
     LogCopyRequest("CopyMessages request", copyRequest);

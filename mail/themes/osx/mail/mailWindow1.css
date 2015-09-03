@@ -22,6 +22,17 @@
   margin-bottom: 5px;
 }
 
+/* Instead of box-shadow, we use actual borders on Yosemite,
+ * so we need to reduce the margin by 2px to make the height 42px.
+ */
+@media (-moz-mac-yosemite-theme) {
+  .mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
+  .mail-toolbox[mode="full"][labelalign="end"] > toolbar:only-of-type {
+    margin-top: 5px;
+    margin-bottom: 4px;
+  }
+}
+
 /* ::::::::: Global override :::::::::: */
 
 treechildren::-moz-tree-twisty {
@@ -43,7 +54,7 @@ treechildren::-moz-tree-twisty {
 }
 
 #folderTree {
-  -moz-appearance: none !important;
+  -moz-appearance: -moz-mac-vibrancy-light;
 }
 
 #folderPaneHeader, #folderTree {
@@ -63,7 +74,6 @@ treechildren::-moz-tree-twisty {
 .focusring > .tree-stack > .tree-rows > .tree-bodybox {
   border: 0;
 }
-
 
 #folderTree treechildren::-moz-tree-indentation {
  background-color: black !important;
@@ -93,6 +103,23 @@ treechildren::-moz-tree-twisty {
 #folderTree treechildren::-moz-tree-cell-text(selected, focus),
 #folderTree treechildren::-moz-tree-cell-text(selected) {
   color: HighlightText;
+}
+
+@media (-moz-mac-yosemite-theme) {
+  #folderTree treechildren::-moz-tree-cell-text {
+    font-family: 'Helvetica Neue';
+  }
+
+  #folderTree treechildren::-moz-tree-cell-text(selected, focus),
+  #folderTree treechildren::-moz-tree-cell-text(selected) {
+    color: black;
+  }
+
+  #folderTree treechildren::-moz-tree-row(selected),
+  #folderTree:-moz-system-metric(mac-graphite-theme) treechildren::-moz-tree-row(selected),
+  #folderTree treechildren:-moz-window-inactive::-moz-tree-row(selected) {
+    background: rgba(0, 0, 0, .1);
+  }
 }
 
 treecol,

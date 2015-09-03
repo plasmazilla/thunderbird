@@ -15,10 +15,6 @@
  * 06/07/2000       Jason Eager    Added check for out of disk space
  */
 
-#ifdef MOZ_LOGGING
-#define FORCE_PR_LOG
-#endif
-
 #include "nscore.h"
 #include "msgCore.h"    // precompiled header...
 #include "nsNetUtil.h"
@@ -35,6 +31,7 @@
 #include "nsCOMPtr.h"
 #include "nsIMsgWindow.h"
 #include "nsIMsgFolder.h" // TO include biffState enum. Change to bool later...
+#include "nsIMsgLocalMailFolder.h"
 #include "nsIDocShell.h"
 #include "nsMsgUtils.h"
 #include "nsISocketTransport.h"
@@ -535,7 +532,7 @@ nsresult nsPop3Protocol::Initialize(nsIURI * aURL)
       server->GetRealHostName(hostName);
 
     nsCOMPtr<nsIProxyInfo> proxyInfo;
-    rv = MsgExamineForProxy("pop", hostName.get(), port, getter_AddRefs(proxyInfo));
+    rv = MsgExamineForProxy(this, getter_AddRefs(proxyInfo));
     if (NS_FAILED(rv)) proxyInfo = nullptr;
 
     const char *connectionType = nullptr;
@@ -914,7 +911,7 @@ NS_IMETHODIMP nsPop3Protocol::OnPromptCanceled()
   return NS_OK;
 }
 
-NS_IMETHODIMP nsPop3Protocol::OnTransportStatus(nsITransport *aTransport, nsresult aStatus, uint64_t aProgress, uint64_t aProgressMax)
+NS_IMETHODIMP nsPop3Protocol::OnTransportStatus(nsITransport *aTransport, nsresult aStatus, int64_t aProgress, int64_t aProgressMax)
 {
   return nsMsgProtocol::OnTransportStatus(aTransport, aStatus, aProgress, aProgressMax);
 }
@@ -2936,18 +2933,25 @@ int32_t nsPop3Protocol::GetMsg()
       if (NS_FAILED(rv))
         return -1;
 
-      nsCOMPtr<nsIMsgPluggableStore> msgStore;
-      rv = folder->GetMsgStore(getter_AddRefs(msgStore));
-      NS_ENSURE_SUCCESS(rv, -1);
+      nsCOMPtr<nsIMsgMailNewsUrl> mailnewsUrl = do_QueryInterface(m_url, &rv);
+      if (NS_FAILED(rv) || !mailnewsUrl)
+        return -1;
 
-      bool spaceAvailable;
+      nsCOMPtr<nsIMsgWindow> msgWindow;
+      (void)mailnewsUrl->GetMsgWindow(getter_AddRefs(msgWindow));
+
+      bool spaceNotAvailable = true;
+      nsCOMPtr<nsIMsgLocalMailFolder> localFolder(do_QueryInterface(folder, &rv));
+      if (NS_FAILED(rv) || !localFolder)
+        return -1;
+
       // check if we have a reasonable amount of space left
-      rv = msgStore->HasSpaceAvailable(folder, m_totalDownloadSize, &spaceAvailable);
-      if (NS_FAILED(rv) || !spaceAvailable) {
+      rv = localFolder->WarnIfLocalFileTooBig(msgWindow, m_totalDownloadSize, &spaceNotAvailable);
+      if (NS_FAILED(rv) || spaceNotAvailable) {
 #ifdef DEBUG
         printf("Not enough disk space! Raising error!\n");
 #endif
-        return Error("pop3OutOfDiskSpace");
+        return -1;
       }
 
       // Here we know how many messages we're going to download, so let

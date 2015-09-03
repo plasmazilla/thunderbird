@@ -35,7 +35,7 @@ protected:
 	bool	TranslateFileName(nsCString& inFile, nsCString& outFile);
 
 
-	virtual bool	ScanBuffer(bool *pDone) MOZ_OVERRIDE;
+	virtual bool	ScanBuffer(bool *pDone) override;
 
 
 protected:
@@ -61,9 +61,9 @@ public:
 	NS_DECL_NSIIMPORTMIMEENCODE
 
 	nsIImportMimeEncodeImpl();
-	virtual ~nsIImportMimeEncodeImpl();
 
 private:
+	virtual ~nsIImportMimeEncodeImpl();
 	ImportOutFile *			m_pOut;
 	nsImportMimeEncode *	m_pEncode;
 };

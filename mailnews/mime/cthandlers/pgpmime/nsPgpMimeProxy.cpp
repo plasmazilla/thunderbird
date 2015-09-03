@@ -25,8 +25,6 @@
 #include "nsIPgpMimeProxy.h"
 #include "nsComponentManagerUtils.h"
 
-static NS_DEFINE_CID(kMimeObjectClassAccessCID, NS_MIME_OBJECT_CLASS_ACCESS_CID);
-
 #define MIME_SUPERCLASS mimeEncryptedClass
 MimeDefClass(MimeEncryptedPgp, MimeEncryptedPgpClass,
              mimeEncryptedPgpClass, &MIME_SUPERCLASS);
@@ -123,6 +121,7 @@ public:
   {
   }
 
+private:
   virtual ~MimePgpeData()
   {
   }
@@ -237,7 +236,6 @@ nsPgpMimeProxy::nsPgpMimeProxy()
     mLoadFlags(LOAD_NORMAL),
     mCancelStatus(NS_OK)
 {
-  NS_INIT_ISUPPORTS();
 }
 
 nsPgpMimeProxy::~nsPgpMimeProxy()
@@ -551,7 +549,6 @@ nsPgpMimeProxy::OnDataAvailable(nsIRequest* aRequest, nsISupports* aContext,
   NS_ENSURE_TRUE(mInitialized, NS_ERROR_NOT_INITIALIZED);
 
   NS_ENSURE_ARG(aInputStream);
-  NS_ENSURE_ARG_MIN(aLength, 0);
 
   char buf[kCharMax];
   uint32_t readCount, readMax;

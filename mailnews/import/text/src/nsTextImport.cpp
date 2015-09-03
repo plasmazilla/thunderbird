@@ -10,11 +10,6 @@
   Text import addressbook interfaces
 
 */
-#ifdef MOZ_LOGGING
-// sorry, this has to be before the pre-compiled header
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
-
 #include "nscore.h"
 #include "nsIServiceManager.h"
 #include "nsCOMPtr.h"
@@ -53,7 +48,7 @@
 static NS_DEFINE_IID(kISupportsIID, NS_ISUPPORTS_IID);
 PRLogModuleInfo* TEXTIMPORTLOGMODULE;
 
-class ImportAddressImpl : public nsIImportAddressBooks
+class ImportAddressImpl final : public nsIImportAddressBooks
 {
 public:
   ImportAddressImpl(nsIStringBundle* aStringBundle);
@@ -105,6 +100,7 @@ private:
   static void SanitizeSampleData(nsString& val);
 
 private:
+  ~ImportAddressImpl() {}
   nsTextAddress m_text;
   bool m_haveDelim;
   nsCOMPtr<nsIFile> m_fileLoc;

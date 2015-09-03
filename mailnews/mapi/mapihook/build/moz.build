@@ -3,7 +3,19 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-LIBRARY_NAME = 'MapiProxy'
+SharedLibrary('MapiProxy')
 
-FORCE_SHARED_LIB = True
+OS_LIBS += [
+    'rpcrt4',
+]
+
+for var in ('REGISTER_PROXY_DLL', 'UNICODE', '_UNICODE'):
+    DEFINES[var] = True
+
+DEFINES['_WIN32_WINNT'] = '0x400'
+
+if not CONFIG['MOZ_INCOMPLETE_EXTERNAL_LINKAGE']:
+    DEFINES['MOZILLA_INTERNAL_API'] = True
+
+DEFFILE = SRCDIR + '/MapiProxy.def'
 

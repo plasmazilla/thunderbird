@@ -3,7 +3,7 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 // vim:set ts=2 sw=2 sts=2 et ft=javascript:
 
-Components.utils.import("resource:///modules/Services.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 /**
  * This file exports the JSMime code, polyfilling code as appropriate for use in
@@ -33,7 +33,10 @@ FakeTextDecoder.prototype = {
       "@mozilla.org/intl/scriptableunicodeconverter"]
       .createInstance(Components.interfaces.nsIScriptableUnicodeConverter);
     this._encoder.isInternal = true;
-    this._encoder.charset = label;
+    let manager = Components.classes[
+      "@mozilla.org/charset-converter-manager;1"]
+      .createInstance(Components.interfaces.nsICharsetConverterManager);
+    this._encoder.charset = manager.getCharsetAlias(label);
   },
   get encoding() { return this._encoder.charset; },
   decode: function (input, options = {}) {
@@ -61,3 +64,27 @@ function FallbackTextDecoder(charset, options) {
 }
 
 TextDecoder = FallbackTextDecoder;
+
+
+// The following code loads custom MIME encoders.
+const CATEGORY_NAME = "custom-mime-encoder";
+Services.obs.addObserver(function (subject, topic, data) {
+  subject = subject.QueryInterface(Components.interfaces.nsISupportsCString)
+                   .data;
+  if (data == CATEGORY_NAME) {
+    let url = catman.getCategoryEntry(CATEGORY_NAME, subject);
+    Services.scriptloader.loadSubScript(url, {}, "UTF-8");
+  }
+}, "xpcom-category-entry-added", false);
+
+let catman = Components.classes["@mozilla.org/categorymanager;1"]
+                       .getService(Components.interfaces.nsICategoryManager);
+
+let entries = catman.enumerateCategory(CATEGORY_NAME);
+while (entries.hasMoreElements()) {
+  let string = entries.getNext()
+                      .QueryInterface(Components.interfaces.nsISupportsCString)
+                      .data;
+  let url = catman.getCategoryEntry(CATEGORY_NAME, string);
+  Services.scriptloader.loadSubScript(url, {}, "UTF-8");
+}

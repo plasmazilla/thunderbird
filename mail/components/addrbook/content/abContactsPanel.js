@@ -1,3 +1,5 @@
+/* -*- Mode: javascript; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 ; js-indent-level: 2 -*- */
+/* vim: set ts=8 sts=2 et sw=2 tw=80: */
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
@@ -11,6 +13,8 @@ function GetAbViewListener()
 
 function contactsListOnClick(event)
 {
+  CommandUpdate_AddressBook();
+
   // we only care about button 0 (left click) events
   if (event.button != 0)
     return;
@@ -37,14 +41,14 @@ function addSelectedAddresses(recipientType)
 {
   var cards = GetSelectedAbCards();
   var count = cards.length;
- 
 
-  for (var i = 0; i < count; i++) 
+
+  for (let i = 0; i < count; i++)
   {
-    // turn each card into a properly formatted address 
+    // turn each card into a properly formatted address
     var address = GenerateAddressFromCard(cards[i]);
     if (address != "")
-      parent.AddRecipient(recipientType, address);     
+      parent.AddRecipient(recipientType, address);
   }
 }
 
@@ -53,8 +57,21 @@ function AddressBookMenuListChange()
   var searchInput = document.getElementById("peopleSearchInput");
   if (searchInput.value && !searchInput.showingSearchCriteria)
     onEnterInSearchBar();
-  else 
+  else
     ChangeDirectoryByURI(document.getElementById('addressbookList').value);
+
+  // Hide the addressbook column if the selected addressbook isn't
+  // "All address books". Since the column is redundant in all other cases.
+  let addrbookColumn = document.getElementById("addrbook");
+  if (abList.value.startsWith(kAllDirectoryRoot + "?")) {
+    addrbookColumn.hidden = !gShowAbColumnInComposeSidebar;
+    addrbookColumn.removeAttribute("ignoreincolumnpicker");
+  } else {
+    addrbookColumn.hidden = true;
+    addrbookColumn.setAttribute("ignoreincolumnpicker", "true");
+  }
+
+  CommandUpdate_AddressBook();
 }
 
 function AbPanelOnComposerClose()
@@ -68,7 +85,9 @@ function AbPanelOnComposerReOpen()
   SetAbView(GetSelectedDirectory());
 }
 
-function AbPanelLoad() 
+var mutationObs = null;
+
+function AbPanelLoad()
 {
   InitCommonJS();
 
@@ -88,58 +107,89 @@ function AbPanelLoad()
 
   parent.addEventListener("compose-window-close", AbPanelOnComposerClose, true);
   parent.addEventListener("compose-window-reopen", AbPanelOnComposerReOpen, true);
+
+  mutationObs = new MutationObserver(function(aMutations) {
+    aMutations.forEach(function(mutation) {
+      if (GetSelectedDirectory() == (kAllDirectoryRoot + "?") &&
+          mutation.type == "attributes" &&
+          mutation.attributeName == "hidden") {
+        let curState = document.getElementById("addrbook").hidden;
+        gShowAbColumnInComposeSidebar = !curState;
+      }
+    });
+  });
+
+  document.getElementById("addrbook").hidden = !gShowAbColumnInComposeSidebar;
+
+  mutationObs.observe(document.getElementById("addrbook"),
+                      { attributes: true, childList: true });
 }
 
 function AbPanelUnload()
 {
   parent.removeEventListener("compose-window-close", AbPanelOnComposerClose, true);
   parent.removeEventListener("compose-window-reopen", AbPanelOnComposerReOpen, true);
+  mutationObs.disconnect();
 
   CloseAbView();
 }
 
-function AbPanelNewCard() 
+function AbPanelNewCard()
 {
   goNewCardDialog(abList.value);
 }
 
-function AbPanelNewList() 
+function AbPanelNewList()
 {
   goNewListDialog(abList.value);
 }
 
-function ResultsPaneSelectionChanged() 
+function ResultsPaneSelectionChanged()
 {
   // do nothing for ab panel
 }
 
-function OnClickedCard() 
+function OnClickedCard()
 {
   // do nothing for ab panel
 }
 
-function AbResultsPaneDoubleClick(card) 
+function AbResultsPaneDoubleClick(card)
 {
   // double click for ab panel means "send mail to this person / list"
   AbNewMessage();
 }
 
-function UpdateCardView() 
+function UpdateCardView()
 {
   // do nothing for ab panel
 }
 
+function CommandUpdate_AddressBook()
+{
+  goUpdateCommand('cmd_delete');
+  goUpdateCommand('cmd_properties');
+}
+
 function onEnterInSearchBar()
 {
-  if (!gQueryURIFormat)
+  if (!gQueryURIFormat) {
     gQueryURIFormat = Services.prefs.getComplexValue("mail.addr_book.quicksearchquery.format",
       Components.interfaces.nsIPrefLocalizedString).data;
+
+    // Remove the preceeding '?' as we have to prefix "?and" to this format.
+    gQueryURIFormat = gQueryURIFormat.slice(1);
+  }
 
   var searchURI = GetSelectedDirectory();
   var searchInput = document.getElementById("peopleSearchInput");
 
-  if (searchInput.value != "")
-    searchURI += gQueryURIFormat.replace(/@V/g, encodeABTermValue(searchInput.value));
+  // Use helper method to split up search query to multi-word search
+  // query against multiple fields.
+  if (searchInput) {
+    let searchWords = getSearchTokens(searchInput.value);
+    searchURI += generateQueryURI(gQueryURIFormat, searchWords);
+  }
 
   SetAbView(searchURI);
 }

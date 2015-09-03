@@ -74,7 +74,7 @@ function test_move_message() {
   popups = mc.click_menus_in_sequence(mc.e("mailContext"),
                                       [{id: "mailContext-moveMenu"},
                                        {label: "Recent"}], true);
-  let recentMenu = mc.eid("mailContext-moveMenu")
+  recentMenu = mc.eid("mailContext-moveMenu")
                      .node.querySelector('[label="Recent"]');
   let recentChildren = recentMenu.menupopup.children;
   assert_equals(recentChildren.length, gInitRecentMenuCount + 1,
@@ -95,7 +95,7 @@ function test_delete_message() {
   let recentChildren = recentMenu.menupopup.children;
   assert_equals(recentChildren.length, gInitRecentMenuCount + 1,
                 "delete shouldn't add anything to recent menu");
-  assert_equals(recentChildren[0].label, "aaafolder2", 
+  assert_equals(recentChildren[0].label, "aaafolder2",
                 "recent menu should still be aaafolder2 after delete");
   mc.close_popup_sequence(popups);
 }

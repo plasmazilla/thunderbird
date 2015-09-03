@@ -12,7 +12,7 @@
 %composeDTD;
 %editorOverlayDTD;
 ]>
-  
+
 <overlay id="ComposePaneOverlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
@@ -27,7 +27,7 @@
 
     <preferences id="composePreferences">
       <preference id="mail.preferences.compose.selectedTabIndex" name="mail.preferences.compose.selectedTabIndex" type="int"/>
-      <preference id="mail.forward_message_mode" name="mail.forward_message_mode" type="int"/>     
+      <preference id="mail.forward_message_mode" name="mail.forward_message_mode" type="int"/>
       <preference id="mail.forward_add_extension" name="mail.forward_add_extension" type="bool"/>
       <preference id="mail.SpellCheckBeforeSend" name="mail.SpellCheckBeforeSend" type="bool"/>
       <preference id="mail.spellcheck.inline" name="mail.spellcheck.inline" type="bool"/>
@@ -91,18 +91,20 @@
                        aria-labelledby="autoSave autoSaveInterval autoSaveEnd"/>
               <label id="autoSaveEnd" value="&autoSaveEnd.label;"/>
             </hbox>
-
-            <checkbox id="mailWarnOnSendAccelKey" label="&warnOnSendAccelKey.label;"
-                      preference="mail.warn_on_send_accel_key"
-                      accesskey="&warnOnSendAccelKey.accesskey;"/>
-
+            <hbox>
+              <checkbox id="mailWarnOnSendAccelKey"
+                        label="&warnOnSendAccelKey.label;"
+                        preference="mail.warn_on_send_accel_key"
+                        accesskey="&warnOnSendAccelKey.accesskey;"/>
+              <spacer flex="1"/>
+            </hbox>
             <hbox align="center">
               <checkbox id="attachment_reminder_label"
                         label="&attachmentReminder.label;"
                         accesskey="&attachmentReminder.accesskey;"
                         preference="mail.compose.attachment_reminder"
-                        command="cmd_toggleAttachmentCheck"
-                        flex="1"/>
+                        command="cmd_toggleAttachmentCheck"/>
+              <spacer flex="1"/>
               <button id="attachment_reminder_button"
                       label="&attachmentReminderOptions.label;"
                       accesskey="&attachmentReminderOptions.accesskey;"
@@ -126,7 +128,7 @@
                   <menuseparator/>
                 </menupopup>
               </menulist>
-              
+
               <label control="fontSizeSelect" value="&size.label;" accesskey="&size.accesskey;"/>
               <menulist id="fontSizeSelect" preference="msgcompose.font_size">
                 <menupopup>
@@ -153,13 +155,13 @@
                       oncommand="gComposePane.restoreHTMLDefaults();"/>
             </hbox>
           </groupbox>
-  
+
           <hbox align="center">
             <description flex="1">&sendOptionsDescription.label;</description>
-            <button label="&sendOptions.label;" 
+            <button label="&sendOptions.label;"
                     accesskey="&sendOptions.accesskey;"
                     oncommand="gComposePane.sendOptionsDialog();"/>
-          </hbox>      
+          </hbox>
          </tabpanel>
 
          <tabpanel orient="vertical">
@@ -174,10 +176,10 @@
                           preference="mail.enable_autocomplete"
                           accesskey="&addressingEnable.accesskey;"/>
               </hbox>
-    
+
               <hbox align="center">
-                <checkbox id="autocompleteLDAP" label="&directories.label;" 
-                          preference="ldap_2.autoComplete.useDirectory" 
+                <checkbox id="autocompleteLDAP" label="&directories.label;"
+                          preference="ldap_2.autoComplete.useDirectory"
                           accesskey="&directories.accesskey;"/>
                 <menulist id="directoriesList" flex="1" aria-labelledby="autocompleteLDAP"
                           preference="ldap_2.autoComplete.directoryServer">
@@ -185,7 +187,7 @@
                              none="&directoriesNone.label;"
                              remoteonly="true" value="dirPrefId"/>
                 </menulist>
-                <button id="editButton" label="&editDirectories.label;" 
+                <button id="editButton" label="&editDirectories.label;"
                         oncommand="gComposePane.editDirectories();"
                         preference="pref.ldap.disable_button.edit_directories"
                         accesskey="&editDirectories.accesskey;"/>
@@ -209,13 +211,20 @@
          </tabpanel>
 
          <tabpanel orient="vertical">
-            <checkbox id="spellCheckBeforeSend" label="&spellCheck.label;"
-                      preference="mail.SpellCheckBeforeSend"
-                      accesskey="&spellCheck.accesskey;"/>
-
-            <checkbox id="inlineSpellCheck" label="&spellCheckInline.label;"
-                      preference="mail.spellcheck.inline"
-                      accesskey="&spellCheckInline1.accesskey;"/>
+            <hbox>
+              <checkbox id="spellCheckBeforeSend"
+                        label="&spellCheck.label;"
+                        preference="mail.SpellCheckBeforeSend"
+                        accesskey="&spellCheck.accesskey;"/>
+              <spacer flex="1"/>
+            </hbox>
+            <hbox>
+              <checkbox id="inlineSpellCheck"
+                        label="&spellCheckInline.label;"
+                        preference="mail.spellcheck.inline"
+                        accesskey="&spellCheckInline1.accesskey;"/>
+              <spacer flex="1"/>
+            </hbox>
 
             <separator class="thin"/>
 
@@ -238,7 +247,7 @@
             </hbox>
          </tabpanel>
        </tabpanels>
-    </tabbox>  
+    </tabbox>
     <separator/>
   </prefpane>
 </overlay>

@@ -24,11 +24,13 @@
 #include "updatehelper.h"
 #include "uachelper.h"
 #include "pathhash.h"
-#include "mozilla/Scoped.h"
+#include "mozilla/UniquePtr.h"
 
 // Needed for PathAppendW
 #include <shlwapi.h>
-#pragma comment(lib, "shlwapi.lib")
+
+using mozilla::MakeUnique;
+using mozilla::UniquePtr;
 
 WCHAR* MakeCommandLine(int argc, WCHAR **argv);
 BOOL PathAppendSafe(LPWSTR base, LPCWSTR extra);
@@ -234,7 +236,7 @@ StartServiceUpdate(LPCWSTR installDir)
 
   // Get the service config information, in particular we want the binary
   // path of the service.
-  mozilla::ScopedDeleteArray<char> serviceConfigBuffer(new char[bytesNeeded]);
+  UniquePtr<char[]> serviceConfigBuffer = MakeUnique<char[]>(bytesNeeded);
   if (!QueryServiceConfigW(svc,
       reinterpret_cast<QUERY_SERVICE_CONFIGW*>(serviceConfigBuffer.get()),
       bytesNeeded, &bytesNeeded)) {
@@ -400,36 +402,6 @@ PathAppendSafe(LPWSTR base, LPCWSTR extra)
 }
 
 /**
- * Sets update.status to pending so that the next startup will not use
- * the service and instead will attempt an update the with a UAC prompt.
- *
- * @param  updateDirPath The path of the update directory
- * @return TRUE if successful
- */
-BOOL
-WriteStatusPending(LPCWSTR updateDirPath)
-{
-  WCHAR updateStatusFilePath[MAX_PATH + 1] = { L'\0' };
-  wcsncpy(updateStatusFilePath, updateDirPath, MAX_PATH);
-  if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
-    return FALSE;
-  }
-
-  const char pending[] = "pending";
-  HANDLE statusFile = CreateFileW(updateStatusFilePath, GENERIC_WRITE, 0,
-                                  nullptr, CREATE_ALWAYS, 0, nullptr);
-  if (statusFile == INVALID_HANDLE_VALUE) {
-    return FALSE;
-  }
-
-  DWORD wrote;
-  BOOL ok = WriteFile(statusFile, pending,
-                      sizeof(pending) - 1, &wrote, nullptr);
-  CloseHandle(statusFile);
-  return ok && (wrote == sizeof(pending) - 1);
-}
-
-/**
  * Sets update.status to a specific failure code
  *
  * @param  updateDirPath The path of the update directory
@@ -438,26 +410,41 @@ WriteStatusPending(LPCWSTR updateDirPath)
 BOOL
 WriteStatusFailure(LPCWSTR updateDirPath, int errorCode)
 {
+  // The temp file is not removed on failure since there is client code that
+  // will remove it.
+  WCHAR tmpUpdateStatusFilePath[MAX_PATH + 1] = { L'\0' };
+  GetTempFileNameW(updateDirPath, L"svc", 0, tmpUpdateStatusFilePath);
+
+  HANDLE tmpStatusFile = CreateFileW(tmpUpdateStatusFilePath, GENERIC_WRITE, 0,
+                                     nullptr, CREATE_ALWAYS, 0, nullptr);
+  if (tmpStatusFile == INVALID_HANDLE_VALUE) {
+    return FALSE;
+  }
+
+  char failure[32];
+  sprintf(failure, "failed: %d", errorCode);
+  DWORD toWrite = strlen(failure);
+  DWORD wrote;
+  BOOL ok = WriteFile(tmpStatusFile, failure,
+                      toWrite, &wrote, nullptr);
+  CloseHandle(tmpStatusFile);
+
+  if (!ok || wrote != toWrite) {
+    return FALSE;
+  }
+
   WCHAR updateStatusFilePath[MAX_PATH + 1] = { L'\0' };
   wcsncpy(updateStatusFilePath, updateDirPath, MAX_PATH);
   if (!PathAppendSafe(updateStatusFilePath, L"update.status")) {
     return FALSE;
   }
 
-  HANDLE statusFile = CreateFileW(updateStatusFilePath, GENERIC_WRITE, 0,
-                                  nullptr, CREATE_ALWAYS, 0, nullptr);
-  if (statusFile == INVALID_HANDLE_VALUE) {
+  if (MoveFileExW(tmpUpdateStatusFilePath, updateStatusFilePath,
+                  MOVEFILE_REPLACE_EXISTING) == 0) {
     return FALSE;
   }
-  char failure[32];
-  sprintf(failure, "failed: %d", errorCode);
 
-  DWORD toWrite = strlen(failure);
-  DWORD wrote;
-  BOOL ok = WriteFile(statusFile, failure,
-                      toWrite, &wrote, nullptr);
-  CloseHandle(statusFile);
-  return ok && wrote == toWrite;
+  return TRUE;
 }
 
 #endif

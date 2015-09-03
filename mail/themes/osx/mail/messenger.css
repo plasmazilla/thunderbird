@@ -13,6 +13,19 @@
 #titlebar {
   -moz-binding: url("chrome://global/content/bindings/general.xml#windowdragbox");
   height: 22px;
+  -moz-window-dragging: drag;
+}
+
+@media (-moz-mac-yosemite-theme) {
+  #titlebar:not(:-moz-lwtheme) {
+    -moz-appearance: -moz-mac-vibrancy-light !important;
+  }
+
+  #tabmail {
+    box-shadow: 0px 1px 0px rgba(255, 255, 255, 0.4) inset !important;
+    border-top: solid 1px rgba(0, 0, 0, 0.2);
+    border-bottom: solid 1px rgba(0, 0, 0, 0.2);
+  }
 }
 
 #messengerWindow[tabsintitlebar="true"] #titlebar-content {
@@ -38,8 +51,17 @@
 }
 
 @media (min-resolution: 2dppx) {
-  #wrapper-throbber-box > #throbber-box {
+  #throbber-box[busy="true"] {
     list-style-image: url("chrome://messenger/skin/icons/loading@2x.png");
+  }
+
+  #throbber-box > image {
+    width: 17px;
+    margin: 0 4px;
+  }
+
+  #wrapper-throbber-box > #throbber-box {
+    list-style-image: url("chrome://messenger/skin/icons/notloading@2x.png");
   }
 }
 
@@ -159,11 +181,26 @@ notification[value="addon-install-complete"] > button:active:hover {
   opacity: .5;
 }
 
+#messengerWindow:not([tabsintitlebar]) #titlebar-buttonbox-container {
+  margin-top: 3px;
+  -moz-margin-start: 7px;
+}
+
 #messengerWindow[tabsintitlebar="true"] #titlebar-buttonbox-container,
 #messengerWindow[tabsintitlebar="true"] #titlebar-fullscreen-button {
   position: relative;
   margin-top: 11px;
   margin-bottom: 3px;
+  padding-bottom: 0px;
+}
+
+@media (-moz-mac-yosemite-theme) {
+  #messengerWindow[tabsintitlebar="true"][sizemode="fullscreen"] #titlebar-buttonbox-container,
+  #messengerWindow[tabsintitlebar="true"][sizemode="fullscreen"] #titlebar-fullscreen-button {
+    margin-top: 0px;
+    margin-bottom: 0px;
+    padding-bottom: 14px;
+  }
 }
 
 #messengerWindow[tabsintitlebar="true"] #titlebar-spacer {

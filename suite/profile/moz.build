@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-PARALLEL_DIRS += [
+DIRS += [
     'migration/public',
     'migration/src',
 ]
@@ -15,3 +15,9 @@ SOURCES += [
 FINAL_LIBRARY = 'suite'
 
 JAR_MANIFESTS += ['jar.mn']
+
+USE_LIBS += [
+    'mozalloc',
+    'nspr',
+    'xul',
+]

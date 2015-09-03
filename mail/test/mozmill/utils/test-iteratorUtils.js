@@ -34,7 +34,8 @@ function teardownModule(module) {
 }
 
 function setupTest() {
-  gTab = open_content_tab_with_url(gCollectionsUrl);
+  gTab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew,
+                                     gCollectionsUrl);
 }
 
 function teardownTest() {
@@ -56,10 +57,9 @@ function test_toArray_builtin_content_iterator() {
 
   assert_equals(kExpected.length, iterArray.length);
 
-  for (let [i, val] in Iterator(kExpected)) {
-    assert_equals(i, iterArray[i][0]);
-    assert_equals(val, iterArray[i][1]);
-  }
+  kExpected.forEach((val, i) => {
+    assert_equals(val, iterArray[i]);
+  });
 
 }
 

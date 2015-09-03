@@ -10,23 +10,8 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-ifdef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
-MODULE_NAME	= nsLDAPProtocolModule
-endif
-
 ifdef MOZ_PREF_EXTENSIONS
 DEFINES += -DMOZ_PREF_EXTENSIONS
-endif
-
-EXTRA_DSO_LDOPTS += $(LDAP_LIBS)
-ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
-EXTRA_DSO_LDOPTS += $(MOZ_COMPONENT_LIBS)
-else
-EXTRA_DSO_LDOPTS += \
-	$(XPCOM_GLUE_LDOPTS) \
-	$(MOZ_JS_LIBS) \
-	$(NSPR_LIBS) \
-	$(NULL)
 endif
 
 include $(topsrcdir)/config/rules.mk

@@ -29,12 +29,16 @@ var ApplicationFactory = {
   }
 };
 
+#include ../../mozilla/toolkit/components/exthelper/extApplication.js
+
 function Application() {
   this.initToolkitHelpers();
 }
 
-
 Application.prototype = {
+  // set the proto, defined in extApplication.js
+  __proto__: extApplication.prototype,
+
   classID: APPLICATION_CID,
 
   // redefine the default factory for XPCOMUtils
@@ -54,14 +58,13 @@ Application.prototype = {
 				    flags: Ci.nsIClassInfo.SINGLETON}),
 
   // for steelIApplication
-  platformIsMac: "nsILocalFileMac" in Components.interfaces,
-  platformIsLinux: "@mozilla.org/gnome-gconf-service;1" in Components.classes,
-  platformIsWindows: "@mozilla.org/windows-registry-key;1" in Components.classes
+  platformIsMac: "nsILocalFileMac" in Ci,
+  platformIsLinux: (("@mozilla.org/gnome-gconf-service;1" in Cc) ||
+                   ("@mozilla.org/gio-service;1" in Cc) ||
+                    (Cc["@mozilla.org/system-info;1"].getService(Ci.nsIPropertyBag2)
+                       .getProperty("name") == "Linux")),
+  platformIsWindows: "@mozilla.org/windows-registry-key;1" in Cc
 };
-
-#include ../../mozilla/toolkit/components/exthelper/extApplication.js
-
-Application.prototype.__proto__ = extApplication.prototype;
 
 const NSGetFactory = XPCOMUtils.generateNSGetFactory([Application]);
 

@@ -94,16 +94,10 @@ const Stanza = {
   presence: function(aAttr, aData) Stanza.node("presence", null, aAttr, aData),
 
   /* Create a message stanza */
-  message: function(aTo, aMsg, aState, aAttr, aData) {
-    if (!aAttr)
-      aAttr = {};
-
+  message: function(aTo, aMsg, aState, aAttr = {}, aData = []) {
     aAttr.to = aTo;
     if (!("type" in aAttr))
       aAttr.type = "chat";
-
-    if (!aData)
-      aData = [];
 
     if (aMsg)
       aData.push(Stanza.node("body", null, null, aMsg));
@@ -136,7 +130,7 @@ const Stanza = {
     if (aData) {
       if (!Array.isArray(aData))
         aData = [aData];
-      for each (let child in aData)
+      for (let child of aData)
         n[typeof(child) == "string" ? "addText" : "addChild"](child);
     }
 
@@ -210,8 +204,8 @@ XMLNode.prototype = {
       return this;
 
     let nq = aQuery.slice(1);
-    for each (let child in this.children) {
-      if (child.qName != aQuery[0])
+    for (let child of this.children) {
+      if (child.type == "text" || child.qName != aQuery[0])
         continue;
       let n = child.getElement(nq);
       if (n)
@@ -239,7 +233,7 @@ XMLNode.prototype = {
 
   /* Get immediate children by the node name */
   getChildren: function(aName)
-    this.children.filter(function(c) c.qName == aName),
+    this.children.filter((c) => (c.type != "text" && c.qName == aName)),
 
   /* Test if the node is a stanza */
   isXmppStanza: function() {
@@ -250,10 +244,7 @@ XMLNode.prototype = {
   },
 
   /* Returns indented XML */
-  convertToString: function(aIndent) {
-    if (!aIndent)
-      aIndent = "";
-
+  convertToString: function(aIndent = "") {
     let s =
       aIndent + "<" + this.qName + this._getXmlns() + this._getAttributeText();
     let content = "";

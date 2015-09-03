@@ -6,6 +6,7 @@
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/hostnameUtils.jsm");
+Components.utils.import("resource://gre/modules/OAuth2Providers.jsm");
 
 /**
  * This is the dialog opened by menu File | New account | Mail... .
@@ -34,8 +35,10 @@ Components.utils.import("resource:///modules/hostnameUtils.jsm");
 // from http://xyfer.blogspot.com/2005/01/javascript-regexp-email-validator.html
 var emailRE = /^[-_a-z0-9\'+*$^&%=~!?{}]+(?:\.[-_a-z0-9\'+*$^&%=~!?{}]+)*@(?:[-a-z0-9.]+\.[a-z]{2,6}|\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/i;
 
-Cu.import("resource:///modules/gloda/log4moz.js");
-let gEmailWizardLogger = Log4Moz.getConfiguredLogger("mail.wizard");
+if (typeof gEmailWizardLogger == "undefined") {
+  Cu.import("resource:///modules/gloda/log4moz.js");
+  var gEmailWizardLogger = Log4Moz.getConfiguredLogger("mail.wizard");
+}
 
 var gStringsBundle;
 var gMessengerBundle;
@@ -181,6 +184,7 @@ EmailConfigWizard.prototype =
         "authPasswordEncrypted");
     setLabelFromStringBundle("in-authMethod-kerberos", "authKerberos");
     setLabelFromStringBundle("in-authMethod-ntlm", "authNTLM");
+    setLabelFromStringBundle("in-authMethod-oauth2", "authOAuth2");
     setLabelFromStringBundle("out-authMethod-no", "authNo");
     setLabelFromStringBundle("out-authMethod-password-cleartext",
         "authPasswordCleartextViaSSL"); // will warn about insecure later
@@ -188,6 +192,7 @@ EmailConfigWizard.prototype =
         "authPasswordEncrypted");
     setLabelFromStringBundle("out-authMethod-kerberos", "authKerberos");
     setLabelFromStringBundle("out-authMethod-ntlm", "authNTLM");
+    setLabelFromStringBundle("out-authMethod-oauth2", "authOAuth2");
 
     e("incoming_port").value = gStringsBundle.getString("port_auto");
     this.fillPortDropdown("smtp");
@@ -665,7 +670,7 @@ EmailConfigWizard.prototype =
     assert(config instanceof AccountConfig,
         "BUG: Arg 'config' needs to be an AccountConfig object");
 
-    this._haveValidConfigForDomain = this._email.split("@")[1];;
+    this._haveValidConfigForDomain = this._email.split("@")[1];
 
     if (!this._realname || !this._email) {
       return;
@@ -792,6 +797,7 @@ EmailConfigWizard.prototype =
           unknownString);
       let certStatus = gStringsBundle.getString(server.badCert ?
           "resultSSLCertWeak" : "resultSSLCertOK");
+      // TODO: we should really also display authentication method here.
       return gStringsBundle.getFormattedString(stringName,
           [ type, host, ssl, certStatus ]);
     };
@@ -913,7 +919,6 @@ EmailConfigWizard.prototype =
     config.incoming.socketType = sanitize.integer(e("incoming_ssl").value);
     config.incoming.auth = sanitize.integer(e("incoming_authMethod").value);
     config.incoming.username = e("incoming_username").value;
-    config.outgoing.username = e("outgoing_username").value;
 
     // Outgoing server
 
@@ -944,8 +949,8 @@ EmailConfigWizard.prototype =
       }
       config.outgoing.socketType = sanitize.integer(e("outgoing_ssl").value);
       config.outgoing.auth = sanitize.integer(e("outgoing_authMethod").value);
-      config.outgoing.username = config.incoming.username;
     }
+    config.outgoing.username = e("outgoing_username").value;
 
     return config;
   },
@@ -1009,7 +1014,7 @@ EmailConfigWizard.prototype =
     e("incoming_ssl").value = sanitize.enum(config.incoming.socketType,
                                             [ 0, 1, 2, 3 ], 0);
     e("incoming_authMethod").value = sanitize.enum(config.incoming.auth,
-                                                   [ 0, 3, 4, 5, 6 ], 0);
+                                                   [ 0, 3, 4, 5, 6, 10 ], 0);
     e("incoming_username").value = config.incoming.username;
     if (config.incoming.port) {
       e("incoming_port").value = config.incoming.port;
@@ -1017,6 +1022,19 @@ EmailConfigWizard.prototype =
       this.adjustIncomingPortToSSLAndProtocol(config);
     }
     this.fillPortDropdown(config.incoming.type);
+
+    // If the hostname supports OAuth2 and imap is enabled, enable OAuth2.
+    let iDetails = OAuth2Providers.getHostnameDetails(config.incoming.hostname);
+    gEmailWizardLogger.info("OAuth2 details for incoming hostname " +
+                            config.incoming.hostname + " is " + iDetails);
+    e("in-authMethod-oauth2").hidden = !(iDetails && e("incoming_protocol").value == 1);
+    if (!e("in-authMethod-oauth2").hidden) {
+      config.oauthSettings = {};
+      [config.oauthSettings.issuer, config.oauthSettings.scope] = iDetails;
+      // oauthsettings are not stored nor changable in the user interface, so just
+      // store them in the base configuration.
+      this._currentConfig.oauthSettings = config.oauthSettings;
+    }
 
     // outgoing server
     e("outgoing_hostname").value = config.outgoing.hostname;
@@ -1027,19 +1045,33 @@ EmailConfigWizard.prototype =
     e("outgoing_ssl").value = sanitize.enum(config.outgoing.socketType,
                                             [ 0, 1, 2, 3 ], 0);
     e("outgoing_authMethod").value = sanitize.enum(config.outgoing.auth,
-                                                   [ 0, 1, 3, 4, 5, 6 ], 0);
+                                                   [ 0, 1, 3, 4, 5, 6, 10 ], 0);
     if (config.outgoing.port) {
       e("outgoing_port").value = config.outgoing.port;
     } else {
       this.adjustOutgoingPortToSSLAndProtocol(config);
     }
-    // populate fields even if existingServerKey, in case user changes back
 
+    // If the hostname supports OAuth2 and imap is enabled, enable OAuth2.
+    let oDetails = OAuth2Providers.getHostnameDetails(config.outgoing.hostname);
+    gEmailWizardLogger.info("OAuth2 details for outgoing hostname " +
+                            config.outgoing.hostname + " is " + oDetails);
+    e("out-authMethod-oauth2").hidden = !oDetails;
+    if (!e("out-authMethod-oauth2").hidden) {
+      config.oauthSettings = {};
+      [config.oauthSettings.issuer, config.oauthSettings.scope] = oDetails;
+      // oauthsettings are not stored nor changable in the user interface, so just
+      // store them in the base configuration.
+      this._currentConfig.oauthSettings = config.oauthSettings;
+    }
+
+    // populate fields even if existingServerKey, in case user changes back
     if (config.outgoing.existingServerKey) {
       let menulist = e("outgoing_hostname");
       // We can't use menulist.value = config.outgoing.existingServerKey
       // because would overwrite the text field, so have to do it manually:
-      for each (let menuitem in e("outgoing_hostname_popup").childNodes) {
+      let menuitems = menulist.menupopup.childNodes;
+      for (let menuitem of menuitems) {
         if (menuitem.serverKey == config.outgoing.existingServerKey) {
           menulist.selectedItem = menuitem;
           break;
@@ -1259,6 +1291,11 @@ EmailConfigWizard.prototype =
   onOpenOutgoingDropdown : function()
   {
     var menulist = e("outgoing_hostname");
+    // If the menulist is not editable, there is nothing to update
+    // and menulist.inputField does not even exist.
+    if (!menulist.editable)
+      return;
+
     var menuitem = menulist.getItemAtIndex(0);
     assert(!menuitem.serverKey, "I wanted the special item for the new host");
     menuitem.label = menulist.inputField.value;
@@ -1274,13 +1311,13 @@ EmailConfigWizard.prototype =
     var menuitem = menulist.selectedItem;
     if (menuitem && menuitem.serverKey) {
       // an existing server has been selected from the dropdown
-      menulist.setAttribute("editable", false);
+      menulist.editable = false;
       _hide("outgoing_port");
       _hide("outgoing_ssl");
       _hide("outgoing_authMethod");
     } else {
       // new server, with hostname, port etc.
-      menulist.setAttribute("editable", true);
+      menulist.editable = true;
       _show("outgoing_port");
       _show("outgoing_ssl");
       _show("outgoing_authMethod");
@@ -1576,6 +1613,12 @@ EmailConfigWizard.prototype =
         self._currentConfig.outgoing.auth = successfulConfig.outgoing.auth;
         self._currentConfig.incoming.username = successfulConfig.incoming.username;
         self._currentConfig.outgoing.username = successfulConfig.outgoing.username;
+
+        // We loaded dynamic client registration, fill this data back in to the
+        // config set.
+        if (successfulConfig.oauthSettings)
+          self._currentConfig.oauthSettings = successfulConfig.oauthSettings;
+
         self.finish();
       },
       function(e) // failed
@@ -1651,6 +1694,11 @@ SecurityWarningDialog.prototype =
    */
   _acknowledged : null,
 
+  _inSecurityBad:  0x0001,
+  _inCertBad:      0x0010,
+  _outSecurityBad: 0x0100,
+  _outCertBad:     0x1000,
+
   /**
    * Checks whether we need to warn about this config.
    *
@@ -1678,24 +1726,30 @@ SecurityWarningDialog.prototype =
     assert(configSchema.isComplete());
     assert(configFilledIn.isComplete());
 
-    var incomingOK = configFilledIn.incoming.socketType > 1 &&
-        !configFilledIn.incoming.badCert;
-    var outgoingOK = configFilledIn.outgoing.socketType > 1 &&
-        !configFilledIn.outgoing.badCert;
+    var incomingBad = ((configFilledIn.incoming.socketType > 1) ? 0 : this._inSecurityBad) |
+                      ((configFilledIn.incoming.badCert) ? this._inCertBad : 0);
+    var outgoingBad = 0;
+    if (!configFilledIn.outgoing.existingServerKey) {
+      outgoingBad = ((configFilledIn.outgoing.socketType > 1) ? 0 : this._outSecurityBad) |
+                    ((configFilledIn.outgoing.badCert) ? this._outCertBad : 0);
+    }
 
-    if (!incomingOK) {
-      incomingOK = this._acknowledged.some(
+    if (incomingBad > 0) {
+      if (this._acknowledged.some(
           function(ackServer) {
             return serverMatches(ackServer, configFilledIn.incoming);
-          });
+          }))
+        incomingBad = 0;
     }
-    if (!outgoingOK) {
-      outgoingOK = this._acknowledged.some(
+    if (outgoingBad > 0) {
+      if (this._acknowledged.some(
           function(ackServer) {
             return serverMatches(ackServer, configFilledIn.outgoing);
-          });
+          }))
+        outgoingBad = 0;
     }
-    return !incomingOK || !outgoingOK;
+
+    return incomingBad | outgoingBad;
   },
 
   /**
@@ -1724,11 +1778,12 @@ SecurityWarningDialog.prototype =
     assert(typeof(cancelCallback) == "function");
     // needed() also checks the parameters
     var needed = this.needed(configSchema, configFilledIn);
-    if (!needed && onlyIfNeeded) {
+    if ((needed == 0) && onlyIfNeeded) {
       okCallback();
       return;
     }
-    assert(needed, "security dialog opened needlessly");
+
+    assert(needed > 0 , "security dialog opened needlessly");
     this._currentConfigFilledIn = configFilledIn;
     this._okCallback = okCallback;
     this._cancelCallback = cancelCallback;
@@ -1745,42 +1800,41 @@ SecurityWarningDialog.prototype =
     e("outgoing_technical").removeAttribute("expanded");
     e("outgoing_details").setAttribute("collapsed", true);
 
-    if (incoming.socketType == 1) {
+    if (needed & this._inSecurityBad) {
       setText("warning_incoming", gStringsBundle.getFormattedString(
           "cleartext_warning", [incoming.hostname]));
       setText("incoming_details", gStringsBundle.getString(
           "cleartext_details"));
       _show("incoming_box");
-      _show("acknowledge_warning");
-    } else if (incoming.badCert) {
+    } else if (needed & this._inCertBad) {
       setText("warning_incoming", gStringsBundle.getFormattedString(
           "selfsigned_warning", [incoming.hostname]));
       setText("incoming_details", gStringsBundle.getString(
           "selfsigned_details"));
       _show("incoming_box");
-      _show("acknowledge_warning");
     } else {
       _hide("incoming_box");
-      _hide("acknowledge_warning");
     }
 
-    if (outgoing.socketType == 1) {
+    if (needed & this._outSecurityBad) {
       setText("warning_outgoing", gStringsBundle.getFormattedString(
           "cleartext_warning", [outgoing.hostname]));
       setText("outgoing_details", gStringsBundle.getString(
           "cleartext_details"));
       _show("outgoing_box");
-      _show("acknowledge_warning");
-    } else if (outgoing.badCert) {
+    } else if (needed & this._outCertBad) {
       setText("warning_outgoing", gStringsBundle.getFormattedString(
           "selfsigned_warning", [outgoing.hostname]));
       setText("outgoing_details", gStringsBundle.getString(
           "selfsigned_details"));
       _show("outgoing_box");
-      _show("acknowledge_warning");
     } else {
       _hide("outgoing_box");
     }
+    _show("acknowledge_warning");
+    assert(!e("incoming_box").hidden || !e("outgoing_box").hidden,
+           "warning dialog shown for unknown reason");
+
     window.sizeToContent();
   },
 

@@ -8,6 +8,7 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
 Components.utils.import("resource://gre/modules/LoginManagerContent.jsm");
+Components.utils.import("resource://gre/modules/LoginManagerParent.jsm");
 Components.utils.import("resource:///modules/Sanitizer.jsm");
 Components.utils.import("resource:///modules/mailnewsMigrator.js");
 
@@ -32,6 +33,12 @@ XPCOMUtils.defineLazyModuleGetter(this, "PlacesBackups",
 XPCOMUtils.defineLazyModuleGetter(this, "BookmarkHTMLUtils",
                                   "resource://gre/modules/BookmarkHTMLUtils.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "BookmarkJSONUtils",
+                                  "resource://gre/modules/BookmarkJSONUtils.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "Task",
+                                  "resource://gre/modules/Task.jsm");
+
 XPCOMUtils.defineLazyModuleGetter(this, "DebuggerServer",
                                   "resource://gre/modules/devtools/dbg-server.jsm");
 
@@ -45,6 +52,7 @@ const BOOKMARKS_BACKUP_MAX_BACKUPS = 10;
 // Devtools Preferences
 const DEBUGGER_REMOTE_ENABLED = "devtools.debugger.remote-enabled";
 const DEBUGGER_REMOTE_PORT = "devtools.debugger.remote-port";
+const DEBUGGER_FORCE_LOCAL = "devtools.debugger.force-local";
 
 // Constructor
 
@@ -125,6 +133,7 @@ SuiteGlue.prototype = {
               this.dbgStop();
             break;
           case DEBUGGER_REMOTE_PORT:
+          case DEBUGGER_FORCE_LOCAL:
             /**
              * If the server is not on, port changes have nothing to affect.
              * The new value will be picked up if the server is started.
@@ -145,6 +154,9 @@ SuiteGlue.prototype = {
         this._promptForMasterPassword();
         this._checkForNewAddons();
         Services.search.init();
+        LoginManagerParent.init();
+        Components.utils.import("resource://gre/modules/Webapps.jsm");
+        Components.utils.import("resource://gre/modules/NotificationDB.jsm");
         break;
       case "sessionstore-windows-restored":
         this._onBrowserStartup(subject);
@@ -232,6 +244,13 @@ SuiteGlue.prototype = {
           ss.defaultEngine = ss.currentEngine;
         else
           ss.currentEngine = ss.defaultEngine;
+        break;
+      case "timer-callback":
+        // Load the Login Manager data from disk off the main thread, some time
+        // after startup.  If the data is required before the timeout, for example
+        // because a restored page contains a password field, it will be loaded on
+        // the main thread, and this initialization request will be ignored.
+        Services.logins;
         break;
     }
   },
@@ -330,6 +349,10 @@ SuiteGlue.prototype = {
     }
 
     this._setUpUserAgentOverrides();
+
+    var timer = Components.classes["@mozilla.org/timer;1"]
+                          .createInstance(Components.interfaces.nsITimer);
+    timer.init(this, 3000, timer.TYPE_ONE_SHOT);
   },
 
   _setUpUserAgentOverrides: function ()
@@ -663,7 +686,7 @@ SuiteGlue.prototype = {
   {
     const NS_SHELLSERVICE_CID = "@mozilla.org/suite/shell-service;1";
     if (NS_SHELLSERVICE_CID in Components.classes) try {
-      const nsIShellService = Components.interfaces.nsIShellService;
+      var nsIShellService = Components.interfaces.nsIShellService;
 
       var shellService = Components.classes[NS_SHELLSERVICE_CID]
                                    .getService(nsIShellService);
@@ -701,11 +724,11 @@ SuiteGlue.prototype = {
    *   Set to true by safe-mode dialog to indicate we must restore default
    *   bookmarks.
    */
-  _initPlaces: function(aInitialMigrationPerformed) {
+  _initPlaces: Task.async(function(aInitialMigrationPerformed) {
     // We must instantiate the history service since it will tell us if we
     // need to import or restore bookmarks due to first-run, corruption or
     // forced migration (due to a major schema change).
-    var bookmarksBackupFile = PlacesBackups.getMostRecent("json");
+    var bookmarksBackupFile = yield PlacesBackups.getMostRecentBackup();
 
     // If the database is corrupt or has been newly created we should
     // import bookmarks. Same if we don't have any JSON backups, which
@@ -744,7 +767,7 @@ SuiteGlue.prototype = {
       // Get latest JSON backup.
       if (bookmarksBackupFile) {
         // Restore from JSON backup.
-        PlacesUtils.restoreBookmarksFromJSONFile(bookmarksBackupFile);
+        yield BookmarkJSONUtils.importFromFile(bookmarksBackupFile, true);
         importBookmarks = false;
       }
       else if (dbStatus == PlacesUtils.history.DATABASE_STATUS_OK) {
@@ -835,7 +858,7 @@ SuiteGlue.prototype = {
       this._idleService.addIdleObserver(this, BOOKMARKS_BACKUP_IDLE_TIME);
       this._isIdleObserver = true;
     }
-  },
+  }),
 
   /**
    * Places shut-down tasks
@@ -862,7 +885,7 @@ SuiteGlue.prototype = {
         // potential hangs (bug 518683).  The asynchronous shutdown operations
         // will then be handled by a shutdown service (bug 435058).
         var shutdownComplete = false;
-        BookmarkHTMLUtils.exportToFile(FileUtils.getFile("BMarks", [])).then(
+        BookmarkHTMLUtils.exportToFile(Services.dirsvc.get("BMarks", Components.interfaces.nsILocalFile)).then(
           function onSuccess() {
             shutdownComplete = true;
           },
@@ -903,7 +926,26 @@ SuiteGlue.prototype = {
 
   _updatePrefs: function()
   {
-    // Get the preferences service
+    // Make sure that the doNotTrack value conforms to the conversion from
+    // three-state to two-state. (This reverts a setting of "please track me"
+    // to the default "don't say anything").
+    try {
+      if (Services.prefs.getIntPref("privacy.donottrackheader.value") != 1) {
+        Services.prefs.clearUserPref("privacy.donottrackheader.enabled");
+        Services.prefs.clearUserPref("privacy.donottrackheader.value");
+      }
+    } catch (ex) {}
+
+    // Migration of document-color preference which changed from boolean to
+    // tri-state; 0=always but not accessibility themes, 1=always, 2=never
+    try {
+      if (!Services.prefs.getBoolPref("browser.display.use_document_colors")) {
+        Services.prefs.setIntPref("browser.display.document_color_use", 2);
+        Services.prefs.clearUserPref("browser.display.use_document_colors");
+      }
+    } catch (ex) {}
+
+    // Migration of download-manager preferences
     if (Services.prefs.getPrefType("browser.download.dir") == Services.prefs.PREF_INVALID ||
         Services.prefs.getPrefType("browser.download.lastDir") != Services.prefs.PREF_INVALID)
       return; //Do nothing if .dir does not exist, or if it exists and lastDir does not
@@ -933,7 +975,7 @@ SuiteGlue.prototype = {
     try {
       Services.prefs.setBoolPref("browser.download.progress.closeWhenDone",
                                  !Services.prefs.getBoolPref("browser.download.progressDnldDialog.keepAlive"));
-    } catch (e) {}
+    } catch (ex) {}
   },
 
   /**
@@ -951,13 +993,17 @@ SuiteGlue.prototype = {
       DebuggerServer.init();
       DebuggerServer.addBrowserActors();
     }
-    DebuggerServer.openListener(port);
+    try {
+      let listener = DebuggerServer.createListener();
+      listener.portOrPath = port;
+      listener.open();
+    } catch(e) {}
   },
 
   dbgStop: function()
   {
     if (DebuggerServer.initialized)
-      DebuggerServer.closeListener();
+      DebuggerServer.closeAllListeners();
   },
 
   dbgRestart: function()

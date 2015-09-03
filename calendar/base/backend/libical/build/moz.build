@@ -7,9 +7,13 @@ SOURCES += [
     'calBaseModule.cpp',
 ]
 
-# We don't want an EXPORT_LIBRARY
-FORCE_SHARED_LIB = True
-IS_COMPONENT = True
+XPCOMBinaryComponent('calbasecomps')
 
-LIBRARY_NAME = 'calbasecomps'
+LOCAL_INCLUDES += [
+    '..'
+]
 
+if CONFIG['JS_SHARED_LIBRARY']:
+    USE_LIBS += [
+        'js',
+    ]

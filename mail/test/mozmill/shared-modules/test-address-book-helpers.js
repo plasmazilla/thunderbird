@@ -8,7 +8,7 @@ const RELATIVE_ROOT = "../shared-modules";
 const MODULE_REQUIRES = ["folder-display-helpers", "window-helpers"];
 
 Cu.import("resource:///modules/mailServices.js");
-Cu.import("resource:///modules/Services.jsm");
+Cu.import("resource://gre/modules/Services.jsm");
 
 const ABMDB_PREFIX = "moz-abmdbdirectory://";
 const ABLDAP_PREFIX = "moz-abldapdirectory://";
@@ -400,6 +400,8 @@ function select_address_book(aAddrBook)
 {
   let aIndex = get_address_book_tree_view_index(aAddrBook);
   abController.window.gDirectoryTreeView.selection.select(aIndex);
+  // Focus the resulting list of cards.
+  abController.window.gAbResultsTree.focus();
 }
 
 /* Selects one or more contacts in an address book, assuming that

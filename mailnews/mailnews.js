@@ -370,7 +370,6 @@ pref("mail.collect_email_address_incoming", false);
 pref("mail.collect_email_address_newsgroup", false);
 #endif
 pref("mail.collect_email_address_outgoing", true);
-
 // by default, use the Collected Addressbook for collection
 pref("mail.collect_addressbook", "moz-abmdbdirectory://history.mab");
 
@@ -431,7 +430,7 @@ pref("mail.server.default.canFileMessages", true);
 pref("mail.server.default.is_gmail", false);
 pref("mail.server.default.use_idle", true);
 // in case client or server has bugs in condstore implementation
-pref("mail.server.default.use_condstore", true);
+pref("mail.server.default.use_condstore", false);
 // in case client or server has bugs in compress implementation
 pref("mail.server.default.use_compress_deflate", true);
 // for spam
@@ -460,6 +459,9 @@ pref("mail.server.default.offline_download",true);
 // -1 means no limit, no purging of offline stores.
 pref("mail.server.default.autosync_max_age_days", -1);
 
+// can we change the store type?
+pref("mail.server.default.canChangeStoreType", false);
+
 // This is the default store contractID for newly created servers.
 // We don't use mail.server.default because we want to ensure that the
 // store contract id is always written out to prefs.js
@@ -477,6 +479,9 @@ pref("mail.spam.markAsNotJunkMarksUnRead", true);
 pref("mail.spam.display.sanitize", true); // display simple html for html junk messages
 // the number of allowed bayes tokens before the database is shrunk
 pref("mailnews.bayesian_spam_filter.junk_maxtokens", 100000);
+
+// pref to warn the users of exceeding the size of the message being composed. (Default 20MB).
+pref("mailnews.message_warning_size", 20971520);
 
 // set default traits for junk and good. Index should match the values in nsIJunkMailPlugin
 pref("mailnews.traits.id.1", "mailnews@mozilla.org#good");
@@ -624,9 +629,14 @@ pref("mail.biff.play_sound.type", 0);
 // otherwise, this needs to be a file url
 pref("mail.biff.play_sound.url", "");
 pref("mail.biff.show_alert", true);
-pref("mail.biff.show_tray_icon", true); // currently Windows-only
-pref("mail.biff.show_balloon", false); // currently Windows-only
+#ifdef XP_WIN
+pref("mail.biff.show_tray_icon", true);
+pref("mail.biff.show_balloon", false);
+#elifdef XP_MACOSX
 pref("mail.biff.animate_dock_icon", false);
+#elifdef XP_UNIX
+pref("mail.biff.use_system_alert", false);
+#endif
 
 // add jitter to biff interval
 pref("mail.biff.add_interval_jitter", true);
@@ -636,10 +646,15 @@ pref("mail.biff.add_interval_jitter", true);
 pref("mail.biff.on_new_window", true);
 #endif
 
+#ifdef XP_MACOSX
 // If true, the number used in the Mac OS X dock notification will be the
 // the number of "new" messages, as per the classic Thunderbird definition.
 // Defaults to false, which notifies about the number of unread messages.
 pref("mail.biff.use_new_count_in_mac_dock", false);
+#endif
+
+// For feed account serverType=rss sound on biff; if true, mail.biff.play_sound.* settings are used.
+pref("mail.feed.play_sound", false);
 
 // Content disposition for attachments (except binary files and vcards).
 //   0= Content-Disposition: inline
@@ -660,13 +675,6 @@ pref("mailnews.ui.junk.manualMarkAsJunkMarksRead", true);
 // unread and total columns, see msgMail3PaneWindow.js
 pref("mail.ui.folderpane.version", 1);
 
-// for manual upgrades of certain UI features.
-#ifdef MOZ_SUITE
-pref("mailnews.ui.threadpane.version", 5);
-#else
-// Thunderbird uses this pref in msgMail3PaneWindow.js for bad reasons.
-pref("mailnews.ui.threadpane.version", 7);
-#endif
 // for manual upgrades of certain UI features.
 // 1 -> 2 is for the ab results pane tree landing
 // to hide the non default columns in the addressbook dialog
@@ -702,6 +710,11 @@ pref("mailnews.labels.color.2", "#FF9900"); // default: orange
 pref("mailnews.labels.color.3", "#009900"); // default: green
 pref("mailnews.labels.color.4", "#3333FF"); // default: blue
 pref("mailnews.labels.color.5", "#993399"); // default: purple
+
+// Whether the colors from tags should be applied only to the message(s)
+// actually tagged, or also to any collapsed threads which contain tagged
+// messages.
+pref("mailnews.display_reply_tag_colors_for_collapsed_threads", true);
 
 //default null headers
 //example "X-Warn: XReply", list of hdrs separated by ": "
@@ -803,6 +816,10 @@ pref("mailnews.database.summary.dontPreserveOnCopy",
 //                     Allows extensions to control preservation of properties.
 pref("mailnews.database.summary.dontPreserveOnMove",
   "account msgOffset threadParent msgThreadId statusOfset flags size numLines ProtoThreadFlags label storeToken");
+// Should we output dbcache log via dump? Set to "Debug" to show.
+pref("mailnews.database.dbcache.logging.dump", "None");
+// Should we output dbcache log to the "error console"? Set to "Debug" to show.
+pref("mailnews.database.dbcache.logging.console", "None");
 
 // -- Global Database (gloda) options
 // Should the indexer be enabled?
@@ -838,8 +855,3 @@ pref("mail.imap.qos", 0);
 
 // PgpMime Addon
 pref("mail.pgpmime.addon_url", "https://addons.mozilla.org/addon/enigmail/");
-
-// Use raw ICU instead of CoreServices API in Unicode collation.
-#ifdef XP_MACOSX
-pref("intl.collation.mac.use_icu", true);
-#endif

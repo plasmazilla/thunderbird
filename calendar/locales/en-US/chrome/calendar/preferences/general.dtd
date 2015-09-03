@@ -13,6 +13,10 @@
 <!ENTITY pref.dateformat.long "Long" >
 <!ENTITY pref.dateformat.short "Short"  >
 
+<!ENTITY pref.timezones.caption "Timezone">
+<!ENTITY pref.timezones.label "Select the closest city in your timezone:">
+<!ENTITY pref.timezones.accesskey "S">
+
 <!ENTITY pref.defaults.label "Default Values for New Items">
 <!ENTITY pref.events.label "Events">
 <!ENTITY pref.tasks.label "Tasks">
@@ -28,6 +32,10 @@
 <!ENTITY pref.default_task_offset_current.label "Relative to Current Time">
 <!ENTITY pref.default_task_offset_start.label "Relative to Start">
 <!ENTITY pref.default_task_offset_next_hour.label "Relative to Next Hour">
+
+<!ENTITY pref.calendar.todaypane.agenda.caption "Today Pane">
+<!ENTITY pref.soondays.label "The upcoming section shows:">
+<!ENTITY pref.soondays.accesskey "u">
 
 <!ENTITY pref.accessibility.label "Accessibility" >
 <!ENTITY pref.systemcolors.label "Optimize colors for accessibility" >

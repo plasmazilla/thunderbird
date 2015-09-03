@@ -35,6 +35,7 @@ pref("general.startup.addressbook",         false);
 
 pref("general.open_location.last_url",      "");
 pref("general.open_location.last_window_choice", 0);
+pref("browser.urlbar.historyEnabled",       true);
 
 pref("general.smoothScroll", false);
 pref("general.autoScroll", true);
@@ -102,6 +103,7 @@ pref("browser.search.log", false);
 // Ordering of Search Engines in the Engine list.
 pref("browser.search.order.1", "chrome://communicator-region/locale/region.properties");
 pref("browser.search.order.2", "chrome://communicator-region/locale/region.properties");
+pref("browser.search.order.3", "chrome://communicator-region/locale/region.properties");
 
 // Search (side)bar results always open in a new tab.
 pref("browser.search.openintab", false);
@@ -146,13 +148,13 @@ pref("browser.urlbar.showSearch", true);
 // 3: Match at the beginning of the url or title
 pref("browser.urlbar.matchBehavior", 1);
 
-// The default behavior for the urlbar can be configured to use any combination
-// of the restrict or match filters with each additional filter restricting
-// more (intersection). Add the following values to set the behavior as the
-// default: 1: history, 2: bookmark, 4: tag, 8: title, 16: url, 32: typed
-// E.g., 0 = show all results (no filtering), 1 = only visited pages in history,
-// 2 = only bookmarks, 3 = visited bookmarks, 1+16 = history matching in the url
-pref("browser.urlbar.default.behavior", 1);
+pref("browser.urlbar.suggest.history", true);
+pref("browser.urlbar.suggest.bookmark", false);
+// SeaMonkey doesn't support this.
+pref("browser.urlbar.suggest.openpage", false);
+
+pref("browser.urlbar.suggest.history.onlyTyped", false);
+
 pref("browser.urlbar.filter.javascript", true);
 
 // Size of "chunks" affects the number of places to process between each search
@@ -342,9 +344,13 @@ pref("network.protocol-handler.warn-external.snews", true);
 pref("network.protocol-handler.warn-external.nntp", true);
 
 // bug 1005566 - Disable seer until properly supported
-pref("network.seer.enabled", false);
+// bug 1021370 - Rename Seer to Predictor
+pref("network.predictor.enabled", false);
 
 pref("mail.biff.show_new_alert",     true);
+
+// default calendar integration
+pref("mail.calendar-integration.opt-out", false);
 
 pref("mailnews.ui.deleteMarksRead", true);
 
@@ -609,9 +615,9 @@ pref("extensions.blocklist.interval", 86400);
 // Controls what level the blocklist switches from warning about items to forcibly
 // blocking them.
 pref("extensions.blocklist.level", 2);
-pref("extensions.blocklist.url", "https://addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
+pref("extensions.blocklist.url", "https://blocklist.addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
 pref("extensions.blocklist.detailsURL", "https://www.mozilla.com/%LOCALE%/blocklist/");
-pref("extensions.blocklist.itemURL", "https://addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
+pref("extensions.blocklist.itemURL", "https://blocklist.addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
 
 // Update preferences for installed Extensions and Themes.
 // Symmetric (can be overridden by individual extensions),
@@ -715,6 +721,8 @@ pref("privacy.item.offlineApps", false);
 pref("privacy.sanitize.sanitizeOnShutdown", false);
 pref("privacy.sanitize.promptOnSanitize", true);
 
+pref("privacy.warn_tracking_content", true);
+
 // Show XUL error pages instead of alerts for errors
 pref("browser.xul.error_pages.enabled", true);
 pref("browser.xul.error_pages.expert_bad_cert", false);
@@ -760,6 +768,9 @@ pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
 pref("plugins.hide_infobar_for_missing_plugin", false);
 pref("plugins.click_to_play", true);
 pref("plugin.disable", false);
+
+// Digital Rights Management, Encrypted Media Extensions
+pref("media.eme.enabled", false);
 
 #ifndef XP_MACOSX
 // Restore the spinner that was removed in bug 481359
@@ -850,6 +861,7 @@ pref("services.sync.prefs.sync.browser.download.manager.scanWhenDone", true);
 pref("services.sync.prefs.sync.browser.formfill.enable", true);
 pref("services.sync.prefs.sync.browser.link.open_external", true);
 pref("services.sync.prefs.sync.browser.link.open_newwindow", true);
+pref("services.sync.prefs.sync.browser.offline-apps.notify", true);
 pref("services.sync.prefs.sync.browser.safebrowsing.enabled", true);
 pref("services.sync.prefs.sync.browser.safebrowsing.malware.enabled", true);
 pref("services.sync.prefs.sync.browser.search.update", true);
@@ -864,7 +876,9 @@ pref("services.sync.prefs.sync.browser.tabs.warnOnCloseOther", true);
 pref("services.sync.prefs.sync.browser.tabs.warnOnOpen", true);
 pref("services.sync.prefs.sync.browser.urlbar.autocomplete.enabled", true);
 pref("services.sync.prefs.sync.browser.urlbar.autoFill", true);
-pref("services.sync.prefs.sync.browser.urlbar.default.behavior", true);
+pref("services.sync.prefs.sync.browser.urlbar.suggest.history", true);
+pref("services.sync.prefs.sync.browser.urlbar.suggest.bookmark", true);
+pref("services.sync.prefs.sync.browser.urlbar.suggest.history.onlyTyped", true);
 pref("services.sync.prefs.sync.dom.disable_open_during_load", true);
 pref("services.sync.prefs.sync.dom.disable_window_flip", true);
 pref("services.sync.prefs.sync.dom.disable_window_move_resize", true);
@@ -929,9 +943,9 @@ pref("services.sync.prefs.sync.mailnews.view_default_charset", true);
 pref("services.sync.prefs.sync.mailnews.wraplength", true);
 pref("services.sync.prefs.sync.network.cookie.cookieBehavior", true);
 pref("services.sync.prefs.sync.network.cookie.lifetimePolicy", true);
+pref("services.sync.prefs.sync.offline-apps.allow_by_default", true);
 pref("services.sync.prefs.sync.permissions.default.image", true);
 pref("services.sync.prefs.sync.privacy.donottrackheader.enabled", true);
-pref("services.sync.prefs.sync.privacy.donottrackheader.value", true);
 pref("services.sync.prefs.sync.privacy.item.cache", true);
 pref("services.sync.prefs.sync.privacy.item.cookies", true);
 pref("services.sync.prefs.sync.privacy.item.downloads", true);
@@ -943,6 +957,8 @@ pref("services.sync.prefs.sync.privacy.item.sessions", true);
 pref("services.sync.prefs.sync.privacy.item.urlbar", true);
 pref("services.sync.prefs.sync.privacy.sanitize.promptOnSanitize", true);
 pref("services.sync.prefs.sync.privacy.sanitize.sanitizeOnShutdown", true);
+pref("services.sync.prefs.sync.privacy.trackingprotection.enabled", true);
+pref("services.sync.prefs.sync.privacy.warn_tracking_content", true);
 pref("services.sync.prefs.sync.security.OCSP.enabled", true);
 pref("services.sync.prefs.sync.security.OCSP.require", true);
 pref("services.sync.prefs.sync.security.default_personal_cert", true);

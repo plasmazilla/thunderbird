@@ -515,6 +515,8 @@ toolbar[mode="text"] > #window-controls > toolbarbutton > .toolbarbutton-icon {
 
 .autocomplete-search-engine-img {
   -moz-margin-end: 4px;
+  width: 16px;
+  height: 16px;
 }
 
 .autocomplete-treebody::-moz-tree-cell-text(treecolAutoCompleteComment) {
@@ -651,7 +653,7 @@ toolbar[mode="icons"] #search-button > .button-box > .button-text {
 
 #PersonalToolbar > toolbarbutton > .toolbarbutton-text,
 .bookmark-item > .toolbarbutton-text {
-  margin: 0 3px 0 2px;
+  margin: 0 3px 0 2px !important;
 }
 
 #PersonalToolbar > toolbarbutton > .toolbarbutton-icon,

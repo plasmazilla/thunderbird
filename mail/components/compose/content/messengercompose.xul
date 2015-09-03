@@ -66,11 +66,11 @@
 
 <!-- move needed functions into a single js file -->
 <script type="application/javascript" src="chrome://messenger/content/messengercompose/addressingWidgetOverlay.js"/>
-<script type="application/javascript" src="chrome://global/content/charsetOverlay.js"/>
 <script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
 <script type="application/javascript" src="chrome://global/content/contentAreaUtils.js"/>
 <script type="application/javascript" src="chrome://global/content/viewZoomOverlay.js"/>
 <script type="application/javascript" src="chrome://communicator/content/utilityOverlay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/toolbarIconColor.js"/>
 
 <commandset id="composeCommands">
   <commandset id="msgComposeCommandUpdate"
@@ -199,6 +199,7 @@
   <key id="key_send" keycode="&sendCmd.keycode;" observes="cmd_sendWithCheck" modifiers="accel"/>
   <key id="key_sendLater" keycode="&sendLaterCmd.keycode;" observes="cmd_sendLater" modifiers="accel, shift"/>
   <key id="key_print" key="&printCmd.key;" command="cmd_print" modifiers="accel"/>
+  <key id="printKb" key="&printCmd.key;" command="cmd_print" modifiers="accel"/>
 
   <!-- Edit Menu -->
   <key id="key_undo" key="&undoCmd.key;" modifiers="accel"/>
@@ -412,6 +413,22 @@
             label="&customizeToolbar.label;"
             accesskey="&customizeToolbar.accesskey;"/>
 </menupopup>
+
+#ifdef XP_MACOSX
+  <vbox id="titlebar">
+    <hbox id="titlebar-content">
+      <spacer id="titlebar-spacer" flex="1"/>
+      <hbox id="titlebar-buttonbox-container" align="start">
+        <hbox id="titlebar-buttonbox">
+          <toolbarbutton class="titlebar-button" id="titlebar-min" oncommand="window.minimize();"/>
+          <toolbarbutton class="titlebar-button" id="titlebar-max" oncommand="onTitlebarMaxClick();"/>
+          <toolbarbutton class="titlebar-button" id="titlebar-close" oncommand="window.close()"/>
+        </hbox>
+      </hbox>
+      <hbox id="titlebar-fullscreen-button"/>
+    </hbox>
+  </vbox>
+#endif
 
   <toolbox id="compose-toolbox"
            class="toolbox-top"
@@ -804,7 +821,7 @@
                    command="cmd_print"
                    tooltiptext="&printButton.tooltip;"
                    type="menu-button">
-      <menupopup id="button-printPopup" 
+      <menupopup id="button-printPopup"
                  onpopupshowing="goUpdateCommand('cmd_printpreview');">
         <menuitem id="button-printMenu"
                   label="&printCmd.label;"
@@ -927,7 +944,8 @@
                          type="autocomplete" flex="1"
                          autocompletesearch="mydomain addrbook ldap news"
                          autocompletesearchparam="{}"
-                         timeout="300" maxrows="4"
+                         timeout="300"
+                         maxrows="6"
                          completedefaultindex="true" forcecomplete="true"
                          minresultsforpopup="2" ignoreblurwhilesearching="true"
                          ontextentered="awRecipientTextCommand(param, this)"

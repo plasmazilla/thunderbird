@@ -5,6 +5,7 @@
 
 Components.utils.import("resource:///modules/folderUtils.jsm");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
 
 /**
  * interfaces
@@ -449,7 +450,11 @@ var defaultController =
       case "cmd_print"              : PrintUtils.print(); break;
 
       //Edit Menu
-      case "cmd_account"            : MsgAccountManager(null); break;
+      case "cmd_account"            :
+        let currentAccountKey = getCurrentAccountKey();
+        let account = gAccountManager.getAccount(currentAccountKey);
+        MsgAccountManager(null, account.incomingServer);
+        break;
       case "cmd_preferences"        : DoCommandPreferences(); break;
 
       //Options Menu
@@ -943,7 +948,10 @@ function ComposeStartup(recycled, aParams)
     params.identity = identities.queryElementAt(0, Components.interfaces.nsIMsgIdentity);
   }
 
-  identityList.value = params.identity.key;
+  identityList.selectedItem =
+    identityList.getElementsByAttribute("identitykey", params.identity.key)[0];
+  if (params.composeFields.from)
+    identityList.value = params.composeFields.from;
   LoadIdentity(true);
   if (sMsgComposeService)
   {
@@ -1270,6 +1278,7 @@ function GenericSendMessage( msgType )
     if (msgCompFields)
     {
       Recipients2CompFields(msgCompFields);
+      msgCompFields.from = GetMsgIdentityElement().value;
       var subject = GetMsgSubjectElement().value;
       msgCompFields.subject = subject;
       Attachments2CompFields(msgCompFields);
@@ -1287,7 +1296,7 @@ function GenericSendMessage( msgType )
           window.cancelSendMessage = false;
           try {
             window.openDialog("chrome://editor/content/EdSpellCheck.xul", "_blank",
-                    "chrome,close,titlebar,modal", true, true, false);
+                    "dialog,close,titlebar,modal,resizable", true, true, false);
           }
           catch(ex){}
           if(window.cancelSendMessage)
@@ -1889,8 +1898,13 @@ function FillIdentityList(menulist)
     for (let i = 0; i < identities.length; i++)
     {
       let identity = identities[i];
-      let item = menulist.appendItem(identity.identityName, identity.key,
+      let address = MailServices.headerParser
+                                .makeMailboxObject(identity.fullName,
+                                                   identity.email).toString();
+      let item = menulist.appendItem(identity.identityName,
+                                     address,
                                      account.incomingServer.prettyName);
+      item.setAttribute("identitykey", identity.key);
       item.setAttribute("accountkey", account.key);
       if (i == 0)
       {
@@ -1901,13 +1915,6 @@ function FillIdentityList(menulist)
   }
 }
 
-function getCurrentIdentity()
-{
-  // fill in Identity combobox
-  var identityKey = GetMsgIdentityElement().value;
-  return gAccountManager.getIdentity(identityKey);
-}
-
 function getCurrentAccountKey()
 {
     // get the accounts key
@@ -1915,9 +1922,21 @@ function getCurrentAccountKey()
     return identityList.selectedItem.getAttribute("accountkey");
 }
 
+function getCurrentIdentityKey()
+{
+    // get the identity key
+    var identityList = GetMsgIdentityElement();
+    return identityList.selectedItem.getAttribute("identitykey");
+}
+
 function getIdentityForKey(key)
 {
     return gAccountManager.getIdentity(key);
+}
+
+function getCurrentIdentity()
+{
+  return getIdentityForKey(getCurrentIdentityKey());
 }
 
 function AdjustFocus()
@@ -2365,7 +2384,9 @@ function LoadIdentity(startup)
     var prevIdentity = gCurrentIdentity;
 
     if (identityElement) {
-        var idKey = identityElement.value;
+        identityElement.value = identityElement.selectedItem.value;
+
+        var idKey = identityElement.selectedItem.getAttribute("identitykey");
         gCurrentIdentity = gAccountManager.getIdentity(idKey);
 
         let accountKey = null;

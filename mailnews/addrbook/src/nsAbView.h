@@ -37,7 +37,6 @@ class nsAbView : public nsIAbView, public nsITreeView, public nsIAbListener, pub
 {
 public:
   nsAbView();
-  virtual ~nsAbView();
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIABVIEW
@@ -48,6 +47,7 @@ public:
   int32_t CompareCollationKeys(uint8_t *key1, uint32_t len1, uint8_t *key2, uint32_t len2);
 
 private:
+  virtual ~nsAbView();
   nsresult Initialize();
   int32_t FindIndexForInsert(AbCard *abcard);
   int32_t FindIndexForCard(nsIAbCard *card);
@@ -74,6 +74,7 @@ private:
   nsCOMPtr<nsIStringBundle> mABBundle;
 
   bool mInitialized;
+  bool mIsAllDirectoryRootView;
   bool mSuppressSelectionChange;
   bool mSuppressCountChange;
   int32_t mGeneratedNameFormat;

@@ -2,33 +2,44 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH = @DEPTH@
-topsrcdir = @top_srcdir@
-srcdir = @srcdir@
-VPATH = @srcdir@
-
-include $(DEPTH)/config/autoconf.mk
-
-export USE_EXTENSION_MANIFEST = 1
+USE_EXTENSION_MANIFEST = 1
 DIST_FILES = install.rdf
 XPI_PKGNAME = gdata-provider-$(GDATA_VERSION).$(AB_CD).$(MOZ_PKG_PLATFORM)
 XPI_VERSION = $(GDATA_VERSION)
 XPI_NO_UNIVERSAL = 1
+XPI_EM_ID = {a62ef8ec-5fdc-40c2-873c-223b8a6925cc}
+XPI_INSTALL_EXTENSION = $(XPI_EM_ID)
 
 THUNDERBIRD_VERSION := $(shell cat $(topsrcdir)/mail/config/version.txt)
 SEAMONKEY_VERSION := $(shell cat $(topsrcdir)/suite/config/version.txt)
-CALENDAR_VERSION := $(shell $(PYTHON) $(topsrcdir)/calendar/lightning/build/makeversion.py $(word 1,$(MOZ_PKG_VERSION) $(THUNDERBIRD_VERSION)))
-GDATA_VERSION = $(shell $(PYTHON) $(srcdir)/makeversion.py $(CALENDAR_VERSION))
+LIGHTNING_VERSION := $(shell $(PYTHON) $(topsrcdir)/calendar/lightning/build/makeversion.py $(word 1,$(MOZ_PKG_VERSION) $(THUNDERBIRD_VERSION)))
+GDATA_VERSION = $(shell $(PYTHON) $(srcdir)/makeversion.py $(LIGHTNING_VERSION))
 
 DEFINES += -DAB_CD=$(AB_CD) \
-           -DCALENDAR_VERSION=$(CALENDAR_VERSION) \
+           -DLIGHTNING_VERSION=$(LIGHTNING_VERSION) \
            -DSEAMONKEY_VERSION=$(SEAMONKEY_VERSION) \
            -DTHUNDERBIRD_VERSION=$(THUNDERBIRD_VERSION) \
            -DCOMM_BUILD=$(COMM_BUILD) \
            -DGDATA_VERSION=$(GDATA_VERSION) \
            $(NULL)
 
-PREF_JS_EXPORTS = $(srcdir)/defaults/preferences.js
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+# If the macbundle dist dir was already created, sync the gdata provider here to avoid
+# the need to make -C objdir/mail/app each time
+tools repackage::
+	[ -d $(DIST)/$(MOZ_MACBUNDLE_NAME) ] && rsync -a $(FINAL_TARGET)/ $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Resources/extensions/$(XPI_EM_ID) || true
+endif
+
+# stage the extension for use in packaged tests
+ifndef UNIVERSAL_BINARY
+PKG_STAGE = $(DIST)/test-stage
+else
+PKG_STAGE = $(DIST)/universal/test-stage
+endif
+
+stage-package:
+	$(NSINSTALL) -D $(PKG_STAGE)/extensions/$(XPI_EM_ID)
+	(cd $(FINAL_TARGET) && tar $(TAR_CREATE_FLAGS) - *) | (cd $(PKG_STAGE)/extensions/$(XPI_EM_ID) && tar -xf -)
 
 include $(topsrcdir)/config/rules.mk
 include $(topsrcdir)/calendar/lightning/lightning-packager.mk

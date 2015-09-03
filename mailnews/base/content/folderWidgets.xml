@@ -566,7 +566,7 @@
           let allFolders = this.toArray(
             this.fixIterator(this.MailServices.accounts.allFolders, Ci.nsIMsgFolder));
 
-          let allFolders = allFolders.filter(function (f) f.canFileMessages);
+          allFolders = allFolders.filter(function (f) f.canFileMessages);
 
           let recentFolders = this.getMostRecentFolders(allFolders,
                                                         this._MAXRECENT,
@@ -574,7 +574,7 @@
 
           // Cache the pretty names so that they do not need to be fetched
           // _MAXRECENT^2 times later.
-          let recentFolders = recentFolders.map(
+          recentFolders = recentFolders.map(
             function (f) { return { folder: f, name: f.prettyName } });
 
           // Because we're scanning across multiple accounts, we can end up with

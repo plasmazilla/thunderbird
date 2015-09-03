@@ -17,7 +17,7 @@ interface nsIUrlListener;
 interface nsIMsgDatabase;
 interface nsITransaction;
 
-[scriptable, uuid(eccf0046-99db-4b08-8e14-29fa254f59c6)]
+[scriptable, uuid(F732CE58-E540-4dc4-B803-9456056EBEFC)]
 
 /**
  * Pluggable message store interface. Each incoming server can have a different
@@ -51,15 +51,6 @@ interface nsIMsgPluggableStore : nsISupports {
   nsIMsgFolder createFolder(in nsIMsgFolder aParent, in AString aFolderName);
 
   /**
-   * Get an nsIFile corresponding to the .msf file. This allows stores
-   * to put the .msf files where they want.
-   *
-   * @param aFolder folder we want summary file for
-   * @return summary file
-   */
-  nsIFile getSummaryFile(in nsIMsgFolder aFolder);
-
-  /**
    * Delete the passed in folder. This is a real delete, not a move
    * to the trash folder.
    *
@@ -82,6 +73,11 @@ interface nsIMsgPluggableStore : nsISupports {
    *
    * @param aFolder folder we want to add messages to.
    * @param aSpaceRequested How many bytes we're trying to add to the store.
+   *
+   * The function returns an exception if there is not enough space to
+   * indicate the reason of the shortage:
+   * NS_ERROR_FILE_TOO_BIG   = the store cannot grow further due to internal limits
+   * NS_ERROR_FILE_DISK_FULL = there is not enough space on the disk
    */
   boolean hasSpaceAvailable(in nsIMsgFolder aFolder,
                             in long long aSpaceRequested);
@@ -321,4 +317,12 @@ interface nsIMsgPluggableStore : nsISupports {
    */
   void changeKeywords(in nsIArray aHdrArray, in ACString aKeywords,
                       in boolean aAdd);
+
+  /**
+   * Identifies a specific type of store. Please use this only for legacy
+   * bug fixes, and not as a method to change behavior!
+   *
+   * Typical values: "mbox", "maildir"
+   */
+  readonly attribute ACString storeType;
 };

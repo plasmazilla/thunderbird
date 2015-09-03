@@ -5,9 +5,8 @@
  */
 
 Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://testing-common/mailnews/PromiseTestUtils.jsm");
 
-load("../../../resources/logHelper.js");
-load("../../../resources/asyncTestUtils.js");
 load("../../../resources/messageGenerator.js");
 
 var gSecondFolder, gThirdFolder;
@@ -17,7 +16,13 @@ const gMsgId1 = "200806061706.m56H6RWT004933@mrapp54.mozilla.org";
 var gOfflineManager;
 
 var tests = [
+  setupIMAPPump,
+  function serverParms() {
+    Components.utils.import("resource://testing-common/mailnews/maild.js");
+    IMAPPump.server.setDebugLevel(fsDebugAll);
+  },
   setup,
+
   function prepareToGoOffline() {
     let rootFolder = IMAPPump.incomingServer.rootFolder;
     gSecondFolder = rootFolder.getChildNamed("secondFolder")
@@ -25,15 +30,8 @@ var tests = [
     gThirdFolder =  rootFolder.getChildNamed("thirdFolder")
                       .QueryInterface(Ci.nsIMsgImapMailFolder);
     IMAPPump.incomingServer.closeCachedConnections();
-    var thread = gThreadManager.currentThread;
-    while (thread.hasPendingEvents())
-      thread.processNextEvent(true);
-
-    dump("wait 2 seconds, then go offline\n");
-    do_timeout(2000, async_driver);
-    yield false;
   },
-  function doOfflineOps() {
+  function *doOfflineOps() {
     IMAPPump.server.stop();
     Services.io.offline = true;
 
@@ -49,16 +47,21 @@ var tests = [
     headers2.appendElement(msgHdr2, false);
     msgHdr1.folder.markMessagesFlagged(headers1, true);
     msgHdr2.folder.markMessagesFlagged(headers2, true);
-    MailServices.copy.CopyMessages(IMAPPump.inbox, headers1, gSecondFolder, true, null,
-                                   null, true);
-    MailServices.copy.CopyMessages(IMAPPump.inbox, headers2, gThirdFolder, true, null,
-                                   null, true);
+    let promiseCopyListener1 = new PromiseTestUtils.PromiseCopyListener();
+    MailServices.copy.CopyMessages(IMAPPump.inbox, headers1, gSecondFolder, true,
+                                   promiseCopyListener1, null, true);
+    let promiseCopyListener2 = new PromiseTestUtils.PromiseCopyListener();
+    MailServices.copy.CopyMessages(IMAPPump.inbox, headers2, gThirdFolder, true,
+                                   promiseCopyListener2, null, true);
     var file = do_get_file("../../../data/bugmail10");
+    let promiseCopyListener3 = new PromiseTestUtils.PromiseCopyListener();
     MailServices.copy.CopyFileMessage(file, IMAPPump.inbox, null, false, 0,
-                                      "", asyncCopyListener, null);
-    yield false;
+                                      "", promiseCopyListener3, null);
+    yield Promise.all([promiseCopyListener1.promise,
+                       promiseCopyListener2.promise,
+                       promiseCopyListener3.promise]);
   },
-  function goOnline() {
+  function *goOnline() {
     gOfflineManager = Cc["@mozilla.org/messenger/offline-manager;1"]
                            .getService(Ci.nsIMsgOfflineManager);
     IMAPPump.daemon.closing = false;
@@ -66,22 +69,22 @@ var tests = [
 
     IMAPPump.server.start();
     gOfflineManager.goOnline(false, true, null);
-    do_timeout(2000, async_driver);
-    yield false;
+    yield PromiseTestUtils.promiseDelay(2000);
   },
-  function updateSecondFolder() {
-    if (gOfflineManager.inProgress)
-      do_timeout(2000, updateSecondFolder);
-    gSecondFolder.updateFolderWithListener(null, asyncUrlListener);
-    yield false;
+  function *updateSecondFolder() {
+    let promiseUrlListener = new PromiseTestUtils.PromiseUrlListener();
+    gSecondFolder.updateFolderWithListener(null, promiseUrlListener);
+    yield promiseUrlListener.promise;
   },
-  function updateThirdFolder() {
-    gThirdFolder.updateFolderWithListener(null, asyncUrlListener);
-    yield false;
+  function *updateThirdFolder() {
+    let promiseUrlListener = new PromiseTestUtils.PromiseUrlListener();
+    gThirdFolder.updateFolderWithListener(null, promiseUrlListener);
+    yield promiseUrlListener.promise;
   },
-  function updateInbox() {
-    IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
-    yield false;
+  function *updateInbox() {
+    let promiseUrlListener = new PromiseTestUtils.PromiseUrlListener();
+    IMAPPump.inbox.updateFolderWithListener(null, promiseUrlListener);
+    yield promiseUrlListener.promise;
   },
   function checkDone() {
     let msgHdr1 = gSecondFolder.msgDatabase.getMsgHdrForMessageID(gSynthMessage1.messageId);
@@ -91,11 +94,10 @@ var tests = [
     do_check_neq(msgHdr2, null);
     do_check_neq(msgHdr3, null);
   },
-  teardown
+  teardownIMAPPump
 ];
 
-function setup() {
-  setupIMAPPump();
+function *setup() {
 
   /*
    * Set up an IMAP server.
@@ -129,14 +131,13 @@ function setup() {
   imapInbox.addMessage(message);
 
   // update folder to download header.
-  IMAPPump.inbox.updateFolderWithListener(null, asyncUrlListener);
-  yield false;
-}
-
-function teardown() {
-  teardownIMAPPump();
+  let promiseUrlListener = new PromiseTestUtils.PromiseUrlListener();
+  IMAPPump.inbox.updateFolderWithListener(null, promiseUrlListener);
+  yield promiseUrlListener.promise;
 }
 
 function run_test() {
-  async_run_tests(tests);
+  Services.prefs.setBoolPref("mail.server.default.autosync_offline_stores", false);
+  tests.forEach(add_task);
+  run_next_test();
 }

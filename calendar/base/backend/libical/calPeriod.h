@@ -16,7 +16,7 @@ extern "C" {
     #include "ical.h"
 }
 
-class calPeriod : public calIPeriod
+class calPeriod final : public calIPeriodLibical
 {
 public:
     calPeriod ();
@@ -28,15 +28,17 @@ public:
 
     // calIPeriod interface
     NS_DECL_CALIPERIOD
+    NS_DECL_CALIPERIODLIBICAL
 
 protected:
+    ~calPeriod() {}
     calPeriod const& operator=(calPeriod const&);
 
     bool mImmutable;
 
     //struct icaldurationtype mPeriod;
-    nsCOMPtr<calIDateTime> mStart;
-    nsCOMPtr<calIDateTime> mEnd;
+    nsCOMPtr<calIDateTimeLibical> mStart;
+    nsCOMPtr<calIDateTimeLibical> mEnd;
     
     void FromIcalPeriod(struct icalperiodtype const* icalp);
 };

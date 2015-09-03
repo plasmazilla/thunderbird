@@ -44,6 +44,10 @@ toolbar:not(:-moz-lwtheme) {
   counter-reset: smallicons;
 }
 
+#compose-toolbox > toolbar:not([type="menubar"]):-moz-lwtheme {
+  text-shadow: none;
+}
+
 @media (-moz-os-version: windows-vista),
         (-moz-os-version: windows-win7) {
   #compose-toolbox:not(:-moz-lwtheme) {
@@ -131,6 +135,10 @@ toolbar:not(:-moz-lwtheme) {
   min-height: 24px;
 }
 
+.findbar-button {
+  padding: 2px 6px;
+}
+
 toolbox[labelalign="end"] .toolbarbutton-1,
 toolbox[labelalign="end"] .toolbarbutton-menubutton-button {
   -moz-box-orient: horizontal;
@@ -138,6 +146,7 @@ toolbox[labelalign="end"] .toolbarbutton-menubutton-button {
 
 @media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
        (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
+  .findbar-button,
   .toolbarbutton-1:not([type="menu-button"]),
   .toolbarbutton-1 > .toolbarbutton-menubutton-button,
   .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker {
@@ -181,6 +190,7 @@ toolbox[labelalign="end"] .toolbarbutton-menubutton-button {
     transition-duration: 150ms;
   }
 
+  .findbar-button:not(:-moz-any([checked="true"],[disabled="true"])):hover,
   .toolbarbutton-1:not([disabled="true"]):-moz-any(:hover,[open="true"]) >
   .toolbarbutton-menubutton-button,
   .toolbarbutton-1:not([disabled="true"]):hover >
@@ -209,6 +219,7 @@ toolbox[labelalign="end"] .toolbarbutton-menubutton-button {
                 0 0 2px hsla(210, 54%, 20%, .1);
   }
 
+  .findbar-button:not([disabled=true]):-moz-any([checked="true"],:hover:active),
   .toolbarbutton-1 > .toolbarbutton-menubutton-button:not([disabled="true"]):hover:active,
   .toolbarbutton-1[open="true"] > .toolbarbutton-menubutton-dropmarker:not([disabled="true"]),
   .toolbarbutton-1:not([type="menu-button"]):not([disabled="true"]):-moz-any([open="true"],[checked="true"],:hover:active),
@@ -237,7 +248,9 @@ toolbox[labelalign="end"] .toolbarbutton-menubutton-button {
   }
 }
 
-@media (-moz-windows-default-theme) and (-moz-os-version: windows-win8) {
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-win8),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win10) {
+  .findbar-button,
   .toolbarbutton-1:not([type="menu-button"]),
   .toolbarbutton-1 > .toolbarbutton-menubutton-button,
   .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker {
@@ -248,6 +261,7 @@ toolbox[labelalign="end"] .toolbarbutton-menubutton-button {
     transition-duration: 150ms;
   }
 
+  .findbar-button:not(:-moz-any([checked="true"],[disabled="true"])):hover,
   .toolbarbutton-1:not([disabled=true]):-moz-any(:hover,[open]) >
   .toolbarbutton-menubutton-button,
   .toolbarbutton-1:not([disabled=true]):-moz-any(:hover,[open]) >
@@ -260,6 +274,7 @@ toolbox[labelalign="end"] .toolbarbutton-menubutton-button {
     border-color: hsla(210, 4%, 10%, .1);
   }
 
+  .findbar-button:not([disabled=true]):-moz-any([checked="true"],:hover:active),
   .toolbarbutton-1 >
   .toolbarbutton-menubutton-button:not([disabled=true]):hover:active,
   .toolbarbutton-1[open] >
@@ -361,8 +376,8 @@ toolbox[labelalign="end"] .toolbarbutton-menubutton-button {
     list-style-image: url("chrome://messenger/skin/icons/toolbarbutton-arrow.png");
   }
 
-  .toolbarbutton-1 .toolbarbutton-menu-dropmarker:-moz-lwtheme-brighttext,
-  .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker:-moz-lwtheme-brighttext {
+  toolbar[brighttext] .toolbarbutton-1 .toolbarbutton-menu-dropmarker,
+  toolbar[brighttext] .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker {
     list-style-image: url("chrome://messenger/skin/icons/toolbarbutton-arrow-inverted.png");
   }
 
@@ -429,6 +444,11 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
   padding-bottom: 2px;
 }
 
+.findbar-container {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
 @media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
        (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
   #composeContentBox {
@@ -437,6 +457,10 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
 
   #headers-box {
     border-bottom-color: #A9B7C9;
+  }
+
+  findbar {
+    background-color: #eef3fa;
   }
 }
 
@@ -455,7 +479,7 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
   }
 }
 
-#composeToolbar2:-moz-lwtheme-brighttext .toolbarbutton-1 {
+#composeToolbar2[brighttext] .toolbarbutton-1 {
   list-style-image: url("chrome://messenger/skin/messengercompose/compose-toolbar-inverted.png");
 }
 
@@ -484,7 +508,7 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
   -moz-image-region: rect(1px 89px 17px 73px) !important;
 }
 
-#button-security:-moz-lwtheme-brighttext {
+toolbar[brighttext] #button-security {
   list-style-image: url("chrome://messenger/skin/messengercompose/compose-toolbar-inverted.png") !important;
   -moz-image-region: rect(1px 89px 17px 73px) !important;
 }
@@ -740,6 +764,18 @@ treechildren::-moz-tree-image(subscribed-news) {
   border-bottom-color: transparent;
 }
 
+.aw-menulist {
+  -moz-binding: url("chrome://messenger/content/messengercompose/menulistCompactBindings.xml#menulist-compact");
+  -moz-box-align: center;
+  -moz-box-pack: center;
+  color: ButtonText;
+  list-style-image: url("chrome://global/skin/arrow/arrow-dn.gif");
+}
+
+.aw-menulist[disabled="true"] {
+  list-style-image: url("chrome://global/skin/arrow/arrow-dn-dis.gif");
+}
+
 @media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
        (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
   .aw-menulist {
@@ -754,7 +790,8 @@ treechildren::-moz-tree-image(subscribed-news) {
   }
 }
 
-@media (-moz-windows-default-theme) and (-moz-os-version: windows-win8) {
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-win8),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win10) {
   .aw-menulist {
     margin: 1px;
     -moz-margin-end: 4px;
@@ -768,11 +805,7 @@ treechildren::-moz-tree-image(subscribed-news) {
   .aw-menulist {
     margin-top: 2px;
     background-color: rgba(128, 128, 128, .3);
-    border-width: 1px;
-    -moz-border-top-colors: ThreeDShadow;
-    -moz-border-right-colors: ThreeDShadow;
-    -moz-border-bottom-colors: ThreeDShadow;
-    -moz-border-left-colors: ThreeDShadow;
+    border: 1px solid ThreeDShadow;
     transition: background-color .25s ease-in;
   }
 
@@ -787,6 +820,19 @@ treechildren::-moz-tree-image(subscribed-news) {
 
 .aw-menulist > .menulist-label-box {
   margin: -1px 0;
+}
+
+.aw-menulist:-moz-focusring:not([open="true"]) > .menulist-label-box {
+  border: 1px dotted;
+}
+
+.aw-menulist > .menulist-label-box > .menulist-icon {
+  -moz-margin-start: 2px;
+}
+
+.aw-menulist > .menulist-label-box > .menulist-label {
+  margin: 0 3px !important;
+  text-align: end;
 }
 
 /* ::::: format toolbar ::::: */

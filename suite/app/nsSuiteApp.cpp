@@ -4,6 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nsXULAppAPI.h"
+#include "mozilla/AppData.h"
 #include "application.ini.h"
 #include "nsXPCOMGlue.h"
 #if defined(XP_WIN)
@@ -12,6 +13,7 @@
 #elif defined(XP_UNIX)
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <unistd.h>
 #endif
 
 #ifdef XP_MACOSX
@@ -42,6 +44,12 @@
 
 #include "mozilla/Telemetry.h"
 #include "mozilla/WindowsDllBlocklist.h"
+
+using namespace mozilla;
+
+#ifdef XP_MACOSX
+#define kOSXResourcesFolder "Resources"
+#endif
 
 static void Output(const char *fmt, ... )
 {
@@ -100,21 +108,12 @@ static bool IsArg(const char* arg, const char* s)
   return false;
 }
 
-/**
- * A helper class which calls NS_LogInit/NS_LogTerm in its scope.
- */
-class ScopedLogging
-{
-public:
-  ScopedLogging() { NS_LogInit(); }
-  ~ScopedLogging() { NS_LogTerm(); }
-};
-
 XRE_GetFileFromPathType XRE_GetFileFromPath;
 XRE_CreateAppDataType XRE_CreateAppData;
 XRE_FreeAppDataType XRE_FreeAppData;
 XRE_TelemetryAccumulateType XRE_TelemetryAccumulate;
 XRE_mainType XRE_main;
+XRE_StopLateWriteChecksType XRE_StopLateWriteChecks;
 
 static const nsDynamicFunctionLoad kXULFuncs[] = {
     { "XRE_GetFileFromPath", (NSFuncPtr*) &XRE_GetFileFromPath },
@@ -122,14 +121,16 @@ static const nsDynamicFunctionLoad kXULFuncs[] = {
     { "XRE_FreeAppData", (NSFuncPtr*) &XRE_FreeAppData },
     { "XRE_TelemetryAccumulate", (NSFuncPtr*) &XRE_TelemetryAccumulate },
     { "XRE_main", (NSFuncPtr*) &XRE_main },
+    { "XRE_StopLateWriteChecks", (NSFuncPtr*) &XRE_StopLateWriteChecks },
     { nullptr, nullptr }
 };
 
-static int do_main(const char *exePath, int argc, char* argv[])
+static int do_main(int argc, char* argv[], nsIFile *xreDirectory)
 {
   nsCOMPtr<nsIFile> appini;
   nsresult rv;
-  
+  uint32_t mainFlags = 0;
+
   // Allow seamonkey.exe to launch XULRunner apps via -app <application.ini>
   // Note that -app must be the *first* argument.
   const char *appDataFile = getenv("XUL_APP_FILE");
@@ -145,13 +146,13 @@ static int do_main(const char *exePath, int argc, char* argv[])
       Output("Incorrect number of arguments passed to -app");
       return 255;
     }
-    
+
     rv = XRE_GetFileFromPath(argv[2], getter_AddRefs(appini));
     if (NS_FAILED(rv)) {
       Output("application.ini path not recognized: '%s'", argv[2]);
       return 255;
     }
-    
+
     char appEnv[MAXPATHLEN];
     snprintf(appEnv, MAXPATHLEN, "XUL_APP_FILE=%s", argv[2]);
     if (putenv(appEnv)) {
@@ -162,7 +163,7 @@ static int do_main(const char *exePath, int argc, char* argv[])
     argv += 2;
     argc -= 2;
   }
-  
+
   int result;
   if (appini) {
     nsXREAppData *appData;
@@ -171,45 +172,156 @@ static int do_main(const char *exePath, int argc, char* argv[])
       Output("Couldn't read application.ini");
       return 255;
     }
-    result = XRE_main(argc, argv, appData, 0);
+    // xreDirectory already has a refcount from NS_NewLocalFile
+    appData->xreDirectory = xreDirectory;
+    result = XRE_main(argc, argv, appData, mainFlags);
     XRE_FreeAppData(appData);
   } else {
-#ifdef XP_WIN
-    // exePath comes from mozilla::BinaryPath::Get, which returns a UTF-8
-    // encoded path, so it is safe to convert it
-    rv = NS_NewLocalFile(NS_ConvertUTF8toUTF16(exePath), false,
-                         getter_AddRefs(appini));
-#else
-    rv = NS_NewNativeLocalFile(nsDependentCString(exePath), false,
-                               getter_AddRefs(appini));
-#endif
+    ScopedAppData appData(&sAppData);
+    nsCOMPtr<nsIFile> exeFile;
+    rv = mozilla::BinaryPath::GetFile(argv[0], getter_AddRefs(exeFile));
     if (NS_FAILED(rv)) {
+      Output("Couldn't find the application directory.\n");
       return 255;
     }
-    result = XRE_main(argc, argv, &sAppData, 0);
+
+    nsCOMPtr<nsIFile> greDir;
+    exeFile->GetParent(getter_AddRefs(greDir));
+#ifdef XP_MACOSX
+    greDir->SetNativeLeafName(NS_LITERAL_CSTRING(kOSXResourcesFolder));
+#endif
+    SetStrongPtr(appData.directory, static_cast<nsIFile*>(greDir.get()));
+    // xreDirectory already has a refcount from NS_NewLocalFile
+    appData.xreDirectory = xreDirectory;
+
+    result = XRE_main(argc, argv, &appData, mainFlags);
   }
-  
+
   return result;
 }
-int main(int argc, char* argv[])
+
+static bool
+FileExists(const char *path)
+{
+#ifdef XP_WIN
+  wchar_t wideDir[MAX_PATH];
+  MultiByteToWideChar(CP_UTF8, 0, path, -1, wideDir, MAX_PATH);
+  DWORD fileAttrs = GetFileAttributesW(wideDir);
+  return fileAttrs != INVALID_FILE_ATTRIBUTES;
+#else
+  return access(path, R_OK) == 0;
+#endif
+}
+
+#ifdef LIBXUL_SDK
+#  define XPCOM_PATH "xulrunner" XPCOM_FILE_PATH_SEPARATOR XPCOM_DLL
+#else
+#  define XPCOM_PATH XPCOM_DLL
+#endif
+static nsresult
+InitXPCOMGlue(const char *argv0, nsIFile **xreDirectory)
 {
   char exePath[MAXPATHLEN];
 
-#ifdef XP_MACOSX
-  TriggerQuirks();
-#endif
-
-  nsresult rv = mozilla::BinaryPath::Get(argv[0], exePath);
+  nsresult rv = mozilla::BinaryPath::Get(argv0, exePath);
   if (NS_FAILED(rv)) {
-    Output("Couldn't calculate the application directory.\n");
-    return 255;
+    Output("Couldn't find the application directory.\n");
+    return rv;
   }
 
   char *lastSlash = strrchr(exePath, XPCOM_FILE_PATH_SEPARATOR[0]);
-  if (!lastSlash || (size_t(lastSlash - exePath) > MAXPATHLEN - sizeof(XPCOM_DLL) - 1))
-    return 255;
+  if (!lastSlash || (size_t(lastSlash - exePath) > MAXPATHLEN - sizeof(XPCOM_PATH) - 1))
+    return NS_ERROR_FAILURE;
 
-  strcpy(++lastSlash, XPCOM_DLL);
+  strcpy(lastSlash + 1, XPCOM_PATH);
+  lastSlash += sizeof(XPCOM_PATH) - sizeof(XPCOM_DLL);
+
+  if (!FileExists(exePath)) {
+#if defined(LIBXUL_SDK) && defined(XP_MACOSX)
+    // Check for <bundle>/Contents/Frameworks/XUL.framework/libxpcom.dylib
+    bool greFound = false;
+    CFBundleRef appBundle = CFBundleGetMainBundle();
+    if (!appBundle)
+      return NS_ERROR_FAILURE;
+    CFURLRef fwurl = CFBundleCopyPrivateFrameworksURL(appBundle);
+    CFURLRef absfwurl = nullptr;
+    if (fwurl) {
+      absfwurl = CFURLCopyAbsoluteURL(fwurl);
+      CFRelease(fwurl);
+    }
+    if (absfwurl) {
+      CFURLRef xulurl =
+        CFURLCreateCopyAppendingPathComponent(nullptr, absfwurl,
+                                              CFSTR("XUL.framework"),
+                                              true);
+
+      if (xulurl) {
+        CFURLRef xpcomurl =
+          CFURLCreateCopyAppendingPathComponent(nullptr, xulurl,
+                                                CFSTR("libxpcom.dylib"),
+                                                false);
+
+        if (xpcomurl) {
+          if (CFURLGetFileSystemRepresentation(xpcomurl, true,
+                                               (UInt8*) exePath,
+                                               sizeof(exePath)) &&
+              access(tbuffer, R_OK | X_OK) == 0) {
+            if (realpath(tbuffer, exePath)) {
+              greFound = true;
+            }
+          }
+          CFRelease(xpcomurl);
+        }
+        CFRelease(xulurl);
+      }
+      CFRelease(absfwurl);
+    }
+  }
+  if (!greFound) {
+#endif
+    Output("Could not find the Mozilla runtime.\n");
+    return NS_ERROR_FAILURE;
+  }
+
+  // We do this because of data in bug 771745
+  XPCOMGlueEnablePreload();
+
+  rv = XPCOMGlueStartup(exePath);
+  if (NS_FAILED(rv)) {
+    Output("Couldn't load XPCOM.\n");
+    return rv;
+  }
+
+  rv = XPCOMGlueLoadXULFunctions(kXULFuncs);
+  if (NS_FAILED(rv)) {
+    Output("Couldn't load XRE functions.\n");
+    return rv;
+  }
+
+  NS_LogInit();
+
+  // chop XPCOM_DLL off exePath
+  *lastSlash = '\0';
+#ifdef XP_MACOSX
+  lastSlash = strrchr(exePath, XPCOM_FILE_PATH_SEPARATOR[0]);
+  strcpy(lastSlash + 1, kOSXResourcesFolder);
+#endif
+#ifdef XP_WIN
+  rv = NS_NewLocalFile(NS_ConvertUTF8toUTF16(exePath), false,
+                       xreDirectory);
+#else
+  rv = NS_NewNativeLocalFile(nsDependentCString(exePath), false,
+                             xreDirectory);
+#endif
+
+  return rv;
+}
+
+int main(int argc, char* argv[])
+{
+#ifdef XP_MACOSX
+  TriggerQuirks();
+#endif
 
   int gotCounters;
 #if defined(XP_UNIX)
@@ -219,7 +331,9 @@ int main(int argc, char* argv[])
   IO_COUNTERS ioCounters;
   gotCounters = GetProcessIoCounters(GetCurrentProcess(), &ioCounters);
 #endif
-  
+
+  nsIFile *xreDirectory;
+
 #ifdef HAS_DLL_BLOCKLIST
   DllBlocklist_Initialize();
 
@@ -232,22 +346,11 @@ int main(int argc, char* argv[])
 #endif
 #endif
 
-  XPCOMGlueEnablePreload();
-
-  rv = XPCOMGlueStartup(exePath);
-    if (NS_FAILED(rv)) {
-    Output("Couldn't load XPCOM.\n");
-    return 255;
-  }
-  // Reset exePath so that it is the directory name and not the xpcom dll name
-  *lastSlash = 0;
-
-  rv = XPCOMGlueLoadXULFunctions(kXULFuncs);
+  nsresult rv = InitXPCOMGlue(argv[0], &xreDirectory);
   if (NS_FAILED(rv)) {
-    Output("Couldn't load XRE functions.\n");
     return 255;
   }
-  
+
   if (gotCounters) {
 #if defined(XP_WIN)
     XRE_TelemetryAccumulate(mozilla::Telemetry::EARLY_GLUESTARTUP_READ_OPS,
@@ -271,12 +374,19 @@ int main(int argc, char* argv[])
     }
 #endif
   }
-  
-  int result;
-  {
-    ScopedLogging log;
-    result = do_main(exePath, argc, argv);
-  }
-  
+
+  int result = do_main(argc, argv, xreDirectory);
+
+  NS_LogTerm();
+
+#ifdef XP_MACOSX
+  // Allow writes again. While we would like to catch writes from static
+  // destructors to allow early exits to use _exit, we know that there is
+  // at least one such write that we don't control (see bug 826029). For
+  // now we enable writes again and early exits will have to use exit instead
+  // of _exit.
+  XRE_StopLateWriteChecks();
+#endif
+
   return result;
 }

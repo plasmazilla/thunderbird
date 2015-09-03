@@ -47,7 +47,7 @@ def main(args=None):
 
   # parse command line arguments
   args = args or sys.argv[1:]
-  usage = "Usage: %prog [destination]"
+  usage = "Usage: %prog destination path/to/mozbase"
 
   # Print the python version
   print 'Python: %s' % sys.version
@@ -56,12 +56,11 @@ def main(args=None):
   source=os.path.abspath(os.path.dirname(__file__))
 
   # directory to install to
-  if not len(args):
-    destination = source
-  elif len(args) == 1 or len(args) == 2:
+  if len(args) == 2:
     destination = os.path.abspath(args[0])
+    mozbase = os.path.abspath(args[1])
   else:
-    print "Usage: %s [destination]" % sys.argv[0]
+    print "Usage: %s destination path/to/mozbase" % sys.argv[0]
     sys.exit(1)
 
   os.chdir(source)
@@ -72,9 +71,8 @@ def main(args=None):
     sys.exit(1)
 
   # packages to install in dependency order
-  packages = ["ManifestDestiny", "simplejson-2.1.6", "mozrunner", "jsbridge",
-              "mozmill"]
-  
+  packages = ["jsbridge", "mozmill"]
+
   # create the virtualenv and install packages
   env = os.environ.copy()
   env.pop('PYTHONHOME', None)
@@ -85,6 +83,18 @@ def main(args=None):
     print 'Failure to install virtualenv'
     sys.exit(returncode)
   pip = entry_point_path(destination, 'pip')
+
+  # Install mozbase packages to the virtualenv
+  mozbase_packages = ['manifestparser', 'mozfile', 'mozinfo', 'mozlog',
+    'mozprofile', 'mozcrash', 'moznetwork', 'mozprocess', 'mozdevice',
+    'mozrunner']
+  returncode = call([pip, 'install'] +
+    [os.path.join(mozbase, package) for package in mozbase_packages], env=env)
+  if returncode:
+    print 'Failure to install packages'
+    sys.exit(returncode)
+
+  # Install mozmill
   returncode = call([pip, 'install'] + [os.path.abspath(package) for package in packages], env=env)
   if returncode:
     print 'Failure to install packages'

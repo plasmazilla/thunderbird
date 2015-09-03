@@ -9,6 +9,7 @@ DIRS += [
     'compose',
     'cloudfile',
     'devtools',
+    'downloads',
     'preferences',
     'addrbook',
     'migration',
@@ -23,9 +24,6 @@ DIRS += [
 if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('windows', 'gtk2', 'cocoa', 'qt'):
     DIRS += ['shell']
 
-if CONFIG['MOZ_SAFE_BROWSING']:
-    DIRS += ['phishing']
-
 TEST_DIRS += ['test']
 
 DIRS += ['build']
@@ -38,6 +36,7 @@ XPIDL_MODULE = 'mailcompsbase'
 
 EXTRA_COMPONENTS += [
     'aboutRedirector.js',
+    'DownloadsStartup.js',
     'mailComponents.manifest',
     'mailContentHandler.js',
     'mailGlue.js',

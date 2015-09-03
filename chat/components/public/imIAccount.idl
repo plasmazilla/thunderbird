@@ -8,12 +8,13 @@
 
 interface imITag;
 interface imIBuddy;
-interface imIAccountBuddy;
+interface prplIAccountBuddy;
 interface imIAccount;
 interface prplIAccount;
 interface prplIProtocol;
 interface purpleIProxyInfo;
 interface nsIScriptError;
+interface nsISSLStatus;
 
 /*
  * Used to join chat rooms.
@@ -72,7 +73,7 @@ interface prplIRoomInfoCallback: nsISupports {
 /*
  * This interface should be implemented by the protocol plugin.
  */
-[scriptable, uuid(bc540cab-a6e9-4c2c-abff-e95d0d1370a1)]
+[scriptable, uuid(55331ab9-54e9-4cd3-bb19-a46da76898e5)]
 interface prplIAccount: nsISupports {
   readonly attribute imIAccount imAccount;
 
@@ -101,7 +102,7 @@ interface prplIAccount: nsISupports {
   void addBuddy(in imITag aTag, in AUTF8String aName);
 
   // Used while loading the buddy list at startup.
-  imIAccountBuddy loadBuddy(in imIBuddy aBuddy, in imITag aTag);
+  prplIAccountBuddy loadBuddy(in imIBuddy aBuddy, in imITag aTag);
 
   /* Request more info on a buddy (typically a chat buddy).
    * The result (if any) will be provided by a user-info-received
@@ -147,6 +148,9 @@ interface prplIAccount: nsISupports {
    * SSL/certificate error when connecting to it. This is only valid when
    * connectionErrorReason is one of ERROR_CERT_*. */
   readonly attribute AUTF8String connectionTarget;
+  /* When a certificate error occurs, the nsISSLStatus error of the socket. This
+   * should only be set when connectionTarget is set. */
+  readonly attribute nsISSLStatus sslStatus;
 
   /* Possible connection error reasons:
      ERROR_NETWORK_ERROR and ERROR_ENCRYPTION_ERROR are not fatal and
@@ -255,7 +259,10 @@ interface imIAccount: prplIAccount {
 
   attribute short firstConnectionState;
 
-  // Passwords are stored in the toolkit Password Manager.
+  /* Passwords are stored in the toolkit Password Manager.
+   * Warning: Don't attempt to access passwords during startup before
+   * Services.login.initializationPromise has resolved.
+   */
   attribute AUTF8String password;
 
   attribute AUTF8String alias;

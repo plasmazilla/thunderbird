@@ -15,6 +15,10 @@
 #
 # The following variables are optional:
 #   XPI_NO_UNIVERSAL = 1  # If set, no universal path is used on mac
+#
+# For the upload target to work, you also need to set:
+#   LIGHTNING_VERSION = 2.2  # Will be used to replace the Thunderbird version
+#   						 # in POST_UPLOAD_CMD
 
 include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/package-name.mk
 
@@ -35,7 +39,7 @@ ifdef UPLOAD_HOST
 # run where we can't influence the download location. Fake it from the env vars
 # we have
 BUILD_NR=$(shell echo $(POST_UPLOAD_CMD) | sed -n -e 's/.*-n \([0-9]*\).*/\1/p')
-CANDIDATE_NR=$(XPI_VERSION)
+CANDIDATE_NR=$(if $(LIGHTNING_VERSION),$(LIGHTNING_VERSION),$(XPI_VERSION))
 EN_US_BINARY_URL=http://$(UPLOAD_HOST)/pub/mozilla.org/calendar/lightning/nightly/$(CANDIDATE_NR)-candidates/build$(BUILD_NR)/$(MOZ_PKG_PLATFORM)
 else
 EN_US_BINARY_URL = $(error You must set EN_US_BINARY_URL)
@@ -62,14 +66,8 @@ else
 SHORTOS = linux
 endif
 
-# function oslocales(filename)
-oslocales = $(shell $(AWK) '{ if ($$2 == "" || $$2 == "$(SHORTOS)") { print $$1 } }' $(1))
-
-# function apposlocales(app)
-apposlocales = $(call oslocales,$(topsrcdir)/$1/locales/$(if $(filter $(MOZ_UPDATE_CHANNEL),beta release),shipped-locales,all-locales))
-
 # function print_ltnconfig(section,configname)
-print_ltnconfig = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(XPI_STAGE_PATH)/$(XPI_NAME)/application.ini $1 $2)
+print_ltnconfig = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(XPI_STAGE_PATH)/$(XPI_NAME)/app.ini $1 $2)
 
 wget-en-US: FINAL_BINARY_URL = $(subst thunderbird,calendar/lightning,$(EN_US_BINARY_URL))
 wget-en-US: $(XPI_STAGE_PATH)
@@ -92,14 +90,26 @@ unpack: $(XPI_ZIP_IN)
 langpack-en-US:
 	@echo "Skipping $@ as en-US is the default"
 
-# Skip those locales in Thunderbird but not in Lightning. Use either
-# all-locales or shipped-locales, depending on if we are doing a
-# regular repack or a release repack
-CAL_LOCALES := $(call apposlocales,calendar)
-TB_LOCALES := $(call apposlocales,mail)
-TB_SKIP_LOCALES := $(filter-out $(CAL_LOCALES) en-US,$(TB_LOCALES))
-$(addprefix langpack-,$(TB_SKIP_LOCALES)) $(addprefix upload-,$(TB_SKIP_LOCALES)):
-	@echo "Skipping $@ as it is not in Lightning's locales: $(CAL_LOCALES)"
+# It wouldn't fit into mozharness to run compare-locales for calendar
+# separately, so we need to do it ourselves. Unfortunately compare-locales is
+# not installed globally on the slaves, so we need to hardcode the path.
+BUILD_COMPARE_LOCALES = $(wildcard $(topsrcdir)/../compare-locales)
+COMPARE_LOCALES = $(if $(BUILD_COMPARE_LOCALES),$(PYTHON) $(BUILD_COMPARE_LOCALES)/scripts/compare-locales,compare-locales)
+COMPARE_LOCALES_PYTHONPATH = $(if $(BUILD_COMPARE_LOCALES),$(BUILD_COMPARE_LOCALES)/lib,)
+
+merge-%:
+ifdef LOCALE_MERGEDIR
+	$(RM) -rf $(LOCALE_MERGEDIR)/calendar
+	MACOSX_DEPLOYMENT_TARGET= PYTHONPATH=$(COMPARE_LOCALES_PYTHONPATH) \
+	  $(COMPARE_LOCALES) -m $(LOCALE_MERGEDIR) $(topsrcdir)/calendar/locales/l10n.ini $(L10NBASEDIR) $*
+
+	# This file requires a bugfix with string changes, see bug 1154448
+	[ -f $(L10NBASEDIR)/$*/calendar/chrome/calendar/calendar-extract.properties ] && \
+	  $(RM) $(LOCALE_MERGEDIR)/calendar/chrome/calendar/calendar-extract.properties \
+	  || true
+else
+	@echo "Not merging Lightning locales due to missing LOCALE_MERGEDIR"
+endif
 
 # Calling these targets with prerequisites causes the libs and subsequent
 # targets to be switched in order due to some make voodoo. Therefore we call
@@ -119,22 +129,14 @@ clobber-%:
 repackage-zip-%:
 	@echo "Already repackaged zip for $* in langpack step"
 
-repack-stage: repack-stage-all
+repack-stage:
+	@echo "Repackaging $(XPI_PKGNAME) locale for Language $(AB_CD)"
+	$(RM) -rf $(L10N_TARGET)
+	cp -R $(XPI_STAGE_PATH)/$(XPI_NAME) $(L10N_TARGET)
 	grep -v 'locale \w\+ en-US' $(L10N_TARGET)/chrome.manifest > $(L10N_TARGET)/chrome.manifest~ && \
 	  mv $(L10N_TARGET)/chrome.manifest~ $(L10N_TARGET)/chrome.manifest
 	find $(abspath $(L10N_TARGET)) -name '*en-US*' -print0 | xargs -0 rm -rf
 
-repack-stage-all: $(XPI_STAGE_PATH)/$(XPI_NAME)
-	@echo "Repackaging $(XPI_PKGNAME) locale for Language $(AB_CD)"
-	$(RM) -rf $(L10N_TARGET)
-	cp -R $(XPI_STAGE_PATH)/$(XPI_NAME) $(L10N_TARGET)
-
-# Repack the existing lightning to contain all locales in lightning-all.xpi
-langpack-all: AB_CD=all
-langpack-all: L10N_XPI_NAME=$(XPI_NAME)-all
-langpack-all: L10N_XPI_PKGNAME=$(subst .$(AB_CD),,$(XPI_PKGNAME))
-langpack-all: recreate-platformini repack-stage-all $(addprefix libs-,$(call apposlocales,calendar))
-	@echo "Done packaging"
 
 # Actual locale packaging targets. If L10N_XPI_NAME is set, then use it.
 # Otherwise keep the original XPI_NAME
@@ -153,7 +155,7 @@ libs-%:
 repack-process-extrafiles:
 
 # When repackaging Lightning from the builder, platform.ini is not yet created.
-# Recreate it from the application.ini bundled with the downloaded xpi.
+# Recreate it from the app.ini bundled with the downloaded xpi.
 $(LIBXUL_DIST)/bin/platform.ini:
 	mkdir -p $(@D)
 	echo "[Build]" >> $(LIBXUL_DIST)/bin/platform.ini
@@ -168,7 +170,7 @@ recreate-platformini: $(LIBXUL_DIST)/bin/platform.ini
 # Lightning uses Thunderbird's build machinery, so we need to hack the post
 # upload command to use Lightning's directories and version.
 upload: upload-$(AB_CD)
-upload-%: LTN_UPLOAD_CMD := $(patsubst $(THUNDERBIRD_VERSION)%,$(XPI_VERSION),$(subst thunderbird,calendar/lightning,$(POST_UPLOAD_CMD)))
+upload-%: LTN_UPLOAD_CMD := $(patsubst $(THUNDERBIRD_VERSION)%,$(LIGHTNING_VERSION),$(subst thunderbird,calendar/lightning,$(POST_UPLOAD_CMD)))
 upload-%: stage_upload
 	POST_UPLOAD_CMD="$(LTN_UPLOAD_CMD)" \
 	  $(PYTHON) $(MOZILLA_DIR)/build/upload.py --base-path $(DIST) \
@@ -177,3 +179,21 @@ upload-%: stage_upload
 stage_upload:
 	$(NSINSTALL) -D $(DIST)/$(MOZ_PKG_PLATFORM)
 	$(call install_cmd,$(IFLAGS1) $(XPI_STAGE_PATH)/$(XPI_PKGNAME).xpi $(DIST)/$(MOZ_PKG_PLATFORM))
+
+ifdef XPI_INSTALL_EXTENSION
+ifndef XPI_NAME
+$(error XPI_NAME must be set for XPI_INSTALL_EXTENSION)
+endif
+tools::
+	$(RM) -r '$(DIST)/bin$(DIST_SUBDIR:%=/%)/extensions/$(XPI_INSTALL_EXTENSION)'
+	$(NSINSTALL) -D '$(DIST)/bin$(DIST_SUBDIR:%=/%)/extensions/$(XPI_INSTALL_EXTENSION)'
+	$(call copy_dir,$(FINAL_TARGET),$(DIST)/bin$(DIST_SUBDIR:%=/%)/extensions/$(XPI_INSTALL_EXTENSION))
+
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+# If the macbundle dist dir was already created, sync the xpi here to avoid
+# the need to make -C objdir/mail/app each time
+tools::
+	[ -d $(DIST)/$(MOZ_MACBUNDLE_NAME) ] && rsync -aL $(FINAL_TARGET)/ $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Resources/extensions/$(XPI_INSTALL_EXTENSION) || true
+endif
+
+endif

@@ -35,6 +35,7 @@ function initCustomizePage() {
     let suppressAlarmsRow = document.getElementById("customize-suppressAlarms-row");
     suppressAlarmsRow.hidden =
         (gCalendar && gCalendar.getProperty("capabilities.alarms.popup.supported") === false);
+    document.getElementById("calendar-color").value = "#A8C2E1";
 }
 
 /**
@@ -81,8 +82,10 @@ function onSelectProvider(type) {
         cache.checked = true;
         cache.disabled = true;
     } else {
-        cache.checked = cache.oldValue || false;
-        cache.oldValue = null;
+        if (cache.oldValue !== undefined) {
+            cache.checked = cache.oldValue;
+            cache.oldValue = undefined;
+        }
         cache.disabled = false;
     }
 }
@@ -166,12 +169,13 @@ function prepareCreateCalendar() {
  */
 function doCreateCalendar() {
     let cal_name = document.getElementById("calendar-name").value;
-    let cal_color = document.getElementById('calendar-color').color;
+    let cal_color = document.getElementById("calendar-color").value;
 
     gCalendar.name = cal_name;
     gCalendar.setProperty('color', cal_color);
     if (!gCalendar.getProperty("cache.always")) {
-        gCalendar.setProperty("cache.enabled", document.getElementById("cache").checked);
+        gCalendar.setProperty("cache.enabled", gCalendar.getProperty("cache.supported") !== false ?
+                                               document.getElementById("cache").checked : false);
     }
 
     if (!document.getElementById("fire-alarms").checked) {

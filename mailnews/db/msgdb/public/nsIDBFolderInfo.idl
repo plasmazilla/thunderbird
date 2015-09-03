@@ -6,7 +6,7 @@
 #include "nsISupports.idl"
 #include "MailNewsTypes2.idl"
 
-[scriptable, uuid(538577e4-80e9-4567-8de1-3578efaef62d)]
+[scriptable, uuid(d2354fc9-8947-41a5-983d-b3a3542f78a5)]
 interface  nsIDBFolderInfo : nsISupports {
   attribute long flags;
 
@@ -46,7 +46,7 @@ interface  nsIDBFolderInfo : nsISupports {
   attribute long numUnreadMessages;
   attribute long numMessages;
 
-  attribute long expungedBytes;
+  attribute long long expungedBytes;
   attribute long imapUidValidity;
   attribute unsigned long version;
   attribute long imapTotalPendingMessages;

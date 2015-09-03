@@ -24,10 +24,11 @@ public:
   nsNntpMockChannel(nsIURI *aUri, nsIMsgWindow *aMsgWindow);
   nsNntpMockChannel(nsIURI *aUri, nsIMsgWindow *aMsgWindow,
                     nsISupports *aConsumer);
-  virtual ~nsNntpMockChannel();
 
   nsresult AttachNNTPConnection(nsNNTPProtocol &protocol);
 protected:
+  virtual ~nsNntpMockChannel();
+
   // The URL we will be running
   nsCOMPtr<nsIURI> m_url;
 
@@ -51,6 +52,7 @@ protected:
   // Temporary variables for accessors before we get to the actual instance.
   nsresult m_cancelStatus;
   nsCOMPtr<nsILoadGroup> m_loadGroup;
+  nsCOMPtr<nsILoadInfo> m_loadInfo;
   nsLoadFlags m_loadFlags;
 
   nsCOMPtr<nsIURI> m_originalUrl;

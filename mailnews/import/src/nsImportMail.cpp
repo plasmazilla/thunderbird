@@ -6,11 +6,6 @@
 /*
 */
 
-#ifdef MOZ_LOGGING
-// sorry, this has to be before the pre-compiled header
-#define FORCE_PR_LOG /* Allow logging in the release build */
-#endif
-
 #include "prthread.h"
 #include "prprf.h"
 #include "nscore.h"
@@ -56,7 +51,6 @@ class nsImportGenericMail : public nsIImportGeneric
 public:
 
   nsImportGenericMail();
-  virtual ~nsImportGenericMail();
 
   NS_DECL_THREADSAFE_ISUPPORTS
 
@@ -78,6 +72,7 @@ public:
   NS_IMETHOD CancelImport(void);
 
 private:
+  virtual ~nsImportGenericMail();
   bool    CreateFolder(nsIMsgFolder **ppFolder);
   void  GetDefaultMailboxes(void);
   void  GetDefaultLocation(void);

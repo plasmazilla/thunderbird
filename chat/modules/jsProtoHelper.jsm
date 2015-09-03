@@ -50,25 +50,30 @@ const GenericAccountPrototype = {
   _connectionErrorReason: Ci.prplIAccount.NO_ERROR,
   get connectionErrorReason() this._connectionErrorReason,
 
+  /*
+   * Convert a socket's nsISSLStatus into a prplIAccount connection error. Store
+   * the nsISSLStatus and the connection location on the account so the
+   * certificate exception dialog can access the information.
+   */
   handleBadCertificate: function(aSocket, aIsSslError) {
     this._connectionTarget = aSocket.host + ":" + aSocket.port;
 
     if (aIsSslError)
       return Ci.prplIAccount.ERROR_ENCRYPTION_ERROR;
 
-    let sslStatus = aSocket.sslStatus;
+    let sslStatus = this._sslStatus = aSocket.sslStatus;
     if (!sslStatus)
       return Ci.prplIAccount.ERROR_CERT_NOT_PROVIDED;
 
     if (sslStatus.isUntrusted) {
-      if (sslStatus.serverCert instanceof Ci.nsIX509Cert3 &&
+      if (sslStatus.serverCert &&
           sslStatus.serverCert.isSelfSigned)
         return Ci.prplIAccount.ERROR_CERT_SELF_SIGNED;
       return Ci.prplIAccount.ERROR_CERT_UNTRUSTED;
     }
 
     if (sslStatus.isNotValidAtThisTime) {
-      if (sslStatus.serverCert instanceof Ci.nsIX509Cert3 &&
+      if (sslStatus.serverCert &&
           sslStatus.serverCert.validity.notBefore < Date.now() * 1000)
         return Ci.prplIAccount.ERROR_CERT_NOT_ACTIVATED;
       return Ci.prplIAccount.ERROR_CERT_EXPIRED;
@@ -83,11 +88,17 @@ const GenericAccountPrototype = {
   },
   _connectionTarget: "",
   get connectionTarget() this._connectionTarget,
+  _sslStatus: null,
+  get sslStatus() this._sslStatus,
 
   reportConnected: function() {
     this.imAccount.observe(this, "account-connected", null);
   },
   reportConnecting: function(aConnectionStateMsg) {
+    // Delete any leftover errors from the previous connection.
+    delete this._connectionTarget;
+    delete this._sslStatus;
+
     if (!this.connecting)
       this.imAccount.observe(this, "account-connecting", null);
     if (aConnectionStateMsg)
@@ -231,7 +242,7 @@ const GenericAccountPrototype = {
 
 
 const GenericAccountBuddyPrototype = {
-  __proto__: ClassInfo("imIAccountBuddy", "generic account buddy object"),
+  __proto__: ClassInfo("prplIAccountBuddy", "generic account buddy object"),
   get DEBUG() this._account.DEBUG,
   get LOG() this._account.LOG,
   get WARN() this._account.WARN,
@@ -402,8 +413,6 @@ const GenericMessagePrototype = {
     aConv.notifyObservers(this, "new-text", null);
   },
 
-  color: "",
-
   outgoing: false,
   incoming: false,
   system: false,
@@ -472,7 +481,9 @@ const GenericConversationPrototype = {
     }
   },
 
-  sendMsg: function (aMsg) {
+  prepareForSending: function(aOutgoingMessage, aCount) null,
+  prepareForDisplaying: function(aImMessage) {},
+  sendMsg: function(aMsg) {
     throw Cr.NS_ERROR_NOT_IMPLEMENTED;
   },
   sendTyping: function(aString) Ci.prplIConversation.NO_TYPING_LIMIT,
@@ -524,12 +535,17 @@ const GenericConvChatPrototype = {
   classDescription: "generic ConvChat object",
 
   _init: function(aAccount, aName, aNick) {
-    this._participants = {};
+    this._participants = new Map();
     this.nick = aNick;
     GenericConversationPrototype._init.call(this, aAccount, aName);
   },
 
   get isChat() true,
+
+  // Stores the prplIChatRoomFieldValues required to join this channel
+  // to enable later reconnections. If null, the MUC will not be reconnected
+  // automatically after disconnections.
+  chatRoomFields: null,
 
   _topic: "",
   _topicSetter: null,
@@ -580,16 +596,23 @@ const GenericConvChatPrototype = {
   set left(aLeft) {
     if (aLeft == this._left)
       return;
-
     this._left = aLeft;
-    if (this._left)
-      this.notifyObservers(null, "update-conv-chatleft");
+    this.notifyObservers(null, "update-conv-chatleft");
+  },
+
+  _joining: false,
+  get joining() this._joining,
+  set joining(aJoining) {
+    if (aJoining == this._joining)
+      return;
+    this._joining = aJoining;
+    this.notifyObservers(null, "update-conv-chatjoining");
   },
 
   getParticipants: function() {
+    // Convert the values of the Map into a nsSimpleEnumerator.
     return new nsSimpleEnumerator(
-      Object.keys(this._participants)
-            .map(function(key) this._participants[key], this)
+      [participant for (participant of this._participants.values())]
     );
   },
   getNormalizedChatBuddyName: function(aChatBuddyName) aChatBuddyName,
@@ -758,7 +781,9 @@ const GenericProtocolPrototype = {
       throw "Creating an instance of " + aId + " but this object implements " + this.id;
   },
   get id() "prpl-" + this.normalizedName,
-  get normalizedName() this.name.toLowerCase(),
+  // This is more aggressive than the account normalization of just
+  // toLowerCase() since prpl names must be only letters/numbers.
+  get normalizedName() this.name.replace(/[^a-z0-9]/gi, "").toLowerCase(),
   get iconBaseURI() "chrome://chat/skin/prpl-generic/",
 
   getAccount: function(aImAccount) { throw Cr.NS_ERROR_NOT_IMPLEMENTED; },
@@ -792,6 +817,8 @@ const GenericProtocolPrototype = {
     this.commands.forEach(function(command) {
       if (!command.hasOwnProperty("name") || !command.hasOwnProperty("run"))
         throw "Every command must have a name and a run function.";
+      if (!("QueryInterface" in command))
+        command.QueryInterface = XPCOMUtils.generateQI([Ci.imICommand]);
       if (!command.hasOwnProperty("usageContext"))
         command.usageContext = Ci.imICommand.CMD_CONTEXT_ALL;
       if (!command.hasOwnProperty("priority"))

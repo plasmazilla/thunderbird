@@ -3,19 +3,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "nsISupports.idl"
-#include "nsrootidl.idl"
+#include "msgIStructuredHeaders.idl"
 
 %{C++
 #define NS_IMIMEHEADERS_CONTRACTID \
   "@mozilla.org/messenger/mimeheaders;1"
 %}
 
-/** 
+/**
  * An interface that can extract individual headers from a body of headers.
- */ 
-[scriptable, uuid(877af00d-1ce8-446a-b4ce-b7cb1edd2791)]
-interface nsIMimeHeaders : nsISupports {
+ */
+[scriptable, uuid(a9222679-b991-4786-8314-f8819c3a2ba3)]
+interface nsIMimeHeaders : msgIStructuredHeaders {
   /// Feed in the text of headers
   void initialize(in ACString allHeaders);
 
@@ -30,6 +29,13 @@ interface nsIMimeHeaders : nsISupports {
    */
   ACString extractHeader(in string headerName, in boolean getAllOfThem);
 
-  /// The current text of all header data.
+  /**
+   * The current text of all header data.
+   *
+   * Unlike the asMimeText property, this result preserves the original
+   * representation of the header text, including alternative line endings or
+   * custom, non-8-bit text. For instances of this interface, this attribute is
+   * usually preferable to asMimeText.
+   */
   readonly attribute ACString allHeaders;
 };

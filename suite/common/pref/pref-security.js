@@ -3,17 +3,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-/**
- * Enable the DNT ".value" radiogroup only if the ".enabled" box is checked
- */
-
 function Startup()
 {
-  var prefAutostart = document.getElementById("privacy.donottrackheader.enabled");
-  SetDntValueEnabled(prefAutostart.value);
+  var prefTrackProtect = document.getElementById("privacy.trackingprotection.enabled");
+  SetWarnTrackEnabled(prefTrackProtect.value);
 }
 
-function SetDntValueEnabled(aEnable)
+function SetWarnTrackEnabled(aEnable)
 {
-  EnableElementById("dntSelection", aEnable, false);
+  EnableElementById("warnTrackContent", aEnable, false);
 }

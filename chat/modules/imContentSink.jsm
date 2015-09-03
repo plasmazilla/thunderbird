@@ -102,7 +102,7 @@ const kStandardMode = {
   styles: {
     'font-style': true,
     'font-weight': true,
-    '-moz-text-decoration-line': true
+    'text-decoration-line': true
   }
 };
 
@@ -150,9 +150,9 @@ const kPermissiveMode = {
     'font-size': true,
     'font-style': true,
     'font-weight': true,
-    '-moz-text-decoration-color': true,
-    '-moz-text-decoration-style': true,
-    '-moz-text-decoration-line': true
+    'text-decoration-color': true,
+    'text-decoration-style': true,
+    'text-decoration-line': true
   }
 };
 
@@ -191,9 +191,8 @@ function getModePref()
 
 function setBaseRuleset(aBase, aResult)
 {
-  aResult.tags.__proto__ = aBase.tags;
-  aResult.attrs.__proto__ = aBase.attrs;
-  aResult.styles.__proto__ = aBase.styles;
+  for (let property in aBase)
+    aResult[property] = Object.create(aBase[property], aResult[property]);
 }
 
 function newRuleset(aBase)
@@ -214,27 +213,27 @@ function createDerivedRuleset()
   return newRuleset(gGlobalRuleset);
 }
 
-function addGlobalAllowedTag(aTag, aAttrs)
+function addGlobalAllowedTag(aTag, aAttrs = true)
 {
-  gGlobalRuleset.tags[aTag] = aAttrs || true;
+  gGlobalRuleset.tags[aTag] = aAttrs;
 }
 function removeGlobalAllowedTag(aTag)
 {
   delete gGlobalRuleset.tags[aTag];
 }
 
-function addGlobalAllowedAttribute(aAttr, aRule)
+function addGlobalAllowedAttribute(aAttr, aRule = true)
 {
-  gGlobalRuleset.attrs[aAttr] = aRule || true;
+  gGlobalRuleset.attrs[aAttr] = aRule;
 }
 function removeGlobalAllowedAttribute(aAttr)
 {
   delete gGlobalRuleset.attrs[aAttr];
 }
 
-function addGlobalAllowedStyleRule(aStyle, aRule)
+function addGlobalAllowedStyleRule(aStyle, aRule = true)
 {
-  gGlobalRuleset.styles[aStyle] = aRule || true;
+  gGlobalRuleset.styles[aStyle] = aRule;
 }
 function removeGlobalAllowedStyleRule(aStyle)
 {
@@ -337,7 +336,7 @@ function cleanupNode(aNode, aRules, aTextModifiers)
   }
 }
 
-function cleanupImMarkup(aText, aRuleset, aTextModifiers)
+function cleanupImMarkup(aText, aRuleset, aTextModifiers = [])
 {
   if (!gGlobalRuleset)
     initGlobalRuleset();
@@ -347,6 +346,6 @@ function cleanupImMarkup(aText, aRuleset, aTextModifiers)
   // Wrap the text to be parsed in a <span> to avoid losing leading whitespace.
   let doc = parser.parseFromString("<span>" + aText + "</span>", "text/html");
   let span = doc.querySelector("span");
-  cleanupNode(span, aRuleset || gGlobalRuleset, aTextModifiers || []);
+  cleanupNode(span, aRuleset || gGlobalRuleset, aTextModifiers);
   return span.innerHTML;
 }
