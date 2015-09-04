@@ -1,0 +1,23 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 8 Mar 2015 18:48:00 -0400
+Subject: FTBFS hurd: adding the HURD platform to the configure tests
+
+The ECMAScript detection is missing the OS typ for HURD, adding it to
+the needed configure related files.
+---
+ mozilla/build/autoconf/icu.m4 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mozilla/build/autoconf/icu.m4 b/mozilla/build/autoconf/icu.m4
+index 8bd8fbe..10aaeb8 100644
+--- a/mozilla/build/autoconf/icu.m4
++++ b/mozilla/build/autoconf/icu.m4
+@@ -95,7 +95,7 @@ if test -n "$USE_ICU"; then
+                     MOZ_ICU_DBG_SUFFIX=d
+                 fi
+                 ;;
+-            Darwin|Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD)
++            Darwin|Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|GNU)
+                 ICU_LIB_NAMES="icui18n icuuc icudata"
+                 ;;
+             *)

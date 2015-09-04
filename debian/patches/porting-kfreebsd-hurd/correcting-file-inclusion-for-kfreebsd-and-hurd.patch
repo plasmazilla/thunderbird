@@ -1,21 +1,21 @@
 From: Carsten Schoenert <c.schoenert@t-online.de>
 Date: Wed, 6 Aug 2014 19:11:05 +0200
-Subject: correcting file inclusion for kfreebsd*
+Subject: correcting file inclusion for kfreebsd* and hurd
 
 ---
  mozilla/ipc/glue/moz.build | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/ipc/glue/moz.build b/mozilla/ipc/glue/moz.build
-index 0417f39..0ab28ee 100644
+index e6a7098..c727a43 100644
 --- a/mozilla/ipc/glue/moz.build
 +++ b/mozilla/ipc/glue/moz.build
-@@ -56,7 +56,7 @@ if CONFIG['OS_ARCH'] == 'WINNT':
+@@ -59,7 +59,7 @@ if CONFIG['OS_ARCH'] == 'WINNT':
      SOURCES += [
          'CrossProcessMutex_windows.cpp',
      ]
--elif CONFIG['OS_ARCH'] == 'Linux':
-+elif CONFIG['OS_ARCH'] == 'Linux' or CONFIG['OS_ARCH'] == 'GNU_kFreeBSD':
+-elif CONFIG['OS_ARCH'] in ('Linux', 'Darwin'):
++elif CONFIG['OS_ARCH'] in ('Linux', 'Darwin', 'GNU_kFreeBSD', 'GNU'):
      UNIFIED_SOURCES += [
          'CrossProcessMutex_posix.cpp',
      ]

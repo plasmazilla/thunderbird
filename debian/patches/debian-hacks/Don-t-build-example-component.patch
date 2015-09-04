@@ -8,11 +8,11 @@ Gp-Pq-Topic: debian-hacks
  1 file changed, 1 deletion(-)
 
 diff --git a/mozilla/xulrunner/moz.build b/mozilla/xulrunner/moz.build
-index 10dc040..bbe386d 100644
+index 71c24db..db8b0ae 100644
 --- a/mozilla/xulrunner/moz.build
 +++ b/mozilla/xulrunner/moz.build
 @@ -9,7 +9,6 @@ CONFIGURE_SUBST_FILES += ['installer/Makefile']
- PARALLEL_DIRS += [
+ DIRS += [
      'app',
      'stub',
 -    'examples',

@@ -9,6 +9,7 @@ Squashed kFreeBSD/Hurd related fixes:
 - Build fixes for GNU/kFreeBSD in directory/
 - Missing bits for Hurd support
 ---
+ ldap/sdks/c-sdk/build.mk                           | 16 +++++++++++++
  ldap/sdks/c-sdk/config/nsinstall.c                 |  2 +-
  ldap/sdks/c-sdk/configure.in                       | 15 ++++++++----
  ldap/sdks/c-sdk/ldap/include/portable.h            | 28 ++++++++++++----------
@@ -16,8 +17,35 @@ Squashed kFreeBSD/Hurd related fixes:
  ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in |  2 +-
  ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c    |  2 +-
  .../c-sdk/ldap/libraries/libprldap/ldappr-error.c  |  2 +-
- 7 files changed, 32 insertions(+), 23 deletions(-)
+ 8 files changed, 48 insertions(+), 23 deletions(-)
 
+diff --git a/ldap/sdks/c-sdk/build.mk b/ldap/sdks/c-sdk/build.mk
+index dcac83f..132ac1f 100644
+--- a/ldap/sdks/c-sdk/build.mk
++++ b/ldap/sdks/c-sdk/build.mk
+@@ -412,6 +412,22 @@ LDRPATHFLAG_PREFIX=-rpath
+ endif # RPATHFLAG
+ endif # Linux
+ 
++ifeq ($(OS_ARCH), GNU)
++# Use the C++ compiler to link
++USE_CCC_TO_LINK=1
++
++# flag to pass to cc when linking to set runtime shared library search path
++# this is used like this, for example:   $(RPATHFLAG_PREFIX)../..
++ifdef RPATHFLAG
++RPATHFLAG_PREFIX=-Wl,-rpath,
++
++# flag to pass to ld when linking to set runtime shared library search path
++# this is used like this, for example:   $(LDRPATHFLAG_PREFIX)../..
++# note, there is a trailing space
++LDRPATHFLAG_PREFIX=-rpath
++endif # RPATHFLAG
++endif # GNU
++
+ ifeq ($(OS_ARCH), Darwin)
+ # Darwin doesn't use RPATH.
+ #ifdef RPATHFLAG
 diff --git a/ldap/sdks/c-sdk/config/nsinstall.c b/ldap/sdks/c-sdk/config/nsinstall.c
 index dfdb837..9f9c84a 100644
 --- a/ldap/sdks/c-sdk/config/nsinstall.c
@@ -32,10 +60,10 @@ index dfdb837..9f9c84a 100644
  #endif
  
 diff --git a/ldap/sdks/c-sdk/configure.in b/ldap/sdks/c-sdk/configure.in
-index d797443..2eabec2 100644
+index 9684a1f..4445329 100644
 --- a/ldap/sdks/c-sdk/configure.in
 +++ b/ldap/sdks/c-sdk/configure.in
-@@ -761,6 +761,7 @@ if test -n "$CROSS_COMPILE"; then
+@@ -763,6 +763,7 @@ if test -n "$CROSS_COMPILE"; then
      OS_TEST="${target_cpu}"
      case "${target_os}" in
          linux*)       OS_ARCH=Linux ;;
@@ -43,7 +71,7 @@ index d797443..2eabec2 100644
          solaris*)     OS_ARCH=SunOS OS_RELEASE=5 ;;
          mingw*)     OS_ARCH=WINNT ;;
          darwin*)    OS_ARCH=Darwin ;;
-@@ -1482,7 +1483,7 @@ tools are selected during the Xcode/Developer Tools installation.])
+@@ -1484,7 +1485,7 @@ tools are selected during the Xcode/Developer Tools installation.])
  	esac
      ;;
  
@@ -52,7 +80,7 @@ index d797443..2eabec2 100644
      if test -z "$USE_NSPR_THREADS"; then
          USE_PTHREADS=1
      fi
-@@ -1492,8 +1493,12 @@ tools are selected during the Xcode/Developer Tools installation.])
+@@ -1494,8 +1495,12 @@ tools are selected during the Xcode/Developer Tools installation.])
      AC_DEFINE(_SVID_SOURCE)
      AC_DEFINE(_LARGEFILE64_SOURCE)
      AC_DEFINE(HAVE_FCNTL_FILE_LOCKING)
@@ -67,7 +95,7 @@ index d797443..2eabec2 100644
      LD='$(CC)'
      CFLAGS="$CFLAGS -ansi -Wall"
      CXXFLAGS="$CXXFLAGS -ansi -Wall"
-@@ -2368,7 +2373,7 @@ if test -n "$USE_PTHREADS"; then
+@@ -2370,7 +2375,7 @@ if test -n "$USE_PTHREADS"; then
  	        _PTHREAD_LDFLAGS=
  	    fi
  	    ;;
@@ -76,7 +104,7 @@ index d797443..2eabec2 100644
          AC_DEFINE(_REENTRANT)
          ;;
      esac
-@@ -2444,7 +2449,7 @@ case "$target" in
+@@ -2446,7 +2451,7 @@ case "$target" in
          fi
      fi
      ;;

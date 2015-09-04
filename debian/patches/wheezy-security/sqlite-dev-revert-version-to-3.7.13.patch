@@ -1,36 +1,34 @@
 From: Carsten Schoenert <c.schoenert@t-online.de>
-Date: Sat, 25 Oct 2014 14:27:35 +0200
-Subject: sqlite-dev: revert version to 3.7.13
+Date: Fri, 28 Aug 2015 11:30:02 +0200
+Subject: sqlite-dev-revert-version-to-3.7.13
 
-In addition to the version 24 in wheezy-security switching back the
-sqlite version to 3.7.13.
 ---
  mozilla/configure    | 2 +-
  mozilla/configure.in | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/configure b/mozilla/configure
-index 96ea77c..76febaa 100755
+index 4af5f4d..786d833 100755
 --- a/mozilla/configure
 +++ b/mozilla/configure
-@@ -1312,7 +1312,7 @@ GCONF_VERSION=1.2.1
- GIO_VERSION=2.20
+@@ -1281,7 +1281,7 @@ GNOMEUI_VERSION=2.2.0
+ GCONF_VERSION=1.2.1
  STARTUP_NOTIFICATION_VERSION=0.8
  DBUS_VERSION=0.60
--SQLITE_VERSION=3.8.4.2
+-SQLITE_VERSION=3.8.9
 +SQLITE_VERSION=3.7.13
  
  MSMANIFEST_TOOL=
  
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 0b701d9..8968e27 100644
+index 88db8f9..ee272fe 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
-@@ -71,7 +71,7 @@ GCONF_VERSION=1.2.1
- GIO_VERSION=2.20
+@@ -74,7 +74,7 @@ GNOMEUI_VERSION=2.2.0
+ GCONF_VERSION=1.2.1
  STARTUP_NOTIFICATION_VERSION=0.8
  DBUS_VERSION=0.60
--SQLITE_VERSION=3.8.4.2
+-SQLITE_VERSION=3.8.9
 +SQLITE_VERSION=3.7.13
  
  MSMANIFEST_TOOL=

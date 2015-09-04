@@ -5,17 +5,17 @@ Subject: Add xptcall support for SH4 processors
 Closes: #573400
 https://bugzilla.mozilla.org/show_bug.cgi?id=382214
 ---
- .../xpcom/reflect/xptcall/src/md/unix/Makefile.in  |  12 +
+ mozilla/xpcom/reflect/xptcall/md/unix/Makefile.in  |  12 +
  .../xptcall/src/md/unix/xptcinvoke_linux_sh.cpp    | 203 +++++++++++++++
  .../xptcall/src/md/unix/xptcstubs_linux_sh.cpp     | 271 +++++++++++++++++++++
  3 files changed, 486 insertions(+)
  create mode 100644 mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp
  create mode 100644 mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp
 
-diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in b/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
-index e87e11a..6508906 100644
---- a/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
-+++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
+diff --git a/mozilla/xpcom/reflect/xptcall/md/unix/Makefile.in b/mozilla/xpcom/reflect/xptcall/md/unix/Makefile.in
+index 80dc570..805e45f 100644
+--- a/mozilla/xpcom/reflect/xptcall/md/unix/Makefile.in
++++ b/mozilla/xpcom/reflect/xptcall/md/unix/Makefile.in
 @@ -66,6 +66,18 @@ endif
  endif
  endif
