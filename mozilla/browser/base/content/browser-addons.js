@@ -3,6 +3,32 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+// Removes a doorhanger notification if all of the installs it was notifying
+// about have ended in some way.
+function removeNotificationOnEnd(notification, installs) {
+  let count = installs.length;
+
+  function maybeRemove(install) {
+    install.removeListener(this);
+
+    if (--count == 0) {
+      // Check that the notification is still showing
+      let current = PopupNotifications.getNotification(notification.id, notification.browser);
+      if (current === notification)
+        notification.remove();
+    }
+  }
+
+  for (let install of installs) {
+    install.addListener({
+      onDownloadCancelled: maybeRemove,
+      onDownloadFailed: maybeRemove,
+      onInstallFailed: maybeRemove,
+      onInstallEnded: maybeRemove
+    });
+  }
+}
+
 const gXPInstallObserver = {
   _findChildShell: function (aDocShell, aSoughtShell)
   {
@@ -43,6 +69,23 @@ const gXPInstallObserver = {
       return;
     }
 
+    let showNextConfirmation = () => {
+      // Make sure the browser is still alive.
+      if (gBrowser.browsers.indexOf(browser) == -1)
+        return;
+
+      let pending = this.pendingInstalls.get(browser);
+      if (pending && pending.length)
+        this.showInstallConfirmation(browser, pending.shift());
+    }
+
+    // If all installs have already been cancelled in some way then just show
+    // the next confirmation
+    if (installInfo.installs.every(i => i.state != AddonManager.STATE_DOWNLOADED)) {
+      showNextConfirmation();
+      return;
+    }
+
     const anchorID = "addons-notification-icon";
 
     // Make notifications persist a minimum of 30 seconds
@@ -58,25 +101,18 @@ const gXPInstallObserver = {
 
     let cancelInstallation = () => {
       if (installInfo) {
-        for (let install of installInfo.installs)
-          install.cancel();
+        for (let install of installInfo.installs) {
+          // The notification may have been closed because the add-ons got
+          // cancelled elsewhere, only try to cancel those that are still
+          // pending install.
+          if (install.state != AddonManager.STATE_CANCELLED)
+            install.cancel();
+        }
       }
 
       this.acceptInstallation = null;
 
-      let tab = gBrowser.getTabForBrowser(browser);
-      if (tab)
-        tab.removeEventListener("TabClose", cancelInstallation);
-
-      window.removeEventListener("unload", cancelInstallation);
-
-      // Make sure the browser is still alive.
-      if (gBrowser.browsers.indexOf(browser) == -1)
-        return;
-
-      let pending = this.pendingInstalls.get(browser);
-      if (pending && pending.length)
-        this.showInstallConfirmation(browser, pending.shift());
+      showNextConfirmation();
     };
 
     let unsigned = installInfo.installs.filter(i => i.addon.signedState <= AddonManager.SIGNEDSTATE_MISSING);
@@ -126,20 +162,24 @@ const gXPInstallObserver = {
     options.learnMoreURL = Services.urlFormatter.formatURLPref("app.support.baseURL");
 
     let messageString;
+    let notification = document.getElementById("addon-install-confirmation-notification");
     if (unsigned.length == installInfo.installs.length) {
       // None of the add-ons are verified
       messageString = gNavigatorBundle.getString("addonConfirmInstallUnsigned.message");
+      notification.setAttribute("warning", "true");
       options.learnMoreURL += "unsigned-addons";
     }
     else if (unsigned.length == 0) {
       // All add-ons are verified or don't need to be verified
       messageString = gNavigatorBundle.getString("addonConfirmInstall.message");
+      notification.removeAttribute("warning");
       options.learnMoreURL += "find-and-install-add-ons";
     }
     else {
       // Some of the add-ons are unverified, the list of names will indicate
       // which
       messageString = gNavigatorBundle.getString("addonConfirmInstallSomeUnsigned.message");
+      notification.setAttribute("warning", "true");
       options.learnMoreURL += "unsigned-addons";
     }
 
@@ -166,13 +206,13 @@ const gXPInstallObserver = {
     let tab = gBrowser.getTabForBrowser(browser);
     if (tab) {
       gBrowser.selectedTab = tab;
-      tab.addEventListener("TabClose", cancelInstallation);
     }
 
-    window.addEventListener("unload", cancelInstallation);
+    let popup = PopupNotifications.show(browser, "addon-install-confirmation",
+                                        messageString, anchorID, null, null,
+                                        options);
 
-    PopupNotifications.show(browser, "addon-install-confirmation", messageString,
-                            anchorID, null, null, options);
+    removeNotificationOnEnd(popup, installInfo.installs);
 
     Services.telemetry
             .getHistogramById("SECURITY_UI")
@@ -228,12 +268,18 @@ const gXPInstallObserver = {
       PopupNotifications.show(browser, notificationID, messageString, anchorID,
                               action, null, options);
       break; }
+    case "addon-install-origin-blocked": {
+      messageString = gNavigatorBundle.getFormattedString("xpinstallPromptMessage",
+                        [brandShortName]);
+
+      let secHistogram = Components.classes["@mozilla.org/base/telemetry;1"].getService(Ci.nsITelemetry).getHistogramById("SECURITY_UI");
+      secHistogram.add(Ci.nsISecurityUITelemetry.WARNING_ADDON_ASKING_PREVENTED);
+      let popup = PopupNotifications.show(browser, notificationID,
+                                          messageString, anchorID,
+                                          null, null, options);
+      removeNotificationOnEnd(popup, installInfo.installs);
+      break; }
     case "addon-install-blocked": {
-      if (!options.displayOrigin) {
-        // Need to deal with missing originatingURI and with about:/data: URIs more gracefully,
-        // see bug 1063418 - but for now, bail:
-        return;
-      }
       messageString = gNavigatorBundle.getFormattedString("xpinstallPromptMessage",
                         [brandShortName]);
 
@@ -248,8 +294,10 @@ const gXPInstallObserver = {
       };
 
       secHistogram.add(Ci.nsISecurityUITelemetry.WARNING_ADDON_ASKING_PREVENTED);
-      PopupNotifications.show(browser, notificationID, messageString, anchorID,
-                              action, null, options);
+      let popup = PopupNotifications.show(browser, notificationID,
+                                          messageString, anchorID,
+                                          action, null, options);
+      removeNotificationOnEnd(popup, installInfo.installs);
       break; }
     case "addon-install-started": {
       let needsDownload = function needsDownload(aInstall) {
@@ -298,25 +346,25 @@ const gXPInstallObserver = {
           host = (install.sourceURI instanceof Ci.nsIStandardURL) &&
                  install.sourceURI.host;
 
-        let error = (host || install.error == 0) ? "addonError" : "addonLocalError";
-        if (install.error != 0)
+        let error = (host || install.error == 0) ? "addonInstallError" : "addonLocalInstallError";
+        let args;
+        if (install.error < 0) {
           error += install.error;
-        else if (install.addon.blocklistState == Ci.nsIBlocklistService.STATE_BLOCKED)
+          args = [brandShortName, install.name];
+        } else if (install.addon.blocklistState == Ci.nsIBlocklistService.STATE_BLOCKED) {
           error += "Blocklisted";
-        else
+          args = [install.name];
+        } else {
           error += "Incompatible";
+          args = [brandShortName, Services.appinfo.version, install.name];
+        }
 
         // Add Learn More link when refusing to install an unsigned add-on
         if (install.error == AddonManager.ERROR_SIGNEDSTATE_REQUIRED) {
           options.learnMoreURL = Services.urlFormatter.formatURLPref("app.support.baseURL") + "unsigned-addons";
         }
 
-        messageString = gNavigatorBundle.getString(error);
-        messageString = messageString.replace("#1", install.name);
-        if (host)
-          messageString = messageString.replace("#2", host);
-        messageString = messageString.replace("#3", brandShortName);
-        messageString = messageString.replace("#4", Services.appinfo.version);
+        messageString = gNavigatorBundle.getFormattedString(error, args);
 
         PopupNotifications.show(browser, notificationID, messageString, anchorID,
                                 action, null, options);
@@ -360,6 +408,7 @@ const gXPInstallObserver = {
       });
 
       if (needsRestart) {
+        notificationID = "addon-install-restart";
         messageString = gNavigatorBundle.getString("addonsInstalledNeedsRestart");
         action = {
           label: gNavigatorBundle.getString("addonInstallRestartButton"),

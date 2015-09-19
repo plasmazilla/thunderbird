@@ -81,7 +81,7 @@
     </style>
 
     <style name="Widget.GeckoMenuListView" parent="Widget.ListView">
-        <item name="android:divider">#FFC9D3DC</item>
+        <item name="android:divider">@color/divider_light</item>
     </style>
 
     <style name="Widget.MenuItemActionBar">
@@ -191,6 +191,17 @@
         <item name="android:drawSelectorOnTop">true</item>
     </style>
 
+    <style name="Widget.PanelIconGridView" parent="Widget.GridView">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:numColumns">@integer/panel_icon_grid_view_columns</item>
+        <item name="android:horizontalSpacing">6dp</item>
+        <item name="android:verticalSpacing">6dp</item>
+        <item name="android:drawSelectorOnTop">true</item>
+        <item name="android:padding">6dp</item>
+        <item name="android:clipToPadding">false</item>
+    </style>
+
     <style name="Widget.TabsGridLayout" parent="Widget.GridView">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">match_parent</item>
@@ -279,6 +290,14 @@
         <item name="android:textColor">@color/android:white</item>
         <item name="android:background">@color/action_orange</item>
         <item name="android:textSize">18sp</item>
+    </style>
+
+    <style name="Widget.Doorhanger.Button" parent="Widget.BaseButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textSize">14sp</item>
     </style>
 
     <!--
@@ -419,6 +438,10 @@
         <item name="android:textSize">16dp</item>
     </style>
 
+    <style name="TextAppearance.DoorHanger.Medium.Bold">
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
     <style name="TextAppearance.DoorHanger.Medium.Light">
         <item name="android:fontFamily">sans-serif-light</item>
     </style>
@@ -508,13 +531,6 @@
     </style>
 
     <!-- Tabs panel -->
-    <style name="PrivateTabsPanelFrame">
-        <item name="android:paddingLeft">16dp</item>
-        <item name="android:paddingRight">16dp</item>
-        <item name="android:paddingTop">32dp</item>
-        <item name="android:orientation">vertical</item>
-    </style>
-
     <style name="TabsPanelSectionBase">
         <item name="android:orientation">vertical</item>
         <item name="android:layout_marginLeft">40dp</item>
@@ -523,14 +539,6 @@
 
     <style name="TabsPanelSection" parent="TabsPanelSectionBase">
         <!-- We set values in landscape. -->
-    </style>
-
-    <style name="TabsPanelSection.PrivateTabs">
-        <!-- We set values on tablet. -->
-    </style>
-
-    <style name="TabsPanelSection.PrivateTabs.Header">
-        <!-- We set values on landscape and tablet. -->
     </style>
 
     <style name="TabsPanelItemBase">
@@ -554,18 +562,10 @@
         <item name="android:layout_marginBottom">16dp</item>
     </style>
 
-    <style name="TabsPanelItem.TextAppearance.Header.PrivateTabs">
-        <!-- We change these values on landscape and tablet. -->
-    </style>
-
     <style name="TabsPanelItem.TextAppearance.Linkified">
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
         <item name="android:textColor">#0292D6</item>
-    </style>
-
-    <style name="TabsPanelItem.TextAppearance.Linkified.LearnMore">
-        <item name="android:layout_height">wrap_content</item>
     </style>
 
     <style name="Widget.RemoteTabsItemView" parent="Widget.TwoLinePageRow"/>

@@ -43,7 +43,7 @@
 @APPNAME@/Contents/PkgInfo
 @APPNAME@/Contents/Library/Spotlight/thunderbird.mdimporter/
 @RESPATH@/thunderbird.icns
-@RESPATH@/@AB@.lproj/*
+@RESPATH@/@LPROJ_ROOT@.lproj/*
 #endif
 
 [@AB_CD@]
@@ -395,7 +395,6 @@
 @RESPATH@/components/dom_alarm.xpt
 @RESPATH@/components/dom_core.xpt
 @RESPATH@/components/dom_css.xpt
-@RESPATH@/components/dom_devicestorage.xpt
 @RESPATH@/components/dom_events.xpt
 @RESPATH@/components/dom_gamepad.xpt
 @RESPATH@/components/dom_geolocation.xpt
@@ -466,6 +465,7 @@
 @RESPATH@/components/necko_file.xpt
 @RESPATH@/components/necko_ftp.xpt
 @RESPATH@/components/necko_http.xpt
+@RESPATH@/components/necko_mdns.xpt
 @RESPATH@/components/necko_ipc.xpt
 @RESPATH@/components/necko_res.xpt
 @RESPATH@/components/necko_socket.xpt
@@ -486,7 +486,6 @@
 @RESPATH@/components/plugin.xpt
 @RESPATH@/components/pref.xpt
 @RESPATH@/components/prefetch.xpt
-@RESPATH@/components/profile.xpt
 #ifdef MOZ_ENABLE_PROFILER_SPS
 @RESPATH@/components/profiler.xpt
 #endif
@@ -687,6 +686,9 @@
 @RESPATH@/components/BuiltinProviders.manifest
 @RESPATH@/components/TCPPresentationServer.js
 
+@RESPATH@/components/PACGenerator.js
+@RESPATH@/components/PACGenerator.manifest
+
 ; Phishing Protection
 ; Modules
 @RESPATH@/modules/*
@@ -785,7 +787,6 @@
 #endif
 @RESPATH@/chrome/pippki@JAREXT@
 @RESPATH@/chrome/pippki.manifest
-@RESPATH@/components/pipboot.xpt
 @RESPATH@/components/pipnss.xpt
 @RESPATH@/components/pippki.xpt
 

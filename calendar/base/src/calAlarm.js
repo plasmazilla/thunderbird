@@ -427,12 +427,6 @@ calAlarm.prototype = {
             comp.addProperty(attendee.icalProperty);
         }
 
-        // Set up attachments (REQUIRED for AUDIO and EMAIL types, there MUST
-        // NOT be more than one for AUDIO.
-        if (this.action == "AUDIO" && this.getAttachments({}).length != 1) {
-            throw Components.results.NS_ERROR_NOT_INITIALIZED;
-        }
-
         /* TODO should we be strict here?
         if (this.action == "EMAIL" && !this.attachments.length) {
             throw Components.results.NS_ERROR_NOT_INITIALIZED;
@@ -623,6 +617,16 @@ calAlarm.prototype = {
     },
 
     toString: function cA_toString(aItem) {
+        function getItemBundleStringName(aPrefix) {
+            if (!aItem || isEvent(aItem)) {
+                return aPrefix + "Event";
+            } else if (isToDo(aItem)) {
+                return aPrefix + "Task";
+            } else {
+                return aPrefix;
+            }
+        }
+
         if (this.related == ALARM_RELATED_ABSOLUTE && this.mAbsoluteDate) {
             // this is an absolute alarm. Use the calendar default timezone and
             // format it.
@@ -630,15 +634,6 @@ calAlarm.prototype = {
             let formatDate = this.mAbsoluteDate.getInTimezone(cal.calendarDefaultTimezone());
             return formatter.formatDateTime(formatDate);
         } else if (this.related != ALARM_RELATED_ABSOLUTE && this.mOffset) {
-            function getItemBundleStringName(aPrefix) {
-                if (!aItem || isEvent(aItem)) {
-                    return aPrefix + "Event";
-                } else if (isToDo(aItem)) {
-                    return aPrefix + "Task";
-                } else {
-                    return aPrefix;
-                }
-            }
 
             // Relative alarm length
             let alarmlen = Math.abs(this.mOffset.inSeconds / 60);

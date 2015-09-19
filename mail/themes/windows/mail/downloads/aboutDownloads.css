@@ -24,9 +24,18 @@
 
 #msgDownloadsRichListBox > richlistitem.download {
   height: 6em;
+  border-bottom: 1px solid #f1f1f1;
 %ifndef WINDOWS_AERO
   padding: 5px 8px;
 %endif
+}
+
+#clearDownloads {
+  margin-inline-start: 0;
+}
+
+#searchBox {
+  margin-inline-end: 0;
 }
 
 .fileTypeIcon {

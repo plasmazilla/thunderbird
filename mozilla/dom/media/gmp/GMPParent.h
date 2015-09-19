@@ -184,6 +184,7 @@ private:
   }
 
 
+  static void AbortWaitingForGMPAsyncShutdown(nsITimer* aTimer, void* aClosure);
   nsresult EnsureAsyncShutdownTimeoutSet();
 
   GMPState mState;
@@ -217,9 +218,7 @@ private:
   bool mAsyncShutdownRequired;
   bool mAsyncShutdownInProgress;
 
-#ifdef PR_LOGGING
   int mChildPid;
-#endif
 
   // We hold a self reference to ourself while the child process is alive.
   // This ensures that if the GMPService tries to shut us down and drops

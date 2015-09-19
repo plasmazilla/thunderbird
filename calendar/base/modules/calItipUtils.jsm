@@ -12,7 +12,7 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 /**
  * Scheduling and iTIP helper code
  */
-EXPORTED_SYMBOLS = ["cal"]; // even though it's defined in calUtils.jsm, import needs this
+this.EXPORTED_SYMBOLS = ["cal"]; // even though it's defined in calUtils.jsm, import needs this
 cal.itip = {
     /**
      * Gets the sequence/revision number, either of the passed item or
@@ -175,16 +175,18 @@ cal.itip = {
             return cal.calGetString("lightning", strName, param, "lightning");
         }
 
+        let text = "";
         const cIOL = Components.interfaces.calIOperationListener;
         if (Components.isSuccessCode(aStatus)) {
             switch (aOperationType) {
-                case cIOL.ADD: return _gs("imipAddedItemToCal");
-                case cIOL.MODIFY: return _gs("imipUpdatedItem");
-                case cIOL.DELETE: return _gs("imipCanceledItem");
+                case cIOL.ADD: text = _gs("imipAddedItemToCal"); break;
+                case cIOL.MODIFY: text = _gs("imipUpdatedItem"); break;
+                case cIOL.DELETE: text = _gs("imipCanceledItem"); break;
             }
         } else {
-            return _gs("imipBarProcessingFailed", [aStatus.toString(16)]);
+            text = _gs("imipBarProcessingFailed", [aStatus.toString(16)]);
         }
+        return text;
     },
 
     /**
@@ -364,22 +366,19 @@ cal.itip = {
             }
         }
 
-        let hdrParser = MailServices.headerParser;
-        let emails = {};
-
         // First check the recipient list
-        hdrParser.parseHeadersWithArray(aMsgHdr.recipients, emails, {}, {});
-        for each (let recipient in emails.value) {
-            if (recipient.toLowerCase() in emailMap) {
+        let toList = MailServices.headerParser.makeFromDisplayAddress(aMsgHdr.recipients);
+        for (let recipient of toList) {
+            if (recipient.email.toLowerCase() in emailMap) {
                 // Return the first found recipient
                 return recipient;
             }
         }
 
         // Maybe we are in the CC list?
-        hdrParser.parseHeadersWithArray(aMsgHdr.ccList, emails, {}, {});
-        for each (let recipient in emails.value) {
-            if (recipient.toLowerCase() in emailMap) {
+        let ccList = MailServices.headerParser.makeFromDisplayAddress(aMsgHdr.ccList);
+        for (let recipient of ccList) {
+            if (recipient.email.toLowerCase() in emailMap) {
                 // Return the first found recipient
                 return recipient;
             }

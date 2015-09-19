@@ -270,11 +270,20 @@ function getMostRecentWindow(aType) {
   return wm.getMostRecentWindow(aType);
 }
 
+function logSystemBasedSearch(engine) {
+  var countId = (engine.identifier || ("other-" + engine.name)) + ".system";
+  var count = Services.telemetry.getKeyedHistogramById("SEARCH_COUNTS");
+  count.add(countId);
+}
+
 function doSearch(searchTerm, cmdLine) {
   var ss = Components.classes["@mozilla.org/browser/search-service;1"]
                      .getService(nsIBrowserSearchService);
 
-  var submission = ss.defaultEngine.getSubmission(searchTerm);
+  var engine = ss.defaultEngine;
+  logSystemBasedSearch(engine);
+
+  var submission = engine.getSubmission(searchTerm, null, "system");
 
   // fill our nsISupportsArray with uri-as-wstring, null, null, postData
   var sa = Components.classes["@mozilla.org/supports-array;1"]
@@ -648,6 +657,21 @@ nsBrowserContentHandler.prototype = {
       var urlParam = cmdLine.getArgument(urlFlagIdx + 1);
       if (cmdLine.length != urlFlagIdx + 2 || /firefoxurl:/.test(urlParam))
         throw NS_ERROR_ABORT;
+      var isDefault = false;
+      try {
+        var url = Services.urlFormatter.formatURLPref("app.support.baseURL") +
+                  "win10-default-browser";
+        if (urlParam == url) {
+          var shellSvc = Components.classes["@mozilla.org/browser/shell-service;1"]
+                                   .getService(Components.interfaces.nsIShellService);
+          isDefault = shellSvc.isDefaultBrowser(false, false);
+        }
+      } catch (ex) {}
+      if (isDefault) {
+        // Firefox is already the default HTTP handler.
+        // We don't have to show the instruction page.
+        throw NS_ERROR_ABORT;
+      }
       cmdLine.handleFlag("osint", false)
     }
   },
@@ -769,7 +793,9 @@ nsDefaultCommandLineHandler.prototype = {
               var term = params.get("q");
               var ss = Components.classes["@mozilla.org/browser/search-service;1"]
                                  .getService(nsIBrowserSearchService);
-              var submission = ss.defaultEngine.getSubmission(term, null, "searchbar");
+              var engine = ss.defaultEngine;
+              logSystemBasedSearch(engine);
+              var submission = engine.getSubmission(term, null, "system");
               uri = submission.uri;
             }
           } catch (e) {

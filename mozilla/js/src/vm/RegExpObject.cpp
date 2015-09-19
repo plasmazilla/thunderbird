@@ -135,24 +135,6 @@ RegExpObjectBuilder::clone(Handle<RegExpObject*> other)
 /* MatchPairs */
 
 bool
-MatchPairs::initArray(size_t pairCount)
-{
-    MOZ_ASSERT(pairCount > 0);
-
-    /* Guarantee adequate space in buffer. */
-    if (!allocOrExpandArray(pairCount))
-        return false;
-
-    /* Initialize all MatchPair objects to invalid locations. */
-    for (size_t i = 0; i < pairCount; i++) {
-        pairs_[i].start = -1;
-        pairs_[i].limit = -1;
-    }
-
-    return true;
-}
-
-bool
 MatchPairs::initArrayFrom(MatchPairs& copyFrom)
 {
     MOZ_ASSERT(copyFrom.pairCount() > 0);
@@ -694,8 +676,10 @@ RegExpShared::execute(JSContext* cx, HandleLinearString input, size_t start,
      * Ensure sufficient memory for output vector.
      * No need to initialize it. The RegExp engine fills them in on a match.
      */
-    if (matches && !matches->allocOrExpandArray(pairCount()))
+    if (matches && !matches->allocOrExpandArray(pairCount())) {
+        ReportOutOfMemory(cx);
         return RegExpRunStatus_Error;
+    }
 
     /*
      * |displacement| emulates sticky mode by matching from this offset
@@ -841,7 +825,7 @@ RegExpCompartment::createMatchResultTemplateObject(JSContext* cx)
     MOZ_ASSERT(!matchResultTemplateObject_);
 
     /* Create template array object */
-    RootedArrayObject templateObject(cx, NewDenseUnallocatedArray(cx, 0, NullPtr(), TenuredObject));
+    RootedArrayObject templateObject(cx, NewDenseUnallocatedArray(cx, 0, nullptr, TenuredObject));
     if (!templateObject)
         return matchResultTemplateObject_; // = nullptr
 
@@ -925,7 +909,8 @@ RegExpCompartment::sweep(JSRuntime* rt)
                 keep = false;
             }
         }
-        if (keep || rt->isHeapCompacting()) {
+        MOZ_ASSERT(rt->isHeapMajorCollecting());
+        if (keep || rt->gc.isHeapCompacting()) {
             shared->clearMarked();
         } else {
             js_delete(shared);

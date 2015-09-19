@@ -544,8 +544,14 @@
             return;
           }
 
+          // We don't want to enable tab completion if the user has selected
+          // some text, as it's not clear what the user would expect
+          // to happen in that case.
+          let noSelection = !(inputBox.selectionEnd - inputBox.selectionStart);
+
           // Undo tab complete.
-          if (this._completions && event.keyCode == KeyEvent.DOM_VK_BACK_SPACE &&
+          if (noSelection && this._completions &&
+              event.keyCode == KeyEvent.DOM_VK_BACK_SPACE &&
               !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
             if (text == this._beforeTabComplete) {
               // Nothing to undo, so let backspace act normally.
@@ -596,7 +602,8 @@
           // Tab complete.
           // Keep the default behavior of the tab key if the input box
           // is empty or a modifier is used.
-          if (event.keyCode == KeyEvent.DOM_VK_TAB && text.length != 0 &&
+          if (event.keyCode == KeyEvent.DOM_VK_TAB &&
+              text.length != 0 && noSelection &&
               !event.altKey && !event.ctrlKey && !event.metaKey &&
               (!event.shiftKey || this._completions)) {
             event.preventDefault();
@@ -1466,7 +1473,7 @@
         <![CDATA[
           let cti = this.getElt("conv-top-info");
           let statusMessage = this.getElt("statusMessage");
-          if (this._conv.topicSettable) {
+          if (this._conv.topicSettable && !this._conv.left) {
             cti.setAttribute("topicEditable", "true");
             cti.setAttribute("topicContext", "");
           }
@@ -1651,6 +1658,7 @@
         </body>
       </method>
 
+      <field name="_currentTypingName">""</field>
       <method name="updateTyping">
         <parameter name="aForceUpdate"/>
         <body>
@@ -1663,7 +1671,12 @@
           this.tab.removeAttribute("typed");
 
           let typingText = "";
-          var name = this._conv.title.replace(/^([a-zA-Z0-9.]+)[@\s].*/, "$1");
+          let name = this._currentTypingName;
+          if (!this._currentTypingName) {
+            // This regex is intended to get a shortened name for prpls that
+            // don't provide a _currentTypingName.
+            name = this._conv.title.replace(/^([a-zA-Z0-9.]+)[@\s].*/, "$1");
+          }
           if (typingState == Ci.prplIConvIM.TYPING) {
             this.tab.setAttribute("typing", "true");
             typingText = this.bundle.formatStringFromName("isTyping", [name], 1);
@@ -1870,6 +1883,7 @@
             break;
 
           case "update-typing":
+            this._currentTypingName = aData;
             this.updateTyping();
             break;
 
@@ -1888,9 +1902,13 @@
           case "update-buddy-display-name":
           case "update-buddy-status":
           case "update-buddy-icon":
-          case "update-conv-chatleft":
           case "update-conv-chatjoining":
             this.updateConvStatus();
+            break;
+
+          case "update-conv-chatleft":
+            this.updateConvStatus();
+            this.updateTopic();
             break;
 
           case "chat-buddy-add":

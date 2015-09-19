@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<blocklist xmlns="http://www.mozilla.org/2006/addons-blocklist" lastupdate="1432051555000">
+<blocklist xmlns="http://www.mozilla.org/2006/addons-blocklist" lastupdate="1438726683000">
   <emItems>
       <emItem  blockID="i58" id="webmaster@buzzzzvideos.info">
                         <versionRange  minVersion="0" maxVersion="*">
@@ -120,8 +120,8 @@
                     <prefs>
               </prefs>
     </emItem>
-      <emItem  blockID="i810" id="{41339ee8-61ed-489d-b049-01e41fd5d7e0}">
-                        <versionRange  minVersion="0" maxVersion="*" severity="3">
+      <emItem  blockID="i364" id="{FE1DEEEA-DB6D-44b8-83F0-34FC0F9D1052}">
+                        <versionRange  minVersion="0" maxVersion="*" severity="1">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -178,6 +178,15 @@
     </emItem>
       <emItem  blockID="i672" id="/^(saamazon@mybrowserbar\.com)|(saebay@mybrowserbar\.com)$/">
                         <versionRange  minVersion="0" maxVersion="*" severity="1">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i952" id="foxyproxy-basic@eric.h.jung">
+                        <versionRange  minVersion="0" maxVersion="3.5.5" severity="1">
+                      <targetApplication  id="{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}">
+                              <versionRange  minVersion="2.35" maxVersion="*" />
+                          </targetApplication>
                     </versionRange>
                     <prefs>
               </prefs>
@@ -246,6 +255,12 @@
     </emItem>
       <emItem  blockID="i100" id="{394DCBA4-1F92-4f8e-8EC9-8D2CB90CB69B}">
                         <versionRange  minVersion="2.5.0" maxVersion="2.5.0" severity="1">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i972" id="831778-poidjao88DASfsAnindsd@jetpack">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -334,6 +349,12 @@
     </emItem>
       <emItem  blockID="i52" id="ff-ext@youtube">
                         <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i966" id="{5C655500-E712-41e7-9349-CE462F844B19}">
+                        <versionRange  minVersion="0" maxVersion="1.0.1-signed" severity="1">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -524,6 +545,15 @@
     </emItem>
       <emItem  blockID="i356" id="{341f4dac-1966-47ff-aacf-0ce175f1498a}">
                         <versionRange  minVersion="0" maxVersion="*" severity="1">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i950" id="foxyproxy@eric.h.jung">
+                        <versionRange  minVersion="0" maxVersion="4.5.5" severity="1">
+                      <targetApplication  id="{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}">
+                              <versionRange  minVersion="2.35" maxVersion="*" />
+                          </targetApplication>
                     </versionRange>
                     <prefs>
               </prefs>
@@ -854,10 +884,11 @@
                     <prefs>
               </prefs>
     </emItem>
-      <emItem  blockID="i434" id="afurladvisor@anchorfree.com">
+      <emItem  blockID="i730" id="25p@9eAkaLq.net">
                         <versionRange  minVersion="0" maxVersion="*" severity="1">
                     </versionRange>
                     <prefs>
+                  <pref>browser.startup.homepage</pref>
               </prefs>
     </emItem>
       <emItem  blockID="i736" id="{c5e48979-bd7f-4cf7-9b73-2482a67a4f37}">
@@ -1222,6 +1253,12 @@
     </emItem>
       <emItem  blockID="i433" id="{c95a4e8e-816d-4655-8c79-d736da1adb6d}">
                         <versionRange  minVersion="0" maxVersion="*" severity="1">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i968" id="{184AA5E6-741D-464a-820E-94B3ABC2F3B4}">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -1650,11 +1687,10 @@
                     <prefs>
               </prefs>
     </emItem>
-      <emItem  blockID="i730" id="25p@9eAkaLq.net">
+      <emItem  blockID="i434" id="afurladvisor@anchorfree.com">
                         <versionRange  minVersion="0" maxVersion="*" severity="1">
                     </versionRange>
                     <prefs>
-                  <pref>browser.startup.homepage</pref>
               </prefs>
     </emItem>
       <emItem  blockID="i90" id="videoplugin@player.com">
@@ -1917,8 +1953,8 @@
                     <prefs>
               </prefs>
     </emItem>
-      <emItem  blockID="i364" id="{FE1DEEEA-DB6D-44b8-83F0-34FC0F9D1052}">
-                        <versionRange  minVersion="0" maxVersion="*" severity="1">
+      <emItem  blockID="i810" id="{41339ee8-61ed-489d-b049-01e41fd5d7e0}">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -2164,6 +2200,12 @@
               </prefs>
     </emItem>
       <emItem  blockID="i786" id="{63eb5ed4-e1b3-47ec-a253-f8462f205350}">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i970" id="hha8771ui3-Fo9j9h7aH98jsdfa8sda@jetpack">
                         <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
@@ -2771,6 +2813,66 @@
       <match name="name" exp="Java(\(TM\))? Plug-in 11\.(\d|[1-3]\d|4[0-4])(\.[0-9]+)?([^\d\._]|$)" />            <match name="filename" exp="libnpjp2\.so" />                      <versionRange  severity="0" vulnerabilitystatus="1"></versionRange>
                             <infoURL>https://java.com/</infoURL>
           </pluginItem>
+      <pluginItem  blockID="p928">
+                  <match name="filename" exp="(NPSWF32.*\.dll)|(NPSWF64.*\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="13.0.0.269" maxVersion="13.0.0.295" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p930">
+                  <match name="filename" exp="(NPSWF32.*\.dll)|(NPSWF64.*\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="16.0.0.305" maxVersion="18.0.0.193" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  os="Linux" blockID="p932">
+                  <match name="filename" exp="libflashplayer\.so" />                      <versionRange  minVersion="11.2.202.442" maxVersion="11.2.202.467" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  os="Linux" blockID="p936">
+                  <match name="filename" exp="libflashplayer\.so" />                      <versionRange  minVersion="11.2.202.468" maxVersion="11.2.202.480" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p938">
+                  <match name="filename" exp="(NPSWF32.*\.dll)|(NPSWF64.*\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="18.0.0.194" maxVersion="18.0.0.202" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p940">
+                  <match name="filename" exp="(NPSWF32.*\.dll)|(NPSWF64.*\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="13.0.0.296" maxVersion="13.0.0.301" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p944">
+                  <match name="filename" exp="(NPSWF32.*\.dll)|(NPSWF64.*\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="13.0.0.302" maxVersion="13.0.0.302" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p946">
+                  <match name="filename" exp="(NPSWF32.*\.dll)|(NPSWF64.*\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="18.0.0.203" maxVersion="18.0.0.203" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  os="Linux" blockID="p948">
+                  <match name="filename" exp="libflashplayer\.so" />                      <versionRange  minVersion="11.2.202.481" maxVersion="11.2.202.481" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p954">
+                  <match name="filename" exp="JavaAppletPlugin\.plugin" />                      <versionRange  minVersion="Java 7 Update 79" maxVersion="Java 7 Update 80" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p956">
+                  <match name="filename" exp="JavaAppletPlugin\.plugin" />                      <versionRange  minVersion="Java 8 Update 45" maxVersion="Java 8 Update 45" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p958">
+      <match name="name" exp="Java\(TM\) Platform SE 7 U(79|80)(\s[^\d\._U]|$)" />            <match name="filename" exp="npjp2\.dll" />                      <versionRange  severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p960">
+      <match name="name" exp="Java\(TM\) Platform SE 8 U45(\s[^\d\._U]|$)" />            <match name="filename" exp="npjp2\.dll" />                      <versionRange  severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p962">
+      <match name="name" exp="Java(\(TM\))? Plug-in 10\.(79|80)(\.[0-9]+)?([^\d\._]|$)" />            <match name="filename" exp="libnpjp2\.so" />                      <versionRange  severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p964">
+      <match name="name" exp="Java(\(TM\))? Plug-in 11\.45(\.[0-9]+)?([^\d\._]|$)" />            <match name="filename" exp="libnpjp2\.so" />                      <versionRange  severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
     </pluginItems>
 
   <gfxItems>
@@ -2845,6 +2947,9 @@
     </certItem>
         <certItem issuerName="MFkxCzAJBgNVBAYTAk5MMR4wHAYDVQQKExVTdGFhdCBkZXIgTmVkZXJsYW5kZW4xKjAoBgNVBAMTIVN0YWF0IGRlciBOZWRlcmxhbmRlbiBPdmVyaGVpZCBDQQ">
       <serialNumber>ATFEdg==</serialNumber>
+    </certItem>
+        <certItem issuerName="MDcxJDAiBgNVBAMTG1JDUyBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTEPMA0GA1UEChMGSFQgc3Js">
+      <serialNumber>AN9bfYOvlR1t</serialNumber>
     </certItem>
       </certItems>
 

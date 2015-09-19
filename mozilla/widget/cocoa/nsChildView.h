@@ -487,7 +487,6 @@ public:
 #endif
 
   virtual void CreateCompositor() override;
-  virtual bool IsMultiProcessWindow() override;
   virtual void PrepareWindowEffects() override;
   virtual void CleanupWindowEffects() override;
   virtual bool PreRender(LayerManagerComposite* aManager) override;
@@ -540,6 +539,7 @@ public:
   mozilla::TemporaryRef<mozilla::gfx::DrawTarget> StartRemoteDrawing() override;
   void EndRemoteDrawing() override;
   void CleanupRemoteDrawing() override;
+  bool InitCompositor(mozilla::layers::Compositor* aCompositor) override;
 
   APZCTreeManager* APZCTM() { return mAPZC ; }
 
