@@ -435,306 +435,6 @@ Files: mozilla/dom/imptests/parseManifest.py
 Copyright: 2011-2013, Ms2ger
 License: Expat
 
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/*
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/avcodec.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/dxva2.h
-Copyright: 2009, Laurent Aimar
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/vaapi.h
-Copyright: 2008, 2009, Splitted-Desktop Systems
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/vda.h
-Copyright: 2011, Sebastien Zwickert
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/vdpau.h
-Copyright: 2008, NVIDIA
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/xvmc.h
-Copyright: 2003, Ivan Kalvachev
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavformat/*
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavformat/version.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/*
-Copyright: 2002-2003, 2005-2012, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/adler32.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/avstring.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/intfloat.h
-Copyright: 2006, 2007, 2011, Mans Rullgard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/audio_fifo.h
-Copyright: 2012, Justin Ruggles <justin.ruggles@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/audioconvert.h
-Copyright: 2008, Peter Ross
-           2006, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/base64.h
-Copyright: 2006, Ryan Martell. <rdm4@martellventures.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/blowfish.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/xtea.h
-Copyright: 2012, Samuel Pitoiset
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/bprint.h
-Copyright: 2012, Nicolas George
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/cpu.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/time.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/version.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/dict.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/error.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/fifo.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/file.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/imgutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/intreadwrite.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/parseutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/samplefmt.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/timestamp.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/lfg.h
-Copyright: 2008, Michael Niedermayer
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/lzo.h
-Copyright: 2006, Reimar Doeffinger
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/random_seed.h
-Copyright: 2009, Baptiste Coudurier <baptiste.coudurier@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/timecode.h
-Copyright: 2011-2012, Smartjog S.A.S, Clement Boesch <clement.boesch@smartjog.com>
-           2006, Smartjog S.A.S, Baptiste Coudurier <baptiste.coudurier@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/*
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/avcodec.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/dxva2.h
-Copyright: 2009, Laurent Aimar
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/vaapi.h
-Copyright: 2008, 2009, Splitted-Desktop Systems
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/vda.h
-Copyright: 2011, Sebastien Zwickert
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/vdpau.h
-Copyright: 2008, NVIDIA
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/xvmc.h
-Copyright: 2003, Ivan Kalvachev
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavformat/*
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavformat/version.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/*
-Copyright: 2002, 2003, 2005-2012, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/adler32.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/avstring.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/intfloat.h
-Copyright: 2006, 2007, 2011, Mans Rullgard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/audio_fifo.h
-Copyright: 2012, Justin Ruggles <justin.ruggles@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/base64.h
-Copyright: 2006, Ryan Martell. <rdm4@martellventures.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/blowfish.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/dict.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/error.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/fifo.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/file.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/imgutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/intreadwrite.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/old_pix_fmts.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/parseutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/samplefmt.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/time.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/version.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/xtea.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/channel_layout.h
-Copyright: 2008, Peter Ross
-           2006, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/cpu.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/lfg.h
-Copyright: 2008, Michael Niedermayer
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/lzo.h
-Copyright: 2006, Reimar Doeffinger
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/random_seed.h
-Copyright: 2009, Baptiste Coudurier <baptiste.coudurier@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/*
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/avcodec.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/dxva2.h
-Copyright: 2009, Laurent Aimar
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/vaapi.h
-Copyright: 2008, 2009, Splitted-Desktop Systems
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/vda.h
-Copyright: 2011, Sebastien Zwickert
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/vdpau.h
-Copyright: 2008, NVIDIA
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/xvmc.h
-Copyright: 2003, Ivan Kalvachev
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavformat/*
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavformat/version.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/*
-Copyright: 2002-2003, 2005-2012, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/adler32.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/avstring.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/intfloat.h
-Copyright: 2006-2007, 2011, Mans Rullgard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/audio_fifo.h
-Copyright: 2012, Justin Ruggles <justin.ruggles@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/base64.h
-Copyright: 2006, Ryan Martell. <rdm4@martellventures.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/blowfish.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/buffer.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/dict.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/error.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/fifo.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/file.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/frame.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/imgutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/intreadwrite.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/macros.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/old_pix_fmts.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/parseutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/samplefmt.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/time.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/version.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/xtea.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/channel_layout.h
-Copyright: 2008, Peter Ross
-  2006, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/cpu.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/downmix_info.h
-Copyright: 2014, Tim Walker <tdskywalker@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/hmac.h
-Copyright: 2012, Martin Storsjo
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/lfg.h
-Copyright: 2008, Michael Niedermayer
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/lzo.h
-Copyright: 2006, Reimar Doeffinger
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/random_seed.h
-Copyright: 2009, Baptiste Coudurier <baptiste.coudurier@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/stereo3d.h
-Copyright: 2013, Vittorio Giovara <vittorio.giovara@gmail.com>
-License: LGPL-2.1+
-
 Files: mozilla/dom/media/gmp-plugin/gmp-fake.cpp
 Copyright: 2014, Mozilla Foundation
            2009-2014, Cisco Systems
@@ -2855,10 +2555,6 @@ License: BSD-3-clause
 Files: mozilla/mfbt/decimal/moz-decimal-utils.h
        mozilla/mobile/android/base/sync/synchronizer/RecordsChannel.java
        mozilla/mobile/android/base/util/ProxySelector.java
-       mozilla/mobile/android/tests/browser/junit3/src/TestDistribution.java
-       mozilla/mobile/android/tests/browser/junit3/src/TestGeckoBackgroundThread.java
-       mozilla/mobile/android/tests/browser/junit3/src/TestGeckoMenu.java
-       mozilla/mobile/android/tests/browser/junit3/src/TestGeckoProfilesProvider.java
        mozilla/mobile/android/thirdparty/com/googlecode/eyesfree/braille/selfbraille/ISelfBrailleService.java
 Copyright: no-info-found
 License: MPL-2.0
@@ -4300,25 +3996,25 @@ License: ISC
  OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 License: LGPL-2+
- This program is free software; you can redistribute it and/or modify it
- under the terms of the GNU Library General Public License as published by
- the  Free Software Foundation; version 2 of the License, or (at  your
- option) any later version.
+ This program is free software; you can redistribute it and/or modify it under
+ the terms of the GNU Library General Public License as published by the  Free
+ Software Foundation; version 2 of the License, or (at  your option) any later
+ version.
  .
  On Debian systems, the complete text of version 2 of the GNU Library
  General Public License can be found in `/usr/share/common-licenses/LGPL-2'.
 
 License: LGPL-2.1
- On Debian systems, the complete text of the GNU Lesser General Public
+ On Debian systems, the complete text of the GNU Library General Public
  License can be found in the file `/usr/share/common-licenses/LGPL-2.1'.
 
 License: LGPL-2.1+
- This program is free software; you can redistribute it and/or modify it
- under the terms of the GNU Lesser General Public License as published by
- the  Free Software Foundation; version 2.1 of the License, or (at  your
- option) any later version.
+ This program is free software; you can redistribute it and/or modify it under
+ the terms of the GNU Library General Public License as published by the
+ Free Software Foundation; version 2.1 of the License, or (at  your option) any
+ later version.
  .
- On Debian systems, the complete text of version 2.1 of the GNU Lesser
+ On Debian systems, the complete text of version 2.1 of the GNU General
  Public License can be found in `/usr/share/common-licenses/LGPL-2.1'.
 
 License: MIT
