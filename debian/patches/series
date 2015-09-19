@@ -35,9 +35,6 @@ debian-hacks/fix-identification-of-ObjdirMismatchException.patch
 porting-kfreebsd-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
 porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
 porting/ppc-fix-divide-page-size-in-jemalloc.patch
-reproducible/Bug-1166243-Remove-build-function-from-js-and-xpc-sh.patch
-fixes/Bug-1168231-Normalize-file-mode-in-jars.patch
-fixes/Bug-1168231-Fixup-to-keep-file-type.patch
-reproducible/Bug-1168316-Remove-build-machine-name-from-about-bui.patch
 debian-hacks/changing-the-default-search-engine.patch
 reproducible/Generate-sorted-libical-header-list.patch
+porting-mips/Fix-build-error-in-MIPS-SIMD-when-compiling-with-mfp.patch

@@ -8,7 +8,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=551138
  1 file changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/mozilla/js/src/configure.in b/mozilla/js/src/configure.in
-index 878ee3b..7155107 100644
+index 482a8fb..7c0ae9d 100644
 --- a/mozilla/js/src/configure.in
 +++ b/mozilla/js/src/configure.in
 @@ -1,4 +1,4 @@
@@ -17,7 +17,7 @@ index 878ee3b..7155107 100644
  dnl vi: set tabstop=4 shiftwidth=4 expandtab syntax=m4:
  dnl This Source Code Form is subject to the terms of the Mozilla Public
  dnl License, v. 2.0. If a copy of the MPL was not distributed with this
-@@ -3057,6 +3057,19 @@ MOZ_ARG_WITH_STRING(wrap-malloc,
+@@ -3089,6 +3089,19 @@ MOZ_ARG_WITH_STRING(wrap-malloc,
      WRAP_LDFLAGS="${WRAP_LDFLAGS} $withval")
  
  dnl ========================================================

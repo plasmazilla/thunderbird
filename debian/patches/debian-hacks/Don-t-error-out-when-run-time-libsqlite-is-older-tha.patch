@@ -5,13 +5,13 @@ Subject: Don't error-out when run-time libsqlite is older than build-time
 
 In Debian, we have shlibs to handle this.
 ---
- mozilla/storage/src/mozStorageService.cpp | 2 ++
+ mozilla/storage/mozStorageService.cpp | 2 ++
  1 file changed, 2 insertions(+)
 
-diff --git a/mozilla/storage/src/mozStorageService.cpp b/mozilla/storage/src/mozStorageService.cpp
+diff --git a/mozilla/storage/mozStorageService.cpp b/mozilla/storage/mozStorageService.cpp
 index cafbeb4..21f7c58 100644
---- a/mozilla/storage/src/mozStorageService.cpp
-+++ b/mozilla/storage/src/mozStorageService.cpp
+--- a/mozilla/storage/mozStorageService.cpp
++++ b/mozilla/storage/mozStorageService.cpp
 @@ -215,6 +215,7 @@ Service::getSingleton()
      return gService;
    }
