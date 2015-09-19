@@ -73,7 +73,7 @@ Subject: rebrand all language packs
  .../pl/chrome/pl/locale/pl/branding/brand.properties  |  5 ++---
  .../chrome/pt-BR/locale/pt-BR/branding/brand.dtd      |  4 ++--
  .../pt-BR/locale/pt-BR/branding/brand.properties      |  4 ++--
- .../chrome/pt-PT/locale/pt-PT/branding/brand.dtd      |  8 ++++----
+ .../chrome/pt-PT/locale/pt-PT/branding/brand.dtd      |  4 ++--
  .../pt-PT/locale/pt-PT/branding/brand.properties      |  6 +++---
  upstream/rm/chrome/rm/locale/rm/branding/brand.dtd    |  6 +++---
  .../rm/chrome/rm/locale/rm/branding/brand.properties  |  4 ++--
@@ -105,7 +105,7 @@ Subject: rebrand all language packs
  .../zh-CN/locale/zh-CN/branding/brand.properties      |  5 ++---
  .../chrome/zh-TW/locale/zh-TW/branding/brand.dtd      |  4 ++--
  .../zh-TW/locale/zh-TW/branding/brand.properties      |  4 ++--
- 102 files changed, 269 insertions(+), 250 deletions(-)
+ 102 files changed, 267 insertions(+), 248 deletions(-)
 
 diff --git a/upstream/ar/chrome/ar/locale/ar/branding/brand.dtd b/upstream/ar/chrome/ar/locale/ar/branding/brand.dtd
 index d96e1f9..ac7e220 100644
@@ -1062,10 +1062,10 @@ index 597f5a5..ae7afbd 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.dtd b/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.dtd
-index 6df5415..f6cdf2d 100644
+index 29070c0..e6ac896 100644
 --- a/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.dtd
 +++ b/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.dtd
-@@ -1,7 +1,7 @@
+@@ -1,8 +1,8 @@
  <!-- This Source Code Form is subject to the terms of the Mozilla Public
     - License, v. 2.0. If a copy of the MPL was not distributed with this
     - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
@@ -1074,7 +1074,8 @@ index 6df5415..f6cdf2d 100644
 +<!ENTITY  brandShortName        "Icedove">
 +<!ENTITY  brandFullName         "Icedove">
  <!ENTITY  vendorShortName       "Mozilla">
- <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird e logotipos Thunderbird são marcas comerciais da Mozilla Foundation.">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird e logotipos Thunderbird 
+ são marcas comerciais da Mozilla Foundation.">
 diff --git a/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.properties b/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.properties
 index 851f28c..ae7afbd 100644
 --- a/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.properties
@@ -1089,7 +1090,7 @@ index 851f28c..ae7afbd 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.dtd b/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.dtd
-index cd20e8f..09a1e2a 100644
+index 4968a50..58a5a84 100644
 --- a/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.dtd
 +++ b/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.dtd
 @@ -1,8 +1,8 @@
@@ -1101,10 +1102,8 @@ index cd20e8f..09a1e2a 100644
 +<!ENTITY  brandShortName        "Icedove">
 +<!ENTITY  brandFullName         "Icedove">
  <!ENTITY  vendorShortName       "Mozilla">
--<!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird e os logos Thunderbird 
--são marcas registadas da Mozilla Foundation.">
-+<!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird e os logos Thunderbird
-+                                 são marcas registadas da Mozilla Foundation.">
+ <!ENTITY  trademarkInfo.part1   "O Mozilla Thunderbird e os logótipos do Thunderbird 
+ são marcas registadas da Mozilla Foundation.">
 diff --git a/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.properties b/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.properties
 index 3850b46..ae7afbd 100644
 --- a/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.properties
