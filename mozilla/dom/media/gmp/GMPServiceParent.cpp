@@ -3,9 +3,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include "GMPServiceParent.h"
 #include "GMPService.h"
 #include "prio.h"
-#include "prlog.h"
+#include "mozilla/Logging.h"
 #include "GMPParent.h"
 #include "GMPVideoDecoderParent.h"
 #include "nsIObserverService.h"
@@ -35,6 +36,7 @@
 #include "nsISimpleEnumerator.h"
 #if defined(MOZ_CRASHREPORTER)
 #include "nsExceptionHandler.h"
+#include "nsPrintfCString.h"
 #endif
 #include <limits>
 
@@ -44,13 +46,8 @@ namespace mozilla {
 #undef LOG
 #endif
 
-#ifdef PR_LOGGING
-#define LOGD(msg) PR_LOG(GetGMPLog(), PR_LOG_DEBUG, msg)
-#define LOG(level, msg) PR_LOG(GetGMPLog(), (level), msg)
-#else
-#define LOGD(msg)
-#define LOG(leve1, msg)
-#endif
+#define LOGD(msg) MOZ_LOG(GetGMPLog(), mozilla::LogLevel::Debug, msg)
+#define LOG(level, msg) MOZ_LOG(GetGMPLog(), (level), msg)
 
 #ifdef __CLASS__
 #undef __CLASS__
@@ -86,6 +83,9 @@ static bool sHaveSetTimeoutPrefCache = false;
 
 GeckoMediaPluginServiceParent::GeckoMediaPluginServiceParent()
   : mShuttingDown(false)
+#ifdef MOZ_CRASHREPORTER
+  , mAsyncShutdownPluginStatesMutex("GeckoMediaPluginService::mAsyncShutdownPluginStatesMutex")
+#endif
   , mScannedPluginOnDisk(false)
   , mWaitingForPluginsSyncShutdown(false)
 {
@@ -349,10 +349,8 @@ GeckoMediaPluginServiceParent::GetContentParentFrom(const nsACString& aNodeId,
 {
   nsRefPtr<GMPParent> gmp = SelectPluginForAPI(aNodeId, aAPI, aTags);
 
-#ifdef PR_LOGGING
   nsCString api = aTags[0];
   LOGD(("%s: %p returning %p for api %s", __FUNCTION__, (void *)this, (void *)gmp, api.get()));
-#endif
 
   if (!gmp) {
     return false;
@@ -400,6 +398,77 @@ GeckoMediaPluginServiceParent::AsyncShutdownComplete(GMPParent* aParent)
     NS_DispatchToMainThread(task);
   }
 }
+
+#ifdef MOZ_CRASHREPORTER
+void
+GeckoMediaPluginServiceParent::SetAsyncShutdownPluginState(GMPParent* aGMPParent,
+                                                           char aId,
+                                                           const nsCString& aState)
+{
+  MutexAutoLock lock(mAsyncShutdownPluginStatesMutex);
+  mAsyncShutdownPluginStates.Update(aGMPParent->GetDisplayName(),
+                                    nsPrintfCString("%p", aGMPParent),
+                                    aId,
+                                    aState);
+}
+
+void
+GeckoMediaPluginServiceParent::AsyncShutdownPluginStates::Update(const nsCString& aPlugin,
+                                                                 const nsCString& aInstance,
+                                                                 char aId,
+                                                                 const nsCString& aState)
+{
+  nsCString note;
+  StatesByInstance* instances = mStates.LookupOrAdd(aPlugin);
+  if (!instances) { return; }
+  State* state = instances->LookupOrAdd(aInstance);
+  if (!state) { return; }
+  state->mStateSequence += aId;
+  state->mLastStateDescription = aState;
+  note += '{';
+  mStates.EnumerateRead(EnumReadPlugins, &note);
+  note += '}';
+  LOGD(("%s::%s states[%s][%s]='%c'/'%s' -> %s", __CLASS__, __FUNCTION__,
+        aPlugin.get(), aInstance.get(), aId, aState.get(), note.get()));
+  CrashReporter::AnnotateCrashReport(
+    NS_LITERAL_CSTRING("AsyncPluginShutdownStates"),
+    note);
+}
+
+// static
+PLDHashOperator
+GeckoMediaPluginServiceParent::AsyncShutdownPluginStates::EnumReadPlugins(
+  StateInstancesByPlugin::KeyType aKey,
+  StateInstancesByPlugin::UserDataType aData,
+  void* aUserArg)
+{
+  nsCString& note = *static_cast<nsCString*>(aUserArg);
+  if (note.Last() != '{') { note += ','; }
+  note += aKey;
+  note += ":{";
+  aData->EnumerateRead(EnumReadInstances, &note);
+  note += '}';
+  return PL_DHASH_NEXT;
+}
+
+// static
+PLDHashOperator
+GeckoMediaPluginServiceParent::AsyncShutdownPluginStates::EnumReadInstances(
+  StatesByInstance::KeyType aKey,
+  StatesByInstance::UserDataType aData,
+  void* aUserArg)
+{
+  nsCString& note = *static_cast<nsCString*>(aUserArg);
+  if (note.Last() != '{') { note += ','; }
+  note += aKey;
+  note += ":\"";
+  note += aData->mStateSequence;
+  note += '=';
+  note += aData->mLastStateDescription;
+  note += '"';
+  return PL_DHASH_NEXT;
+}
+#endif // MOZ_CRASHREPORTER
 
 void
 GeckoMediaPluginServiceParent::NotifyAsyncShutdownComplete()
@@ -672,13 +741,6 @@ GeckoMediaPluginServiceParent::SelectPluginForAPI(const nsACString& aNodeId,
       clone->SetNodeId(aNodeId);
     }
     return clone;
-  }
-
-  if (aAPI.EqualsLiteral(GMP_API_DECRYPTOR)) {
-    // XXX to remove in bug 1147692
-    return SelectPluginForAPI(aNodeId,
-                              NS_LITERAL_CSTRING(GMP_API_DECRYPTOR_COMPAT),
-                              aTags);
   }
 
   return nullptr;
@@ -1503,10 +1565,8 @@ GMPServiceParent::RecvLoadGMP(const nsCString& aNodeId,
 {
   nsRefPtr<GMPParent> gmp = mService->SelectPluginForAPI(aNodeId, aAPI, aTags);
 
-#ifdef PR_LOGGING
   nsCString api = aTags[0];
   LOGD(("%s: %p returning %p for api %s", __FUNCTION__, (void *)this, (void *)gmp, api.get()));
-#endif
 
   if (!gmp || !gmp->EnsureProcessLoaded(aId)) {
     return false;

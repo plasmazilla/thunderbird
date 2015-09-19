@@ -50,50 +50,6 @@ input[type=button] {
   right: auto;
 }
 
-#newtab-intro-what {
-  cursor: pointer;
-  position: absolute;
-  right: 70px;
-  top: 20px;
-  display: none;
-}
-
-#newtab-intro-what:-moz-locale-dir(rtl) {
-  left: 70px;
-  right: auto;
-}
-
-#newtab-scrollbox[page-disabled] #newtab-intro-what {
-  display: none;
-}
-
-#newtab-intro-panel {
-  color: #6a7b86;
-  font-size: 15px;
-  line-height: 19px;
-  width: 520px;
-}
-
-#newtab-intro-panel h1 {
-  color: #343f48;
-  font-family: Open Sans, sans-serif;
-  font-size: 30px;
-  margin: 20px;
-}
-
-#newtab-intro-panel p {
-  margin: 10px 20px;
-}
-
-#newtab-intro-panel p:last-child {
-  margin-bottom: 30px;
-}
-
-#newtab-intro-what:hover,
-#newtab-intro-panel a {
-  color: #4a90e2;
-}
-
 /* MARGINS */
 #newtab-vertical-margin {
   display: -moz-box;
@@ -312,7 +268,6 @@ input[type=button] {
   text-align: start;
 }
 
-#newtab-intro-panel input,
 .sponsored-explain input,
 .suggested-explain input {
   background-size: 18px;
@@ -526,10 +481,48 @@ input[type=button] {
   transition: opacity .07s linear;
 }
 
+.newtab-customize-panel-container {
+  position: absolute;
+  margin-right: 40px;
+}
+
 #newtab-customize-panel {
-  z-index: 101;
-  margin-top: -5px;
+  z-index: 999;
+  margin-top: 55px;
   min-width: 270px;
+  position: absolute;
+  top: 100%;
+  right: -25px;
+  background-color: white;
+  border-radius: 6px;
+  filter: drop-shadow(0 0 1px rgba(0,0,0,0.4)) drop-shadow(0 3px 4px rgba(0,0,0,0.4));
+  transition: all 200ms ease-in-out;
+  transform-origin: top right;
+  transform: translate(-30px, -20px) scale(0) translate(30px, 20px);
+}
+
+#newtab-customize-panel:-moz-locale-dir(rtl) {
+  transform-origin: 40px top 20px;
+}
+
+#newtab-customize-panel:-moz-locale-dir(rtl),
+#newtab-customize-panel-anchor:-moz-locale-dir(rtl) {
+  left: 15px;
+  right: auto;
+}
+
+#newtab-customize-panel[open="true"] {
+  transform: translate(-30px, -20px) scale(1) translate(30px, 20px);
+}
+
+#newtab-customize-panel-anchor {
+  width: 18px;
+  height: 18px;
+  background-color: white;
+  transform: rotate(45deg);
+  position: absolute;
+  top: -6px;
+  right: 15px;
 }
 
 #newtab-customize-title {
@@ -539,13 +532,12 @@ input[type=button] {
   line-height: 25px;
   padding: 15px;
   font-weight: 600;
-  text-transform: uppercase;
   cursor: default;
   border-radius: 5px 5px 0px 0px;
   max-width: 300px;
   overflow: hidden;
   display: table-cell;
-
+  border-top: none;
 }
 
 #newtab-customize-title > label {
@@ -564,11 +556,10 @@ input[type=button] {
   padding: 4px 24px;
   font-size: 14px;
   cursor: pointer;
+  max-width: 300px;
 }
 
 .newtab-customize-panel-item {
-  line-height: 25px;
-  padding: 15px;
   -moz-padding-start: 40px;
 }
 
@@ -596,10 +587,8 @@ input[type=button] {
 
 .newtab-customize-panel-item,
 .newtab-customize-complex-option {
-  width: 100%;
   display: block;
   text-align: start;
-  max-width: 300px;
   background-color: #F9F9F9;
 }
 
@@ -667,6 +656,7 @@ input[type=button] {
   padding: 0px 15px 15px 15px;
   -moz-padding-start: 40px;
   display: block;
+  max-width: 300px;
 }
 
 .newtab-customize-panel-subitem > label {

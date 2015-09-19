@@ -10,7 +10,6 @@
 #include "jsapi.h"
 #include "xpcpublic.h"
 
-#include "nsIJSRuntimeService.h"
 #include "nsIAddonInterposition.h"
 #include "nsIAppStartup.h"
 #include "nsIDirectoryEnumerator.h"
@@ -639,7 +638,7 @@ nsXREDirProvider::LoadExtensionBundleDirectories()
 
       RegisterExtensionInterpositions(parser);
       LoadExtensionDirectories(parser, "ExtensionDirs", mExtensionDirectories,
-                               NS_APP_LOCATION);
+                               NS_EXTENSION_LOCATION);
       LoadExtensionDirectories(parser, "ThemeDirs", mThemeDirectories,
                                NS_SKIN_LOCATION);
 #ifdef MOZ_BUILD_APP_IS_BROWSER
@@ -905,14 +904,9 @@ nsXREDirProvider::DoShutdown()
       // Phase 2c: Now that things are torn down, force JS GC so that things which depend on
       // resources which are about to go away in "profile-before-change" are destroyed first.
 
-      nsCOMPtr<nsIJSRuntimeService> rtsvc
-        (do_GetService("@mozilla.org/js/xpc/RuntimeService;1"));
-      if (rtsvc)
-      {
-        JSRuntime *rt = nullptr;
-        rtsvc->GetRuntime(&rt);
-        if (rt)
-          ::JS_GC(rt);
+      JSRuntime *rt = xpc::GetJSRuntime();
+      if (rt) {
+        JS_GC(rt);
       }
 
       // Phase 3: Notify observers of a profile change

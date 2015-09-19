@@ -778,7 +778,7 @@ PlacesTreeView.prototype = {
     PlacesUtils.livemarks.getLivemark({ id: aNode.itemId })
                          .then(aLivemark => {
       let placesNode = aNode;
-      // Container may have closed since the call
+      // Container may have closed since the call.
       if (!placesNode.containerOpen)
         return;
 

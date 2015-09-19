@@ -19,8 +19,6 @@
   .sidebar-header,
   #sidebar-header {
     -moz-appearance: none;
-    color: black;
-    background-color: #EEF3FA;
     border-bottom: none;
     text-shadow: none;
   }
@@ -32,7 +30,7 @@
 
   .sidebar-splitter {
     border: 0;
-    -moz-border-end: 1px solid #A9B7C9;
+    -moz-border-end: 1px solid ThreeDLightShadow;
     min-width: 0;
     width: 3px;
     background-color: transparent;
@@ -41,7 +39,7 @@
   }
 
   #appcontent ~ .sidebar-splitter {
-    -moz-border-start: 1px solid #A9B7C9;
+    -moz-border-start: 1px solid ThreeDLightShadow;
     -moz-border-end: none;
     -moz-margin-start: 0;
     -moz-margin-end: -3px;
@@ -52,13 +50,20 @@
     color: graytext;
   }
 
-  .chatbar-button,
-  chatbar > chatbox {
-    border-color: #A9B7C9;
-  }
-
   @media (-moz-os-version: windows-vista),
          (-moz-os-version: windows-win7) {
+    .sidebar-header,
+    #sidebar-header {
+      background-color: #EEF3FA;
+    }
+
+    .sidebar-splitter,
+    #appcontent ~ .sidebar-splitter,
+    .chatbar-button,
+    chatbar > chatbox {
+      border-color: #A9B7C9;
+    }
+
     #navigator-toolbox > toolbar:not(#toolbar-menubar):not(#TabsToolbar):not(:-moz-lwtheme),
     #browser-bottombox:not(:-moz-lwtheme),
     .browserContainer > findbar {
@@ -67,10 +72,6 @@
 
     .tab-background-middle[visuallyselected=true]:not(:-moz-lwtheme) {
       background-color: @customToolbarColor@;
-    }
-
-    #navigator-toolbox:not(:-moz-lwtheme)::after {
-      background-color: #aabccf;
     }
 
     #urlbar:not(:-moz-lwtheme):not([focused]):hover,
@@ -115,7 +116,7 @@
         .titlebar-button {
           border: none;
           margin: 0 !important;
-          padding: 12px 17px;
+          padding: 10px 17px;
         }
 
         #main-window[sizemode=maximized] .titlebar-button {
@@ -144,8 +145,22 @@
           list-style-image: url(chrome://browser/skin/caption-buttons.svg#close);
         }
         #titlebar-close:hover {
-          list-style-image: url(chrome://browser/skin/caption-buttons.svg#close-highlight);
+          list-style-image: url(chrome://browser/skin/caption-buttons.svg#close-white);
         }
+
+        #titlebar-min:-moz-lwtheme {
+          list-style-image: url(chrome://browser/skin/caption-buttons.svg#minimize-themes);
+        }
+        #titlebar-max:-moz-lwtheme {
+          list-style-image: url(chrome://browser/skin/caption-buttons.svg#maximize-themes);
+        }
+        #main-window[sizemode="maximized"] #titlebar-max:-moz-lwtheme {
+          list-style-image: url(chrome://browser/skin/caption-buttons.svg#restore-themes);
+        }
+        #titlebar-close:-moz-lwtheme {
+          list-style-image: url(chrome://browser/skin/caption-buttons.svg#close-themes);
+        }
+
 
         /* the 12px image renders a 10px icon, and the 10px upscaled gets rounded to 12.5, which
          * rounds up to 13px, which makes the icon one pixel too big on 1.25dppx. Fix: */
@@ -222,20 +237,32 @@
             background-color: Highlight;
           }
 
+          #titlebar-min {
+            list-style-image: url(chrome://browser/skin/caption-buttons.svg#minimize-highcontrast);
+          }
           #titlebar-min:hover {
-            list-style-image: url(chrome://browser/skin/caption-buttons.svg#minimize-highlight);
+            list-style-image: url(chrome://browser/skin/caption-buttons.svg#minimize-highcontrast-hover);
           }
 
+          #titlebar-max {
+            list-style-image: url(chrome://browser/skin/caption-buttons.svg#maximize-highcontrast);
+          }
           #titlebar-max:hover {
-            list-style-image: url(chrome://browser/skin/caption-buttons.svg#maximize-highlight);
+            list-style-image: url(chrome://browser/skin/caption-buttons.svg#maximize-highcontrast-hover);
           }
 
+          #main-window[sizemode="maximized"] #titlebar-max {
+            list-style-image: url(chrome://browser/skin/caption-buttons.svg#restore-highcontrast);
+          }
           #main-window[sizemode="maximized"] #titlebar-max:hover {
-            list-style-image: url(chrome://browser/skin/caption-buttons.svg#restore-highlight);
+            list-style-image: url(chrome://browser/skin/caption-buttons.svg#restore-highcontrast-hover);
           }
 
+          #titlebar-close {
+            list-style-image: url(chrome://browser/skin/caption-buttons.svg#close-highcontrast);
+          }
           #titlebar-close:hover {
-            list-style-image: url(chrome://browser/skin/caption-buttons.svg#close-highlight);
+            list-style-image: url(chrome://browser/skin/caption-buttons.svg#close-highcontrast-hover);
           }
         }
       }

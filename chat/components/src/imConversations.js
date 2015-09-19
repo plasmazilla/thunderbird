@@ -21,7 +21,8 @@ function OutgoingMessage(aMsg, aConversation) {
 }
 OutgoingMessage.prototype = {
   __proto__: ClassInfo("imIOutgoingMessage", "Outgoing Message"),
-  cancelled: false
+  cancelled: false,
+  action: false
 };
 
 function imMessage(aPrplMessage) {
@@ -134,7 +135,7 @@ UIConversation.prototype = {
     if (!this.isChat) {
       let buddy = this.buddy;
       if (buddy)
-        ({statusType: this.statusType, statusText: this.statusText}) = buddy;
+        ({statusType: this.statusType, statusText: this.statusText} = buddy);
     }
     if (shouldNotify) {
       this.notifyObservers(this, "target-prpl-conversation-changed");

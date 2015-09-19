@@ -17,6 +17,9 @@ Cu.import("resource://gre/modules/Services.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "AboutHome",
                                   "resource:///modules/AboutHome.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "AboutNewTab",
+                                  "resource:///modules/AboutNewTab.jsm");
+
 XPCOMUtils.defineLazyModuleGetter(this, "UITour",
                                   "resource:///modules/UITour.jsm");
 
@@ -162,6 +165,9 @@ XPCOMUtils.defineLazyModuleGetter(this, "AddonWatcher",
 
 XPCOMUtils.defineLazyModuleGetter(this, "LightweightThemeManager",
                                   "resource://gre/modules/LightweightThemeManager.jsm");
+
+XPCOMUtils.defineLazyServiceGetter(this, "WindowsUIUtils",
+                                   "@mozilla.org/windows-ui-utils;1", "nsIWindowsUIUtils");
 
 const PREF_PLUGINS_NOTIFYUSER = "plugins.update.notifyUser";
 const PREF_PLUGINS_UPDATEURL  = "plugins.update.url";
@@ -375,7 +381,7 @@ BrowserGlue.prototype = {
       case "handle-xul-text-link":
         let linkHandled = subject.QueryInterface(Ci.nsISupportsPRBool);
         if (!linkHandled.data) {
-          let win = this.getMostRecentBrowserWindow();
+          let win = RecentWindow.getMostRecentBrowserWindow();
           if (win) {
             win.openUILinkIn(data, "tab");
             linkHandled.data = true;
@@ -393,7 +399,7 @@ BrowserGlue.prototype = {
         // browser.js:BrowserSearch.recordSearchInHealthReport(). The code could
         // be consolidated if there is will. We need the observer in
         // nsBrowserGlue to prevent double counting.
-        let win = this.getMostRecentBrowserWindow();
+        let win = RecentWindow.getMostRecentBrowserWindow();
         BrowserUITelemetry.countSearchEvent("urlbar", win.gURLBar.value);
 
         let engine = null;
@@ -482,8 +488,21 @@ BrowserGlue.prototype = {
         this._handleFlashHang();
         break;
       case "xpi-signature-changed":
-        if (JSON.parse(data).disabled.length)
-          this._notifyUnsignedAddonsDisabled();
+        let disabledAddons = JSON.parse(data).disabled;
+        AddonManager.getAddonsByIDs(disabledAddons, (addons) => {
+          for (let addon of addons) {
+            if (addon.type != "experiment") {
+              this._notifyUnsignedAddonsDisabled();
+              break;
+            }
+          }
+        });
+        break;
+      case "tablet-mode-change":
+        if (data == "tablet-mode") {
+          Services.telemetry.getHistogramById("FX_TABLET_MODE_USED_DURING_SESSION")
+                            .add(1);
+        }
         break;
     }
   },
@@ -534,6 +553,7 @@ BrowserGlue.prototype = {
     os.addObserver(this, "restart-in-safe-mode", false);
     os.addObserver(this, "flash-plugin-hang", false);
     os.addObserver(this, "xpi-signature-changed", false);
+    os.addObserver(this, "tablet-mode-change", false);
 
     this._flashHangCount = 0;
   },
@@ -582,6 +602,7 @@ BrowserGlue.prototype = {
 #endif
     os.removeObserver(this, "flash-plugin-hang");
     os.removeObserver(this, "xpi-signature-changed");
+    os.removeObserver(this, "tablet-mode-change");
   },
 
   _onAppDefaults: function BG__onAppDefaults() {
@@ -690,6 +711,7 @@ BrowserGlue.prototype = {
 #endif
     webrtcUI.init();
     AboutHome.init();
+    AboutNewTab.init();
     SessionStore.init();
     BrowserUITelemetry.init();
     ContentSearch.init();
@@ -813,7 +835,7 @@ BrowserGlue.prototype = {
   },
 
   _showSlowStartupNotification: function () {
-    let win = this.getMostRecentBrowserWindow();
+    let win = RecentWindow.getMostRecentBrowserWindow();
     if (!win)
       return;
 
@@ -847,7 +869,7 @@ BrowserGlue.prototype = {
    * Show a notification bar offering a reset if the profile has been unused for some time.
    */
   _resetUnusedProfileNotification: function () {
-    let win = this.getMostRecentBrowserWindow();
+    let win = RecentWindow.getMostRecentBrowserWindow();
     if (!win)
       return;
 
@@ -877,7 +899,7 @@ BrowserGlue.prototype = {
   },
 
   _notifyUnsignedAddonsDisabled: function () {
-    let win = this.getMostRecentBrowserWindow();
+    let win = RecentWindow.getMostRecentBrowserWindow();
     if (!win)
       return;
 
@@ -911,6 +933,13 @@ BrowserGlue.prototype = {
       let scaling = aWindow.devicePixelRatio * 100;
       Services.telemetry.getHistogramById(SCALING_PROBE_NAME).add(scaling);
     }
+
+#ifdef XP_WIN
+    if (WindowsUIUtils.inTabletMode) {
+      Services.telemetry.getHistogramById("FX_TABLET_MODE_USED_DURING_SESSION")
+                        .add(1);
+    }
+#endif
   },
 
   // the first browser window has finished initializing
@@ -980,16 +1009,6 @@ BrowserGlue.prototype = {
 
     this._checkForOldBuildUpdates();
 
-    let disabledAddons = AddonManager.getStartupChanges(AddonManager.STARTUP_CHANGE_DISABLED);
-    AddonManager.getAddonsByIDs(disabledAddons, (addons) => {
-      for (let addon of addons) {
-        if (addon.signedState <= AddonManager.SIGNEDSTATE_MISSING) {
-          this._notifyUnsignedAddonsDisabled();
-          break;
-        }
-      }
-    });
-
     this._firstWindowTelemetry(aWindow);
   },
 
@@ -1015,6 +1034,7 @@ BrowserGlue.prototype = {
 
     CustomizationTabPreloader.uninit();
     WebappManager.uninit();
+    AboutNewTab.uninit();
 #ifdef NIGHTLY_BUILD
     if (Services.prefs.getBoolPref("dom.identity.enabled")) {
       SignInToWebsiteUX.uninit();
@@ -1077,7 +1097,7 @@ BrowserGlue.prototype = {
     // them to the user.
     let changedIDs = AddonManager.getStartupChanges(AddonManager.STARTUP_CHANGE_INSTALLED);
     if (changedIDs.length > 0) {
-      let win = this.getMostRecentBrowserWindow();
+      let win = RecentWindow.getMostRecentBrowserWindow();
       AddonManager.getAddonsByIDs(changedIDs, function(aAddons) {
         aAddons.forEach(function(aAddon) {
           // If the add-on isn't user disabled or can't be enabled then skip it.
@@ -1086,6 +1106,27 @@ BrowserGlue.prototype = {
 
           win.openUILinkIn("about:newaddon?id=" + aAddon.id, "tab");
         })
+      });
+    }
+
+#ifdef MOZ_REQUIRE_SIGNING
+    let signingRequired = true;
+#else
+    let signingRequired = Services.prefs.getBoolPref("xpinstall.signatures.required");
+#endif
+
+    if (signingRequired) {
+      let disabledAddons = AddonManager.getStartupChanges(AddonManager.STARTUP_CHANGE_DISABLED);
+      AddonManager.getAddonsByIDs(disabledAddons, (addons) => {
+        for (let addon of addons) {
+          if (addon.type == "experiment")
+            continue;
+
+          if (addon.signedState <= AddonManager.SIGNEDSTATE_MISSING) {
+            this._notifyUnsignedAddonsDisabled();
+            break;
+          }
+        }
       });
     }
 
@@ -1106,23 +1147,45 @@ BrowserGlue.prototype = {
       catch (ex) { /* never mind; suppose SessionStore is broken */ }
 
       // startup check, check all assoc
-      let isDefault = ShellService.isDefaultBrowser(true, false);
+      let isDefault = false;
+      let isDefaultError = false;
+      try {
+        isDefault = ShellService.isDefaultBrowser(true, false);
+      } catch (ex) {
+        isDefaultError = true;
+      }
+
+      if (isDefault) {
+        let now = (Math.floor(Date.now() / 1000)).toString();
+        Services.prefs.setCharPref("browser.shell.mostRecentDateSetAsDefault", now);
+      }
+
+      let willPrompt = shouldCheck && !isDefault && !willRecoverSession;
+
       try {
         // Report default browser status on startup to telemetry
         // so we can track whether we are the default.
         Services.telemetry.getHistogramById("BROWSER_IS_USER_DEFAULT")
                           .add(isDefault);
+        Services.telemetry.getHistogramById("BROWSER_IS_USER_DEFAULT_ERROR")
+                          .add(isDefaultError);
+        Services.telemetry.getHistogramById("BROWSER_SET_DEFAULT_ALWAYS_CHECK")
+                          .add(shouldCheck);
+        let promptCount =
+          Services.prefs.getIntPref("browser.shell.defaultBrowserCheckCount");
+        if (willPrompt) {
+          promptCount++;
+        }
+        Services.telemetry.getHistogramById("BROWSER_SET_DEFAULT_DIALOG_PROMPT_RAWCOUNT")
+                          .add(promptCount);
+        Services.prefs.setIntPref("browser.shell.defaultBrowserCheckCount",
+                                  promptCount)
       }
       catch (ex) { /* Don't break the default prompt if telemetry is broken. */ }
 
-      if (isDefault) {
-        let now = Date.now().toString().slice(0, -3);
-        Services.prefs.setCharPref("browser.shell.mostRecentDateSetAsDefault", now);
-      }
-
-      if (shouldCheck && !isDefault && !willRecoverSession) {
+      if (willPrompt) {
         Services.tm.mainThread.dispatch(function() {
-          DefaultBrowserCheck.prompt(this.getMostRecentBrowserWindow());
+          DefaultBrowserCheck.prompt(RecentWindow.getMostRecentBrowserWindow());
         }.bind(this), Ci.nsIThread.DISPATCH_NORMAL);
       }
     }
@@ -1346,8 +1409,8 @@ BrowserGlue.prototype = {
       let key = getNotifyString({propName: "notificationButtonAccessKey",
                                  stringName: "pu.notifyButton.accesskey"});
 
-      let win = this.getMostRecentBrowserWindow();
-      let notifyBox = win.gBrowser.getNotificationBox();
+      let win = RecentWindow.getMostRecentBrowserWindow();
+      let notifyBox = win.document.getElementById("high-priority-global-notificationbox");
 
       let buttons = [
                       {
@@ -1363,7 +1426,6 @@ BrowserGlue.prototype = {
       let notification = notifyBox.appendNotification(text, "post-update-notification",
                                                       null, notifyBox.PRIORITY_INFO_LOW,
                                                       buttons);
-      notification.persistence = -1; // Until user closes it
     }
 
     if (actions.indexOf("showAlert") == -1)
@@ -1388,12 +1450,11 @@ BrowserGlue.prototype = {
     let url = getNotifyString({propName: "alertURL",
                                prefName: "startup.homepage_override_url"});
 
-    var self = this;
     function clickCallback(subject, topic, data) {
       // This callback will be called twice but only once with this topic
       if (topic != "alertclickcallback")
         return;
-      let win = self.getMostRecentBrowserWindow();
+      let win = RecentWindow.getMostRecentBrowserWindow();
       win.openUILinkIn(data, "tab");
     }
 
@@ -1414,7 +1475,7 @@ BrowserGlue.prototype = {
                     getService(Ci.nsIURLFormatter);
     var updateUrl = formatter.formatURLPref(PREF_PLUGINS_UPDATEURL);
 
-    var win = this.getMostRecentBrowserWindow();
+    var win = RecentWindow.getMostRecentBrowserWindow();
     win.openUILinkIn(updateUrl, "tab");
   },
 
@@ -1663,7 +1724,7 @@ BrowserGlue.prototype = {
               formatURLPref("app.support.baseURL");
     url += helpTopic;
 
-    var win = this.getMostRecentBrowserWindow();
+    var win = RecentWindow.getMostRecentBrowserWindow();
 
     var buttons = [
                     {
@@ -2209,11 +2270,6 @@ BrowserGlue.prototype = {
     }
   }),
 
-  // this returns the most recent non-popup browser window
-  getMostRecentBrowserWindow: function BG_getMostRecentBrowserWindow() {
-    return RecentWindow.getMostRecentBrowserWindow();
-  },
-
 #ifdef MOZ_SERVICES_SYNC
   /**
    * Called as an observer when Sync's "display URI" notification is fired.
@@ -2260,7 +2316,7 @@ BrowserGlue.prototype = {
     Services.prefs.setBoolPref("dom.ipc.plugins.flash.disable-protected-mode", true);
     Services.prefs.setBoolPref("browser.flash-protected-mode-flip.done", true);
 
-    let win = this.getMostRecentBrowserWindow();
+    let win = RecentWindow.getMostRecentBrowserWindow();
     if (!win) {
       return;
     }
@@ -2326,11 +2382,6 @@ ContentPermissionPrompt.prototype = {
    */
   _showPrompt: function CPP_showPrompt(aRequest, aMessage, aPermission, aActions,
                                        aNotificationId, aAnchorId, aOptions) {
-    function onFullScreen() {
-      popup.remove();
-    }
-
-
     var browser = this._getBrowserForRequest(aRequest);
     var chromeWin = browser.ownerDocument.defaultView;
     var requestPrincipal = aRequest.principal;
@@ -2377,51 +2428,25 @@ ContentPermissionPrompt.prototype = {
                        popupNotificationActions[0] : null;
     var secondaryActions = popupNotificationActions.splice(1);
 
-    // Only allow exactly one permission rquest here.
+    // Only allow exactly one permission request here.
     let types = aRequest.types.QueryInterface(Ci.nsIArray);
     if (types.length != 1) {
       aRequest.cancel();
       return;
     }
 
-    let perm = types.queryElementAt(0, Ci.nsIContentPermissionType);
+    if (!aOptions)
+      aOptions = {};
+    aOptions.displayOrigin = (requestPrincipal.URI instanceof Ci.nsIFileURL) ?
+                             requestPrincipal.URI.file.path :
+                             requestPrincipal.URI.host;
 
-    if (perm.type == "pointerLock") {
-      // If there's no mainAction, this is the autoAllow warning prompt.
-      let autoAllow = !mainAction;
-
-      if (!aOptions)
-        aOptions = {};
-
-      aOptions.removeOnDismissal = autoAllow;
-      aOptions.eventCallback = type => {
-        if (type == "removed") {
-          browser.removeEventListener("mozfullscreenchange", onFullScreen, true);
-          if (autoAllow) {
-            aRequest.allow();
-          }
-        }
-      }
-
-    }
-
-    var popup = chromeWin.PopupNotifications.show(browser, aNotificationId, aMessage, aAnchorId,
-                                                  mainAction, secondaryActions, aOptions);
-    if (perm.type == "pointerLock") {
-      // pointerLock is automatically allowed in fullscreen mode (and revoked
-      // upon exit), so if the page enters fullscreen mode after requesting
-      // pointerLock (but before the user has granted permission), we should
-      // remove the now-impotent notification.
-      browser.addEventListener("mozfullscreenchange", onFullScreen, true);
-    }
+    return chromeWin.PopupNotifications.show(browser, aNotificationId, aMessage, aAnchorId,
+                                             mainAction, secondaryActions, aOptions);
   },
 
   _promptPush : function(aRequest) {
-    var browserBundle = Services.strings.createBundle("chrome://browser/locale/browser.properties");
-    var requestingURI = aRequest.principal.URI;
-
-    var message = browserBundle.formatStringFromName("push.enablePush",
-                                                 [requestingURI.host], 1);
+    var message = gBrowserBundle.GetStringFromName("push.enablePush2");
 
     var actions = [
     {
@@ -2444,8 +2469,8 @@ ContentPermissionPrompt.prototype = {
     }]
 
     var options = {
-                    learnMoreURL: Services.urlFormatter.formatURLPref("browser.push.warning.infoURL"),
-                  };
+      learnMoreURL: Services.urlFormatter.formatURLPref("browser.push.warning.infoURL"),
+    };
 
     this._showPrompt(aRequest, message, "push", actions, "push",
                      "push-notification-icon", options);
@@ -2454,7 +2479,6 @@ ContentPermissionPrompt.prototype = {
 
   _promptGeo : function(aRequest) {
     var secHistogram = Services.telemetry.getHistogramById("SECURITY_UI");
-    var requestingURI = aRequest.principal.URI;
 
     var message;
 
@@ -2468,12 +2492,14 @@ ContentPermissionPrompt.prototype = {
       },
     }];
 
-    if (requestingURI.schemeIs("file")) {
-      message = gBrowserBundle.formatStringFromName("geolocation.shareWithFile",
-                                                    [requestingURI.path], 1);
+    let options = {
+      learnMoreURL: Services.urlFormatter.formatURLPref("browser.geolocation.warning.infoURL"),
+    };
+
+    if (aRequest.principal.URI.schemeIs("file")) {
+      message = gBrowserBundle.GetStringFromName("geolocation.shareWithFile2");
     } else {
-      message = gBrowserBundle.formatStringFromName("geolocation.shareWithSite",
-                                                    [requestingURI.host], 1);
+      message = gBrowserBundle.GetStringFromName("geolocation.shareWithSite2");
       // Always share location action.
       actions.push({
         stringId: "geolocation.alwaysShareLocation",
@@ -2495,10 +2521,6 @@ ContentPermissionPrompt.prototype = {
       });
     }
 
-    var options = {
-                    learnMoreURL: Services.urlFormatter.formatURLPref("browser.geolocation.warning.infoURL"),
-                  };
-
     secHistogram.add(Ci.nsISecurityUITelemetry.WARNING_GEOLOCATION_REQUEST);
 
     this._showPrompt(aRequest, message, "geo", actions, "geolocation",
@@ -2506,10 +2528,7 @@ ContentPermissionPrompt.prototype = {
   },
 
   _promptWebNotifications : function(aRequest) {
-    var requestingURI = aRequest.principal.URI;
-
-    var message = gBrowserBundle.formatStringFromName("webNotifications.showFromSite",
-                                                      [requestingURI.host], 1);
+    var message = gBrowserBundle.GetStringFromName("webNotifications.showFromSite2");
 
     var actions = [
       {
@@ -2538,13 +2557,9 @@ ContentPermissionPrompt.prototype = {
   },
 
   _promptPointerLock: function CPP_promtPointerLock(aRequest, autoAllow) {
+    let message = gBrowserBundle.GetStringFromName(autoAllow ?
+                                  "pointerLock.autoLock.title3" : "pointerLock.title3");
 
-    let requestingURI = aRequest.principal.URI;
-
-    let originString = requestingURI.schemeIs("file") ? requestingURI.path : requestingURI.host;
-    let message = gBrowserBundle.formatStringFromName(autoAllow ?
-                                  "pointerLock.autoLock.title2" : "pointerLock.title2",
-                                  [originString], 1);
     // If this is an autoAllow info prompt, offer no actions.
     // _showPrompt() will allow the request when it's dismissed.
     let actions = [];
@@ -2571,12 +2586,34 @@ ContentPermissionPrompt.prototype = {
       ];
     }
 
-    this._showPrompt(aRequest, message, "pointerLock", actions, "pointerLock",
-                     "pointerLock-notification-icon", null);
+    function onFullScreen() {
+      notification.remove();
+    }
+
+    let options = {};
+    options.removeOnDismissal = autoAllow;
+    options.eventCallback = type => {
+      if (type == "removed") {
+        notification.browser.removeEventListener("mozfullscreenchange", onFullScreen, true);
+        if (autoAllow) {
+          aRequest.allow();
+        }
+      }
+    }
+
+    let notification =
+      this._showPrompt(aRequest, message, "pointerLock", actions, "pointerLock",
+                       "pointerLock-notification-icon", options);
+
+    // pointerLock is automatically allowed in fullscreen mode (and revoked
+    // upon exit), so if the page enters fullscreen mode after requesting
+    // pointerLock (but before the user has granted permission), we should
+    // remove the now-impotent notification.
+    notification.browser.addEventListener("mozfullscreenchange", onFullScreen, true);
   },
 
   prompt: function CPP_prompt(request) {
-    // Only allow exactly one permission rquest here.
+    // Only allow exactly one permission request here.
     let types = request.types.QueryInterface(Ci.nsIArray);
     if (types.length != 1) {
       request.cancel();
@@ -2592,7 +2629,7 @@ ContentPermissionPrompt.prototype = {
 
     // Make sure that we support the request.
     if (!(perm.type in kFeatureKeys)) {
-        return;
+      return;
     }
 
     var requestingPrincipal = request.principal;
@@ -2648,6 +2685,8 @@ ContentPermissionPrompt.prototype = {
 
 let DefaultBrowserCheck = {
   get OPTIONPOPUP() { return "defaultBrowserNotificationPopup" },
+  _setAsDefaultTimer: null,
+  _setAsDefaultButtonClickStartTime: 0,
 
   closePrompt: function(aNode) {
     if (this._notification) {
@@ -2657,6 +2696,7 @@ let DefaultBrowserCheck = {
 
   setAsDefault: function() {
     let claimAllTypes = true;
+    let setAsDefaultError = false;
 #ifdef XP_WIN
     try {
       // In Windows 8+, the UI for selecting default protocol is much
@@ -2669,9 +2709,45 @@ let DefaultBrowserCheck = {
 #endif
     try {
       ShellService.setDefaultBrowser(claimAllTypes, false);
+
+      if (this._setAsDefaultTimer) {
+        this._setAsDefaultTimer.cancel();
+      }
+
+      this._setAsDefaultButtonClickStartTime = Math.floor(Date.now() / 1000);
+      this._setAsDefaultTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+      this._setAsDefaultTimer.init(function() {
+        let isDefault = false;
+        let isDefaultError = false;
+        try {
+          isDefault = ShellService.isDefaultBrowser(true, false);
+        } catch (ex) {
+          isDefaultError = true;
+        }
+
+        let now = Math.floor(Date.now() / 1000);
+        let runTime = now - this._setAsDefaultButtonClickStartTime;
+        if (isDefault || runTime > 600) {
+          this._setAsDefaultTimer.cancel();
+          this._setAsDefaultTimer = null;
+          Services.telemetry.getHistogramById("BROWSER_SET_DEFAULT_TIME_TO_COMPLETION_SECONDS")
+                            .add(runTime);
+        }
+        Services.telemetry.getHistogramById("BROWSER_IS_USER_DEFAULT_ERROR")
+                          .add(isDefaultError);
+      }, 1000, Ci.nsITimer.TYPE_REPEATING_SLACK);
     } catch (ex) {
+      setAsDefaultError = true;
       Cu.reportError(ex);
     }
+    // Here BROWSER_IS_USER_DEFAULT and BROWSER_SET_USER_DEFAULT_ERROR appear
+    // to be inverse of each other, but that is only because this function is
+    // called when the browser is set as the default. During startup we record
+    // the BROWSER_IS_USER_DEFAULT value without recording BROWSER_SET_USER_DEFAULT_ERROR.
+    Services.telemetry.getHistogramById("BROWSER_IS_USER_DEFAULT")
+                      .add(!setAsDefaultError);
+    Services.telemetry.getHistogramById("BROWSER_SET_DEFAULT_ERROR")
+                      .add(setAsDefaultError);
   },
 
   _createPopup: function(win, notNowStrings, neverStrings) {
@@ -2783,6 +2859,12 @@ let DefaultBrowserCheck = {
       } else if (!shouldAsk.value) {
         ShellService.shouldCheckDefaultBrowser = false;
       }
+
+      try {
+        let resultEnum = rv * 2 + shouldAsk.value;
+        Services.telemetry.getHistogramById("BROWSER_SET_DEFAULT_RESULT")
+                          .add(resultEnum);
+      } catch (ex) { /* Don't break if Telemetry is acting up. */ }
     }
   },
 

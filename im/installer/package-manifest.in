@@ -125,6 +125,9 @@
 #endif
 #endif
 
+@RESPATH@/components/PACGenerator.js
+@RESPATH@/components/PACGenerator.manifest
+
 ; Modules
 @RESPATH@/modules/*
 
@@ -356,7 +359,6 @@
 @RESPATH@/components/pref.xpt
 
 ; profile
-@RESPATH@/components/profile.xpt
 @RESPATH@/components/toolkitprofile.xpt
 @RESPATH@/components/toolkit_finalizationwitness.xpt
 
@@ -458,7 +460,6 @@
 @RESPATH@/components/dom_canvas.xpt
 @RESPATH@/components/dom_core.xpt
 @RESPATH@/components/dom_css.xpt
-@RESPATH@/components/dom_devicestorage.xpt
 @RESPATH@/components/dom_events.xpt
 @RESPATH@/components/dom_gamepad.xpt
 @RESPATH@/components/dom_geolocation.xpt
@@ -505,6 +506,7 @@
 @RESPATH@/components/necko_about.xpt
 @RESPATH@/components/necko_dns.xpt
 @RESPATH@/components/necko_http.xpt
+@RESPATH@/components/necko_mdns.xpt
 @RESPATH@/components/necko_ipc.xpt
 @RESPATH@/components/necko_res.xpt
 @RESPATH@/components/necko_strconv.xpt
@@ -564,7 +566,6 @@
 #endif
 @RESPATH@/chrome/pippki@JAREXT@
 @RESPATH@/chrome/pippki.manifest
-@RESPATH@/components/pipboot.xpt
 @RESPATH@/components/pipnss.xpt
 @RESPATH@/components/pippki.xpt
 

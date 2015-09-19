@@ -10,8 +10,8 @@ const Ci = Components.interfaces;
 const Cc = Components.classes;
 const Cu = Components.utils;
 const ParserUtils =  Cc["@mozilla.org/parserutils;1"].getService(Ci.nsIParserUtils);
-const XMLHttpRequest =
-  Components.Constructor("@mozilla.org/xmlextras/xmlhttprequest;1", "nsIXMLHttpRequest");
+
+Cu.importGlobalProperties(["XMLHttpRequest"]);
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -242,6 +242,9 @@ const ALLOWED_LINK_SCHEMES = new Set(["http", "https"]);
 // Only allow link image urls that are https or data
 const ALLOWED_IMAGE_SCHEMES = new Set(["https", "data"]);
 
+// Only allow urls to Mozilla's CDN or empty (for data URIs)
+const ALLOWED_URL_BASE = new Set(["mozilla.net", ""]);
+
 // The frecency of a directory link
 const DIRECTORY_FRECENCY = 1000;
 
@@ -339,6 +342,7 @@ let DirectoryLinksProvider = {
     if (!this.__linksURL) {
       try {
         this.__linksURL = Services.prefs.getCharPref(this._observedPrefs["linksURL"]);
+        this.__linksURLModified = Services.prefs.prefHasUserValue(this._observedPrefs["linksURL"]);
       }
       catch (e) {
         Cu.reportError("Error fetching directory links url from prefs: " + e);
@@ -462,7 +466,7 @@ let DirectoryLinksProvider = {
    */
   _downloadJsonData: function DirectoryLinksProvider__downloadJsonData(uri) {
     let deferred = Promise.defer();
-    let xmlHttp = new XMLHttpRequest();
+    let xmlHttp = this._newXHR();
 
     xmlHttp.onload = function(aResponse) {
       let json = this.responseText;
@@ -530,6 +534,13 @@ let DirectoryLinksProvider = {
       return true;
     }
     return false;
+  },
+
+  /**
+   * Create a new XMLHttpRequest that is anonymous, i.e., doesn't send cookies
+   */
+  _newXHR() {
+    return new XMLHttpRequest({mozAnon: true});
   },
 
   /**
@@ -723,7 +734,7 @@ let DirectoryLinksProvider = {
     }
 
     // Package the data to be sent with the ping
-    let ping = new XMLHttpRequest();
+    let ping = this._newXHR();
     ping.open("POST", pingEndPoint + (action == "view" ? "view" : "click"));
     ping.send(JSON.stringify(data));
 
@@ -753,21 +764,30 @@ let DirectoryLinksProvider = {
   },
 
   /**
-   * Check if a url's scheme is in a Set of allowed schemes
+   * Check if a url's scheme is in a Set of allowed schemes and if the base
+   * domain is allowed.
+   * @param url to check
+   * @param allowed Set of allowed schemes
+   * @param checkBase boolean to check the base domain
    */
-  isURLAllowed: function DirectoryLinksProvider_isURLAllowed(url, allowed) {
+  isURLAllowed(url, allowed, checkBase) {
     // Assume no url is an allowed url
     if (!url) {
       return true;
     }
 
-    let scheme = "";
+    let scheme = "", base = "";
     try {
       // A malformed url will not be allowed
-      scheme = Services.io.newURI(url, null, null).scheme;
+      let uri = Services.io.newURI(url, null, null);
+      scheme = uri.scheme;
+
+      // URIs without base domains will be allowed
+      base = Services.eTLD.getBaseDomain(uri);
     }
     catch(ex) {}
-    return allowed.has(scheme);
+    // Require a scheme match and the base only if desired
+    return allowed.has(scheme) && (!checkBase || ALLOWED_URL_BASE.has(base));
   },
 
   _escapeChars(text) {
@@ -794,11 +814,13 @@ let DirectoryLinksProvider = {
       this._clearCampaignTimeout();
       this._avoidInadjacentSites = false;
 
+      // Only check base domain for images when using the default pref
+      let checkBase = !this.__linksURLModified;
       let validityFilter = function(link) {
         // Make sure the link url is allowed and images too if they exist
-        return this.isURLAllowed(link.url, ALLOWED_LINK_SCHEMES) &&
-               this.isURLAllowed(link.imageURI, ALLOWED_IMAGE_SCHEMES) &&
-               this.isURLAllowed(link.enhancedImageURI, ALLOWED_IMAGE_SCHEMES);
+        return this.isURLAllowed(link.url, ALLOWED_LINK_SCHEMES, false) &&
+               this.isURLAllowed(link.imageURI, ALLOWED_IMAGE_SCHEMES, checkBase) &&
+               this.isURLAllowed(link.enhancedImageURI, ALLOWED_IMAGE_SCHEMES, checkBase);
       }.bind(this);
 
       rawLinks.suggested.filter(validityFilter).forEach((link, position) => {
@@ -1359,7 +1381,7 @@ let DirectoryLinksProvider = {
     let capObject = this._frequencyCaps[url] || this._frequencyCaps[noTrailingSlashUrl];
     // return resolved promise if capObject is not found
     if (!capObject) {
-      return Promise.resolve();;
+      return Promise.resolve();
     }
     // otherwise remove clicked flag
     delete capObject.clicked;

@@ -1091,7 +1091,7 @@ Extractor.prototype = {
         let re = /\%(\d)\$S/g;
         let match;
         let i = 0;
-        while (match = re.exec(s)) {
+        while ((match = re.exec(s))) {
             i++;
             positions[parseInt(match[1], 10)] = i;
         }

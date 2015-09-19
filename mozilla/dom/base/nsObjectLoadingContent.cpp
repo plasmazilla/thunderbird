@@ -20,6 +20,7 @@
 #include "nsIDOMHTMLObjectElement.h"
 #include "nsIDOMHTMLAppletElement.h"
 #include "nsIExternalProtocolHandler.h"
+#include "nsIHttpChannelInternal.h"
 #include "nsIObjectFrame.h"
 #include "nsIPermissionManager.h"
 #include "nsPluginHost.h"
@@ -44,7 +45,7 @@
 
 // Util headers
 #include "prenv.h"
-#include "prlog.h"
+#include "mozilla/Logging.h"
 
 #include "nsAutoPtr.h"
 #include "nsCURILoader.h"
@@ -106,7 +107,6 @@ static const char *kPrefJavaMIME = "plugin.java.mime";
 using namespace mozilla;
 using namespace mozilla::dom;
 
-#ifdef PR_LOGGING
 static PRLogModuleInfo*
 GetObjectLog()
 {
@@ -115,10 +115,9 @@ GetObjectLog()
     sLog = PR_NewLogModule("objlc");
   return sLog;
 }
-#endif
 
-#define LOG(args) PR_LOG(GetObjectLog(), PR_LOG_DEBUG, args)
-#define LOG_ENABLED() PR_LOG_TEST(GetObjectLog(), PR_LOG_DEBUG)
+#define LOG(args) MOZ_LOG(GetObjectLog(), mozilla::LogLevel::Debug, args)
+#define LOG_ENABLED() MOZ_LOG_TEST(GetObjectLog(), mozilla::LogLevel::Debug)
 
 static bool
 IsJavaMIME(const nsACString & aMIMEType)
@@ -550,6 +549,11 @@ IsPluginEnabledByExtension(nsIURI* uri, nsCString& mimeType)
   GetExtensionFromURI(uri, ext);
 
   if (ext.IsEmpty()) {
+    return false;
+  }
+
+  // Disables any native PDF plugins, when internal PDF viewer is enabled.
+  if (ext.EqualsIgnoreCase("pdf") && nsContentUtils::IsPDFJSEnabled()) {
     return false;
   }
 
@@ -2511,6 +2515,13 @@ nsObjectLoadingContent::OpenChannel()
     scriptChannel->SetExecutionPolicy(nsIScriptChannel::EXECUTE_NORMAL);
   }
 
+  nsCOMPtr<nsIHttpChannelInternal> internalChannel = do_QueryInterface(httpChan);
+  if (internalChannel) {
+    // Bug 1168676. object/embed tags are not allowed to be intercepted by
+    // ServiceWorkers.
+    internalChannel->ForceNoIntercept();
+  }
+
   // AsyncOpen can fail if a file does not exist.
   rv = chan->AsyncOpen(shim, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -2664,6 +2675,13 @@ nsObjectLoadingContent::GetTypeOfContent(const nsCString& aMIMEType)
 
   if ((caps & eSupportImages) && IsSupportedImage(aMIMEType)) {
     return eType_Image;
+  }
+
+  // Faking support of the PDF content as a document for EMBED tags
+  // when internal PDF viewer is enabled.
+  if (aMIMEType.LowerCaseEqualsLiteral("application/pdf") &&
+      nsContentUtils::IsPDFJSEnabled()) {
+    return eType_Document;
   }
 
   // SVGs load as documents, but are their own capability

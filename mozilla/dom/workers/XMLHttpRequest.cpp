@@ -27,6 +27,7 @@
 #include "RuntimeService.h"
 #include "WorkerPrivate.h"
 #include "WorkerRunnable.h"
+#include "WorkerStructuredClone.h"
 #include "XMLHttpRequestUpload.h"
 
 using namespace mozilla;
@@ -102,6 +103,7 @@ public:
   // Only touched on the worker thread.
   uint32_t mOuterEventStreamId;
   uint32_t mOuterChannelId;
+  uint32_t mOpenCount;
   uint64_t mLastLoaded;
   uint64_t mLastTotal;
   uint64_t mLastUploadLoaded;
@@ -111,7 +113,6 @@ public:
   bool mLastUploadLengthComputable;
   bool mSeenLoadStart;
   bool mSeenUploadLoadStart;
-  bool mOpening;
 
   // Only touched on the main thread.
   bool mUploadEventListenersAttached;
@@ -124,10 +125,10 @@ public:
   : mWorkerPrivate(nullptr), mXMLHttpRequestPrivate(aXHRPrivate),
     mMozAnon(aMozAnon), mMozSystem(aMozSystem),
     mInnerEventStreamId(0), mInnerChannelId(0), mOutstandingSendCount(0),
-    mOuterEventStreamId(0), mOuterChannelId(0), mLastLoaded(0), mLastTotal(0),
-    mLastUploadLoaded(0), mLastUploadTotal(0), mIsSyncXHR(false),
+    mOuterEventStreamId(0), mOuterChannelId(0), mOpenCount(0), mLastLoaded(0),
+    mLastTotal(0), mLastUploadLoaded(0), mLastUploadTotal(0), mIsSyncXHR(false),
     mLastLengthComputable(false), mLastUploadLengthComputable(false),
-    mSeenLoadStart(false), mSeenUploadLoadStart(false), mOpening(false),
+    mSeenLoadStart(false), mSeenUploadLoadStart(false),
     mUploadEventListenersAttached(false), mMainThreadSeenLoadStart(false),
     mInOpen(false), mArrayBufferResponseWasTransferred(false)
   { }
@@ -413,7 +414,7 @@ class EventRunnable final : public MainThreadProxyRunnable
   nsString mType;
   nsString mResponseType;
   JSAutoStructuredCloneBuffer mResponseBuffer;
-  nsTArray<nsCOMPtr<nsISupports> > mClonedObjects;
+  WorkerStructuredCloneClosure mResponseClosure;
   JS::Heap<JS::Value> mResponse;
   nsString mResponseText;
   nsString mResponseURL;
@@ -794,14 +795,14 @@ class SendRunnable final : public WorkerThreadProxySyncRunnable
 {
   nsString mStringBody;
   JSAutoStructuredCloneBuffer mBody;
-  nsTArray<nsCOMPtr<nsISupports> > mClonedObjects;
+  WorkerStructuredCloneClosure mClosure;
   nsCOMPtr<nsIEventTarget> mSyncLoopTarget;
   bool mHasUploadListeners;
 
 public:
   SendRunnable(WorkerPrivate* aWorkerPrivate, Proxy* aProxy,
                const nsAString& aStringBody, JSAutoStructuredCloneBuffer&& aBody,
-               nsTArray<nsCOMPtr<nsISupports>>& aClonedObjects,
+               WorkerStructuredCloneClosure& aClosure,
                nsIEventTarget* aSyncLoopTarget, bool aHasUploadListeners)
   : WorkerThreadProxySyncRunnable(aWorkerPrivate, aProxy)
   , mStringBody(aStringBody)
@@ -809,7 +810,9 @@ public:
   , mSyncLoopTarget(aSyncLoopTarget)
   , mHasUploadListeners(aHasUploadListeners)
   {
-    mClonedObjects.SwapElements(aClonedObjects);
+    mClosure.mClonedObjects.SwapElements(aClosure.mClonedObjects);
+    MOZ_ASSERT(aClosure.mMessagePorts.IsEmpty());
+    MOZ_ASSERT(aClosure.mMessagePortIdentifiers.IsEmpty());
   }
 
 private:
@@ -1229,11 +1232,13 @@ EventRunnable::PreDispatch(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
             workers::ChromeWorkerStructuredCloneCallbacks(true) :
             workers::WorkerStructuredCloneCallbacks(true);
 
-          nsTArray<nsCOMPtr<nsISupports> > clonedObjects;
+          WorkerStructuredCloneClosure closure;
 
           if (mResponseBuffer.write(aCx, response, transferable, callbacks,
-                                    &clonedObjects)) {
-            mClonedObjects.SwapElements(clonedObjects);
+                                    &closure)) {
+            mResponseClosure.mClonedObjects.SwapElements(closure.mClonedObjects);
+            MOZ_ASSERT(mResponseClosure.mMessagePorts.IsEmpty());
+            MOZ_ASSERT(mResponseClosure.mMessagePortIdentifiers.IsEmpty());
           } else {
             NS_WARNING("Failed to clone response!");
             mResponseResult = NS_ERROR_DOM_DATA_CLONE_ERR;
@@ -1341,11 +1346,13 @@ EventRunnable::WorkerRun(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
           workers::ChromeWorkerStructuredCloneCallbacks(false) :
           workers::WorkerStructuredCloneCallbacks(false);
 
-        nsTArray<nsCOMPtr<nsISupports> > clonedObjects;
-        clonedObjects.SwapElements(mClonedObjects);
+        WorkerStructuredCloneClosure closure;
+        closure.mClonedObjects.SwapElements(mResponseClosure.mClonedObjects);
+        MOZ_ASSERT(mResponseClosure.mMessagePorts.IsEmpty());
+        MOZ_ASSERT(mResponseClosure.mMessagePortIdentifiers.IsEmpty());
 
         JS::Rooted<JS::Value> response(aCx);
-        if (!responseBuffer.read(aCx, &response, callbacks, &clonedObjects)) {
+        if (!responseBuffer.read(aCx, &response, callbacks, &closure)) {
           return false;
         }
 
@@ -1526,7 +1533,7 @@ SendRunnable::MainThreadRun()
       workers::WorkerStructuredCloneCallbacks(true);
 
     JS::Rooted<JS::Value> body(cx);
-    if (mBody.read(cx, &body, callbacks, &mClonedObjects)) {
+    if (mBody.read(cx, &body, callbacks, &mClosure)) {
       if (NS_FAILED(xpc->JSValToVariant(cx, body, getter_AddRefs(variant)))) {
         rv = NS_ERROR_DOM_INVALID_STATE_ERR;
       }
@@ -1536,7 +1543,7 @@ SendRunnable::MainThreadRun()
     }
 
     mBody.clear();
-    mClonedObjects.Clear();
+    mClosure.Clear();
 
     NS_ENSURE_SUCCESS(rv, rv);
   }
@@ -1846,13 +1853,13 @@ XMLHttpRequest::Unpin()
 void
 XMLHttpRequest::SendInternal(const nsAString& aStringBody,
                              JSAutoStructuredCloneBuffer&& aBody,
-                             nsTArray<nsCOMPtr<nsISupports> >& aClonedObjects,
+                             WorkerStructuredCloneClosure& aClosure,
                              ErrorResult& aRv)
 {
   mWorkerPrivate->AssertIsOnWorkerThread();
 
   // No send() calls when open is running.
-  if (mProxy->mOpening) {
+  if (mProxy->mOpenCount) {
     aRv.Throw(NS_ERROR_FAILURE);
     return;
   }
@@ -1880,7 +1887,7 @@ XMLHttpRequest::SendInternal(const nsAString& aStringBody,
 
   nsRefPtr<SendRunnable> runnable =
     new SendRunnable(mWorkerPrivate, mProxy, aStringBody, Move(aBody),
-                     aClonedObjects, syncLoopTarget, hasUploadListeners);
+                     aClosure, syncLoopTarget, hasUploadListeners);
   if (!runnable->Dispatch(cx)) {
     // Dispatch() may have spun the event loop and we may have already unrooted.
     // If so we don't want autoUnpin to try again.
@@ -1947,15 +1954,23 @@ XMLHttpRequest::Open(const nsACString& aMethod, const nsAString& aUrl,
                      mBackgroundRequest, mWithCredentials,
                      mTimeout);
 
-  mProxy->mOpening = true;
+  ++mProxy->mOpenCount;
   if (!runnable->Dispatch(mWorkerPrivate->GetJSContext())) {
-    mProxy->mOpening = false;
-    ReleaseProxy();
+    if (!--mProxy->mOpenCount) {
+      ReleaseProxy();
+    }
+
     aRv.Throw(NS_ERROR_FAILURE);
     return;
   }
 
-  mProxy->mOpening = false;
+  // We have been released in one of the nested Open() calls.
+  if (!mProxy) {
+    aRv.Throw(NS_ERROR_FAILURE);
+    return;
+  }
+
+  --mProxy->mOpenCount;
   mProxy->mIsSyncXHR = !aAsync;
 }
 
@@ -2102,9 +2117,9 @@ XMLHttpRequest::Send(ErrorResult& aRv)
 
   // Nothing to clone.
   JSAutoStructuredCloneBuffer buffer;
-  nsTArray<nsCOMPtr<nsISupports> > clonedObjects;
+  WorkerStructuredCloneClosure closure;
 
-  SendInternal(NullString(), Move(buffer), clonedObjects, aRv);
+  SendInternal(NullString(), Move(buffer), closure, aRv);
 }
 
 void
@@ -2124,9 +2139,9 @@ XMLHttpRequest::Send(const nsAString& aBody, ErrorResult& aRv)
 
   // Nothing to clone.
   JSAutoStructuredCloneBuffer buffer;
-  nsTArray<nsCOMPtr<nsISupports> > clonedObjects;
+  WorkerStructuredCloneClosure closure;
 
-  SendInternal(aBody, Move(buffer), clonedObjects, aRv);
+  SendInternal(aBody, Move(buffer), closure, aRv);
 }
 
 void
@@ -2167,19 +2182,19 @@ XMLHttpRequest::Send(JS::Handle<JSObject*> aBody, ErrorResult& aRv)
     ChromeWorkerStructuredCloneCallbacks(false) :
     WorkerStructuredCloneCallbacks(false);
 
-  nsTArray<nsCOMPtr<nsISupports> > clonedObjects;
+  WorkerStructuredCloneClosure closure;
 
   JSAutoStructuredCloneBuffer buffer;
-  if (!buffer.write(cx, valToClone, callbacks, &clonedObjects)) {
+  if (!buffer.write(cx, valToClone, callbacks, &closure)) {
     aRv.Throw(NS_ERROR_DOM_DATA_CLONE_ERR);
     return;
   }
 
-  SendInternal(EmptyString(), Move(buffer), clonedObjects, aRv);
+  SendInternal(EmptyString(), Move(buffer), closure, aRv);
 }
 
 void
-XMLHttpRequest::Send(File& aBody, ErrorResult& aRv)
+XMLHttpRequest::Send(Blob& aBody, ErrorResult& aRv)
 {
   mWorkerPrivate->AssertIsOnWorkerThread();
   JSContext* cx = mWorkerPrivate->GetJSContext();
@@ -2200,7 +2215,7 @@ XMLHttpRequest::Send(File& aBody, ErrorResult& aRv)
     return;
   }
 
-  nsRefPtr<FileImpl> blobImpl = aBody.Impl();
+  nsRefPtr<BlobImpl> blobImpl = aBody.Impl();
   MOZ_ASSERT(blobImpl);
 
   aRv = blobImpl->SetMutable(false);
@@ -2213,15 +2228,15 @@ XMLHttpRequest::Send(File& aBody, ErrorResult& aRv)
     ChromeWorkerStructuredCloneCallbacks(false) :
     WorkerStructuredCloneCallbacks(false);
 
-  nsTArray<nsCOMPtr<nsISupports> > clonedObjects;
+  WorkerStructuredCloneClosure closure;
 
   JSAutoStructuredCloneBuffer buffer;
-  if (!buffer.write(cx, value, callbacks, &clonedObjects)) {
+  if (!buffer.write(cx, value, callbacks, &closure)) {
     aRv.Throw(NS_ERROR_DOM_DATA_CLONE_ERR);
     return;
   }
 
-  SendInternal(EmptyString(), Move(buffer), clonedObjects, aRv);
+  SendInternal(EmptyString(), Move(buffer), closure, aRv);
 }
 
 void
@@ -2251,15 +2266,14 @@ XMLHttpRequest::Send(nsFormData& aBody, ErrorResult& aRv)
     ChromeWorkerStructuredCloneCallbacks(false) :
     WorkerStructuredCloneCallbacks(false);
 
-  nsTArray<nsCOMPtr<nsISupports>> clonedObjects;
-
   JSAutoStructuredCloneBuffer buffer;
-  if (!buffer.write(cx, value, callbacks, &clonedObjects)) {
+  WorkerStructuredCloneClosure closure;
+  if (!buffer.write(cx, value, callbacks, &closure)) {
     aRv.Throw(NS_ERROR_DOM_DATA_CLONE_ERR);
     return;
   }
 
-  SendInternal(EmptyString(), Move(buffer), clonedObjects, aRv);
+  SendInternal(EmptyString(), Move(buffer), closure, aRv);
 }
 
 void

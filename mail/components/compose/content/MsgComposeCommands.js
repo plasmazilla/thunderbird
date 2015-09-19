@@ -2032,10 +2032,8 @@ function getValidSpellcheckerDictionary() {
   }
 
   // Make sure preference contains a valid value.
-  for (let i = 0; i < count; i++) {
-    if (dictList[i] == prefValue) {
-      return prefValue;
-    }
+  if (dictList.indexOf(prefValue) >= 0) {
+    return prefValue;
   }
 
   // Set a valid value, any value will do.
@@ -3853,7 +3851,12 @@ function OpenSelectedAttachment()
 
       if (url)
       {
-        let channel = Services.io.newChannelFromURI(url);
+        let channel = Services.io.newChannelFromURI2(url,
+                                                     null,
+                                                     Services.scriptSecurityManager.getSystemPrincipal(),
+                                                     null,
+                                                     Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                     Components.interfaces.nsIContentPolicy.TYPE_OTHER);
         if (channel)
         {
           let uriLoader = Components.classes["@mozilla.org/uriloader;1"].getService(Components.interfaces.nsIURILoader);

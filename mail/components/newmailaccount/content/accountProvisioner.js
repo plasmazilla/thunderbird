@@ -24,7 +24,7 @@ let isOSX = (Services.appinfo.OS == 'Darwin');
 const RETRY_TIMEOUT = 5000; // 5 seconds
 const CONNECTION_TIMEOUT = 15000; // 15 seconds
 
-function isAccel (event) (isOSX && event.metaKey || event.ctrlKey)
+function isAccel (event) { return isOSX && event.metaKey || event.ctrlKey; }
 
 /**
  * Get the localstorage for this page in a way that works in chrome.
@@ -773,9 +773,9 @@ var EmailAccountProvisioner = {
         let templateElement = document.querySelector("#result_tmpl");
         let result = document.importNode(templateElement.content, true).children[0];
         result.innerHTML =
-          result.innerHTML.replace("${address}",
-                                   address.address ? address.address : address, "g")
-                          .replace("${priceStr}", priceStr, "g");
+          result.innerHTML.replace(/\${address}/g,
+                                   address.address ? address.address : address)
+                          .replace(/\${priceStr}/g, priceStr);
 
         group.append(result);
         // Keep a count of the rendered addresses for the "More" buttons, etc.
