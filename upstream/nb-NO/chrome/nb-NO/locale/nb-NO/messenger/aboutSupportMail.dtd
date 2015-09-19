@@ -17,3 +17,5 @@
 <!ENTITY aboutSupport.accountsDefault "Standard?">
 
 <!ENTITY aboutSupport.sendViaEmail.label "Send via e-post">
+
+<!ENTITY aboutSupport.identityName "Identity">

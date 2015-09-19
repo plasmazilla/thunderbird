@@ -4,13 +4,17 @@
 
 <!ENTITY offlineDialog.title "Paràmetres de fora de línia">
 
-<!ENTITY textStartUp "En iniciar:">
+<!ENTITY checkAutoDetect.label "Segueix automàticament l'estat en línia detectat">
+<!ENTITY checkAutoDetect.accesskey "d">
+<!ENTITY titleStartUp "Estat manual en iniciar-se:">
 <!ENTITY radioRememberPrevState.label "Recorda l'estat en línia anterior">
 <!ENTITY radioRememberPrevState.accesskey "R">
-<!ENTITY radioAskMe.label "Demana'm l'estat en línia a l'inici">
-<!ENTITY radioAskMe.accesskey "n">
-<!ENTITY radioAlwaysOnline.label "Inicia't sempre en línia">
-<!ENTITY radioAlwaysOnline.accesskey "l">
+<!ENTITY radioAskState.label "Pregunta'm l'estat en línia">
+<!ENTITY radioAskState.accesskey "P">
+<!ENTITY radioAlwaysOnlineState.label "En línia">
+<!ENTITY radioAlwaysOnlineState.accesskey "l">
+<!ENTITY radioAlwaysOffline.label "Fora de línia">
+<!ENTITY radioAlwaysOffline.accesskey "F">
 
 <!ENTITY textGoingOnline "Voleu que s'enviïn els missatges per enviar en posar-se en línia?">
 <!ENTITY radioAutoSend.label "Sí">
@@ -26,14 +30,3 @@
 <!ENTITY radioNotDownload.accesskey "o">
 <!ENTITY radioAskDownload.label "Demana-m'ho">
 <!ENTITY radioAskDownload.accesskey "a">
-
-<!ENTITY checkAutoDetect.accesskey "d">
-
-<!ENTITY checkAutoDetect.label "Automatically follow detected online state">
-<!ENTITY radioAlwaysOffline.accesskey "f">
-<!ENTITY radioAlwaysOffline.label "Offline">
-<!ENTITY radioAlwaysOnlineState.accesskey "l">
-<!ENTITY radioAlwaysOnlineState.label "Online">
-<!ENTITY radioAskState.accesskey "k">
-<!ENTITY radioAskState.label "Ask me for online state">
-<!ENTITY titleStartUp "Manual state when starting up:">

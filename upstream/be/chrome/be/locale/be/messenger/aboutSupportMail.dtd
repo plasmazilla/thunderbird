@@ -15,3 +15,5 @@
 <!ENTITY aboutSupport.accountsAuthMethod "Метад апазнавання">
 <!ENTITY aboutSupport.accountsDefault "Змоўчна?">
 <!ENTITY aboutSupport.sendViaEmail.label "Даслаць э-поштай">
+
+<!ENTITY aboutSupport.identityName "Identity">

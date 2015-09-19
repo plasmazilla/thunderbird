@@ -17,3 +17,5 @@
 <!ENTITY aboutSupport.accountsDefault "Predefinido?">
 
 <!ENTITY aboutSupport.sendViaEmail.label "Enviar por correo electrónico">
+
+<!ENTITY aboutSupport.identityName "Identity">

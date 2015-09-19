@@ -86,4 +86,7 @@ Location Aware врате наши добављачи су само процен
 <!ENTITY rights.webservices-term7 "Ови услови су начињени према државним законима америчке државе Калифорније, осим у случајевима сукоба прописа.  Ако је иједан део ових услова неважећи, остатак остаје пуноважан.  У случају неслагања преведеног издања ових услова са енглеским оригиналом, енглески оригинал ће бити пуноважан.">
 
 
+
+<!-- point 5 -->
+<!ENTITY rights.intro-point5 "In order to play back certain types of video content, &brandShortName; downloads certain content decryption modules from third parties.">
 <!ENTITY rights3.webservices-c ". Other features and Services can be disabled in the application preferences.">

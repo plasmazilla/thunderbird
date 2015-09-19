@@ -46,6 +46,7 @@
 <!ENTITY  font.langGroup.gurmukhi                 "Gurmukhi">
 <!ENTITY  font.langGroup.khmer                    "Khmer">
 <!ENTITY  font.langGroup.malayalam                "Malayalam">
+<!ENTITY  font.langGroup.math                     "Mathématiques">
 <!ENTITY  font.langGroup.oriya                    "Oriya">
 <!ENTITY  font.langGroup.telugu                   "Télougou">
 <!ENTITY  font.langGroup.kannada                  "Kannada">
@@ -71,15 +72,10 @@
 <!-- Language settings -->
 <!ENTITY sendDefaultCharset.label                 "Courrier sortant :">
 <!ENTITY sendDefaultCharset.accesskey             "u">
-<!ENTITY languagesTitle1.label                    "Encodage des caractères">
-<!ENTITY composingDescription.label               "Réglage de l'encodage de caractères par défaut pour l'envoi et la réception de courrier">
+<!ENTITY languagesTitle2.label                    "Encodage du texte">
+<!ENTITY composingDescription2.label              "Réglage de l'encodage de texte par défaut pour l'envoi et la réception de courrier">
 
 <!ENTITY viewDefaultCharsetList.label             "Courrier entrant :">
 <!ENTITY viewDefaultCharsetList.accesskey         "i">
-<!ENTITY replyInDefaultCharset2.label             "Quand c'est possible, utiliser l'encodage par défaut dans les réponses">
-<!ENTITY replyInDefaultCharset2.accesskey         "Q">
-
-<!ENTITY composingDescription2.label      "Set the default text encoding for sending and receiving mail">
-<!ENTITY languagesTitle2.label            "Text Encoding">
-<!ENTITY replyInDefaultCharset3.accesskey "h">
-<!ENTITY replyInDefaultCharset3.label     "When possible, use the default text encoding in replies">
+<!ENTITY replyInDefaultCharset3.label             "Quand c'est possible, utiliser l'encodage par défaut dans les réponses">
+<!ENTITY replyInDefaultCharset3.accesskey         "Q">

@@ -36,5 +36,4 @@
 <!ENTITY browse.label                     "Navega…">
 <!ENTITY browse.accesskey                 "N">
 
-
-<!ENTITY defaultSearchEngine.label        "Default Search Engine">
+<!ENTITY defaultSearchEngine.label        "Motor de cerca per defecte">

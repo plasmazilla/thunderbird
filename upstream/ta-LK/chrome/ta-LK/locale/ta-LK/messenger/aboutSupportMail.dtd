@@ -18,3 +18,5 @@ Entities below were automatically added by compare-locales,
 <!ENTITY aboutSupport.sendViaEmail.label "மின்னஞ்சல் ஊடாக அனுப்பப்கட்டது.">
 <!ENTITY aboutSupport.accountsIncomingServer "உள்வரும் சேவையகம்">
 <!ENTITY aboutSupport.accountsConnSecurity "பாதுகாப்பு இணைப்பு">
+
+<!ENTITY aboutSupport.identityName "Identity">

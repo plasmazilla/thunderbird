@@ -84,4 +84,7 @@
 <!ENTITY rights.webservices-term6 "&vendorShortName; đôi khi có thể cập nhật các điều khoản này khi cần thiết. Các điều khoản này không được sửa đổi hoặc hủy bỏ nếu không có thỏa thuận viết tay của &vendorShortName;.">
 <!ENTITY rights.webservices-term7 "Những điều khoản này được chi phối theo luật của tiểu bang California, Hoa Kỳ, không bao gồm sự mâu thuẫn của nó với các điều khoản pháp lí. Nếu có bất kì phần nào trong các điều khoản bị xem là bất hợp lệ và không bắt buộc, các phần còn lại sẽ vẫn có đầy đủ tính hiệu lực và bắt buộc. Khi xảy ra mâu thuẫn giữa phiên bản được chuyển ngữ của các điều khoản này và phiên bản tiếng Anh, phiên bản tiếng Anh sẽ là phiên bản chủ đạo.">
 
+
+<!-- point 5 -->
+<!ENTITY rights.intro-point5 "In order to play back certain types of video content, &brandShortName; downloads certain content decryption modules from third parties.">
 <!ENTITY rights3.webservices-c ". Other features and Services can be disabled in the application preferences.">

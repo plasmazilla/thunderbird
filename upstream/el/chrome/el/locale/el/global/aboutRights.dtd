@@ -98,4 +98,7 @@
 <!ENTITY rights.webservices-term7 "Αυτοί οι όροι υπόκεινται στους νομους της πολιτείας της  California, U.S.A., εξαιρουμένων των συγκρούσεων στους παρεχόμενους νόμους . Αν οπιοδήποτε μέρος αυτών των όρων αποδειχθεί μη έγκυρο ή μη εφαρμόσιμο, τα υπόλοιπα μέρη εξακολουθούν να είναι σε πλήρη ισχύ και χρήση. Σε περίπτωση σύγκρουσης μεταξύ μιας μεταφρασμένης έκδοσης αυτών των όρων με την Αγγλική έκδοση των όρων, ισχύει η Αγγλική έκδοση.">
 
 
+
+<!-- point 5 -->
+<!ENTITY rights.intro-point5 "In order to play back certain types of video content, &brandShortName; downloads certain content decryption modules from third parties.">
 <!ENTITY rights3.webservices-c ". Other features and Services can be disabled in the application preferences.">

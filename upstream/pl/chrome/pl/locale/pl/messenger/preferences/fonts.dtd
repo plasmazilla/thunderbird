@@ -75,3 +75,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey "t">
 <!ENTITY replyInDefaultCharset3.label "Używaj domyślnego kodowania tekstu w odpowiedziach zawsze, kiedy to możliwe">
 <!ENTITY replyInDefaultCharset3.accesskey "d">
+
+<!ENTITY  font.langGroup.math                     "Mathematics">

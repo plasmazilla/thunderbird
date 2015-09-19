@@ -53,7 +53,7 @@
 <!ENTITY openMsgInNewTab.label "nuova scheda">
 <!ENTITY openMsgInNewTab.accesskey "s">
 <!ENTITY reuseExpRadio0.label "nuova finestra">
-<!ENTITY reuseExpRadio0.accesskey "n">
+<!ENTITY reuseExpRadio0.accesskey "f">
 <!ENTITY reuseExpRadio1.label "finestra esistente">
 <!ENTITY reuseExpRadio1.accesskey "e">
 <!ENTITY closeMsgOnMoveOrDelete.label "Chiudere la finestra/scheda del messaggio in caso sia spostato o cancellato">

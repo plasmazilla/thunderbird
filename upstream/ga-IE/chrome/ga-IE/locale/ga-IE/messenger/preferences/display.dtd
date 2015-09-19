@@ -4,6 +4,7 @@
 
 <!ENTITY itemFormatting.label             "Formáidiú">
 <!ENTITY itemTags.label                   "Clibeanna">
+<!ENTITY itemAdvanced.label               "Casta">
 
 <!ENTITY style.label                      "Stíl:">
 <!ENTITY style.accesskey                  "S">
@@ -44,31 +45,29 @@
 <!ENTITY fontOptions.label       "Casta…">
 <!ENTITY colorButton.label       "Dathanna…">
 <!ENTITY colorButton.accesskey   "D">
+<!-- Advanced -->
 
-<!ENTITY autoMarkAsRead.accesskey         "A">
+<!ENTITY reading.caption                  "Léamh">
+<!ENTITY display.caption                  "Taispeáint">
+<!ENTITY showCondensedAddresses.label     "Ná taispeáin ach an t-ainm taispeána le haghaidh daoine atá i mo leabhar seoltaí">
+<!ENTITY showCondensedAddresses.accesskey "s">
 
-<!ENTITY autoMarkAsRead.label             "Automatically mark messages as read">
-<!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
-<!ENTITY closeMsgOnMoveOrDelete.label     "Close message window/tab on move or delete">
-<!ENTITY display.caption                  "Display">
-<!ENTITY itemAdvanced.label               "Advanced">
-<!ENTITY markAsReadDelay.accesskey        "d">
+<!ENTITY autoMarkAsRead.label             "Marcáil teachtaireachtaí mar léite go huathoibríoch">
+<!ENTITY autoMarkAsRead.accesskey         "u">
+<!ENTITY markAsReadNoDelay.label          "Chomh luath agus a thaispeántar iad">
+<!ENTITY markAsReadNoDelay.accesskey      "o">
 <!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
      "After displaying for [___] seconds",
      using (markAsReadDelay.label) and a number (secondsLabel.label). -->
-<!ENTITY markAsReadDelay.label            "After displaying for">
-<!ENTITY markAsReadNoDelay.accesskey      "o">
-<!ENTITY markAsReadNoDelay.label          "Immediately on display">
-<!ENTITY openMsgIn.label                  "Open messages in:">
-<!ENTITY openMsgInNewTab.accesskey        "t">
-<!ENTITY openMsgInNewTab.label            "A new tab">
-
-<!-- Advanced -->
-<!ENTITY reading.caption                  "Reading">
+<!ENTITY markAsReadDelay.label            "Tar éis iad a thaispeáint ar feadh">
+<!ENTITY markAsReadDelay.accesskey        "t">
+<!ENTITY secondsLabel.label               "soicind">
+<!ENTITY openMsgIn.label                  "Oscail teachtaireachtaí:">
+<!ENTITY openMsgInNewTab.label            "i gcluaisín nua">
+<!ENTITY openMsgInNewTab.accesskey        "n">
+<!ENTITY reuseExpRadio0.label             "i bhfuinneog nua theachtaireachta">
 <!ENTITY reuseExpRadio0.accesskey         "n">
-<!ENTITY reuseExpRadio0.label             "A new message window">
+<!ENTITY reuseExpRadio1.label             "i bhfuinneog theachtaireachta atá ann cheana">
 <!ENTITY reuseExpRadio1.accesskey         "e">
-<!ENTITY reuseExpRadio1.label             "An existing message window">
-<!ENTITY secondsLabel.label               "seconds">
-<!ENTITY showCondensedAddresses.accesskey "S">
-<!ENTITY showCondensedAddresses.label     "Show only display name for people in my address book">
+<!ENTITY closeMsgOnMoveOrDelete.label     "Dún fuinneog/cluaisín na teachtaireachta tar éis a bhogtha nó scriosta">
+<!ENTITY closeMsgOnMoveOrDelete.accesskey "c">
