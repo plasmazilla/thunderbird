@@ -11,7 +11,7 @@
 
 <!ENTITY enableGlodaSearch.label       "Ativar pesquisa global e indexação">
 <!ENTITY enableGlodaSearch.accesskey   "i">
-<!ENTITY allowHWAccel.label            "Usar aceleração por hardware se possível">
+<!ENTITY allowHWAccel.label            "Se disponível, utilizar aceleração por hardware">
 <!ENTITY allowHWAccel.accesskey        "h">
 <!ENTITY storeType.label               "Tipo de armazenamento de mensagem para novas constas:">
 <!ENTITY storeType.accesskey           "T">
@@ -25,7 +25,7 @@
 <!ENTITY useSmoothScrolling.accesskey  "u">
 
 <!ENTITY systemIntegration.label       "Integração de sistemas">
-<!ENTITY alwaysCheckDefault.label      "Ao iniciar, verificar se o &brandShortName; é o programa de correio pré-definido">
+<!ENTITY alwaysCheckDefault.label      "Ao iniciar, verificar se o &brandShortName; é o cliente de e-mail predefinido">
 <!ENTITY alwaysCheckDefault.accesskey  "A">
 <!ENTITY searchIntegration.label       "Permitir que &searchIntegration.engineName; pesquise nas mensagens">
 <!ENTITY searchIntegration.accesskey   "s">

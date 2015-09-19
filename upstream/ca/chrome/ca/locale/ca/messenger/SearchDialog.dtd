@@ -40,6 +40,7 @@
 <!ENTITY threadColumn.label "Conversa">
 <!ENTITY fromColumn.label "Remitent">
 <!ENTITY recipientColumn.label "Destinatari">
+<!ENTITY correspondentColumn.label "Interlocutors">
 <!ENTITY subjectColumn.label "Assumpte">
 <!ENTITY dateColumn.label "Data">
 <!ENTITY priorityColumn.label "Prioritat">
@@ -61,6 +62,7 @@
 <!ENTITY threadColumn2.tooltip "Mostra les converses de missatges">
 <!ENTITY fromColumn2.tooltip "Ordena per remitent">
 <!ENTITY recipientColumn2.tooltip "Ordena per destinatari">
+<!ENTITY correspondentColumn2.tooltip "Ordena per interlocutors">
 <!ENTITY subjectColumn2.tooltip "Ordena per assumpte">
 <!ENTITY dateColumn2.tooltip "Ordena per data">
 <!ENTITY priorityColumn2.tooltip "Ordena per prioritat">
@@ -76,6 +78,3 @@
 <!ENTITY starredColumn2.tooltip "Ordena per destacat">
 <!ENTITY locationColumn2.tooltip "Ordena per ubicació">
 <!ENTITY idColumn2.tooltip "Ordena per ordre de recepció">
-
-<!ENTITY correspondentColumn.label "Correspondents">
-<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

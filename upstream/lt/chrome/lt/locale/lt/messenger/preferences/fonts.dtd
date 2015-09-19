@@ -77,3 +77,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey  "s">
 <!ENTITY replyInDefaultCharset3.label     "Kai galima, numatytąją koduotę naudoti ir atsakant į laiškus">
 <!ENTITY replyInDefaultCharset3.accesskey "n">
+
+<!ENTITY  font.langGroup.math                     "Mathematics">

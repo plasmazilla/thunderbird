@@ -42,12 +42,12 @@
 <!ENTITY markMessageRead.label "Marcar como lida">
 <!ENTITY markMessageUnread.label "Marcar como não lida">
 <!ENTITY markMessageStarred.label "Adicionar estrela">
-<!ENTITY setPriority.label "definir prioridade para">
+<!ENTITY setPriority.label "Definir prioridade para">
 <!ENTITY addTag.label "Etiquetar mensagem">
 <!ENTITY setJunkScore.label "Definir estado de lixo eletrónico para">
 <!ENTITY deleteMessage.label "Eliminar mensagem">
 <!ENTITY deleteFromPOP.label "Eliminar do servidor POP">
-<!ENTITY fetchFromPOP.label "Transferir do servidor POP">
+<!ENTITY fetchFromPOP.label "Descarregar a partir do servidor POP">
 <!ENTITY ignoreThread.label "Ignorar tópico">
 <!ENTITY ignoreSubthread.label "Ignorar subtópico">
 <!ENTITY watchThread.label "Ver tópico">

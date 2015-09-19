@@ -6,8 +6,12 @@
 <!ENTITY  window.width                    "48em">
 <!ENTITY  window.macWidth                 "51em">
 
-<!ENTITY  allowPagesToUse.label           "Permet al contingut triar els propis colors, en comptes de les seleccions de dalt">
-<!ENTITY  allowPagesToUse.accesskey       "P">
+<!ENTITY  overridePageColors.label        "Sobreescriu els colors especificats pels continguts per la meva selecció:">
+<!ENTITY  overridePageColors.accesskey    "O">
+
+<!ENTITY  overridePageColors.always.label "Sempre">
+<!ENTITY  overridePageColors.auto.label   "Només amb temes de contrast alt">
+<!ENTITY  overridePageColors.never.label  "Mai">
 
 <!ENTITY  color                           "Text i fons">
 <!ENTITY  textColor.label                 "Text:">
@@ -24,11 +28,3 @@
 <!ENTITY  linkColor.accesskey             "l">
 <!ENTITY  visitedLinkColor.label          "Enllaços visitats:">
 <!ENTITY  visitedLinkColor.accesskey      "v">
-
-<!ENTITY  overridePageColors.accesskey    "O">
-
-<!ENTITY  overridePageColors.always.label "Always">
-<!ENTITY  overridePageColors.auto.label   "Only with High Contrast themes">
-
-<!ENTITY  overridePageColors.label        "Override the colors specified by the content with my selections above:">
-<!ENTITY  overridePageColors.never.label  "Never">

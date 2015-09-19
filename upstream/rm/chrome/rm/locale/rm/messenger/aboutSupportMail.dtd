@@ -17,3 +17,5 @@
 <!ENTITY aboutSupport.accountsDefault "Standard?">
 
 <!ENTITY aboutSupport.sendViaEmail.label "Trametter per e-mail">
+
+<!ENTITY aboutSupport.identityName "Identity">

@@ -86,3 +86,7 @@
 <!ENTITY rights.webservices-term5 "Kanun gereksinimleri dışında; &vendorShortName;, ona katkıda bulunanlar, lisans sahipleri ve dağıtıcıları &brandShortName; ürünün ve Hizmetlerin kullanımından doğabilecek herhangi bir dolaylı, özel, rastlantısal, cezai veya örnek teşkil edici hasardan sorumlu tutulamaz.  Bu şartlar altındaki toplu sorumluluk tutarı 500 $'ı (beş yüz dolar) geçemez. Bazı yargı hükümleri belli hasarların istisnai tutulmasına veya kısıtlanmasına izin vermeyebilir, bu durumda bu istisna ve kısıtlama sizin için geçerli olmayabilir.">
 <!ENTITY rights.webservices-term6 "&vendorShortName; gerekli gördüğünde bu şartları zaman zaman güncelleyebilir. Bu şartlar &vendorShortName;'nın yazılı onayı olmadan değiştirilemez veya iptal edilemez.">
 <!ENTITY rights.webservices-term7 "Bu koşullar, kanun ihtilafi hükümleri hariç olmak üzere, ABD California eyalet yasalarıyla korunur. Bu koşulların herhangi bir kısmının hükümsüz veya uygulanamaz olması hâlinde, geri kalan kısımlar geçerli ve etkili olmaya devam edecektir. Bu koşulların çeviri sürümüyle İngilizce sürümü arasında bir çelişki olması hâlinde İngilizce sürüm geçerli sayılacaktır.">
+
+
+<!-- point 5 -->
+<!ENTITY rights.intro-point5 "In order to play back certain types of video content, &brandShortName; downloads certain content decryption modules from third parties.">

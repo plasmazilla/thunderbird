@@ -15,3 +15,5 @@
 <!ENTITY aboutSupport.accountsAuthMethod "Métodu d'identificación">
 <!ENTITY aboutSupport.accountsDefault "¿Predetermináu?">
 <!ENTITY aboutSupport.sendViaEmail.label "Unviar per corréu">
+
+<!ENTITY aboutSupport.identityName "Identity">

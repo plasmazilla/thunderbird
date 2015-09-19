@@ -23,6 +23,10 @@
 <!ENTITY contextManual.accesskey "x">
 <!ENTITY contextBeforeCls.label "Filtra abans de comprovar si és correu brossa">
 <!ENTITY contextAfterCls.label "Filtra després de comprovar si és correu brossa">
+<!ENTITY contextOutgoing.label "Després d'enviar">
+<!ENTITY contextOutgoing.accesskey "S">
+<!ENTITY contextArchive.label "Arxivament">
+<!ENTITY contextArchive.accesskey "A">
 
 <!ENTITY filterActionDesc.label "Realitza les següents accions:">
 <!ENTITY filterActionDesc.accesskey "z">
@@ -59,8 +63,3 @@
 
 <!ENTITY filterActionTypeFlexValue "1">
 <!ENTITY filterActionTargetFlexValue "4">
-
-<!ENTITY contextArchive.accesskey "A">
-<!ENTITY contextArchive.label "Archiving">
-<!ENTITY contextOutgoing.accesskey "S">
-<!ENTITY contextOutgoing.label "After Sending">

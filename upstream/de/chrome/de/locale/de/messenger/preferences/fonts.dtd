@@ -77,3 +77,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey "I">
 <!ENTITY replyInDefaultCharset3.label     "Wenn möglich, Standard-Textkodierung für Antworten verwenden">
 <!ENTITY replyInDefaultCharset3.accesskey "W">
+
+<!ENTITY  font.langGroup.math                     "Mathematics">

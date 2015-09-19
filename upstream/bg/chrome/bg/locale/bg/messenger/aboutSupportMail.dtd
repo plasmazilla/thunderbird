@@ -17,3 +17,5 @@
 <!ENTITY aboutSupport.accountsDefault "По подразбиране?">
 
 <!ENTITY aboutSupport.sendViaEmail.label "Изпращане чрез е-поща">
+
+<!ENTITY aboutSupport.identityName "Identity">

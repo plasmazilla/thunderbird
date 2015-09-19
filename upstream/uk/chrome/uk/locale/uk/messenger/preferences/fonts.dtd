@@ -9,7 +9,7 @@
 
 <!ENTITY  size.label                              "Розмір:">
 <!ENTITY  sizeProportional.accesskey              "Р">
-<!ENTITY  sizeMonospace.accesskey                      "м">
+<!ENTITY  sizeMonospace.accesskey                 "м">
 
 <!ENTITY  proportional.label                      "Пропорційний:">
 <!ENTITY  proportional.accesskey                  "П">
@@ -45,7 +45,8 @@
 <!ENTITY  font.langGroup.gujarati                 "Гуджараті">
 <!ENTITY  font.langGroup.gurmukhi                 "Гурмуки">
 <!ENTITY  font.langGroup.khmer                    "Кхмерський">
-<!ENTITY  font.langGroup.malayalam                "Малайялам">
+<!ENTITY  font.langGroup.malayalam                "Малаялам">
+<!ENTITY  font.langGroup.math                     "Математика">
 <!ENTITY  font.langGroup.oriya                    "Oriya">
 <!ENTITY  font.langGroup.telugu                   "Telugu">
 <!ENTITY  font.langGroup.kannada                  "Kannada">

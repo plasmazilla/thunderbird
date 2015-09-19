@@ -40,8 +40,8 @@
 <!ENTITY daysEnd.label "dias">
 <!ENTITY deleteOnServer2.label "Até eu as eliminar">
 <!ENTITY deleteOnServer2.accesskey "A">
-<!ENTITY downloadOnBiff.label "Transferir novas mensagens automaticamente">
-<!ENTITY downloadOnBiff.accesskey "r">
+<!ENTITY downloadOnBiff.label "Descarregar novas mensagens automaticamente">
+<!ENTITY downloadOnBiff.accesskey "m">
 <!ENTITY username.label "Nome de acesso">
 <!ENTITY deleteMessagePrefix.label "Se eu eliminar uma mensagem:">
 <!ENTITY modelMoveToTrash.label "Mover para esta pasta:">
@@ -56,12 +56,12 @@
 <!ENTITY emptyTrashOnExit.label "Esvaziar lixo ao sair">
 <!ENTITY emptyTrashOnExit.accesskey "x">
 <!ENTITY loginAtStartup.label "Procurar novas mensagens ao iniciar">
-<!ENTITY loginAtStartup.accesskey "P">
+<!ENTITY loginAtStartup.accesskey "c">
 <!-- LOCALIZATION NOTE (maxMessagesStart.label) : translate below 2 lines with grammar dependency
     maxMessengerStart.label will be followed by maxMessagesEnd.label with the number
    of messages between them
 -->
-<!ENTITY maxMessagesStart.label "Perguntar antes de transferir mais do que">
+<!ENTITY maxMessagesStart.label "Perguntar antes de descarregar mais do que">
 <!ENTITY maxMessagesStart.accesskey "t">
 <!-- LOCALIZATION NOTE (maxMessagesEnd.label) : see note for maxMessagesStart.label -->
 <!ENTITY maxMessagesEnd.label "mensagens">

@@ -85,4 +85,7 @@
 <!ENTITY rights.webservices-term6 "&vendorShortName; ਲੋੜ ਪੈਣ ਉੱਤੇ ਸਮੇਂ ਸਮੇਂ ਇਹ ਸ਼ਰਤਾਂ ਨੂੰ ਅੱਪਡੇਟ ਵੀ ਕਰ ਸਕਦਾ ਹੈ। ਇਹ ਸ਼ਰਤਾਂ ਨੂੰ &vendorShortName; ਦੇ ਲਿਖਤੀ ਇਕਰਾਰਨਾਮੇ ਬਿਨਾਂ ਬਦਲਿਆ ਜਾਂ ਰੱਦ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ ਹੈ।">
 <!ENTITY rights.webservices-term7 "ਇਹ ਸ਼ਰਤਾਂ ਅਮਰੀਕਾ ਦੇ ਕੈਲੇਫੋਰਨੀਆ ਸੂਬੇ ਦੇ ਕਾਨੂੰਨ ਦੀ ਪਾਲਨਾ ਕਰਦੀਆਂ ਹਨ। ਜੇ ਇਨ੍ਹਾਂ ਸ਼ਰਤਾਂ ਦਾ ਕੋਈ ਵੀ ਭਾਗ ਅਵੈਧ ਹੋਵੇ ਜਾਂ ਲਾਗੂ ਨਾ ਕਰਨ ਯੋਗ ਹੋਵੇ ਤਾਂ, ਬਾਕੀ ਭਾਗ ਪੂਰੀ ਤਰ੍ਹਾਂ ਲਾਗੂ ਅਤੇ ਪਰਭਾਵੀ ਹੋਵੇਗਾ। ਇਨ੍ਹਾਂ ਸ਼ਰਤਾਂ ਦੇ ਇੱਕ ਅਨੁਵਾਦ ਕੀਤੇ ਵਰਜਨ ਅਤੇ ਅੰਗਰੇਜ਼ੀ ਵਰਜਨ ਵਿੱਚ ਕੋਈ ਵੀ ਅੰਤਰ ਜਾਂ ਅਪਵਾਦ ਹੋਵੇ ਤਾਂ ਅੰਗਰੇਜ਼ੀ ਵਰਜਨ ਮੰਨਣਯੋਗ ਹੋਵੇਗਾ।">
 
+
+<!-- point 5 -->
+<!ENTITY rights.intro-point5 "In order to play back certain types of video content, &brandShortName; downloads certain content decryption modules from third parties.">
 <!ENTITY rights3.webservices-c ". Other features and Services can be disabled in the application preferences.">

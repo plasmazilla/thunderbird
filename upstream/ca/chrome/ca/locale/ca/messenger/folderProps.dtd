@@ -5,30 +5,30 @@
 <!ENTITY folderProps.windowtitle.label           "Propietats">
 
 <!ENTITY generalInfo.label                       "Informació general">
-<!ENTITY folderCharsetFallback.label             "Codificació de caràcters alternativa:">
-<!ENTITY folderCharsetFallback.accesskey         "e">
-<!ENTITY folderCharsetEnforce.label              "Aplica la codificació a tots els missatges de la carpeta (omet la detecció automàtica i la codificació de caràcters específica de cada missatge)">
-<!ENTITY folderCharsetEnforce.accesskey          "A">
+<!ENTITY folderCharsetFallback2.label            "Codificació del text alternativa:">
+<!ENTITY folderCharsetFallback2.accesskey        "t">
+<!ENTITY folderCharsetEnforce2.label             "Aplica la codificació a tots els missatges de la carpeta (omet la detecció automàtica i la codificació del text específica de cada missatge)">
+<!ENTITY folderCharsetEnforce2.accesskey         "A">
 <!ENTITY folderRebuildSummaryFileTip2.label      "Reconstrueix l'índex del fitxer resum">
 <!ENTITY folderRebuildSummaryFile2.label         "Repara la carpeta">
 <!ENTITY folderRebuildSummaryFile2.accesskey     "R">
 <!ENTITY folderRebuildSummaryFile.explanation    "De vegades el fitxer de l'índex de la carpeta (.msf) s'espatlla i els missatges sembla que es perdin o bé els missatges esborrats tornen a aparèixer; si es repara la carpeta potser que s'arreglin aquests problemes.">
 <!ENTITY folderIncludeInGlobalSearch.label       "Inclou els missatges d'aquesta carpeta als resultats de la Cerca global">
 <!ENTITY folderIncludeInGlobalSearch.accesskey   "g">
-     
+
 <!ENTITY retention.label "Política de retenció">
 <!ENTITY retentionUseAccount.label  "Utilitza els paràmetres del meu compte">
 <!ENTITY retentionUseAccount.accesskey "U">
 <!ENTITY daysOld.label "dies d'antiguitat">
 <!ENTITY message.label "missatges">
-<!ENTITY retentionCleanup.label "Per recuperar espai de disc, es poden suprimir permanentment els missatges antics">
+<!ENTITY retentionCleanup.label "Per recuperar espai de disc, es poden suprimir permanentment els missatges antics.">
 <!ENTITY retentionCleanupImap.label "Per recuperar espai de disc, es poden suprimir permanentment els missatges antics, tant les còpies locals com els originals del servidor remot.">
 <!ENTITY retentionCleanupPop.label "Per recuperar espai de disc, es poden suprimir permanentment els missatges antics, inclosos els originals del servidor remot.">
 <!ENTITY retentionDeleteMsg.label "Suprimeix els missatges de més de">
 <!ENTITY retentionDeleteMsg.accesskey "m">
 <!ENTITY retentionKeepAll.label "No suprimeixis cap missatge">
 <!ENTITY retentionKeepAll.accesskey "a">
-<!ENTITY retentionKeepRecent.label "Suprimeix-los tots excepte els més nous">
+<!ENTITY retentionKeepRecent.label "Suprimeix-ho tot excepte els últims">
 <!ENTITY retentionKeepRecent.accesskey "x">
 <!-- LOCALIZATION NOTE: Unhide with .keepUnreadOnly { display: -moz-box; } -->
 <!ENTITY retentionKeepUnreadHidden.label "Suprimeix sempre els missatges llegits (sobreescriu els paràmetres d'antiguitat)">
@@ -71,8 +71,3 @@
 <!ENTITY sizeOnDisk.label                        "Mida al disc:">
 <!-- LOCALIZATION NOTE: When the size can't be determined, this string is displayed as the size -->
 <!ENTITY sizeUnknown.label                       "desconegut">
-
-<!ENTITY folderCharsetEnforce2.accesskey         "A">
-<!ENTITY folderCharsetEnforce2.label             "Apply encoding to all messages in the folder (individual message text encoding settings and auto-detection will be ignored)">
-<!ENTITY folderCharsetFallback2.accesskey        "E">
-<!ENTITY folderCharsetFallback2.label            "Fallback Text Encoding:">

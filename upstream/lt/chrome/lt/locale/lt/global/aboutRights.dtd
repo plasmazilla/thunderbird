@@ -86,3 +86,7 @@
 <!ENTITY rights.webservices-term5 "Išskyrus kiek to reikalauja įstatymai, „&vendorShortName;“, jos bendradarbiai, licencijų išdavėjai ir platintojai nebus laikomi atsakingais už bet kokią netiesioginę, tyčinę, netyčinę, pasėkminę, baudžiamąją ar kitokią žalą, kilusią dėl „&brandShortName;“ ir Paslaugų naudojimo ar bet kokiu būdu su tuo susijusią. Pagal šias taisykles, kolektyvinė atsakomybė negali viršyti 500 (penkių šimtų) JAV dolerių.  Kai kuriose jurisdikcijose atsiriboti nuo kai kurių tipų žalos neleidžiama, tad gali būti, kad jums ši taisyklė negalioja.">
 <!ENTITY rights.webservices-term6 "Kilus poreikiui, „&vendorShortName;“ šias taisykles gali keisti. Be išankstinio raštiško „Mozillos“ sutikimo šios taisyklės negali būti taisomos ar atšaukiamos.">
 <!ENTITY rights.webservices-term7 "Šiose taisyklėse vadovaujamasi JAV Kalifornijos valstijoje galiojančiais įstatymais. Kilus neatitikimams tarp šių taisyklių ir įstatymų, įstatymai laikomi viršesniais. Jei kuri nors šių taisyklių dalis neatitinka įstatymų ar negali būti įgyvendanama, kitos jų dalys bus laikomos galiojančiomis. Jei tarp išverstos šių taisyklių versijos ir originalių taisyklių anglų kalba yra neatitikimų, turi būti vadovaujamasi angliškąja taisyklių versija.">
+
+
+<!-- point 5 -->
+<!ENTITY rights.intro-point5 "In order to play back certain types of video content, &brandShortName; downloads certain content decryption modules from third parties.">

@@ -6,6 +6,8 @@
 <!ENTITY itemAutoComplete.label              "Adreçament">
 <!ENTITY itemSpellCheck.label                "Verificació ortogràfica">
 
+<!ENTITY dialogCompose.title                 "Redacció">
+
 <!ENTITY forwardMsg.label                     "Reenvia missatges:">
 <!ENTITY forwardMsg.accesskey                 "n">
 <!ENTITY inline.label                         "Insereix">
@@ -59,6 +61,3 @@
 <!ENTITY attachmentReminder.accesskey          "m">
 <!ENTITY attachmentReminderOptions.label       "Paraules clau…">
 <!ENTITY attachmentReminderOptions.accesskey   "P">
-
-
-<!ENTITY dialogCompose.title                 "Composing">

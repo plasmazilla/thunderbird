@@ -45,7 +45,7 @@
 <!ENTITY PlainText.label                "Texto simples">
 <!ENTITY HTML.label                     "HTML">
 <!ENTITY Unknown.label                  "Desconhecido">
-<!ENTITY chatName.label                 "Nome na sala de conversação:">
+<!ENTITY chatName.label                 "Nome no chat:">
 
 <!ENTITY WorkPhone.label                "Trabalho:">
 <!ENTITY WorkPhone.accesskey            "b">
@@ -74,8 +74,8 @@
 <!ENTITY HomeCountry.accesskey          "P">
 <!ENTITY HomeWebPage.label              "Página web:">
 <!ENTITY HomeWebPage.accesskey          "w">
-<!ENTITY Birthday.label                 "Aniversário:">
-<!ENTITY Birthday.accesskey             "n">
+<!ENTITY Birthday.label                 "Data de nascimento:">
+<!ENTITY Birthday.accesskey             "D">
 <!ENTITY In.label                       "">
 <!ENTITY Year.placeholder               "Ano">
 <!ENTITY Or.value                       "ou">

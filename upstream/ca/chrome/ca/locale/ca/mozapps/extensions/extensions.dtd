@@ -4,6 +4,7 @@
 <!ENTITY addons.windowTitle                   "Gestor de complements">
 
 <!ENTITY search.placeholder                   "Cerca tots els complements">
+<!ENTITY search.buttonlabel                   "Cerca">
 <!-- LOCALIZATION NOTE (search.commandKey):
      The search command key should match findOnCmd.commandkey from browser.dtd -->
 <!ENTITY search.commandkey                    "f">
@@ -21,6 +22,9 @@
 
 <!ENTITY cmd.back.tooltip                     "Vés enrere una pàgina">
 <!ENTITY cmd.forward.tooltip                  "Vés endavant una pàgina">
+
+<!ENTITY showUnsignedExtensions.button.label  "No s'han pogut verificar algunes extensions">
+<!ENTITY showAllExtensions.button.label       "Mostra totes les extensions">
 <!-- global warnings -->
 
 <!ENTITY warning.safemode.label                    "El mode segur ha inhabilitat tots els complements.">
@@ -63,7 +67,7 @@
 <!ENTITY updates.resetUpdatesToManual.accesskey      "R">
 <!ENTITY updates.updating.label               "S'estan actualitzant els complements">
 <!ENTITY updates.installed.label              "S'han actualitzat els vostres complements.">
-<!ENTITY updates.downloaded.label             "S'han baixat les actualitzacions dels vostres complements">
+<!ENTITY updates.downloaded.label             "S'han baixat les actualitzacions dels vostres complements.">
 <!ENTITY updates.restart.label                "Reinicia ara per completar la instal·lació">
 <!ENTITY updates.noneFound.label              "No s'ha trobat cap actualització">
 <!ENTITY updates.manualUpdatesFound.label     "Visualitza les actualitzacions disponibles">
@@ -102,6 +106,7 @@
 <!ENTITY cmd.uninstallAddon.label             "Suprimeix">
 <!ENTITY cmd.uninstallAddon.accesskey         "r">
 <!ENTITY cmd.debugAddon.label                 "Depuració">
+<!ENTITY cmd.debugAddon.accesskey             "D">
 <!ENTITY cmd.showPreferencesWin.label         "Opcions">
 <!ENTITY cmd.showPreferencesWin.tooltip       "Canvia les opcions del complement">
 <!ENTITY cmd.showPreferencesUnix.label        "Preferències">
@@ -226,25 +231,21 @@
 <!ENTITY experiment.info.changetelemetry "Paràmetres de la telemesura">
 <!ENTITY experiment.info.changetelemetry.accesskey "t">
 
-<!ENTITY cmd.debugAddon.accesskey             "B">
-<!ENTITY disabledUnsigned.description.end " or ask the developer to get them verified.">
-<!ENTITY disabledUnsigned.description.findAddonsLink "find replacements">
+<!ENTITY setting.learnmore "Més informació…">
+
+<!ENTITY disabledUnsigned.heading "S'han inhabilitat alguns complements">
 <!-- LOCALIZATION NOTE (disabledUnsigned.description.start, disabledUnsigned.description.findAddonsLink, disabledUnsigned.description.end):
      These entities form a sentence, with
      disabledUnsigned.description.findAddonsLink being a link to an external site. -->
-<!ENTITY disabledUnsigned.description.start "The following add-ons have not been verified for use in &brandShortName;. You can ">
-<!ENTITY disabledUnsigned.devInfo.end ".">
-<!ENTITY disabledUnsigned.devInfo.linkToManual "manual">
+<!ENTITY disabledUnsigned.description.start "Els complements següents no s'han verificat per al seu ús al &brandShortName;. Podeu ">
+<!ENTITY disabledUnsigned.description.findAddonsLink "cercar un altre complement similar">
+<!ENTITY disabledUnsigned.description.end " o demanar al desenvolupador que els verifiqui.">
+<!ENTITY disabledUnsigned.learnMore "Més informació sobre els nostres esforços per garantir la vostra seguretat a Internet.">
 <!-- LOCALIZATION NOTE (disabledUnsigned.devInfo.start, disabledUnsigned.devInfo.linkToManual, disabledUnsigned.devInfo.end):
      These entities form a sentence, with disabledUnsigned.devInfo.linkToManual
      being a link to an external site. -->
-<!ENTITY disabledUnsigned.devInfo.start "Developers interested in getting their add-ons verified can continue by reading our ">
+<!ENTITY disabledUnsigned.devInfo.start "Els desenvolupadors interessats en la verificació dels seus complements poden llegir el nostre ">
+<!ENTITY disabledUnsigned.devInfo.linkToManual "manual">
 
-<!ENTITY disabledUnsigned.heading "Some add-ons have been disabled">
-<!ENTITY disabledUnsigned.learnMore "Learn more about our efforts to help keep you safe online.">
-<!ENTITY search.buttonlabel                   "Search">
 
-<!ENTITY setting.learnmore "Learn More…">
-<!ENTITY showAllExtensions.button.label       "Show all extensions">
-
-<!ENTITY showUnsignedExtensions.button.label  "Some extensions could not be verified">
+<!ENTITY disabledUnsigned.devInfo.end ".">

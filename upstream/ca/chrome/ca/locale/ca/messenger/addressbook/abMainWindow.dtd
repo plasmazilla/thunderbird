@@ -3,8 +3,9 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY addressbookWindow.title                        "Llibreta d'adreces">
+<!ENTITY blankResultsPaneMessage.label                  "Aquesta llibreta d'adreces no mostra cap contacte fins que no feu una cerca">
+<!ENTITY localResultsOnlyMessage.label                  "Els contactes de les llibretes d'adreces remotes no mostren fins que no feu una cerca">
 <!-- File Menu -->
-
 <!ENTITY fileMenu.label                                 "Fitxer">
 <!ENTITY fileMenu.accesskey                             "F">
 <!ENTITY newMenu.label                                  "Nou">
@@ -82,7 +83,7 @@
 <!ENTITY viewMenu.label                                 "Visualitza">
 <!ENTITY viewMenu.accesskey                             "V">
 <!ENTITY viewToolbarsMenu.label                         "Barres d'eines">
-<!ENTITY viewToolbarsMenu.accesskey                     "i"> 
+<!ENTITY viewToolbarsMenu.accesskey                     "B"> 
 <!ENTITY menubarCmd.label                               "Barra de menú">
 <!ENTITY menubarCmd.accesskey                           "m">
 <!ENTITY showAbToolbarCmd.label                         "Barra d'eines de la llibreta d'adreces">
@@ -160,6 +161,8 @@ because displayed names don't have the comma in between. -->
 <!ENTITY searchItem.title "Cerca ràpida">
 <!-- Results Pane -->
 
+<!ENTITY Addrbook.label                                 "Llibreta d'adreces">
+<!ENTITY Addrbook.accesskey                             "a">
 <!ENTITY GeneratedName.label                            "Nom">
 <!ENTITY GeneratedName.accesskey                        "N">
 <!ENTITY PrimaryEmail.label                             "Adreça electrònica">
@@ -217,10 +220,3 @@ because displayed names don't have the comma in between. -->
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "Porta-ho tot al davant">
 <!ENTITY zoomWindow.label "Finestra del zoom">
-
-<!ENTITY Addrbook.accesskey                             "B">
-
-<!-- Results Pane -->
-<!ENTITY Addrbook.label                                 "Address Book">
-<!ENTITY blankResultsPaneMessage.label                  "This address book shows contacts only after a search">
-<!ENTITY localResultsOnlyMessage.label                  "Contacts from remote address books are not shown until you search">

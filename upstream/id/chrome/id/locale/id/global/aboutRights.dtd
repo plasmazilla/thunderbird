@@ -84,4 +84,7 @@
 <!ENTITY rights.webservices-term6 "&vendorShortName; dapat memutakhirkan persyaratan ini secara seperlunya dari waktu ke waktu. Persyaratan ini tidak dapat diubah atau dibatalkan tanpa perjanjian tertulis dengan &vendorShortName;.">
 <!ENTITY rights.webservices-term7 "Persyaratan berikut diatur berdasarkan hukum negara bagian California, Amerika Serikat, dengan mengecualikan pertentangan atas ketentuan hukum yang bersifat sementara. Jika terdapat bagian dari persyaratan ini yang tidak dalam status sah atau tidak dapat dilaksanakan, bagian lainnya tetap berkekuatan penuh. Jika terjadi pertentangan antara versi terjemahan dan versi berbahasa Inggris atas persyaratan ini, versi berbahasa Inggris yang memiliki kekuatan penuh.">
 
+
+<!-- point 5 -->
+<!ENTITY rights.intro-point5 "In order to play back certain types of video content, &brandShortName; downloads certain content decryption modules from third parties.">
 <!ENTITY rights3.webservices-c ". Other features and Services can be disabled in the application preferences.">

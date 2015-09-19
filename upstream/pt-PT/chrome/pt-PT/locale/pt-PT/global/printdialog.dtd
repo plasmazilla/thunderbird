@@ -12,7 +12,7 @@
 
 <!ENTITY fileCheck.label "Imprimir para ficheiro">
 <!ENTITY fileCheck.accesskey "f">
-<!ENTITY propertiesButton.label "Propriedades...">
+<!ENTITY propertiesButton.label "Propriedades…">
 <!ENTITY propertiesButton.accesskey "o">
 <!ENTITY descText.label "Descrição da impressora:">
 <!ENTITY printer.label "Impressora">
@@ -21,7 +21,7 @@
 
 <!ENTITY printrangeGroup.label "Área de impressão">
 <!ENTITY allpagesRadio.label "Todas as páginas">
-<!ENTITY allpagesRadio.accesskey "T">
+<!ENTITY allpagesRadio.accesskey "a">
 <!ENTITY rangeRadio.label  "Páginas">
 <!ENTITY rangeRadio.accesskey  "P">
 <!ENTITY frompageInput.label  "de">
