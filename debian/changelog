@@ -1,3 +1,11 @@
+icedove (38.2.0-1) unstable; urgency=medium
+
+  * [d46d5f6] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-mips/Fix-build-error-in-MIPS-SIMD-when-compiling-with-mfp.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 21 Sep 2015 19:42:03 -0400
+
 icedove (38.2.0-1~stretch) stretch; urgency=medium
 
   [ Carsten Schoenert ]
