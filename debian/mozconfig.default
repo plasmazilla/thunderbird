@@ -103,4 +103,7 @@ case `dpkg --print-architecture` in
   sparc)
     ac_add_options --enable-optimize=-O1
     ;;
+  s390x)
+    ac_add_options --enable-optimize=-O1
+    ;;
 esac
