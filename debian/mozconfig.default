@@ -97,6 +97,9 @@ case `dpkg --print-architecture` in
   kfreebsd-amd64)
     ac_add_options --disable-necko-wifi
     ;;
+  mips)
+    ac_add_options --disable-ion
+    ;;
   ppc64)
     ac_add_options --disable-optimize
     ;;
