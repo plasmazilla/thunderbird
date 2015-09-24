@@ -1,3 +1,10 @@
+icedove (38.2.0-2) unstable; urgency=medium
+
+  * [8bcb08b] relax optimize to -O1 on s390x (Closes: #797551)
+  * [6aa0915] debian/rules: Disable jit on mips (Closes: #797548)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 24 Sep 2015 19:09:54 -0400
+
 icedove (38.2.0-1) unstable; urgency=medium
 
   * [d46d5f6] rebuild patch queue from patch-queue branch
