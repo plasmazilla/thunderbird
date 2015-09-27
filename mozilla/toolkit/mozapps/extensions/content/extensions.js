@@ -1262,7 +1262,7 @@ var gViewController = {
                                  getService(Ci.amIWebInstallListener);
               webInstaller.onWebInstallRequested(getBrowserElement(),
                                                  document.documentURIObject,
-                                                 installs, installs.length);
+                                                 installs);
             }
             return;
           }
@@ -3760,7 +3760,7 @@ var gDragDrop = {
                              getService(Ci.amIWebInstallListener);
           webInstaller.onWebInstallRequested(getBrowserElement(),
                                              document.documentURIObject,
-                                             installs, installs.length);
+                                             installs);
         }
         return;
       }

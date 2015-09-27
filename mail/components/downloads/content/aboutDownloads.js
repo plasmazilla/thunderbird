@@ -10,7 +10,7 @@ const Cu = Components.utils;
 const Cc = Components.classes;
 const Ci = Components.interfaces;
 
-Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+Cu.import("resource://gre/modules/XPCOMUtils.jsm", this);
 
 XPCOMUtils.defineLazyModuleGetter(this, "Downloads", "resource://gre/modules/Downloads.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "DownloadUtils", "resource://gre/modules/DownloadUtils.jsm");
@@ -58,7 +58,7 @@ const DownloadsView = {
         return false;
       }
       let targetFile = Cc["@mozilla.org/file/local;1"]
-                         .createInstance(Ci.nsIFile);
+                        .createInstance(Ci.nsIFile);
       targetFile.initWithPath(download.target.path);
       return !targetFile.exists();
     }
@@ -98,7 +98,12 @@ const DownloadsView = {
     this.listElement.removeChild(item.element);
   },
 
-  onDownloadContextMenu() {
+  onDownloadContextMenu(aEvent) {
+    let element = this.listElement.selectedItem;
+    if (!element) {
+      return;
+    }
+
     this.updateCommands();
   },
 
@@ -108,26 +113,16 @@ const DownloadsView = {
              .then(null, Cu.reportError);
   },
 
-  searchDownloads() {
-    let searchString = document.getElementById("searchBox").value;
-    for (let i = 0; i < this.listElement.itemCount; i++) {
-      let downloadElem = this.listElement.getItemAtIndex(i);
-      downloadElem.collapsed =
-        !downloadElem.downloadItem.fileName.contains(searchString);
-    }
-    this.listElement.clearSelection();
-  },
-
   supportsCommand(aCommand) {
-    return this.commands.indexOf(aCommand) >= 0;
+    if (!(this.commands.some(command => command == aCommand)) &&
+        !(DownloadItem.prototype.supportsCommand(aCommand))) {
+      return false;
+    }
+    return true;
   },
 
   isCommandEnabled(aCommand) {
-    switch (aCommand) {
-      case "msgDownloadsCmd_clearDownloads":
-      case "msgDownloadsCmd_searchDownloads":
-        // We could disable these if there are no downloads in the list, but
-        // updating the commands when new items become available is tricky.
+    if (aCommand == "msgDownloadsCmd_clearDownloads") {
         return true;
     }
 
@@ -140,20 +135,16 @@ const DownloadsView = {
   },
 
   doCommand(aCommand) {
-    switch (aCommand) {
-      case "msgDownloadsCmd_clearDownloads":
+    if (aCommand == "msgDownloadsCmd_clearDownloads") {
         this.clearDownloads();
-        return;
-      case "msgDownloadsCmd_searchDownloads":
-        this.searchDownloads();
         return;
     }
 
-    if (this.listElement.selectedCount == 0) {
+    if (this.listElement.selectedItems.length == 0) {
       return;
     }
 
-    for (let element of this.listElement.selectedItems) {
+    for (let [, element] in Iterator(this.listElement.selectedItems)) {
       element.downloadItem.doCommand(aCommand);
     }
   },
@@ -167,7 +158,6 @@ const DownloadsView = {
 
   commands: [
     "msgDownloadsCmd_clearDownloads",
-    "msgDownloadsCmd_searchDownloads"
   ]
 };
 
@@ -269,7 +259,7 @@ DownloadItem.prototype = {
 
   show() {
     if (this.download.succeeded) {
-      let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+      let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsILocalFile);
       file.initWithPath(this._filePath);
       file.reveal();
     }
@@ -330,6 +320,6 @@ DownloadItem.prototype = {
   commands: [
     "msgDownloadsCmd_remove",
     "msgDownloadsCmd_open",
-    "msgDownloadsCmd_show"
+    "msgDownloadsCmd_show",
   ]
 };

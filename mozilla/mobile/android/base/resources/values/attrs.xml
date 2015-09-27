@@ -38,8 +38,6 @@
         <attr name="topSitesGridItemViewStyle" format="reference" />
 
         <!-- Styles for dynamic panel grid views -->
-        <attr name="panelGridViewStyle" format="reference" />
-        <attr name="panelIconGridViewStyle" format="reference" />
         <attr name="panelIconViewStyle" format="reference" />
 
         <!-- Style for the TabsGridLayout -->
@@ -171,6 +169,7 @@
 
     <declare-styleable name="TabMenuStrip">
         <attr name="strip" format="reference"/>
+        <attr name="tabContentStart" format="dimension" />
     </declare-styleable>
 
     <declare-styleable name="TabPanelBackButton">
@@ -195,6 +194,12 @@
         <attr name="drawable" format="reference" />
         <attr name="enabledText" format="string" />
         <attr name="disabledText" format="string" />
+    </declare-styleable>
+
+    <declare-styleable name="MenuItemActionBar">
+        <!-- We reimplement tint list XML attrs here because it is
+             only available in Android 21+. -->
+        <attr name="drawableTintList" format="color" />
     </declare-styleable>
 
 </resources>

@@ -146,6 +146,11 @@
 @BINPATH@/@DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
 #endif
 #endif
+@BINPATH@/@DLL_PREFIX@lgpllibs@DLL_SUFFIX@
+#ifdef MOZ_GTK3
+@BINPATH@/@DLL_PREFIX@mozgtk@DLL_SUFFIX@
+@BINPATH@/gtk2/@DLL_PREFIX@mozgtk@DLL_SUFFIX@
+#endif
 @RESPATH@/license.txt
 @RESPATH@/blocklist.xml
 #ifdef UNIX_BUT_NOT_MAC
@@ -170,6 +175,7 @@
 @RESPATH@/components/autoconfig.xpt
 @RESPATH@/components/browser-element.xpt
 @RESPATH@/components/caps.xpt
+@RESPATH@/components/captivedetect.xpt
 @RESPATH@/components/chrome.xpt
 @RESPATH@/components/commandhandler.xpt
 @RESPATH@/components/commandlines.xpt
@@ -218,7 +224,9 @@
 @RESPATH@/components/dom_stylesheets.xpt
 @RESPATH@/components/dom_svg.xpt
 @RESPATH@/components/dom_system.xpt
+@RESPATH@/components/dom_telephony.xpt
 @RESPATH@/components/dom_traversal.xpt
+@RESPATH@/components/dom_voicemail.xpt
 #ifdef MOZ_WEBSPEECH
 @RESPATH@/components/dom_webspeechrecognition.xpt
 @RESPATH@/components/dom_webspeechsynth.xpt
@@ -235,7 +243,7 @@
 @RESPATH@/components/exthelper.xpt
 @RESPATH@/components/fastfind.xpt
 @RESPATH@/components/feeds.xpt
-#ifdef MOZ_GTK2
+#ifdef MOZ_GTK
 @RESPATH@/components/filepicker.xpt
 #endif
 @RESPATH@/components/find.xpt
@@ -248,6 +256,7 @@
 @RESPATH@/components/intl.xpt
 @RESPATH@/components/jar.xpt
 @RESPATH@/components/jsdebugger.xpt
+@RESPATH@/components/jsdownloads.xpt
 @RESPATH@/components/jsinspector.xpt
 @RESPATH@/components/layout_base.xpt
 #ifdef NS_PRINTING
@@ -313,6 +322,7 @@
 @RESPATH@/components/suitemigration.xpt
 @RESPATH@/components/telemetry.xpt
 @RESPATH@/components/toolkit_asyncshutdown.xpt
+@RESPATH@/components/toolkit_filewatcher.xpt
 @RESPATH@/components/toolkit_finalizationwitness.xpt
 @RESPATH@/components/toolkit_formautofill.xpt
 @RESPATH@/components/toolkit_osfile.xpt
@@ -368,6 +378,8 @@
 @RESPATH@/components/AppsService.manifest
 @RESPATH@/components/BrowserElementParent.js
 @RESPATH@/components/BrowserElementParent.manifest
+@RESPATH@/components/captivedetect.js
+@RESPATH@/components/CaptivePortalDetectComponents.manifest
 @RESPATH@/components/ChromeNotifications.js
 @RESPATH@/components/ChromeNotifications.manifest
 @RESPATH@/components/ColorAnalyzer.js
@@ -415,7 +427,7 @@
 @RESPATH@/components/nsDefaultCLH.js
 @RESPATH@/components/nsDefaultCLH.manifest
 @RESPATH@/components/nsDownloadsStartup.js
-#ifdef MOZ_GTK2
+#ifdef MOZ_GTK
 @RESPATH@/components/nsFilePicker.js
 @RESPATH@/components/nsFilePicker.manifest
 #endif
@@ -471,6 +483,10 @@
 @RESPATH@/components/nsURLFormatter.manifest
 @RESPATH@/components/nsWebHandlerApp.js
 @RESPATH@/components/nsWebHandlerApp.manifest
+@RESPATH@/components/PACGenerator.js
+@RESPATH@/components/PACGenerator.manifest
+@RESPATH@/components/PageThumbsProtocol.js
+@RESPATH@/components/BrowserPageThumbs.manifest
 @RESPATH@/components/passwordmgr.manifest
 #ifdef MOZ_WEBRTC
 @RESPATH@/components/PeerConnection.js
@@ -483,11 +499,13 @@
 @RESPATH@/components/PlacesCategoriesStarter.js
 @RESPATH@/components/pluginGlue.manifest
 @RESPATH@/components/ProcessSingleton.manifest
+@RESPATH@/components/MainProcessSingleton.js
+@RESPATH@/components/ContentProcessSingleton.js
 @RESPATH@/components/Push.js
 @RESPATH@/components/Push.manifest
 @RESPATH@/components/PushNotificationService.js
-@RESPATH@/components/MainProcessSingleton.js
-@RESPATH@/components/ContentProcessSingleton.js
+@RESPATH@/components/recording-cmdline.js
+@RESPATH@/components/recording-cmdline.manifest
 @RESPATH@/components/servicesComponents.manifest
 @RESPATH@/components/SettingsManager.js
 @RESPATH@/components/SettingsManager.manifest
@@ -503,6 +521,7 @@
 #ifdef MOZ_SERVICES_SYNC
 @RESPATH@/components/SyncComponents.manifest
 #endif
+@RESPATH@/components/TCPServerSocket.js
 @RESPATH@/components/TCPSocket.js
 @RESPATH@/components/TCPSocket.manifest
 @RESPATH@/components/TCPSocketParentIntermediary.js
@@ -519,15 +538,14 @@
 @RESPATH@/components/XULStore.js
 @RESPATH@/components/XULStore.manifest
 
-@RESPATH@/components/PACGenerator.js
-@RESPATH@/components/PACGenerator.manifest
-
 ; Modules
 @RESPATH@/modules/*
 
 ; [Browser Chrome Files]
 @RESPATH@/chrome/comm@JAREXT@
 @RESPATH@/chrome/comm.manifest
+@RESPATH@/chrome/recording.manifest
+@RESPATH@/chrome/recording/*
 @RESPATH@/chrome/toolkit@JAREXT@
 @RESPATH@/chrome/toolkit.manifest
 
@@ -555,7 +573,7 @@
 #endif
 
 ; shell icons
-#ifdef MOZ_GTK2
+#ifdef MOZ_GTK
 @RESPATH@/chrome/icons/default/bookmarkproperties.png
 @RESPATH@/chrome/icons/default/bookmarkproperties16.png
 @RESPATH@/chrome/icons/default/bookmarkproperties48.png
@@ -818,7 +836,7 @@ bin/libfreebl_32int64_3.so
 @RESPATH@/chrome/messenger.manifest
 @RESPATH@/chrome/newsblog@JAREXT@
 @RESPATH@/chrome/newsblog.manifest
-#ifdef MOZ_GTK2
+#ifdef MOZ_GTK
 @RESPATH@/chrome/icons/default/abcardWindow.png
 @RESPATH@/chrome/icons/default/abcardWindow16.png
 @RESPATH@/chrome/icons/default/abcardWindow48.png
@@ -887,7 +905,7 @@ bin/libfreebl_32int64_3.so
 @RESPATH@/distribution/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi
 #else
 @RESPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/chatzilla@JAREXT@
-#ifdef MOZ_GTK2
+#ifdef MOZ_GTK
 @RESPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/chatzilla-window.xpm
 @RESPATH@/extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/chrome/icons/default/chatzilla-window16.xpm
 #elifdef XP_WIN32
@@ -916,7 +934,7 @@ bin/libfreebl_32int64_3.so
 @RESPATH@/extensions/inspector@mozilla.org/install.rdf
 @RESPATH@/extensions/inspector@mozilla.org/chrome.manifest
 @RESPATH@/extensions/inspector@mozilla.org/chrome/inspector@JAREXT@
-#ifdef MOZ_GTK2
+#ifdef MOZ_GTK
 @RESPATH@/extensions/inspector@mozilla.org/platform/Linux/chrome/icons/default/winInspectorMain16.xpm
 @RESPATH@/extensions/inspector@mozilla.org/platform/Linux/chrome/icons/default/winInspectorMain.xpm
 #elifdef XP_WIN32

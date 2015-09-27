@@ -34,10 +34,12 @@
 #include "nsILineInputStream.h"
 #include "nsIAsyncInputStream.h"
 #include "nsIMsgIncomingServer.h"
+#include "nsIInputStreamPump.h"
 #include "nsMimeTypes.h"
 #include "nsAlgorithm.h"
 #include "mozilla/Services.h"
 #include <algorithm>
+#include "nsContentSecurityManager.h"
 
 #undef PostMessage // avoid to collision with WinUser.h
 
@@ -511,6 +513,14 @@ NS_IMETHODIMP nsMsgProtocol::Open(nsIInputStream **_retval)
   return NS_ImplementChannelOpen(this, _retval);
 }
 
+NS_IMETHODIMP nsMsgProtocol::Open2(nsIInputStream **_retval)
+{
+  nsCOMPtr<nsIStreamListener> listener;
+  nsresult rv = nsContentSecurityManager::doContentSecurityCheck(this, listener);
+  NS_ENSURE_SUCCESS(rv, rv);
+  return Open(_retval);
+}
+
 NS_IMETHODIMP nsMsgProtocol::AsyncOpen(nsIStreamListener *listener, nsISupports *ctxt)
 {
     int32_t port;
@@ -532,6 +542,14 @@ NS_IMETHODIMP nsMsgProtocol::AsyncOpen(nsIStreamListener *listener, nsISupports 
     m_channelContext = ctxt;
     m_channelListener = listener;
     return LoadUrl(m_url, nullptr);
+}
+
+NS_IMETHODIMP nsMsgProtocol::AsyncOpen2(nsIStreamListener *aListener)
+{
+    nsCOMPtr<nsIStreamListener> listener = aListener;
+    nsresult rv = nsContentSecurityManager::doContentSecurityCheck(this, listener);
+    NS_ENSURE_SUCCESS(rv, rv);
+    return AsyncOpen(listener, nullptr);
 }
 
 NS_IMETHODIMP nsMsgProtocol::GetLoadFlags(nsLoadFlags *aLoadFlags)

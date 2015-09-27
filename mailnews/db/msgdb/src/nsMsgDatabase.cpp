@@ -511,33 +511,6 @@ nsresult nsMsgDatabase::AddHdrToCache(nsIMsgDBHdr *hdr, nsMsgKey key) // do we w
 }
 
 
-/* static */PLDHashOperator nsMsgDatabase::HeaderEnumerator (PLDHashTable *table, PLDHashEntryHdr *hdr,
-                               uint32_t number, void *arg)
-{
-
-  MsgHdrHashElement* element = static_cast<MsgHdrHashElement*>(hdr);
-  if (element)
-    NS_IF_RELEASE(element->mHdr);
-  return PL_DHASH_NEXT;
-}
-
-/* static */PLDHashOperator nsMsgDatabase::ClearHeaderEnumerator (PLDHashTable *table, PLDHashEntryHdr *hdr,
-                               uint32_t number, void *arg)
-{
-
-  MsgHdrHashElement* element = static_cast<MsgHdrHashElement*>(hdr);
-  if (element && element->mHdr)
-  {
-    nsMsgHdr* msgHdr = static_cast<nsMsgHdr*>(element->mHdr);  // closed system, so this is ok
-    // clear out m_mdbRow member variable - the db is going away, which means that this member
-    // variable might very well point to a mork db that is gone.
-    NS_IF_RELEASE(msgHdr->m_mdbRow);
-//    NS_IF_RELEASE(msgHdr->m_mdb);
-  }
-  return PL_DHASH_NEXT;
-}
-
-
 NS_IMETHODIMP nsMsgDatabase::SetMsgHdrCacheSize(uint32_t aSize)
 {
   m_cacheSize = aSize;
@@ -662,7 +635,11 @@ nsresult nsMsgDatabase::ClearHdrCache(bool reInit)
     // save this away in case we renter this code.
     PLDHashTable  *saveCachedHeaders = m_cachedHeaders;
     m_cachedHeaders = nullptr;
-    PL_DHashTableEnumerate(saveCachedHeaders, HeaderEnumerator, nullptr);
+    for (auto iter = saveCachedHeaders->Iter(); !iter.Done(); iter.Next()) {
+      auto element = static_cast<MsgHdrHashElement*>(iter.Get());
+      if (element)
+        NS_IF_RELEASE(element->mHdr);
+    }
 
     if (reInit)
     {
@@ -801,7 +778,16 @@ nsresult nsMsgDatabase::ClearUseHdrCache()
   {
     // clear mdb row pointers of any headers still in use, because the
     // underlying db is going away.
-    PL_DHashTableEnumerate(m_headersInUse, ClearHeaderEnumerator, nullptr);
+    for (auto iter = m_headersInUse->Iter(); !iter.Done(); iter.Next()) {
+      auto element = static_cast<const MsgHdrHashElement*>(iter.Get());
+      if (element && element->mHdr) {
+        nsMsgHdr* msgHdr = static_cast<nsMsgHdr*>(element->mHdr);  // closed system, so this is ok
+        // clear out m_mdbRow member variable - the db is going away, which means that this member
+        // variable might very well point to a mork db that is gone.
+        NS_IF_RELEASE(msgHdr->m_mdbRow);
+    //    NS_IF_RELEASE(msgHdr->m_mdb);
+      }
+    }
     delete m_headersInUse;
     m_headersInUse = nullptr;
   }
@@ -982,17 +968,6 @@ void nsMsgDBService::DumpCache()
 
 // Memory Reporting implementations
 
-size_t nsMsgDatabase::HeaderHashSizeOf(PLDHashEntryHdr *hdr,
-                                       mozilla::MallocSizeOf aMallocSizeOf,
-                                       void *arg)
-{
-  MsgHdrHashElement *entry = static_cast<MsgHdrHashElement*>(hdr);
-  // Sigh, this is dangerous, but so long as this is a closed system, this is
-  // safe.
-  return static_cast<nsMsgHdr*>(entry->mHdr)->
-    SizeOfIncludingThis(aMallocSizeOf);
-}
-
 size_t nsMsgDatabase::SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) const
 {
   size_t totalSize = 0;
@@ -1005,22 +980,26 @@ size_t nsMsgDatabase::SizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf) c
     if (morkHeap)
       totalSize += morkHeap->GetUsedSize();
   }
-  totalSize += m_newSet.SizeOfExcludingThis(aMallocSizeOf);
-  totalSize += m_ChangeListeners.SizeOfExcludingThis(aMallocSizeOf);
-  totalSize += m_threads.SizeOfExcludingThis(aMallocSizeOf);
+  totalSize += m_newSet.ShallowSizeOfExcludingThis(aMallocSizeOf);
+  totalSize += m_ChangeListeners.ShallowSizeOfExcludingThis(aMallocSizeOf);
+  totalSize += m_threads.ShallowSizeOfExcludingThis(aMallocSizeOf);
   // We have two tables of header objects, but every header in m_cachedHeaders
   // should be in m_headersInUse.
   // double-counting...
   size_t headerSize = 0;
   if (m_headersInUse)
   {
-    headerSize = PL_DHashTableSizeOfIncludingThis(m_headersInUse,
-      nsMsgDatabase::HeaderHashSizeOf, aMallocSizeOf);
+    headerSize = m_headersInUse->ShallowSizeOfIncludingThis(aMallocSizeOf);
+    for (auto iter = m_headersInUse->Iter(); !iter.Done(); iter.Next()) {
+      auto entry = static_cast<MsgHdrHashElement*>(iter.Get());
+      // Sigh, this is dangerous, but so long as this is a closed system, this
+      // is safe.
+      headerSize += static_cast<nsMsgHdr*>(entry->mHdr)->SizeOfIncludingThis(aMallocSizeOf);
+    }
   }
   totalSize += headerSize;
   if (m_msgReferences)
-    totalSize += PL_DHashTableSizeOfIncludingThis(m_msgReferences, nullptr,
-      aMallocSizeOf);
+    totalSize += m_msgReferences->ShallowSizeOfIncludingThis(aMallocSizeOf);
   return totalSize;
 }
 

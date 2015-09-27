@@ -6,7 +6,7 @@ Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://gre/modules/Preferences.jsm");
 Components.utils.import("resource://calendar/modules/calViewUtils.jsm");
 
-EXPORTED_SYMBOLS = ["cal"]; // even though it's defined in calUtils.jsm, import needs this
+this.EXPORTED_SYMBOLS = ["cal"]; // even though it's defined in calUtils.jsm, import needs this
 cal.print = {
     /**
      * Returns a simple key in the format YYYY-MM-DD for use in the table of
@@ -83,14 +83,14 @@ cal.print = {
      * @param item              The item to serialize
      * @param dayContainer      The DOM Node to insert the container in
      */
-    addItemToDaybox: function addItemToDaybox(document, item, dayContainer) {
+    addItemToDaybox: function addItemToDaybox(document, item, boxDate, dayContainer) {
         // Clone our template
         let itemNode = document.getElementById("item-template").cloneNode(true);
         itemNode.removeAttribute("id");
         itemNode.item = item;
 
         // Fill in details of the item
-        let itemInterval = cal.print.getItemIntervalString(item);
+        let itemInterval = cal.print.getItemIntervalString(item, boxDate);
         itemNode.querySelector(".item-interval").textContent = itemInterval;
         itemNode.querySelector(".item-title").textContent = item.title;
 
@@ -158,15 +158,40 @@ cal.print = {
      * @param aItem     The item providing the interval
      * @return          The string describing the interval
      */
-    getItemIntervalString: function getItemIntervalString(aItem) {
+    getItemIntervalString: function getItemIntervalString(aItem, aBoxDate) {
         // omit time label for all-day items
-        let startDate = aItem[cal.calGetStartDateProp(aItem)]
+        let startDate = aItem[cal.calGetStartDateProp(aItem)];
         let endDate = aItem[cal.calGetEndDateProp(aItem)];
         if ((startDate && startDate.isDate) || (endDate && endDate.isDate)) {
             return "";
         }
 
-        // Bug 359007: will result in wrong time label for events that span two or more days
-        return cal.getDateFormatter().formatItemTimeInterval(aItem);
+        // check for tasks without start and/or due date
+        if (!startDate || !endDate) {
+            return cal.getDateFormatter().formatItemTimeInterval(aItem);
+        }
+
+        let dateFormatter = cal.getDateFormatter();
+        let defaultTimezone = cal.calendarDefaultTimezone();
+        let start = startDate.getInTimezone(defaultTimezone).clone();
+        let end = endDate.getInTimezone(defaultTimezone).clone();
+        start.isDate = true;
+        end.isDate = true;
+        if (start.compare(end) == 0) {
+            // Events that start and end in the same day.
+            return dateFormatter.formatTimeInterval(startDate, endDate);
+        } else {
+            // Events that span two or more days.
+            let compareStart = aBoxDate.compare(start);
+            let compareEnd = aBoxDate.compare(end);
+            if (compareStart == 0)
+                return "\u21e4 " + dateFormatter.formatTime(startDate); // unicode '⇤'
+            else if (compareStart > 0 && compareEnd < 0)
+                return "\u21ff";                                        // unicode '↔'
+            else if (compareEnd == 0)
+                return "\u21e5 " + dateFormatter.formatTime(endDate);   // unicode '⇥'
+            else
+                return "";
+        }
     }
 }

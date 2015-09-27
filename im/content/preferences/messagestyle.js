@@ -171,10 +171,20 @@ var previewObserver = {
     if (aTopic != "conversation-loaded" || aSubject != this.browser)
       return;
 
+    // We want to avoid the convbrowser trying to scroll to the last
+    // added message, as that causes the entire pref pane to jump up
+    // (bug 1179943). Therefore, we override the method convbrowser
+    // uses to determine if there are further messages pending to be
+    // added. The +1 ensures no scroll occurs after we add the last
+    // message here.
+    this.browser._autoScrollEnabled = false;
+    this.browser.getPendingMessagesCount =
+      () => previewObserver.conv.messages.length + 1;
+
     // Display all queued messages. Use a timeout so that message text
     // modifiers can be added with observers for this notification.
     setTimeout(function() {
-      for each (let message in previewObserver.conv.messages)
+      for (let message of previewObserver.conv.messages)
         aSubject.appendMessage(message, false);
     }, 0);
 
