@@ -8,7 +8,7 @@ Subject: Icedove branding
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/im/app/application.ini b/im/app/application.ini
-index 3b26dd4..b525247 100644
+index 856b900..9ffa5d8 100644
 --- a/im/app/application.ini
 +++ b/im/app/application.ini
 @@ -4,7 +4,7 @@

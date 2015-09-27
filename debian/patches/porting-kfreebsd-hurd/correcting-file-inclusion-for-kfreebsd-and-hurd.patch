@@ -7,10 +7,10 @@ Subject: correcting file inclusion for kfreebsd* and hurd
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/ipc/glue/moz.build b/mozilla/ipc/glue/moz.build
-index fc4f0be..6133a28 100644
+index 2c0f541..10db86d 100644
 --- a/mozilla/ipc/glue/moz.build
 +++ b/mozilla/ipc/glue/moz.build
-@@ -59,7 +59,7 @@ if CONFIG['OS_ARCH'] == 'WINNT':
+@@ -60,7 +60,7 @@ if CONFIG['OS_ARCH'] == 'WINNT':
      SOURCES += [
          'CrossProcessMutex_windows.cpp',
      ]

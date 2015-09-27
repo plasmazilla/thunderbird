@@ -9,7 +9,7 @@ the needed configure related files.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/build/autoconf/icu.m4 b/mozilla/build/autoconf/icu.m4
-index 838e977..ef67b9c 100644
+index dd673c0..e6de7b9 100644
 --- a/mozilla/build/autoconf/icu.m4
 +++ b/mozilla/build/autoconf/icu.m4
 @@ -121,7 +121,7 @@ if test -n "$USE_ICU"; then

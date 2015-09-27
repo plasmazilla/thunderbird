@@ -7,7 +7,7 @@ Subject: Load-dependent-libraries-with-their-real-path-to-avo
  1 file changed, 3 insertions(+)
 
 diff --git a/mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp b/mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp
-index eac10e5..d9e69a1 100644
+index 7654d64..4c052a4 100644
 --- a/mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp
 +++ b/mozilla/xpcom/glue/standalone/nsXPCOMGlue.cpp
 @@ -208,6 +208,9 @@ AppendDependentLib(LibHandleType aLibHandle)

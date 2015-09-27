@@ -8,7 +8,7 @@ Closes: #735119
  1 file changed, 27 insertions(+)
 
 diff --git a/mozilla/build/Makefile.in b/mozilla/build/Makefile.in
-index 61edfde..0915449 100644
+index d98a74c..de5a1ce 100644
 --- a/mozilla/build/Makefile.in
 +++ b/mozilla/build/Makefile.in
 @@ -86,6 +86,33 @@ include $(topsrcdir)/config/rules.mk
