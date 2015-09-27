@@ -65,7 +65,7 @@ icedove (40.0~b1-1) experimental; urgency=medium
   [ Christoph Goehre ]
   * [ff66528] lintian: fix spelling error in debian/README.Debian
 
- -- Guido Günther <agx@sigxcpu.org>  Wed, 19 Aug 2015 09:39:23 +0200
+ -- Guido Guenther <agx@sigxcpu.org>  Wed, 19 Aug 2015 09:39:23 +0200
 
 icedove (38.0~b5-1) experimental; urgency=medium
 
