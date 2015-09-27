@@ -3,7 +3,6 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 @import url(chrome://calendar-common/skin/calendar-task-view.css);
-@import url(chrome://calendar-windows/skin/calendar.css);
 
 #calendar-task-view-splitter {
     border: none;
@@ -55,31 +54,160 @@
     padding: 0;
 }
 
-#task-actions-category {
-    list-style-image: url(chrome://calendar/skin/tasks-actions.png);
-    -moz-image-region: rect(0px, 16px, 16px, 0px);
+@media (-moz-os-version: windows-xp) {
+  #task-actions-category {
+      list-style-image: url(chrome://calendar/skin/tasks-actions.png);
+      -moz-image-region: rect(0 16px 16px 0);
+  }
+
+  #task-actions-markcompleted {
+      list-style-image: url(chrome://calendar/skin/tasks-actions.png);
+      -moz-image-region: rect(0 32px 16px 16px);
+  }
+
+  #task-actions-priority {
+      list-style-image: url(chrome://calendar/skin/tasks-actions.png);
+      -moz-image-region: rect(0 48px 16px 32px);
+  }
+
+  #calendar-delete-task-button {
+      list-style-image: url(chrome://calendar/skin/toolbar-small.png);
+      -moz-image-region: rect(0 48px 16px 32px);
+  }
+
+  #calendar-add-task-button {
+      list-style-image: url(chrome://calendar/skin/toolbar-small.png);
+      -moz-image-region: rect(0 256px 16px 240px);
+  }
+
+  #calendar-add-task-button[disabled="true"] {
+      -moz-image-region: rect(32px 256px 48px 240px);
+  }
 }
 
-#task-actions-markcompleted {
-    list-style-image: url(chrome://calendar/skin/tasks-actions.png);
-    -moz-image-region: rect(0px, 32px, 16px, 16px);
+@media not all and (-moz-os-version: windows-xp) {
+  #task-actions-category {
+    list-style-image: url(chrome://calendar-common/skin/calendar-toolbar.svg#category);
+  }
+
+  #task-actions-markcompleted {
+    list-style-image: url(chrome://calendar-common/skin/calendar-toolbar.svg#complete);
+  }
+
+  #task-actions-priority {
+    list-style-image: url(chrome://calendar-common/skin/calendar-toolbar.svg#priority);
+  }
+
+  #calendar-delete-task-button {
+    list-style-image: url(chrome://calendar-common/skin/calendar-toolbar.svg#delete);
+  }
+
+  #task-actions-toolbar[brighttext] > #task-actions-category {
+    list-style-image: url(chrome://calendar-common/skin/calendar-toolbar.svg#category-inverted);
+  }
+
+  #task-actions-toolbar[brighttext] > #task-actions-markcompleted {
+    list-style-image: url(chrome://calendar-common/skin/calendar-toolbar.svg#complete-inverted);
+  }
+
+  #task-actions-toolbar[brighttext] > #task-actions-priority {
+    list-style-image: url(chrome://calendar-common/skin/calendar-toolbar.svg#priority-inverted);
+  }
+
+
+  #task-actions-toolbar[brighttext] > #calendar-delete-task-button {
+    list-style-image: url(chrome://calendar-common/skin/calendar-toolbar.svg#delete-inverted);
+  }
+
+  #calendar-add-task-button {
+    list-style-image: url(chrome://calendar-common/skin/calendar-toolbar.svg#newtask);
+    -moz-image-region: rect(0 18px 18px 0);
+  }
+
+  #calendar-add-task-button[disabled="true"] > .toolbarbutton-icon {
+    opacity: 0.4;
+  }
+
+  #view-task-edit-field,
+  #task-text-filter-field {
+    -moz-appearance: none;
+    background-clip: padding-box;
+    border: 1px solid ThreeDDarkShadow;
+  }
+
+  #view-task-edit-field,
+  #task-text-filter-field {
+    width: 15em;
+  }
+
+  #calendar-task-box #calendar-task-view-splitter {
+    border: none;
+    border-bottom: 1px solid #A9B7C9;
+    min-height: 0;
+    height: 5px;
+    background-color: transparent;
+    margin-top: -5px;
+    position: relative;
+    z-index: 10;
+  }
+
+  #calendar-nav-control {
+    border-top-width: 0;
+  }
+
+  #calendar-task-details-container {
+    border-top-width: 0;
+    padding-top: 0;
+  }
+
+  @media (-moz-windows-default-theme) {
+    #task-addition-box {
+      background-color: #f8f8f8;
+    }
+  }
 }
 
-#task-actions-priority {
-    list-style-image: url(chrome://calendar/skin/tasks-actions.png);
-    -moz-image-region: rect(0px, 48px, 16px, 32px);
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
+  #view-task-edit-field,
+  #task-text-filter-field {
+    border-radius: 2px;
+    border-color: hsla(210, 54%, 20%, .25) hsla(210, 54%, 20%, .27)
+                  hsla(210, 54%, 20%, .3);
+    box-shadow: 0 1px hsla(0, 0%, 0%, .01) inset,
+                0 1px hsla(0, 0%, 100%, .1);
+  }
+
+  #view-task-edit-field:not([focused]):hover,
+  #task-text-filter-field:not([focused]):hover {
+    border-color: hsla(210, 54%, 20%, .35) hsla(210, 54%, 20%, .37)
+                  hsla(210, 54%, 20%, .4);
+  }
+
+  #view-task-edit-field[focused],
+  #task-text-filter-field[focused] {
+    border-color: hsla(206, 100%, 60%, .65) hsla(206, 100%, 55%, .65)
+                  hsla(206, 100%, 50%, .65);
+  }
 }
 
-#calendar-delete-task-button {
-    list-style-image: url(chrome://calendar/skin/toolbar-small.png);
-    -moz-image-region: rect(0px, 48px, 16px, 32px);
-}
+@media (-moz-windows-default-theme) and (-moz-os-version: windows-win8),
+       (-moz-windows-default-theme) and (-moz-os-version: windows-win10) {
+  #view-task-edit-field:not(:-moz-lwtheme),
+  #task-text-filter-field:not(:-moz-lwtheme) {
+    background-color: hsla(0, 0%, 100%, .9);
+    border: 1px solid transparent;
+    border-color: hsla(210, 54%, 20%, .25) hsla(210, 54%, 20%, .27)
+                  hsla(210, 54%, 20%, .3);
+    box-shadow: 0 1px 0 hsla(0, 0%, 0%, .01) inset,
+                0 1px 0 hsla(0, 0%, 100%, .1);
+    transition-property: border-color, background-color;
+    transition-duration: 200ms;
+  }
 
-#calendar-add-task-button {
-    list-style-image: url(chrome://calendar/skin/toolbar-small.png);
-    -moz-image-region: rect(0px 256px 16px 240px);
-}
-
-#calendar-add-task-button[disabled="true"] {
-    -moz-image-region: rect(32px 256px 48px 240px);
+  #view-task-edit-field:not(:-moz-lwtheme)[focused],
+  #task-text-filter-field:not(:-moz-lwtheme)[focused] {
+    background-color: hsla(0, 0%, 100%, 1);
+    border-color: #4595e5;
+  }
 }

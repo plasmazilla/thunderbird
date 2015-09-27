@@ -689,8 +689,20 @@ const XMPPAccountBuddyPrototype = {
     if (!kExt.hasOwnProperty(type))
       return;
 
-    let data = aPhotoNode.getElement(["BINVAL"]).innerText;
-    let content = atob(data.replace(/[^A-Za-z0-9\+\/\=]/g, ""));
+    let content = "", data = "";
+    // Strip all characters not allowed in base64 before parsing.
+    let parseBase64 =
+      (aBase) => atob(aBase.replace(/[^A-Za-z0-9\+\/\=]/g, ""));
+    for (let line of aPhotoNode.getElement(["BINVAL"]).innerText.split("\n")) {
+      data += line;
+      // Mozilla's atob() doesn't handle padding with "=" or "=="
+      // unless it's at the end of the string, so we have to work around that.
+      if (line.endsWith("=")) {
+        content += parseBase64(data);
+        data = "";
+      }
+    }
+    content += parseBase64(data);
 
     // Store a sha1 hash of the photo we have just received.
     let ch = Cc["@mozilla.org/security/hash;1"].createInstance(Ci.nsICryptoHash);
@@ -1202,11 +1214,22 @@ const XMPPAccountPrototype = {
   onIQStanza: function(aStanza) {
     let type = aStanza.attributes["type"];
     if (type == "set") {
-      for each (let qe in aStanza.getChildren("query")) {
-        if (qe.uri != Stanza.NS.roster)
+      for (let query of aStanza.getChildren("query")) {
+        if (query.uri != Stanza.NS.roster)
           continue;
 
-        for each (let item in qe.getChildren("item"))
+        // RFC 6121 2.1.6 (Roster push):
+        // A receiving client MUST ignore the stanza unless it has no 'from'
+        // attribute (i.e., implicitly from the bare JID of the user's
+        // account) or it has a 'from' attribute whose value matches the
+        // user's bare JID <user@domainpart>.
+        let from = aStanza.attributes["from"];
+        if (from && from != this._jid.node + "@" + this._jid.domain) {
+          this.WARN("Ignoring potentially spoofed roster push.");
+          return;
+        }
+
+        for (let item of query.getChildren("item"))
           this._onRosterItem(item, true);
         return;
       }
@@ -1259,7 +1282,7 @@ const XMPPAccountPrototype = {
     let query = aStanza.getElement(["query"]);
     if (aStanza.attributes["type"] != "result" || !query ||
         query.uri != Stanza.NS.disco_items) {
-      this.WARN("Could not get services for this server: " + this._jid.domain);
+      this.LOG("Could not get services for this server: " + this._jid.domain);
       return true;
     }
 
@@ -1379,6 +1402,7 @@ const XMPPAccountPrototype = {
       // TODO There can be multiple subject elements with different xml:lang
       // attributes.
       muc.setTopic(subject.innerText, nick);
+      return;
     }
 
     if (body) {
@@ -1515,9 +1539,14 @@ const XMPPAccountPrototype = {
                .toLowerCase();
   },
 
+  // RFC 6122 (Section 2): [ localpart "@" ] domainpart [ "/" resourcepart ] is
+  // the form of jid.
+  // Localpart is parsed as node and optional.
+  // Domainpart is parsed as domain and required.
+  // resourcepart is parsed as resource and optional.
   _parseJID: function(aJid) {
     let match =
-      /^(?:([^"&'/:<>@]+)@)?([^@/<>'\"]+)(?:\/(.*))?$/.exec(aJid);
+      /^(?:([^"&'/:<>@]+)@)?([^@/<>'\"]+)(?:\/(.*))?$/.exec(aJid.trim());
     if (!match)
       return null;
 
@@ -1793,7 +1822,14 @@ const XMPPAccountPrototype = {
 
   onUserVCard: function(aStanza) {
     delete this._downloadingUserVCard;
-    this._userVCard = aStanza.getElement(["vCard"]) || null;
+    let userVCard = aStanza.getElement(["vCard"]) || null;
+    if (userVCard) {
+      // Strip any server-specific namespace off the incoming vcard
+      // before storing it.
+      this._userVCard =
+        Stanza.node("vCard", Stanza.NS.vcard, null, userVCard.children);
+    }
+
     // If a user icon exists in the vCard we received from the server,
     // we need to ensure the line breaks in its binval are exactly the
     // same as those we would include if we sent the icon, and that
@@ -1825,7 +1861,7 @@ const XMPPAccountPrototype = {
     let channel = Services.io.newChannelFromURI2(userIcon,
       null, Services.scriptSecurityManager.getSystemPrincipal(), null,
       Ci.nsILoadInfo.SEC_NORMAL, Ci.nsIContentPolicy.TYPE_IMAGE);
-    NetUtil.asyncFetch2(channel, (inputStream, resultCode) => {
+    NetUtil.asyncFetch(channel, (inputStream, resultCode) => {
       if (!Components.isSuccessCode(resultCode))
         return;
       try {

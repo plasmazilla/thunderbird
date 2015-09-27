@@ -75,6 +75,10 @@
 #include "nsIArray.h"
 #include "nsArrayUtils.h"
 
+#include "nsIInputStreamPump.h"
+#include "nsIProxyInfo.h"
+#include "nsContentSecurityManager.h"
+
 #include <time.h>
 
 #undef GetPort  // XXX Windows!
@@ -932,6 +936,14 @@ NS_IMETHODIMP nsNNTPProtocol::AsyncOpen(nsIStreamListener *listener, nsISupports
       return NS_OK;
   }
   return nsMsgProtocol::AsyncOpen(listener, ctxt);
+}
+
+NS_IMETHODIMP nsNNTPProtocol::AsyncOpen2(nsIStreamListener *aListener)
+{
+    nsCOMPtr<nsIStreamListener> listener = aListener;
+    nsresult rv = nsContentSecurityManager::doContentSecurityCheck(this, listener);
+    NS_ENSURE_SUCCESS(rv, rv);
+    return AsyncOpen(listener, nullptr);
 }
 
 nsresult nsNNTPProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer)

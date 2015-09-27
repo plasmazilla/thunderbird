@@ -15,12 +15,15 @@
                                            android:paddingRight="1dip"
                                            android:gravity="center">
 
-    <RelativeLayout android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="6dip"
-                    android:padding="4dip"
-                    android:background="@drawable/tab_thumbnail"
-                    android:duplicateParentState="true">
+    <!-- We set state_private on this View dynamically in TabsListLayout. -->
+    <org.mozilla.gecko.widget.TabThumbnailWrapper
+            android:id="@+id/wrapper"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dip"
+            android:padding="4dip"
+            android:background="@drawable/tab_thumbnail"
+            android:duplicateParentState="true">
 
         <org.mozilla.gecko.widget.ThumbnailView android:id="@+id/thumbnail"
                                                 android:layout_width="@dimen/tab_thumbnail_width"
@@ -44,6 +47,15 @@
                       android:singleLine="true"
                       android:duplicateParentState="true"/>
 
+            <ImageButton android:id="@+id/audio_playing"
+                         android:visibility="gone"
+                         android:layout_width="20dip"
+                         android:layout_height="match_parent"
+                         android:background="@drawable/action_bar_button_inverse"
+                         android:scaleType="center"
+                         android:contentDescription="@string/tab_audio_playing"
+                         android:src="@drawable/tab_audio_playing"/>
+
             <ImageButton android:id="@+id/close"
                          style="@style/TabsItemClose"
                          android:layout_width="32dip"
@@ -55,6 +67,6 @@
 
         </LinearLayout>
 
-    </RelativeLayout>
+    </org.mozilla.gecko.widget.TabThumbnailWrapper>
 
 </org.mozilla.gecko.tabs.TabsLayoutItemView>

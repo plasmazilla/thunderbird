@@ -52,13 +52,13 @@ calWeekPrinter.prototype = {
         for each (let item in aItems) {
             let itemStartDate = item[cal.calGetStartDateProp(item)] || item[cal.calGetEndDateProp(item)];
             let itemEndDate = item[cal.calGetEndDateProp(item)] || item[cal.calGetStartDateProp(item)];
-            itemStartDate = itemStartDate.getInTimezone(defaultTimezone);
-            itemEndDate = itemEndDate.getInTimezone(defaultTimezone);
 
             if (!itemStartDate && !itemEndDate) {
                 cal.print.addItemToDayboxNodate(document, item);
                 continue;
             }
+            itemStartDate = itemStartDate.getInTimezone(defaultTimezone);
+            itemEndDate = itemEndDate.getInTimezone(defaultTimezone);
 
             let boxDate = itemStartDate.clone();
             boxDate.isDate = true;
@@ -79,7 +79,7 @@ calWeekPrinter.prototype = {
                     this.setupWeek(document, startOfWeek, dayTable);
                 }
 
-                cal.print.addItemToDaybox(document, item, dayTable[boxDateKey]);
+                cal.print.addItemToDaybox(document, item, boxDate, dayTable[boxDateKey]);
             }
         }
 

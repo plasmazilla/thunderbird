@@ -130,6 +130,7 @@
 #ifdef MOZ_UPDATER
 @RESPATH@/update-settings.ini
 #endif
+@BINPATH@/@DLL_PREFIX@lgpllibs@DLL_SUFFIX@
 @RESPATH@/blocklist.xml
 @RESPATH@/platform.ini
 #ifndef MOZ_NATIVE_SQLITE
@@ -142,6 +143,10 @@
 #ifdef MOZ_UPDATER
 @RESPATH@/icons/*.png
 #endif
+#endif
+#ifdef MOZ_GTK3
+@BINPATH@/@DLL_PREFIX@mozgtk@DLL_SUFFIX@
+@BINPATH@/gtk2/@DLL_PREFIX@mozgtk@DLL_SUFFIX@
 #endif
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -195,6 +200,7 @@
 @RESPATH@/components/nsNewsAutoCompleteSearch.js
 @RESPATH@/components/nsNewsAutoCompleteSearch.manifest
 @RESPATH@/components/services-crypto-component.xpt
+@RESPATH@/components/captivedetect.xpt
 @RESPATH@/components/shellservice.xpt
 @RESPATH@/chrome/toolkit@JAREXT@
 @RESPATH@/chrome/toolkit.manifest
@@ -276,10 +282,12 @@
 @RESPATH@/components/facebook.manifest
 @RESPATH@/components/gtalk.js
 @RESPATH@/components/gtalk.manifest
-@RESPATH@/components/twitter.js
-@RESPATH@/components/twitter.manifest
 @RESPATH@/components/irc.js
 @RESPATH@/components/irc.manifest
+@RESPATH@/components/skype.js
+@RESPATH@/components/skype.manifest
+@RESPATH@/components/twitter.js
+@RESPATH@/components/twitter.manifest
 @RESPATH@/components/xmpp.js
 @RESPATH@/components/xmpp.manifest
 @RESPATH@/components/yahoo.js
@@ -430,7 +438,7 @@
 @RESPATH@/components/exthelper.xpt
 @RESPATH@/components/fastfind.xpt
 @RESPATH@/components/feeds.xpt
-#ifdef MOZ_GTK2
+#ifdef MOZ_GTK
 @RESPATH@/components/filepicker.xpt
 #endif
 @RESPATH@/components/find.xpt
@@ -563,7 +571,7 @@
 @RESPATH@/components/crypto-SDR.js
 @RESPATH@/components/jsconsole-clhandler.manifest
 @RESPATH@/components/jsconsole-clhandler.js
-#ifdef MOZ_GTK2
+#ifdef MOZ_GTK
 @RESPATH@/components/nsFilePicker.manifest
 @RESPATH@/components/nsFilePicker.js
 #endif
@@ -647,6 +655,8 @@
 @RESPATH@/components/DataReporting.manifest
 @RESPATH@/components/DataReportingService.js
 #endif
+@RESPATH@/components/CaptivePortalDetectComponents.manifest
+@RESPATH@/components/captivedetect.js
 @RESPATH@/components/servicesComponents.manifest
 @RESPATH@/components/cryptoComponents.manifest
 @RESPATH@/components/TelemetryStartup.js

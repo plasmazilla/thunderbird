@@ -587,7 +587,8 @@ function createExternalDropIframe() {
   iframe.style.position = "absolute";
   iframe.style.zIndex = 50;
 
-  let margin = doc.getElementById("newtab-margin-top");
+  // the frame has to be attached to a visible element
+  let margin = doc.getElementById("newtab-search-container");
   margin.appendChild(iframe);
 
   iframe.addEventListener("load", function onLoad() {
@@ -722,14 +723,23 @@ function whenPagesUpdated(aCallback = TestRunner.next) {
  */
 function whenSearchInitDone() {
   let deferred = Promise.defer();
-  if (getContentWindow().gSearch._initialStateReceived) {
+  let searchController = getContentWindow().gSearch._contentSearchController;
+  if (searchController.defaultEngine) {
     return Promise.resolve();
   }
   let eventName = "ContentSearchService";
   getContentWindow().addEventListener(eventName, function onEvent(event) {
     if (event.detail.type == "State") {
       getContentWindow().removeEventListener(eventName, onEvent);
-      deferred.resolve();
+      // Wait for the search controller to receive the event, then resolve.
+      let resolver = function() {
+        if (searchController.defaultEngine) {
+          deferred.resolve();
+          return;
+        }
+        executeSoon(resolver);
+      }
+      executeSoon(resolver);
     }
   });
   return deferred.promise;
@@ -774,4 +784,12 @@ function customizeNewTabPage(aTheme) {
   });
 
   promise.then(TestRunner.next);
+}
+
+/**
+ * Reports presence of a scrollbar
+ */
+function hasScrollbar() {
+  let docElement = getContentDocument().documentElement;
+  return docElement.scrollHeight > docElement.clientHeight;
 }
