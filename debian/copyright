@@ -300,7 +300,7 @@ Copyright: 2011, Patrick Brunschwig <patrick@enigmail.net>
            2011, Jan Gerber <j@mailb.org>
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: mozilla/browser/components/loop/test/shared/vendor/sinon-1.13.0.js
+Files: mozilla/browser/components/loop/test/shared/vendor/sinon-1.15.0.js
 Copyright: 2010-2014, Christian Johansen, <christian@cjohansen.no>
 License: BSD-2
 
@@ -341,10 +341,6 @@ Files: mozilla/build/mobile/sutagent/android/Power.java
        mozilla/build/mobile/sutagent/android/WifiConfiguration.java
 Copyright: 2005-2013, The Android Open Source Project
 License: Apache-2.0
-
-Files: mozilla/build/unix/build-clang/tooltool.py
-Copyright: 2011, John H. Ford <john@johnford.info>
-License: MPL-2.0
 
 Files: mozilla/config/tests/unit-mozunit.py
        mozilla/config/tests/unitMozZipFile.py
@@ -481,12 +477,6 @@ Copyright: 2014, The Linux Foundation.
            2007-2009, The Android Open Source Project
 License: Apache-2.0
 
-Files: mozilla/dom/media/omx/mediaresourcemanager/IMediaResourceManagerDeathNotifier.cpp
-       mozilla/dom/media/omx/mediaresourcemanager/IMediaResourceManagerDeathNotifier.h
-Copyright: 2012-2014, Mozilla Foundation
-           2007, 2009, 2010, 2012, The Android Open Source Project
-License: Apache-2.0
-
 Files: mozilla/dom/media/test/graph_latency.py
        mozilla/dom/media/test/make-headers.sh
 Copyright: no-info-found
@@ -509,11 +499,6 @@ Copyright: 2012, Intel Inc.
 License: BSD-3-clause
 
 Files: mozilla/dom/media/webaudio/blink/IRC_Composite_C_R0195-incl.cpp
-Copyright: no-info-found
-License: MPL-2.0
-
-Files: mozilla/dom/media/webaudio/test/browser_mozAudioChannel.js
-       mozilla/dom/media/webaudio/test/browser_mozAudioChannel_muted.js
 Copyright: no-info-found
 License: MPL-2.0
 
@@ -600,7 +585,6 @@ Files: mozilla/dom/system/gonk/AudioManager.cpp
        mozilla/dom/system/gonk/GonkGPSGeolocationProvider.cpp
        mozilla/dom/system/gonk/GonkGPSGeolocationProvider.h
        mozilla/dom/system/gonk/NetworkUtils.cpp
-       mozilla/dom/system/gonk/RILContentHelper.js
        mozilla/dom/system/gonk/RadioInterfaceLayer.js
        mozilla/dom/system/gonk/SystemWorkerManager.cpp
        mozilla/dom/system/gonk/SystemWorkerManager.h
@@ -1355,14 +1339,6 @@ License: Expat
 Files: mozilla/gfx/qcms/qcms.h
 Copyright: 1994-1996, SunSoft, Inc.
 License: Expat
-
-Files: mozilla/gfx/skia/trunk/src/images/SkImageDecoder_libwebp.cpp
-Copyright: 2005-2013, The Android Open Source Project
-License: Apache-2.0
-
-Files: mozilla/gfx/skia/trunk/src/views/unix/keysym2ucs.c
-Copyright: no-info-found
-License: public-domain
 
 Files: mozilla/gfx/thebes/gfxScriptItemizer.cpp
        mozilla/gfx/thebes/gfxScriptItemizer.h
@@ -3334,10 +3310,6 @@ Files: mozilla/testing/mozbase/mozdevice/mozdevice/Zeroconf.py
 Copyright: 2003, Paul Scott-Murphy
 License: LGPL-2.1+
 
-Files: mozilla/testing/mozbase/mozlog/mozlog/structured/formatters/html/xmlgen.py
-Copyright: no-info-found
-License: Expat
-
 Files: mozilla/testing/tools/screenshot/*
 Copyright: 2009, The Mozilla Foundation
 License: BSD-3-clause
@@ -3561,42 +3533,6 @@ Files: mozilla/toolkit/mozapps/update/updater/bspatch.cpp
        mozilla/toolkit/mozapps/update/updater/bspatch.h
 Copyright: 2003-2005, 2007, 2009, Colin Percival
 License: BSD-2
-
-Files: mozilla/tools/profiler/IntelPowerGadget.cpp
-       mozilla/tools/profiler/IntelPowerGadget.h
-Copyright: 2013, Intel Corporation
-License: Apache-2.0
-
-Files: mozilla/tools/profiler/LulCommon.cpp
-       mozilla/tools/profiler/LulElf.cpp
-       mozilla/tools/profiler/LulElfExt.h
-       mozilla/tools/profiler/LulElfInt.h
-Copyright: 1999-2013, Google Inc.
-License: BSD-3-clause
-
-Files: mozilla/tools/profiler/LulCommonExt.h
-Copyright: 1998-1999, Greg Colvin and Beman Dawes
-           2006, 2010, 2012-2013 Google Inc.
-           2001-2002 Peter Dimov
-License: BSD-3-clause
-
-Files: mozilla/tools/profiler/LulDwarf.cpp
-       mozilla/tools/profiler/LulDwarfExt.h
-       mozilla/tools/profiler/LulDwarfInt.h
-Copyright: 2005-2006, 2008-2013, Google Inc.
-License: BSD-3-clause
-
-Files: mozilla/tools/profiler/LulExidx.cpp
-       mozilla/tools/profiler/LulExidxExt.h
-Copyright: 2011, Linaro Limited
-           2010-2011, Google Inc.
-License: BSD-3-clause or Expat
-
-Files: mozilla/tools/profiler/platform-linux.cc
-       mozilla/tools/profiler/platform-win32.cc
-       mozilla/tools/profiler/platform.h
-Copyright: 2006-2013, The Chromium Authors
-License: BSD-3-clause
 
 Files: mozilla/tools/update-packaging/test/common.sh
        mozilla/tools/update-packaging/test/make_full_update.sh
