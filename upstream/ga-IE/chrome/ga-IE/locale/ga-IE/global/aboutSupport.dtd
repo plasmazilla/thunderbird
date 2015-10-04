@@ -99,3 +99,6 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Bain triail as an Mód Slán">
 <!ENTITY aboutSupport.restartInSafeMode.label "Atosaigh gan aon bhreiseáin…">
+
+
+<!ENTITY aboutSupport.appBasicsSafeMode "Safe Mode">

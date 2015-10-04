@@ -13,3 +13,5 @@
 <!ENTITY newMessagesCountDock.accesskey "h">
 <!ENTITY showAllUnreadMessagesCount.label "nieprzeczytanych wiadomości">
 <!ENTITY showAllUnreadMessagesCount.accesskey "n">
+
+<!ENTITY directNotificationSettings.label      "You can disable the badge on the Notification pane of System Preferences.">

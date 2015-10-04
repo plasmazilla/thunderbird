@@ -13,3 +13,5 @@
 <!ENTITY showAllUnreadMessagesCount.accesskey  "u">
 <!ENTITY dockIconBadge.label                   "Badge da l'icona">
 <!ENTITY dockIconShow.label                    "Ladezza dal badge da l'icona:">
+
+<!ENTITY directNotificationSettings.label      "You can disable the badge on the Notification pane of System Preferences.">

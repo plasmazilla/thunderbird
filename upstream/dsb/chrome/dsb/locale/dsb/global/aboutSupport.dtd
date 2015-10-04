@@ -101,3 +101,6 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Wěsty modus wopytaś">
 <!ENTITY aboutSupport.restartInSafeMode.label "Ze znjemóžnjonymi dodankami znowego startowaś…">
+
+
+<!ENTITY aboutSupport.appBasicsSafeMode "Safe Mode">

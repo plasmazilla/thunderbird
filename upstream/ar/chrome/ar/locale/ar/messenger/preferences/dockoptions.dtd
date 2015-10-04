@@ -13,3 +13,5 @@
 <!ENTITY showAllUnreadMessagesCount.accesskey  "د">
 <!ENTITY dockIconBadge.label                   "ملصق أيقونة التطبيق">
 <!ENTITY dockIconShow.label                    "ضع على أيقونة التطبيق:">
+
+<!ENTITY directNotificationSettings.label      "You can disable the badge on the Notification pane of System Preferences.">
