@@ -97,3 +97,6 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Tryb awaryjny">
 <!ENTITY aboutSupport.restartInSafeMode.label "Uruchom ponownie z wyłączonymi dodatkami…">
+
+
+<!ENTITY aboutSupport.appBasicsSafeMode "Safe Mode">

@@ -3,7 +3,7 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY onlineContactsHeader.label    "Prieteni conectați">
-<!ENTITY offlineContactsHeader.label   "Prieteni deconectați">
+<!ENTITY offlineContactsHeader.label   "Prieteni offline">
 <!ENTITY conversationsHeader.label     "Conversații">
 <!ENTITY searchResultConversation.label "Rezultat căutare">
 <!ENTITY chat.noConv.title             "Conversația va fi afișată aici.">
@@ -12,7 +12,7 @@
 <!ENTITY chat.noAccount.title             "Încă nu ați configurat un cont de chat.">
 <!ENTITY chat.noAccount.description       "Permiteți &brandShortName; să vă ghideze prin procesul de configurare al contului de chat.">
 <!ENTITY chat.accountWizard.button       "Începe">
-<!ENTITY chat.noConnectedAccount.title             "Conturile dumneavoastră de chat nu sunt conectate.">
+<!ENTITY chat.noConnectedAccount.title             "Conturile de chat nu vă sunt conectate.">
 <!ENTITY chat.noConnectedAccount.description       "You can connect them from the 'Chat status' dialog:">
 <!ENTITY chat.showAccountManager.button       "Arată statusul chatului">
 
@@ -38,7 +38,7 @@
 
 <!ENTITY status.available          "Disponibil">
 <!ENTITY status.unavailable        "Indisponibil">
-<!ENTITY status.offline            "Deconectat">
+<!ENTITY status.offline            "Offline">
 
-<!ENTITY openLinkCmd.label            "Deschide legătura…">
-<!ENTITY openLinkCmd.accesskey        "D">
+<!ENTITY openLinkCmd.label            "Deschide linkul…">
+<!ENTITY openLinkCmd.accesskey        "i">

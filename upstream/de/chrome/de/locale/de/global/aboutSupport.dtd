@@ -103,3 +103,6 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Abgesicherten Modus probieren">
 <!ENTITY aboutSupport.restartInSafeMode.label "Mit deaktivierten Add-ons neu starten…">
+
+
+<!ENTITY aboutSupport.appBasicsSafeMode "Safe Mode">

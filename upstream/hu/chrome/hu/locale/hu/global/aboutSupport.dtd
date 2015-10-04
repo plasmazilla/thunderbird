@@ -101,3 +101,6 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Biztonságos mód kipróbálása">
 <!ENTITY aboutSupport.restartInSafeMode.label "Újraindítás letiltott kiegészítőkkel…">
+
+
+<!ENTITY aboutSupport.appBasicsSafeMode "Safe Mode">

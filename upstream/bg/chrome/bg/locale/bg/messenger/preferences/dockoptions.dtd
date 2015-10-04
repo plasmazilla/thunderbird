@@ -13,3 +13,5 @@
 <!ENTITY showAllUnreadMessagesCount.accesskey  "Б">
 <!ENTITY dockIconBadge.label                   "Бадж на иконката">
 <!ENTITY dockIconShow.label                    "Бадж на иконката с:">
+
+<!ENTITY directNotificationSettings.label      "You can disable the badge on the Notification pane of System Preferences.">

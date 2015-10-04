@@ -49,8 +49,8 @@
 <!ENTITY getNewMsgForCmd.accesskey "o">
 <!ENTITY getAllNewMsgCmdPopupMenu.label "Toate conturile">
 <!ENTITY getAllNewMsgCmdPopupMenu.accesskey "a">
-<!ENTITY getNewMsgCurrentAccountCmdPopupMenu.label "Contul curent">
-<!ENTITY getNewMsgCurrentAccountCmdPopupMenu.accesskey "C">
+<!ENTITY getNewMsgCurrentAccountCmdPopupMenu.label "Contul actual">
+<!ENTITY getNewMsgCurrentAccountCmdPopupMenu.accesskey "c">
 <!ENTITY getNextNMsgCmd.label "Adu următoarele 500 de discuții">
 <!ENTITY getNextNMsgCmd.accesskey "t">
 <!ENTITY sendUnsentCmd.label "Trimite mesajele neexpediate">
@@ -174,8 +174,8 @@
 <!ENTITY sortByReceivedCmd.accesskey "P">
 <!ENTITY sortByStarCmd.label "Steluță">
 <!ENTITY sortByStarCmd.accesskey "S">
-<!ENTITY sortByAttachmentsCmd.label "Anexe">
-<!ENTITY sortByAttachmentsCmd.accesskey "A">
+<!ENTITY sortByAttachmentsCmd.label "Atașamente">
+<!ENTITY sortByAttachmentsCmd.accesskey "m">
 <!ENTITY sortByPriorityCmd.label "Prioritate">
 <!ENTITY sortByPriorityCmd.accesskey "P">
 <!ENTITY sortBySizeCmd.label "Mărime">
@@ -255,8 +255,8 @@
 <!ENTITY viewFeedSummaryFeedPropsPref.label "Format implicit">
 <!ENTITY viewFeedSummaryFeedPropsPref.accesskey "F">
 
-<!ENTITY viewAttachmentsInlineCmd.label "Afișează anexele în interiorul mesajului">
-<!ENTITY viewAttachmentsInlineCmd.accesskey "A">
+<!ENTITY viewAttachmentsInlineCmd.label "Afișează atașamentele în interiorul mesajului">
+<!ENTITY viewAttachmentsInlineCmd.accesskey "a">
 
 <!ENTITY pageSourceCmd.label "Sursă mesaj">
 <!ENTITY pageSourceCmd.accesskey "u">
@@ -356,7 +356,7 @@
 <!ENTITY forwardAsMenu.accesskey "c">
 <!ENTITY forwardAsInline.label "Mesaj inclus">
 <!ENTITY forwardAsInline.accesskey "i">
-<!ENTITY forwardAsAttachmentCmd.label "Anexă">
+<!ENTITY forwardAsAttachmentCmd.label "Atașament">
 <!ENTITY forwardAsAttachmentCmd.accesskey "A">
 <!ENTITY editAsNewMsgCmd.label "Editare ca mesaj nou">
 <!ENTITY editAsNewMsgCmd.accesskey "E">
@@ -458,7 +458,7 @@
 <!ENTITY imAccountsStatus.accesskey "S">
 <!ENTITY imStatus.available          "Disponibil">
 <!ENTITY imStatus.unavailable        "Indisponibil">
-<!ENTITY imStatus.offline            "Deconectat">
+<!ENTITY imStatus.offline            "Offline">
 <!ENTITY imStatus.showAccounts       "Afișează conturile…">
 <!ENTITY joinChatCmd.label "Conectează-te la chat…">
 <!ENTITY joinChatCmd.accesskey "C">
@@ -553,7 +553,7 @@
 <!ENTITY undeleteButton.tooltip "Recuperează mesajul selectat">
 <!ENTITY markButton.tooltip "Marchează mesajele">
 <!ENTITY printButton.tooltip "Tipărește acest mesaj">
-<!ENTITY stopButton.tooltip "Oprește transferul curent">
+<!ENTITY stopButton.tooltip "Oprește transferul actual">
 <!ENTITY junkButton.tooltip "Marchează mesajul ca nesolicitat">
 <!ENTITY notJunkButton.tooltip "Marchează mesajele selectate ca nefiind nesolicitate">
 <!ENTITY addressBookButton.tooltip "Mergi la agenda de contacte">
@@ -676,7 +676,7 @@
 <!ENTITY starredColumn.label "Cu steluță">
 <!ENTITY locationColumn.label "Adresă">
 <!ENTITY idColumn.label "Ordinea primirii">
-<!ENTITY attachmentColumn.label "Anexe">
+<!ENTITY attachmentColumn.label "Atașamente">
 <!-- Thread Pane Tooltips -->
 
 <!ENTITY columnChooser2.tooltip "Selectați coloanele de afișat">
@@ -732,10 +732,10 @@
 <!ENTITY contextForwardAsMenu.accesskey "n">
 <!ENTITY contextForwardAsInline.label "Mesaj inclus">
 <!ENTITY contextForwardAsInline.accesskey "i">
-<!ENTITY contextForwardAsAttachmentItem.label "Anexă">
+<!ENTITY contextForwardAsAttachmentItem.label "Atașament">
 <!ENTITY contextForwardAsAttachmentItem.accesskey "A">
-<!ENTITY contextMultiForwardAsAttachment.label "Retrimite ca anexă">
-<!ENTITY contextMultiForwardAsAttachment.accesskey "R">
+<!ENTITY contextMultiForwardAsAttachment.label "Redirecționați ca atașamente">
+<!ENTITY contextMultiForwardAsAttachment.accesskey "o">
 <!ENTITY contextMoveMsgMenu.label "Mută în">
 <!ENTITY contextMoveMsgMenu.accesskey "M">
 <!ENTITY contextMoveCopyMsgRecentMenu.label "Recente">
@@ -805,10 +805,10 @@
 <!ENTITY contextPlay.accesskey "R">
 <!ENTITY contextPause.label "Pauză">
 <!ENTITY contextPause.accesskey "P">
-<!ENTITY contextMute.label "Mut">
-<!ENTITY contextMute.accesskey "M">
-<!ENTITY contextUnmute.label "Activează sonorul">
-<!ENTITY contextUnmute.accesskey "A">
+<!ENTITY contextMute.label "Dezactivează sunetul">
+<!ENTITY contextMute.accesskey "n">
+<!ENTITY contextUnmute.label "Activează sunetul">
+<!ENTITY contextUnmute.accesskey "n">
 <!-- Quick Search Bar -->
 <!-- LOCALIZATION NOTE (quickSearchCmd.key):
      This is actually the key used for the global message search box; we have
@@ -856,8 +856,8 @@
 <!ENTITY CopyEmailAddress.accesskey "C">
 <!ENTITY CopyNewsgroupName.label "Copiază numele grupului de discuții">
 <!ENTITY CopyNewsgroupName.accesskey "C">
-<!ENTITY CopyNewsgroupURL.label "Copiază adresa grupului de discuții">
-<!ENTITY CopyNewsgroupURL.accesskey "u">
+<!ENTITY CopyNewsgroupURL.label "Copiază URL-ul grupului de discuții">
+<!ENTITY CopyNewsgroupURL.accesskey "U">
 <!ENTITY CreateFilterFrom.label "Creează filtru din…">
 <!ENTITY CreateFilterFrom.accesskey "f">
 <!ENTITY reportPhishingURL.label "Raportează înșelătorie prin e-mail">
@@ -868,12 +868,12 @@
 <!ENTITY spellAddDictionaries.accesskey "A">
 <!-- Content Pane Context Menu -->
 
-<!ENTITY saveLinkAsCmd.label "Salvează legătura ca…">
-<!ENTITY saveLinkAsCmd.accesskey "S">
+<!ENTITY saveLinkAsCmd.label "Salvează linkul ca…">
+<!ENTITY saveLinkAsCmd.accesskey "k">
 <!ENTITY saveImageAsCmd.label "Salvează imaginea ca…">
 <!ENTITY saveImageAsCmd.accesskey "v">
-<!ENTITY copyLinkCmd.label "Copiază adresa legăturii">
-<!ENTITY copyLinkCmd.accesskey "C">
+<!ENTITY copyLinkCmd.label "Copiază adresa linkului">
+<!ENTITY copyLinkCmd.accesskey "l">
 <!ENTITY copyImageAllCmd.label "Copiază imaginea">
 <!ENTITY copyImageAllCmd.accesskey "i">
 <!ENTITY copyEmailCmd.label "Copiază adresa de e-mail">
@@ -884,7 +884,7 @@
 <!ENTITY reloadCmd.accesskey "R">
 <!ENTITY openInBrowser.label "Deschide în navigator">
 <!ENTITY openInBrowser.accesskey "o">
-<!ENTITY openLinkInBrowser.label "Deschide legătura în navigator">
+<!ENTITY openLinkInBrowser.label "Deschide linkul în browser">
 <!ENTITY openLinkInBrowser.accesskey "o">
 <!-- Statusbar -->
 

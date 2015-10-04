@@ -13,3 +13,5 @@
 <!ENTITY showAllUnreadMessagesCount.accesskey  "u">
 <!ENTITY dockIconBadge.label                   "Zähler am Dock-Symbol">
 <!ENTITY dockIconShow.label                    "Inhalt des Zählers am Dock-Symbol:">
+
+<!ENTITY directNotificationSettings.label      "You can disable the badge on the Notification pane of System Preferences.">

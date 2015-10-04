@@ -101,3 +101,6 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Klask ar mod diarvar">
 <!ENTITY aboutSupport.restartInSafeMode.label "Adloc'hañ gant an askouezhioù diweredekaet…">
+
+
+<!ENTITY aboutSupport.appBasicsSafeMode "Safe Mode">

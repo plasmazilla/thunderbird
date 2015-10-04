@@ -13,3 +13,5 @@
 <!ENTITY showAllUnreadMessagesCount.accesskey  "o">
 <!ENTITY dockIconBadge.label                   "Aplikazio-ikonoaren bereizgarria">
 <!ENTITY dockIconShow.label                    "Bereizi aplikazio-ikonoa honekin:">
+
+<!ENTITY directNotificationSettings.label      "You can disable the badge on the Notification pane of System Preferences.">

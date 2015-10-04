@@ -20,7 +20,16 @@
 <!ENTITY spellCheckEnable.label "අක්‍ෂර වින්‍යාසය පරීක්‍ෂා කරන්න">
 <!ENTITY spellCheckEnable.accesskey "S">
 
+<!ENTITY fillLoginMenu.accesskey      "F">
+
+<!ENTITY fillLoginMenu.label          "Fill Login">
+<!ENTITY fillPasswordMenu.accesskey   "F">
+<!ENTITY fillPasswordMenu.label       "Fill Password">
+<!ENTITY fillUsernameMenu.accesskey   "F">
+<!ENTITY fillUsernameMenu.label       "Fill Username">
+<!ENTITY noLoginSuggestions.label     "(No Login Suggestions)">
 
 <!ENTITY searchTextBox.clear.label "Clear">
 <!ENTITY spellCheckToggle.accesskey "g">
 <!ENTITY spellCheckToggle.label "Check Spelling">
+<!ENTITY viewSavedLogins.label        "View Saved Logins">

@@ -53,6 +53,8 @@ This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDi
 Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsProfileDirWinMac "Profile Folder">
 
+<!ENTITY aboutSupport.appBasicsSafeMode "Safe Mode">
+
 <!-- LOCALIZATION NOTE the term "Service Workers" should not be translated. -->
 <!ENTITY aboutSupport.appBasicsServiceWorkers "Registered Service Workers">
 <!ENTITY aboutSupport.appBasicsShowUpdateHistory "Show Update History">

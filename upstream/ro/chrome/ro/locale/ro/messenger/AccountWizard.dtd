@@ -11,8 +11,8 @@
 
 <!ENTITY accountSetupInfo2.label "Pentru a putea primi mesaje, trebuie să adăugați un cont.">
 <!ENTITY accountTypeTitle.label "Creare cont nou">
-<!ENTITY accountTypeDesc2.label "Această fereastră va colecta informațiile necesare setării unui cont. Dacă nu cunoști informațiile necesare, contactează administratorul de sistem sau furnizorul de Internet.">
-<!ENTITY accountTypeDirections.label "Alegeți tipul de cont pe care doriți să-l creați:">
+<!ENTITY accountTypeDesc2.label "Această fereastră va colecta informațiile necesare setării unui cont. Dacă nu cunoști informațiile necesare, te rugăm să contactezi administratorul de sistem sau furnizorul de Internet.">
+<!ENTITY accountTypeDirections.label "Selectați tipul de cont pe care doriți să-l creați:">
 <!ENTITY accountTypeMail.label "Cont de email">
 <!ENTITY accountTypeMail.accesskey "m">
 <!ENTITY accountTypeNews.label "Cont pentru grupuri de discuții">
@@ -39,7 +39,7 @@
 
 
 <!ENTITY incomingTitle.label "Informații server de intrare">
-<!ENTITY incomingServerTypeDesc.label "Alegeți tipul serverului de primire pe care îl folosiți.">
+<!ENTITY incomingServerTypeDesc.label "Selectați tipul serverului de primire pe care îl folosiți.">
 <!-- LOCALIZATION NOTE (imapType.label) : Do not translate "IMAP" in below line -->
 <!ENTITY imapType.label "IMAP">
 <!ENTITY imapType.accesskey "I">
@@ -58,8 +58,8 @@
 <!ENTITY incomingServer.accesskey "S">
 <!-- LOCALIZATION NOTE (incomingUsername.description) : do not translate "&quot;jsmith&quot;" in below line -->
 <!ENTITY incomingUsername.description "Introduceți numele de utilizator pentru primire oferit de furnizorul de servicii de e-mail (de exemplu, „ipopescu”).">
-<!ENTITY incomingUsername.label "Nume utilizator:">
-<!ENTITY incomingUsername.accesskey "N">
+<!ENTITY incomingUsername.label "Nume de utilizator:">
+<!ENTITY incomingUsername.accesskey "u">
 <!-- LOCALIZATION NOTE (newsServerNameDesc.label) : Do not translate "NNTP" or the "&quot;" entities in below line -->
 <!ENTITY newsServerNameDesc.label "Introduceți numele serverului de știri (NNTP) (de exemplu, „news.example.net”).">
 <!ENTITY newsServerLabel.label "Server grup de discuții/știri:">
@@ -73,8 +73,8 @@
 <!ENTITY outgoingServer.label "Server de trimitere:">
 <!ENTITY outgoingServer.accesskey "t">
 <!ENTITY outgoingUsername.description "Introduceți numele de utilizator pentru trimitere, dat de furnizorul dumneavoastră de e-mail (de obicei este același cu numele de utilizator pentru primire).">
-<!ENTITY outgoingUsername.label "Nume utilizator pentru trimitere:">
-<!ENTITY outgoingUsername.accesskey "N">
+<!ENTITY outgoingUsername.label "Nume de utilizator pentru trimitere:">
+<!ENTITY outgoingUsername.accesskey "u">
 <!-- LOCALIZATION NOTE (modifyOutgoing.suffix) : This string will be appended after each of
      haveSmtp1.suffix3, haveSmtp2.suffix3, haveSmtp3.suffix3 .
 -->
@@ -103,14 +103,14 @@
 
 <!ENTITY accnameTitle.label "Nume cont">
 <!-- LOCALIZATION NOTE (accnameDesc.label) : do not translate any "&quot;" in below line -->
-<!ENTITY accnameDesc.label "Introduceți un nume pe care doriți să-l acordați acestui cont (de exemplu, „Cont Serviciu”, „Cont Acasă” sau „Cont Știri”).">
+<!ENTITY accnameDesc.label "Introduceți un nume pe care doriți să-l acordați acestui cont (de exemplu, „Cont de la serviciu”, „Cont de acasă” sau „Cont pentru știri”).">
 <!ENTITY accnameLabel.label "Nume cont:">
 <!ENTITY accnameLabel.accesskey "c">
 <!-- Entities for Done (Congratulations) page -->
 
 
 <!ENTITY completionTitle.label "Felicitări!">
-<!ENTITY completionText.label "Vă rugăm verificați ca datele de mai jos să fie corecte.">
+<!ENTITY completionText.label "Vă rugăm să verificați ca datele de mai jos să fie corecte.">
 <!ENTITY serverTypePrefix.label "Tip server de primire:">
 <!ENTITY serverNamePrefix.label "Nume server de primire:">
 <!ENTITY smtpServerNamePrefix.label "Nume server de trimitere (SMTP):">
@@ -121,4 +121,4 @@
 <!ENTITY deferStorage.label "Folosește căsuța poștală globală (stochează mesajele în dosarele locale)">
 <!ENTITY deferStorage.accesskey "F">
 <!ENTITY clickFinish.label "Apăsați Încheiere pentru a salva setările și a părăsi asistentul de creat conturi.">
-<!ENTITY clickFinish.labelMac "Clic pe „Încheiere” pentru a salva acești parametri și a părăsi asistentul de creat conturi.">
+<!ENTITY clickFinish.labelMac "Clic pe „Gata” pentru a salva aceste setări și a părăsi asistentul de creat conturi.">
