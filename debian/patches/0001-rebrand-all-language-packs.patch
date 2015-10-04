@@ -1147,7 +1147,7 @@ index 597f5a5..8fea34e 100755
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/ro/chrome/ro/locale/ro/branding/brand.dtd b/upstream/ro/chrome/ro/locale/ro/branding/brand.dtd
-index 8ec7857..3b4c351 100644
+index 80d940f..2aa1f74 100644
 --- a/upstream/ro/chrome/ro/locale/ro/branding/brand.dtd
 +++ b/upstream/ro/chrome/ro/locale/ro/branding/brand.dtd
 @@ -1,8 +1,23 @@
@@ -1174,8 +1174,8 @@ index 8ec7857..3b4c351 100644
 +#
 +-->
  <!ENTITY  vendorShortName       "Mozilla">
- <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird și siglele Thunderbird 
- sunt mărci înregistrate ale fundației Mozilla.">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird și logourile Thunderbird 
+ sunt mărci înregistrate ale Mozilla Foundation.">
 diff --git a/upstream/ro/chrome/ro/locale/ro/branding/brand.properties b/upstream/ro/chrome/ro/locale/ro/branding/brand.properties
 index 851f28c..0831253 100644
 --- a/upstream/ro/chrome/ro/locale/ro/branding/brand.properties
