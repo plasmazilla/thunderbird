@@ -1,3 +1,11 @@
+icedove (38.3.0-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [0f8b6a4] Imported Upstream version 38.3.0
+  * [566273a] debian/copyright: fixup's and update
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 10 Oct 2015 13:21:05 -0400
+
 icedove (38.2.0-2) unstable; urgency=medium
 
   * [8bcb08b] relax optimize to -O1 on s390x (Closes: #797551)
