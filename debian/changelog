@@ -1,3 +1,14 @@
+icedove (42.0~b1-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [c599b6b] Imported Upstream version 42.0~b1
+  * [41285cb] debian/copyright: fixup's and update
+  * [6b270be] debian/control: increase various build depends
+  * [be75969] adopting needed changes for GTK3 into the Debian branding
+  * [245161e] fixup branding about.png file
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 10 Oct 2015 21:26:24 -0400
+
 icedove (41.0~b2-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
