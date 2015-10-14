@@ -2370,7 +2370,6 @@ function BrowserViewSourceOfDocument(aArgsOrDocument) {
   let viewInternal = () => {
     let inTab = Services.prefs.getBoolPref("view_source.tab");
     if (inTab) {
-      let viewSourceURL = `view-source:${args.URL}`;
       let tabBrowser = gBrowser;
       // In the case of sidebars and chat windows, gBrowser is defined but null,
       // because no #content element exists.  For these cases, we need to find
@@ -2381,7 +2380,12 @@ function BrowserViewSourceOfDocument(aArgsOrDocument) {
         let browserWindow = RecentWindow.getMostRecentBrowserWindow();
         tabBrowser = browserWindow.gBrowser;
       }
-      let tab = tabBrowser.loadOneTab(viewSourceURL, {
+      // `viewSourceInBrowser` will load the source content from the page
+      // descriptor for the tab (when possible) or fallback to the network if
+      // that fails.  Either way, the view source module will manage the tab's
+      // location, so use "about:blank" here to avoid unnecessary redundant
+      // requests.
+      let tab = tabBrowser.loadOneTab("about:blank", {
         relatedToCurrent: true,
         inBackground: false
       });
@@ -7291,12 +7295,19 @@ var gIdentityHandler = {
     label.setAttribute("flex", "1");
     label.setAttribute("class", "identity-popup-permission-label");
     label.setAttribute("control", menulist.getAttribute("id"));
-    label.setAttribute("value", SitePermissions.getPermissionLabel(aPermission));
+    label.textContent = SitePermissions.getPermissionLabel(aPermission);
 
     let container = document.createElement("hbox");
     container.setAttribute("align", "center");
     container.appendChild(label);
     container.appendChild(menulist);
+
+    // The menuitem text can be long and we don't want the dropdown
+    // to expand to the width of unselected labels.
+    // Need to set this attribute after it's appended, otherwise it gets
+    // overridden with sizetopopup="pref".
+    menulist.setAttribute("sizetopopup", "none");
+
     return container;
   }
 };

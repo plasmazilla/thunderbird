@@ -160,9 +160,9 @@ var interfaceNamesInGlobalScope =
 // IMPORTANT: Do not change this list without review from a DOM peer!
     "MessagePort",
 // IMPORTANT: Do not change this list without review from a DOM peer!
-    "Notification",
+    { name: "Notification", release: false },
 // IMPORTANT: Do not change this list without review from a DOM peer!
-    "NotificationEvent",
+    { name: "NotificationEvent", release: false },
 // IMPORTANT: Do not change this list without review from a DOM peer!
     "Performance",
 // IMPORTANT: Do not change this list without review from a DOM peer!
@@ -174,13 +174,13 @@ var interfaceNamesInGlobalScope =
 // IMPORTANT: Do not change this list without review from a DOM peer!
     "Promise",
 // IMPORTANT: Do not change this list without review from a DOM peer!
-    { name: "PushEvent", b2g: false, android: false},
+    { name: "PushEvent", b2g: false, android: false, release: false},
 // IMPORTANT: Do not change this list without review from a DOM peer!
-    { name: "PushManager", b2g: false, android: false},
+    { name: "PushManager", b2g: false, android: false, release: false},
 // IMPORTANT: Do not change this list without review from a DOM peer!
-    { name: "PushMessageData", b2g: false, android: false},
+    { name: "PushMessageData", b2g: false, android: false, release: false},
 // IMPORTANT: Do not change this list without review from a DOM peer!
-    { name: "PushSubscription", b2g: false, android: false},
+    { name: "PushSubscription", b2g: false, android: false, release: false},
 // IMPORTANT: Do not change this list without review from a DOM peer!
     "Request",
 // IMPORTANT: Do not change this list without review from a DOM peer!

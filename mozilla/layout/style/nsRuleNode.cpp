@@ -2177,6 +2177,12 @@ nsRuleNode::ResolveVariableReferences(const nsStyleStructID aSID,
       &aContext->StyleVariables()->mVariables;
     nsCSSValueTokenStream* tokenStream = value->GetTokenStreamValue();
 
+    MOZ_ASSERT(tokenStream->mLevel != nsStyleSet::eSheetTypeCount,
+               "Token stream should have a defined level");
+
+    AutoRestore<uint16_t> saveLevel(aRuleData->mLevel);
+    aRuleData->mLevel = tokenStream->mLevel;
+
     // Note that ParsePropertyWithVariableReferences relies on the fact
     // that the nsCSSValue in aRuleData for the property we are re-parsing
     // is still the token stream value.  When
@@ -7998,7 +8004,7 @@ nsRuleNode::ComputeTableBorderData(void* aStartStruct,
               table->mCaptionSide, conditions,
               SETDSC_ENUMERATED | SETDSC_UNSET_INHERIT,
               parentTable->mCaptionSide,
-              NS_STYLE_CAPTION_SIDE_BSTART, 0, 0, 0, 0);
+              NS_STYLE_CAPTION_SIDE_TOP, 0, 0, 0, 0);
 
   // empty-cells: enum, inherit, initial
   SetDiscrete(*aRuleData->ValueForEmptyCells(),
