@@ -38,3 +38,4 @@ porting/ppc-fix-divide-page-size-in-jemalloc.patch
 debian-hacks/changing-the-default-search-engine.patch
 reproducible/Generate-sorted-libical-header-list.patch
 porting-mips/Fix-build-error-in-MIPS-SIMD-when-compiling-with-mfp.patch
+fixes/Bug-1178266-Link-against-libatomic-when-necessary.patch
