@@ -1,4 +1,3 @@
-no_tooltool=1
 . "$topsrcdir/build/unix/mozconfig.linux"
 
 ac_add_options --enable-application=suite
@@ -19,3 +18,4 @@ ac_add_options --enable-debug-symbols="-gdwarf-2"
 export MOZILLA_OFFICIAL=1
 
 ac_add_options --disable-stdcxx-compat
+

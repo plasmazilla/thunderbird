@@ -1399,6 +1399,7 @@ CanvasRenderingContext2D::EnsureTarget(RenderingMode aRenderingMode)
           mTarget = Factory::CreateDrawTargetSkiaWithGrContext(glue->GetGrContext(), size, format);
           if (mTarget) {
             AddDemotableContext(this);
+            mBufferProvider = new PersistentBufferProviderBasic(mTarget);
           } else {
             printf_stderr("Failed to create a SkiaGL DrawTarget, falling back to software\n");
             mode = RenderingMode::SoftwareBackendMode;
@@ -1459,7 +1460,6 @@ CanvasRenderingContext2D::EnsureTarget(RenderingMode aRenderingMode)
   return mode;
 }
 
-#ifdef DEBUG
 int32_t
 CanvasRenderingContext2D::GetWidth() const
 {
@@ -1471,7 +1471,6 @@ CanvasRenderingContext2D::GetHeight() const
 {
   return mHeight;
 }
-#endif
 
 NS_IMETHODIMP
 CanvasRenderingContext2D::SetDimensions(int32_t width, int32_t height)
