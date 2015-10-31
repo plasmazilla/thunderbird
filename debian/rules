@@ -68,9 +68,6 @@ override_dh_auto_configure:
 	cp debian/app-icons/icedove48.png  $(BRANDING_DIR_ICEDOVE)/content/icon48.png
 	cp debian/app-icons/icedove64.png  $(BRANDING_DIR_ICEDOVE)/content/icon64.png
 	cp debian/preview.png mail/themes/linux/mail/preview.png
-	# copy needed jquery things (previous cleaned for Debian DFSG)
-	cp /usr/share/javascript/jquery/jquery.min.js mail/jquery/
-	cp /usr/share/javascript/jquery-ui/jquery-ui.min.js mail/jquery/
 	# copy the mozconfig files
 	cp debian/mozconfig.* .
 	cp debian/mozconfig.default mozilla/
