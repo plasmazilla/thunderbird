@@ -2,7 +2,7 @@ Source: icedove
 Section: mail
 Priority: optional
 Maintainer: Christoph Goehre <chris@sigxcpu.org>
-Uploaders: Guido Günther <agx@sigxcpu.org>
+Uploaders: Guido Günther <agx@sigxcpu.org>, Carsten Schoenert <c.schoenert@t-online.de>
 Build-Depends: autoconf2.13,
 	autotools-dev,
 	bzip2,
