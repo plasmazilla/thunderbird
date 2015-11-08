@@ -1,4 +1,0 @@
-?package(icedove):needs="x11" section="Applications/Network/Communication" \
-	title="Icedove Mail" \
-        icon="/usr/share/pixmaps/icedove.xpm" \
-        command="icedove" hints="Mail"
