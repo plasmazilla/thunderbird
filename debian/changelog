@@ -1,3 +1,18 @@
+icedove (42.0~b2-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [8842d85] Imported Upstream version 42.0~b2
+  * [6d14aca] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-1178266-Link-against-libatomic-when-necessary.patch
+  * [320c43d] add myself to the uploaders
+  * [797a290] lintian: remove icedove.menu file due CTTE#741573
+
+  [ Guido Günther ]
+  * [caca7c2] Add unminified jquery and jquery-ui files (Closes: #802281)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 08 Nov 2015 15:30:56 -0500
+
 icedove (42.0~b1-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
