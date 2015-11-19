@@ -1,3 +1,70 @@
+icedove (38.3.0-1~deb8u1) stable-security; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [0f8b6a4] Imported Upstream version 38.3.0
+  * [1c01f2a] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/changing-the-default-search-engine.patch
+    - debian-hacks/fix-identification-of-ObjdirMismatchException.patch
+    - fixes/Bug-1165654-Cleanup-how-libjpeg-turbo-assembly-build.patch
+    - fixes/Bug-1168231-Fixup-to-keep-file-type.patch
+    - fixes/Bug-1168231-Normalize-file-mode-in-jars.patch
+    - porting/Remove-duplicate-SkDiscardableMemory_none.cpp-from-g.patch
+    - reproducible/Bug-1166243-Remove-build-function-from-js-and-xpc-sh.patch
+    - reproducible/Bug-1168316-Remove-build-machine-name-from-about-bui.patch
+    - reproducible/Generate-sorted-libical-header-list
+    - jessie-security/decrease-SQLVERSION-to-jessie-version.patch
+    - porting-mips/Fix-build-error-in-MIPS-SIMD-when-compiling-with-mfp.patch
+    removed patches:
+    - debian-hacks/fixing-various-FTBFS-due-different-datatype-char-beh.patch
+    - fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
+    - iceowl/adjust-calendar-google-provider-to-Google-Calendar-A.patch
+    - iceowl/get-rid-of-subdir-shim-in-gdata-provider.patch
+    - porting-armel/disable-some-libopus-feature-for-ARCH-ARMv6.patch
+    - porting-armhf/FTBFS-armhf-fixing-ARM-CPU-detection.patch
+  * [8de7b23] Revert "debian/rules: move some gdata modules into 'shim'
+    subdir"
+  * [8d744ab] debian/rules: be more flexible on *.xpi files
+  * [fbf3c49] d/icedove.install: mozilla-xremote-client was removed
+  * [b92379b] debian/control: increase package versions
+  * [8f37331] lintian: adding one more source override
+  * [b52a791] lintian: adding new override for the icedove package
+  * [cb23f5e] icedove branding: adopt upstream changes
+  * [33712e9] debian/control: increase b-d versions
+  * [9b536a7] debian/control: adding new package to Breaks field
+  * [ed27ae0] mozconfig.default: adding some explicit configure options
+  * [fabbf70] complete rewrite of copyright information
+  * [a82b740] switching to libgstreamer1.0*
+  * [a872e7b] debian/rules: setting MOZ_BUILD_DATE explicitly
+  * [7f4711f] debian/copyright: more minor updates to the copyright file
+  * [4288e0b] debian/rules: adding switch for no icedove-dbg build
+  * [1e5040f] debian/control: icedove is now recommending iceowl-extension
+  * [f76c02a] adding release related information
+  * [7aae173] debian/vendor.js: adjusting WhatNew link to more dedicated URL
+  * [08ef111] mozconfig.default: don't use icu from system
+  * [d909565] debian/iceowl-extension.lintian-overrides: remove file
+  * [7d730ac] debian/source.lintian-overrides: adding new entries
+  * [8ca9fa4] debian/icedove-dev.links: adding some extra links
+  * [18fd52b] debian/icedove.lintian-overrides: adding more overrides
+  * [9c0a259] debian/mozconfig.default: switch to use internal libs
+  * [5b0a7d6] debian/mozconfig.default: order arch in alphabetical order
+  * [68b5122] debian/rules: remove more dev-libs before linking
+  * [5e8c3d2] debian/copyright: fixup's and update
+  * [1ae0cc6] debian/control: adjust Build-Depends due usage of internal libs
+  * [644e9e4] debian/source.filter: adopt filter list from master
+
+  [ Christoph Goehre ]
+  * [e6dc2df] debian/NEWS: adding notes around new security changes
+  * [b573ec6] add missing epoch in libnss3-dev build depends
+  * [39e5656] lintian: fix spelling error in debian/README.Debian
+  * [ff339ce] Add unminified jquery and jquery-ui files (Closes: #802281)
+
+  [ Dominik George ]
+  * [0515ab0] debian/control: Upgrade Breaks relation to enigmail
+    (Closes: #782686)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 19 Nov 2015 16:35:17 -0500
+
 icedove (31.8.0-1~deb8u1) stable-security; urgency=medium
 
   * [d427fea] Imported Upstream version 31.8.0
