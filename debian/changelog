@@ -1,3 +1,67 @@
+icedove (38.3.0-1~deb7u1) oldstable-security; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [0f8b6a4] Imported Upstream version 38.3.0
+  * [911052d] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/changing-the-default-search-engine.patch
+    - debian-hacks/fix-identification-of-ObjdirMismatchException.patch
+    - fixes/Bug-1165654-Cleanup-how-libjpeg-turbo-assembly-build.patch
+    - fixes/Bug-1168231-Fixup-to-keep-file-type.patch
+    - fixes/Bug-1168231-Normalize-file-mode-in-jars.patch
+    - p-kfree-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
+    - porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
+    - porting/Remove-duplicate-SkDiscardableMemory_none.cpp-from-g.patch
+    - porting/ppc-fix-divide-page-size-in-jemalloc.patch
+    - reproducible/Bug-1166243-Remove-build-function-from-js-and-xpc-sh.patch
+    - reproducible/Bug-1168316-Remove-build-machine-name-from-about-bui.patch
+    - reproducible/generate-sorted-output-while-header-creation.patch
+    - porting-mips/Fix-build-error-in-MIPS-SIMD-when-compiling-with-mfp.patch
+    modified patches:
+    - debian-hacks/remove-non-free-W3C-icon-valid.png.patch
+    - p-kfree-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
+    - wheezy-security/sqlite-dev-revert-version-to-3.7.13.patch
+    deleted patches:
+    - fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
+    - iceowl/adjust-calendar-google-provider-to-Google-Calendar-A.patch
+    - iceowl/get-rid-of-subdir-shim-in-gdata-provider.patch
+    - porting-armel/disable-some-libopus-feature-for-ARCH-ARMv6.patch
+  * [590a0df] Revert "debian/rules: move some gdata modules into 'shim'
+    subdir"
+  * [9b0e68b] lintian: adding one more source override
+  * [f914904] lintian: adding new override for the icedove package
+  * [63bd065] icedove branding: adopt upstream changes
+  * [b2d897c] debian/control: adding new package to Breaks field
+  * [2113754] mozconfig.default: adding some explicit configure options
+  * [b1ae394] complete rewrite of copyright information
+  * [98a5a00] debian/rules: setting MOZ_BUILD_DATE explicitly
+  * [c1e3dae] debian/copyright: more minor updates to the copyright file
+  * [bddd498] debian/rules: adding switch for no icedove-dbg build
+  * [68981d0] debian/control: icedove is now recommending iceowl-extension
+  * [5c9665c] adding release related information
+  * [1e683cd] debian/vendor.js: adjusting WhatNew link to more dedicated URL
+  * [1e449ff] mozconfig.default: don't use icu from system
+  * [18160f3] debian/iceowl-extension.lintian-overrides: remove file
+  * [76d32d8] debian/source.lintian-overrides: adding new entries
+  * [48c6c84] debian/icedove-dev.links: adding some extra links
+  * [fb1f375] debian/icedove.lintian-overrides: adding more overrides
+  * [10d441d] debian/mozconfig.default: order arch in alphabetical order
+  * [b600d0a] debian/copyright: fixup's and update
+  * [e72dc60] debian/source.filter: adopt filter list from master
+  * [96ec240] debian/rules: be more flexible on *.xpi files
+
+  [ Christoph Goehre ]
+  * [f3764f5] debian/NEWS: adding notes around new security changes
+  * [65d5220] debian/rules: fix icedove-dbg build switch
+  * [27d8f5f] lintian: fix spelling error in debian/README.Debian
+  * [64c635a] Add unminified jquery and jquery-ui files (Closes: #802281)
+
+  [ Dominik George ]
+  * [bb837cd] debian/control: Upgrade Breaks relation to enigmail
+    (Closes: #782686)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 24 Nov 2015 21:03:11 -0500
+
 icedove (31.8.0-1~deb7u1) oldstable-security; urgency=medium
 
   * [d427fea] Imported Upstream version 31.8.0
