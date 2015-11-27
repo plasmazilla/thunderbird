@@ -1261,7 +1261,7 @@ _SUBDIR_CONFIG_ARGS="$ac_configure_args"
 MOZJPEG=62
 MOZPNG=10616
 NSPR_VERSION=4
-NSPR_MINVER=4.10.8
+NSPR_MINVER=4.10.10
 NSS_VERSION=3
 
 GLIB_VERSION=2.22
@@ -15259,7 +15259,7 @@ else
   echo "$ac_t""no" 1>&6
 fi
 
-	min_nss_version=3.19.2
+	min_nss_version=3.19.2.1
 	echo $ac_n "checking for NSS - version >= $min_nss_version""... $ac_c" 1>&6
 echo "configure:15265: checking for NSS - version >= $min_nss_version" >&5
 
