@@ -1,3 +1,14 @@
+icedove (38.4.0-1) unstable; urgency=medium
+
+  [ Christoph Goehre ]
+  * [754392e] Imported Upstream version 38.4.0
+  * [ef4b733] debian/watch: adjust download url
+
+  [ Carsten Schoenert ]
+  * [f3f5455] lintian: remove icedove.menu file due CTTE#741573
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 27 Nov 2015 12:54:27 -0500
+
 icedove (38.3.0-2) unstable; urgency=medium
 
   * [c988747] Add unminified jquery and jquery-ui files with the exact
