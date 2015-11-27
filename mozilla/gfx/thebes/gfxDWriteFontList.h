@@ -367,8 +367,6 @@ public:
     virtual gfxFontFamily* FindFamily(const nsAString& aFamily,
                                       bool aUseSystemFonts = false);
 
-    virtual void GetFontFamilyList(nsTArray<nsRefPtr<gfxFontFamily> >& aFamilyArray);
-
     gfxFloat GetForceGDIClassicMaxFontSize() { return mForceGDIClassicMaxFontSize; }
 
     virtual void AddSizeOfExcludingThis(mozilla::MallocSizeOf aMallocSizeOf,
@@ -412,9 +410,6 @@ private:
      * alternative font names.
      */
     FontTable mFontSubstitutes;
-
-    bool mInitialized;
-    virtual nsresult DelayedInitFontList();
 
     virtual already_AddRefed<FontInfoData> CreateFontInfoData();
 
