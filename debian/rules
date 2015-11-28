@@ -41,6 +41,8 @@ LDFLAGS += -Wl,--stats
 export MOZ_BUILD_DATE := $(shell TZ=UTC date -d "$(shell dpkg-parsechangelog | grep '^Date:' | cut -c 7-)" +%Y%m%d%H%M%S)
 export MOZCONFIG=$(shell pwd)/mozconfig.icedove
 export MOZILLA_OFFICIAL=1
+export CC := gcc-4.7
+export CXX := g++-4.7
 
 %:
 	dh $@
