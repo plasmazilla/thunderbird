@@ -1,3 +1,18 @@
+icedove (38.4.0-1~deb7u1) oldstable-security; urgency=medium
+
+  * [754392e] Imported Upstream version 38.4.0
+    - MFSA 2015-116 aka CVE-2015-4513
+    - MFSA 2015-122 aka CVE-2015-7188
+    - MFSA 2015-123 aka CVE-2015-7189
+    - MFSA 2015-127 aka CVE-2015-7193
+    - MFSA 2015-128 aka CVE-2015-7194
+    - MFSA 2015-131 aka CVE-2015-7198, CVE-2015-7199, CVE-2015-7200
+    - MFSA 2015-132 aka CVE-2015-7197
+    - MFSA 2015-133 aka CVE-2015-7181, CVE-2015-7182, CVE-2015-7183
+  * [2a139f9] debian/rules: build with gcc 4.7
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 28 Nov 2015 16:21:31 -0500
+
 icedove (38.3.0-1~deb7u1) oldstable-security; urgency=medium
 
   [ Carsten Schoenert ]
