@@ -85,7 +85,7 @@ override_dh_auto_build:
 override_dh_auto_install:
 	make -f client.mk install DESTDIR=$(CURDIR)/debian/tmp
 
-override_dh_install:
+override_dh_install-arch:
 	dh_install
 	# adjust Icedove version in pkg-config file
 	sed -i 's/@Version@/$(ICEDOVE_VERSION)/' debian/icedove-dev/usr/lib/pkgconfig/icedove.pc
@@ -104,13 +104,6 @@ override_dh_install:
 	# sometimes there are temporary build files in iceowl-extension
 	@echo "    --> searching for temporary build files in 'iceowl-extension' ..."
 	@for i in `find debian/iceowl-extension/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
-	# prepare calendar-google-provider
-	mkdir -p debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/
-	GDATA_PROVIDER=`find -type f -name "gdata-provider*.xpi"` &&\
-		unzip -d debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ $(CURDIR)/$$GDATA_PROVIDER
-	# sometimes there are temporary build files in calendoar-google-provider
-	@echo "    --> searching for temporary build files in 'calendar-google-provider' ..."
-	@for i in `find debian/calendar-google-provider/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
 	# install Icedove menu icon
 	install -d -m 755 debian/icedove/usr/share/pixmaps/
 	install -m 644 debian/icedove.xpm debian/icedove/usr/share/pixmaps/
@@ -134,7 +127,17 @@ override_dh_install:
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libmozalloc.so
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libxul.so
 
-override_dh_fixperms:
+override_dh_install-indep:
+	dh_install
+	# prepare calendar-google-provider
+	mkdir -p debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/
+	GDATA_PROVIDER=`find -type f -name "gdata-provider*.xpi"` &&\
+		unzip -d debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ $(CURDIR)/$$GDATA_PROVIDER
+	# sometimes there are temporary build files in calendoar-google-provider
+	@echo "    --> searching for temporary build files in 'calendar-google-provider' ..."
+	@for i in `find debian/calendar-google-provider/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
+
+override_dh_fixperms-arch:
 	dh_fixperms
 	chmod a-x debian/icedove-dev/usr/share/idl/icedove/*.idl
 	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/xpcshell
