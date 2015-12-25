@@ -1,3 +1,15 @@
+icedove (38.5.0-1) unstable; urgency=medium
+
+  [ Christoph Goehre ]
+  * [6d45b0b] Imported Upstream version 38.5.0
+  * [316798f] debian/rules: split override_dh_install into arch and indep
+    section (Closes: #806047)
+
+  [ Carsten Schoenert ]
+  * [5b3cb7a] add myself to the uploaders
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 24 Dec 2015 22:36:37 -0500
+
 icedove (38.4.0-1) unstable; urgency=medium
 
   [ Christoph Goehre ]
