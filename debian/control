@@ -156,23 +156,28 @@ Package: iceowl-extension
 Architecture: any
 Depends: icedove (>= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
-Recommends: calendar-google-provider
-Suggests: fonts-lyx
+Suggests: fonts-lyx,
+ calendar-google-provider
 Provides: calendar-timezones
 Breaks: calendar-timezones
 Replaces: calendar-timezones
 Description: Calendar Extension for Thunderbird/Icedove
- Iceowl Extension is an unbranded Lightning Calendar extension for Thunderbird/
- Icedove. With Iceowl Extension you can manage your appointments, keep track
- your various calendars, subscribe to public calendars and much more.
+ Iceowl Extension is an unbranded Lightning Calendar extension for
+ Thunderbird/Icedove. It can handle events, event invitations and
+ tasks in multiple calendars.
+ .
+ It supports local calendars, CalDAV and plain ics files on WebDAV.
 
 Package: calendar-google-provider
 Architecture: all
-Depends: ${misc:Depends}
+Depends: iceowl-extension (>= ${binary:Version}),
+ ${misc:Depends},
+Enhances: iceowl-extension,
+ icedove
 Description: Google Calendar support for lightning- and iceowl-extension
- Google Calendar support extension for the Iceowl/Lightning extension. This
- extension adds the Google Calendar web interface as a new tab directly into
- Thunderbird/Icedove. Creating and viewing events works just as it would in
- a browser like Firefox/Iceweasel.
- It's a recommended component if you want to connect to your Google calendar.
+ This extension adds support for accessing google calendars in Icedove
+ via iceowl-extension.
+ .
+ It's a recommended component if you want to connect Icedove to your
+ Google calendar.
 
