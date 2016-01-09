@@ -19,8 +19,6 @@ mozilla/intl/unicharutil/tools/data/cmbcl.dat
 mozilla/intl/unicharutil/tools/data/ctype.dat
 mozilla/intl/unicharutil/tools/data/decomp.dat
 mozilla/intl/unicharutil/tools/data/num.dat
-mozilla/python/psutil/_psutil_linux.so
-mozilla/python/psutil/_psutil_posix.so
 mozilla/python/psutil/build
 mozilla/build/pgo/blueprint/valid.png
 mozilla/netwerk/protocol/ftp/doc/rfc959.txt
