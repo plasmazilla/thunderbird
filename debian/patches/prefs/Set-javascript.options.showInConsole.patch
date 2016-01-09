@@ -7,10 +7,10 @@ Subject: Set javascript.options.showInConsole
  1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/modules/libpref/init/all.js b/mozilla/modules/libpref/init/all.js
-index 4c8ca55..6a65b8a 100644
+index 11d5474..93c0878 100644
 --- a/mozilla/modules/libpref/init/all.js
 +++ b/mozilla/modules/libpref/init/all.js
-@@ -1122,6 +1122,7 @@ pref("javascript.options.ion.offthread_compilation", true);
+@@ -1121,6 +1121,7 @@ pref("javascript.options.ion.offthread_compilation", true);
  // memory, but makes things like Function.prototype.toSource()
  // fail.
  pref("javascript.options.discardSystemSource", false);

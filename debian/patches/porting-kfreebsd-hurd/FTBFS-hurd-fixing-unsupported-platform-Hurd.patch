@@ -23,10 +23,10 @@ https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2014-March/015
  9 files changed, 45 insertions(+), 16 deletions(-)
 
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
-index ceb1fae..7d5bfbb 100644
+index da475c1..a4df936 100644
 --- a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
 +++ b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
-@@ -305,7 +305,7 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
+@@ -308,7 +308,7 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
  
      // TODO: use PluginPRLibrary here
  
@@ -35,7 +35,7 @@ index ceb1fae..7d5bfbb 100644
      mShutdownFunc =
          (NP_PLUGINSHUTDOWN) PR_FindFunctionSymbol(mLibrary, "NP_Shutdown");
  
-@@ -1879,7 +1879,7 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
+@@ -1882,7 +1882,7 @@ PluginModuleChild::AnswerNP_GetEntryPoints(NPError* _retval)
      AssertPluginThread();
      MOZ_ASSERT(mIsChrome);
  
@@ -44,7 +44,7 @@ index ceb1fae..7d5bfbb 100644
      return true;
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      *_retval = mGetEntryPointsFunc(&mFunctions);
-@@ -1924,7 +1924,7 @@ PluginModuleChild::DoNP_Initialize(const PluginSettings& aSettings)
+@@ -1927,7 +1927,7 @@ PluginModuleChild::DoNP_Initialize(const PluginSettings& aSettings)
  #endif
  
      NPError result;
@@ -67,7 +67,7 @@ index e399a4c..374e7d4 100644
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      NP_PLUGININIT mInitializeFunc;
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index d31ab36..65f6444 100644
+index 9a4a23c..e44ce1b 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
 @@ -12,6 +12,7 @@ os_freebsd = 0
@@ -205,7 +205,7 @@ index e56685b..0d698d9 100644
    base::SharedMemory shared_memory_;
  #elif defined(OS_LINUX)
 diff --git a/mozilla/ipc/glue/GeckoChildProcessHost.cpp b/mozilla/ipc/glue/GeckoChildProcessHost.cpp
-index 45a2b4a..7d77bdc 100644
+index 7469bd6..8739ff3 100644
 --- a/mozilla/ipc/glue/GeckoChildProcessHost.cpp
 +++ b/mozilla/ipc/glue/GeckoChildProcessHost.cpp
 @@ -628,7 +628,7 @@ GeckoChildProcessHost::PerformAsyncLaunchInternal(std::vector<std::string>& aExt

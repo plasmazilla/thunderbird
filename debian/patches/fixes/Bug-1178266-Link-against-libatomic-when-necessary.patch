@@ -51,13 +51,13 @@ index 120a63c..90d8528 100644
      dnl When cross compile, we have no variable telling us what the host compiler is. Figure it out.
      cat > conftest.C <<EOF
 diff --git a/mozilla/mfbt/moz.build b/mozilla/mfbt/moz.build
-index 8e6b2df..0c7aa33 100644
+index 18ae476..3a91efe 100644
 --- a/mozilla/mfbt/moz.build
 +++ b/mozilla/mfbt/moz.build
-@@ -116,3 +116,6 @@ DISABLE_STL_WRAPPING = True
- if CONFIG['GNU_CXX']:
-     # TODO: Remove this LZ4 warning suppression after bug 993267 is fixed.
-     SOURCES['/mfbt/Compression.cpp'].flags += ['-Wno-unused-function']
+@@ -122,3 +122,6 @@ if CONFIG['GNU_CXX']:
+ if CONFIG['_MSC_VER']:
+     # Error 4804 is "'>' : unsafe use of type 'bool' in operation"
+     SOURCES['/mfbt/Compression.cpp'].flags += ['-wd4804']
 +
 +if CONFIG['MOZ_NEEDS_LIBATOMIC']:
 +    OS_LIBS += ['atomic']

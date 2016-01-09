@@ -33,7 +33,7 @@ index a67a46b..38fbbe8 100644
      SOURCES += ['transform-sse1.c']
      SOURCES['transform-sse1.c'].flags += CONFIG['SSE_FLAGS']
 diff --git a/mozilla/gfx/qcms/transform.c b/mozilla/gfx/qcms/transform.c
-index ca7d2dc..808fcc8 100644
+index bafdcef..481bd34 100644
 --- a/mozilla/gfx/qcms/transform.c
 +++ b/mozilla/gfx/qcms/transform.c
 @@ -1296,7 +1296,7 @@ qcms_transform* qcms_transform_create(
