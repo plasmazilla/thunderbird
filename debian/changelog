@@ -1,3 +1,12 @@
+icedove-l10n (1:43.0~b1-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [67ac15c] Imported Upstream version 43.0~b1
+  * [a99be95] rebuild patch queue from patch-queue branch
+  * [dc44847] adjust icedove depends >= 43.0~ and icedove << 44
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 10 Jan 2016 13:34:10 +0100
+
 icedove-l10n (1:42.0~b1-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
