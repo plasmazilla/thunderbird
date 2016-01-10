@@ -10,7 +10,6 @@ debian/tmp/usr/lib/icedove/run-mozilla.sh
 debian/tmp/usr/lib/icedove/chrome             usr/share/icedove
 debian/tmp/usr/lib/icedove/isp                usr/share/icedove
 debian/tmp/usr/lib/icedove/omni.ja            usr/share/icedove
-debian/tmp/usr/lib/icedove/searchplugins      usr/share/icedove
 
 debian/tmp/usr/lib/icedove/defaults/pref      usr/share/icedove/defaults
 debian/tmp/usr/lib/icedove/defaults/messenger usr/share/icedove/defaults
