@@ -300,18 +300,16 @@ Copyright: 2011, Patrick Brunschwig <patrick@enigmail.net>
            2011, Jan Gerber <j@mailb.org>
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: mozilla/browser/components/loop/test/shared/vendor/sinon-1.15.0.js
+Files: mozilla/browser/components/loop/test/shared/vendor/sinon-1.16.1.js
 Copyright: 2010-2014, Christian Johansen, <christian@cjohansen.no>
-License: BSD-2
+License: BSD-3
 
 Files: mozilla/browser/components/translation/cld2/*
        mozilla/browser/components/translation/test/unit/test_cld2.js
 Copyright: 2013-2014, Google Inc.
 License: Apache-2.0
 
-Files: mozilla/browser/components/translation/test/browser_translation_fhr.js
-       mozilla/browser/components/translation/test/unit/test_healthreport.js
-       mozilla/browser/devtools/commandline/test/*
+Files: mozilla/browser/devtools/commandline/test/*
        mozilla/browser/extensions/pdfjs/test/*
 Copyright: no-info-found
 License: Public-Domain
@@ -327,10 +325,6 @@ License: Expat
 Files: mozilla/browser/devtools/tilt/tilt-math.js
 Copyright: 2011, Brandon Jones
 License: MPL-2.0
-
-Files: mozilla/browser/devtools/webaudioeditor/lib/*
-Copyright: 2012, 2013, Chris Pettitt
-License: Expat
 
 Files: mozilla/browser/extensions/pdfjs/content/*
        mozilla/browser/extensions/shumway/*
@@ -567,12 +561,6 @@ Files: mozilla/dom/plugins/test/testplugin/secondplugin/*
        mozilla/dom/tests/unit/test_bug319968.js
        mozilla/dom/tests/unit/test_bug465752.js
        mozilla/dom/workers/test/gtest/*
-       mozilla/extensions/spellcheck/hunspell/src/RemoteSpellCheckEngineChild.cpp
-       mozilla/extensions/spellcheck/hunspell/src/RemoteSpellCheckEngineChild.h
-       mozilla/extensions/spellcheck/hunspell/src/RemoteSpellCheckEngineParent.cpp
-       mozilla/extensions/spellcheck/hunspell/src/RemoteSpellCheckEngineParent.h
-       mozilla/extensions/spellcheck/hunspell/src/hunspell_fopen_hooks.h
-       mozilla/extensions/spellcheck/hunspell/src/mozHunspellAllocator.h
 Copyright: no-info-found
 License: MPL-2.0
 
@@ -647,15 +635,6 @@ License: other-1
 Files: mozilla/extensions/spellcheck/hunspell/*
 Copyright: 2002-2005 Kevin B. Hendricks, Stratford, Ontario, Canada
            2002-2005 László Németh
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-
-Files: mozilla/extensions/spellcheck/hunspell/src/hunspell_alloc_hooks.h
-       mozilla/extensions/spellcheck/hunspell/src/mozHunspell.cpp
-       mozilla/extensions/spellcheck/hunspell/src/mozHunspell.h
-       mozilla/extensions/spellcheck/hunspell/src/mozHunspellDirProvider.cpp
-       mozilla/extensions/spellcheck/hunspell/src/mozHunspellDirProvider.h
-Copyright: 2002-2005, 2011, Mozilla Foundation
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
 Files: mozilla/extensions/spellcheck/hunspell/src/phonet.cxx
@@ -1364,14 +1343,6 @@ Files: mozilla/hal/gonk/GonkDiskSpaceWatcher.cpp
 Copyright: no-info-found
 License: MPL-2.0
 
-Files: mozilla/intl/hyphenation/hyphen.c
-       mozilla/intl/hyphenation/hyphen.h
-Copyright: 2006-2008, 2010, László Németh
-           2001, Peter Novodvorsky (nidd@cs.msu.su)
-           2001, ALTLinux, Moscow (http://www.alt-linux.org)
-           1998, Raph Levien
-License: MPL-1.0 or GPL-2+
-
 Files: mozilla/intl/icu/source/tools/tzcode/*
        mozilla/intl/icu/source/tools/tzcode/zic.c
 Copyright: no-info-found
@@ -1872,8 +1843,6 @@ License: BSD-2
 
 Files: mozilla/js/src/jit/arm/Simulator-arm.cpp
        mozilla/js/src/jit/arm/Simulator-arm.h
-       mozilla/js/src/jit/mips/Simulator-mips.cpp
-       mozilla/js/src/jit/mips/Simulator-mips.h
        mozilla/js/src/octane/*
 Copyright: 2006-2014, the V8 project authors
 License: BSD-3-clause
@@ -2550,7 +2519,6 @@ Files: mozilla/mobile/android/base/animation/Rotate3DAnimation.java
        mozilla/mobile/android/base/sqlite/MatrixBlobCursor.java
        mozilla/mobile/android/base/widget/ActivityChooserModel.java
        mozilla/mobile/android/base/widget/DateTimePicker.java
-       mozilla/mobile/android/base/widget/GeckoSwipeRefreshLayout.java
        mozilla/mobile/android/stumbler/java/org/mozilla/mozstumbler/service/utils/PersistentIntentService.java
        mozilla/mobile/android/tests/background/junit3/src/fxa/TestAccountLoader.java
        mozilla/mobile/android/thirdparty/ch/boye/httpclientandroidlib/androidextra/Base64.java
@@ -3106,14 +3074,12 @@ Files: mozilla/security/nss/lib/dbm/*
 Copyright: 1990, 1993-1994, University of California
 License: BSD-3-clause
 
-Files: mozilla/security/nss/lib/dbm/include/cdefs.h
-       mozilla/security/nss/lib/dbm/include/ncompat.h
+Files: mozilla/security/nss/lib/dbm/include/ncompat.h
        mozilla/security/nss/lib/dbm/include/queue.h
 Copyright: 1991, 1993, University of California
 License: BSD-3-clause
 
 Files: mozilla/security/nss/lib/dbm/include/extern.h
-       mozilla/security/nss/lib/dbm/include/mpool.h
 Copyright: 1991, 1993, 1994, University of California
 License: BSD-3-clause
 
@@ -3233,7 +3199,6 @@ Copyright: 1999-2013, Google Inc.
 License: BSD-3-clause
 
 Files: mozilla/testing/marionette/atoms/*
-       mozilla/testing/marionette/driver/marionette_driver/application_cache.py
 Copyright: 2011-2014, Software Freedom Conservancy
 License: Apache-2.0
 
@@ -3241,8 +3206,7 @@ Files: mozilla/testing/marionette/client/marionette/runner/mixins/xmlgen.py
 Copyright: no-info-found
 License: Expat
 
-Files: mozilla/testing/marionette/client/marionette/tests/unit/test_appcache.py
-       mozilla/testing/marionette/client/marionette/tests/unit/test_rendered_element.py
+Files: mozilla/testing/marionette/client/marionette/tests/unit/test_rendered_element.py
        mozilla/testing/marionette/driver/marionette_driver/by.py
 Copyright: 2007-2009, WebDriver committers
            2007-2009, Google Inc.
