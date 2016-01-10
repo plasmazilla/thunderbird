@@ -315,6 +315,7 @@ Entities below were automatically added by compare-locales,
 <!ENTITY remindLater.label "Remind Me Later">
 <!ENTITY renameAttachmentCmd.accesskey "e">
 <!ENTITY renameAttachmentCmd.label "Rename Attachment…">
+<!ENTITY statusLanguageText.tooltip "Spell checking language">
 
 <!-- Headers -->
 <!--LOCALIZATION NOTE headersSpace.style is for aligning  the From:, To: and

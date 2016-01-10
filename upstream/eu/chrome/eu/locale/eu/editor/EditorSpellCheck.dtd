@@ -36,3 +36,6 @@
 <!ENTITY sendButton.accessKey "B">
 <!ENTITY languagePopup.label "Hizkuntza:">
 <!ENTITY languagePopup.accessKey "H">
+
+<!ENTITY recheckButton2.accessKey "T">
+<!ENTITY recheckButton2.label "Recheck Text">

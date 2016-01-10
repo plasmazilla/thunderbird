@@ -21,5 +21,7 @@ locale passwordmgr hy-AM hy-AM/locale/hy-AM/passwordmgr/
 locale pipnss hy-AM hy-AM/locale/hy-AM/pipnss/
 locale pippki hy-AM hy-AM/locale/hy-AM/pippki/
 locale places hy-AM hy-AM/locale/hy-AM/places/
+locale pluginproblem hy-AM hy-AM/locale/hy-AM/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

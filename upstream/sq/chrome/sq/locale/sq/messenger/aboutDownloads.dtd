@@ -19,3 +19,9 @@
 <!ENTITY cmd.removeFromHistory.accesskey           "Hiqe Prej Historikut">
 <!ENTITY cmd.clearDownloads.label                  "Pastroji Shkarkimet">
 <!ENTITY cmd.clearDownloads.accesskey              "S">
+
+<!ENTITY cmd.clearList.accesskey                   "C">
+<!ENTITY cmd.clearList.label                       "Clear List">
+<!ENTITY cmd.clearList.tooltip                     "Remove all entries from the list of saved files, except ongoing downloads.">
+<!ENTITY cmd.searchDownloads.key                   "F">
+<!ENTITY cmd.searchDownloads.label                 "Search…">

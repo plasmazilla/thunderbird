@@ -21,5 +21,7 @@ locale passwordmgr ga-IE ga-IE/locale/ga-IE/passwordmgr/
 locale pipnss ga-IE ga-IE/locale/ga-IE/pipnss/
 locale pippki ga-IE ga-IE/locale/ga-IE/pippki/
 locale places ga-IE ga-IE/locale/ga-IE/places/
+locale pluginproblem ga-IE ga-IE/locale/ga-IE/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

@@ -36,3 +36,6 @@
 <!ENTITY sendButton.accessKey "K">
 <!ENTITY languagePopup.label "Yezh :">
 <!ENTITY languagePopup.accessKey "Y">
+
+<!ENTITY recheckButton2.accessKey "T">
+<!ENTITY recheckButton2.label "Recheck Text">

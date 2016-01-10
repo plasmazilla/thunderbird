@@ -68,3 +68,6 @@
 <!ENTITY sendButton.accessKey "σ">
 <!ENTITY languagePopup.label "Γλώσσα:">
 <!ENTITY languagePopup.accessKey "Γ">
+
+<!ENTITY recheckButton2.accessKey "T">
+<!ENTITY recheckButton2.label "Recheck Text">

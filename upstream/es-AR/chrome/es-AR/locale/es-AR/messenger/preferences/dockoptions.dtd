@@ -13,5 +13,4 @@
 <!ENTITY showAllUnreadMessagesCount.accesskey  "j">
 <!ENTITY dockIconBadge.label                   "App icon badge">
 <!ENTITY dockIconShow.label                    "Badge app icon with:">
-
-<!ENTITY directNotificationSettings.label      "You can disable the badge on the Notification pane of System Preferences.">
+<!ENTITY directNotificationSettings.label      "Puede deshabilitar la insignia en la vista de notificaciones de las preferencias del sistema.">

@@ -21,5 +21,7 @@ locale passwordmgr cs cs/locale/cs/passwordmgr/
 locale pipnss cs cs/locale/cs/pipnss/
 locale pippki cs cs/locale/cs/pippki/
 locale places cs cs/locale/cs/places/
+locale pluginproblem cs cs/locale/cs/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

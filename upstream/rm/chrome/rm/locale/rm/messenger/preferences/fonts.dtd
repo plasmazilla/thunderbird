@@ -46,13 +46,11 @@
 <!ENTITY  font.langGroup.gurmukhi                 "Gurmukhi">
 <!ENTITY  font.langGroup.khmer                    "Khmer">
 <!ENTITY  font.langGroup.malayalam                "Malajalam">
-
 <!ENTITY  font.langGroup.oriya                    "Oriya">
 <!ENTITY  font.langGroup.telugu                   "Telugu">
 <!ENTITY  font.langGroup.kannada                  "Cannada">
 <!ENTITY  font.langGroup.sinhala                  "Singalais">
 <!ENTITY  font.langGroup.tibetan                  "Tibetan">
-
 <!-- Minimum font size -->
 <!ENTITY minSize.label                            "Grondezza minimala da la scrittira:">
 <!ENTITY minSize.accesskey                        "z">
@@ -72,16 +70,12 @@
 <!-- Language settings -->
 <!ENTITY sendDefaultCharset.label         "E-mails che sortan:">
 <!ENTITY sendDefaultCharset.accesskey     "m">
-<!ENTITY languagesTitle1.label            "Codaziun da caracters">
-<!ENTITY composingDescription.label       "Codaziun da caracters predefinida per retschaiver e trametter e-mails">
+<!ENTITY languagesTitle2.label            "Codaziun dal text">
+<!ENTITY composingDescription2.label      "Codaziun da text predefinida per retschaiver e trametter e-mails">
 
 <!ENTITY viewDefaultCharsetList.label     "E-mails che entran:">
 <!ENTITY viewDefaultCharsetList.accesskey  "I">
-<!ENTITY replyInDefaultCharset2.label     "Utilisar per respostas sche pussaivel la codaziun da caracters predefinida">
-<!ENTITY replyInDefaultCharset2.accesskey "h">
-
-<!ENTITY composingDescription2.label      "Set the default text encoding for sending and receiving mail">
-<!ENTITY  font.langGroup.math                     "Mathematics">
-<!ENTITY languagesTitle2.label            "Text Encoding">
+<!ENTITY replyInDefaultCharset3.label     "Utilisar per respostas sche pussaivel la codaziun da text predefinida">
 <!ENTITY replyInDefaultCharset3.accesskey "h">
-<!ENTITY replyInDefaultCharset3.label     "When possible, use the default text encoding in replies">
+
+<!ENTITY  font.langGroup.math                     "Mathematics">

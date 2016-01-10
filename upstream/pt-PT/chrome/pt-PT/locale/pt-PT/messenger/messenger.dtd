@@ -57,8 +57,8 @@
 <!ENTITY sendUnsentCmd.accesskey "e">
 <!ENTITY subscribeCmd.label "Subscrever...">
 <!ENTITY subscribeCmd.accesskey "b">
-<!ENTITY deleteFolder.label "Eliminar pasta">
-<!ENTITY deleteFolder.accesskey "E">
+<!ENTITY deleteFolder.label "Apagar pasta">
+<!ENTITY deleteFolder.accesskey "A">
 <!ENTITY renameFolder.label "Mudar nome da pasta...">
 <!ENTITY renameFolder.accesskey "M">
 <!ENTITY renameFolder.key "VK_F2">
@@ -70,7 +70,7 @@
 <!ENTITY offlineMenu.accesskey "l">
 <!ENTITY offlineGoOfflineCmd.label "Trabalhar offline">
 <!ENTITY offlineGoOfflineCmd.accesskey "T">
-<!ENTITY synchronizeOfflineCmd.label "Descarregar ou sincronizar agora…">
+<!ENTITY synchronizeOfflineCmd.label "Descarregar/sincronizar agora…">
 <!ENTITY synchronizeOfflineCmd.accesskey "s">
 <!ENTITY settingsOfflineCmd2.label "Definições do modo offline">
 <!ENTITY settingsOfflineCmd2.accesskey "d">
@@ -87,16 +87,16 @@
 <!ENTITY printSetupCmd.accesskey "C">
 <!-- Edit Menu -->
 
-<!ENTITY deleteMsgCmd.label "Eliminar mensagem">
-<!ENTITY deleteMsgCmd.accesskey "l">
+<!ENTITY deleteMsgCmd.label "Apagar mensagem">
+<!ENTITY deleteMsgCmd.accesskey "A">
 <!ENTITY undeleteMsgCmd.label "Recuperar mensagem">
 <!ENTITY undeleteMsgCmd.accesskey "u">
-<!ENTITY deleteMsgsCmd.label "Eliminar mensagens selecionadas">
-<!ENTITY deleteMsgsCmd.accesskey "l">
+<!ENTITY deleteMsgsCmd.label "Apagar mensagens selecionadas">
+<!ENTITY deleteMsgsCmd.accesskey "d">
 <!ENTITY undeleteMsgsCmd.label "Recuperar mensagens selecionadas">
-<!ENTITY undeleteMsgsCmd.accesskey "u">
-<!ENTITY deleteFolderCmd.label "Eliminar pasta">
-<!ENTITY deleteFolderCmd.accesskey "i">
+<!ENTITY undeleteMsgsCmd.accesskey "d">
+<!ENTITY deleteFolderCmd.label "Apagar pasta">
+<!ENTITY deleteFolderCmd.accesskey "A">
 <!ENTITY unsubscribeNewsgroupCmd.label "Cancelar subscrição">
 <!ENTITY unsubscribeNewsgroupCmd.accesskey "c">
 <!ENTITY selectMenu.label "Selecionar">
@@ -475,8 +475,8 @@
 <!ENTITY filtersApplyToMessage.accesskey "r">
 <!ENTITY runJunkControls.label "Executar controlos de lixo eletrónico na pasta">
 <!ENTITY runJunkControls.accesskey "r">
-<!ENTITY deleteJunk.label "Eliminar lixo eletrónico desta pasta">
-<!ENTITY deleteJunk.accesskey "x">
+<!ENTITY deleteJunk.label "Apagar correio marcado como lixo na pasta">
+<!ENTITY deleteJunk.accesskey "e">
 <!ENTITY importCmd.label "Importar...">
 <!ENTITY importCmd.accesskey "m">
 <!ENTITY errorConsoleCmd.label "Consola de erros">
@@ -509,9 +509,9 @@
 <!ENTITY previousMsgButton.label "Anterior">
 <!ENTITY backButton1.label "Recuar">
 <!ENTITY goForwardButton1.label "Avançar">
-<!ENTITY deleteItem.title "Eliminar">
-<!ENTITY deleteButton.label "Eliminar">
-<!ENTITY undeleteButton.label "Restaurar">
+<!ENTITY deleteItem.title "Apagar">
+<!ENTITY deleteButton.label "Apagar">
+<!ENTITY undeleteButton.label "Recuperar">
 <!ENTITY markButton.label "Marcar">
 <!ENTITY printButton.label "Imprimir">
 <!ENTITY stopButton.label "Parar">
@@ -549,8 +549,8 @@
 <!ENTITY previousMsgButton.tooltip "Ir para a mensagem anterior">
 <!ENTITY goForwardButton.tooltip "Avançar uma mensagem">
 <!ENTITY goBackButton.tooltip "Recuar uma mensagem">
-<!ENTITY deleteButton.tooltip "Eliminar mensagem ou pasta selecionada">
-<!ENTITY undeleteButton.tooltip "Restaurar mensagem selecionada">
+<!ENTITY deleteButton.tooltip "Apagar pasta ou mensagem selecionada">
+<!ENTITY undeleteButton.tooltip "Recuperar mensagem selecionada">
 <!ENTITY markButton.tooltip "Marcar mensagens">
 <!ENTITY printButton.tooltip "Imprimir esta mensagem">
 <!ENTITY stopButton.tooltip "Parar transferência atual">
@@ -559,7 +559,7 @@
 <!ENTITY addressBookButton.tooltip "Ir para o livro de endereços">
 <!ENTITY chatButton.tooltip "Mostrar o separador de chat">
 <!ENTITY tagButton.tooltip "Classificar mensagens">
-<!ENTITY compactButton.tooltip "Remover mensagens eliminadas da pasta selecionada">
+<!ENTITY compactButton.tooltip "Remover mensagens apagadas da pasta selecionada">
 <!ENTITY appmenuButton1.tooltip "Mostrar menu do &brandShortName;">
 <!-- Toolbar Button Popup -->
 
@@ -613,8 +613,8 @@
 <!ENTITY folderContextNew.accesskey "N">
 <!ENTITY folderContextRename.label "Mudar nome">
 <!ENTITY folderContextRename.accesskey "M">
-<!ENTITY folderContextRemove.label "Eliminar">
-<!ENTITY folderContextRemove.accesskey "l">
+<!ENTITY folderContextRemove.label "Apagar">
+<!ENTITY folderContextRemove.accesskey "A">
 <!ENTITY folderContextCompact.label "Compactar">
 <!ENTITY folderContextCompact.accesskey "C">
 <!ENTITY folderContextEmptyTrash.label "Esvaziar lixo">
@@ -714,8 +714,8 @@
 <!ENTITY contextOpenConversation.accesskey "n">
 <!ENTITY contextOpenContainingFolder.label "Abrir mensagem na pasta">
 <!ENTITY contextOpenContainingFolder.accesskey "n">
-<!ENTITY contextEditMsgAsNew.label "Editar como nova...">
-<!ENTITY contextEditMsgAsNew.accesskey "d">
+<!ENTITY contextEditMsgAsNew.label "Editar como nova">
+<!ENTITY contextEditMsgAsNew.accesskey "E">
 <!ENTITY contextArchive.label "Arquivar">
 <!ENTITY contextArchive.accesskey "q">
 <!ENTITY contextReplySender.label "Responder apenas ao remetente">
@@ -844,7 +844,7 @@
 <!ENTITY AddToAddressBook.accesskey "A">
 <!ENTITY AddDirectlyToAddressBook.label "Adicionar ao livro de endereços">
 <!ENTITY AddDirectlyToAddressBook.accesskey "v">
-<!ENTITY EditContact1.label "Editar contacto...">
+<!ENTITY EditContact1.label "Editar contacto">
 <!ENTITY EditContact1.accesskey "E">
 <!ENTITY ViewContact.label "Ver contacto">
 <!ENTITY ViewContact.accesskey "V">

@@ -305,3 +305,5 @@
 
 <!ENTITY addressesSidebarTitle.label "المتراسلون">
 
+
+<!ENTITY statusLanguageText.tooltip "Spell checking language">

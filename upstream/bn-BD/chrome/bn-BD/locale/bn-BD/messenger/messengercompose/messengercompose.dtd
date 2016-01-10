@@ -312,3 +312,4 @@
 <!ENTITY remindLater.label "Remind Me Later">
 <!ENTITY renameAttachmentCmd.accesskey "e">
 <!ENTITY renameAttachmentCmd.label "Rename Attachment…">
+<!ENTITY statusLanguageText.tooltip "Spell checking language">

@@ -21,5 +21,7 @@ locale passwordmgr ko ko/locale/ko/passwordmgr/
 locale pipnss ko ko/locale/ko/pipnss/
 locale pippki ko ko/locale/ko/pippki/
 locale places ko ko/locale/ko/places/
+locale pluginproblem ko ko/locale/ko/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

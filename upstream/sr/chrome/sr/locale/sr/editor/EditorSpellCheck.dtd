@@ -70,3 +70,6 @@
 <!ENTITY languagePopup.label "Језик:">
 <!ENTITY languagePopup.accessKey "Ј">
 
+
+<!ENTITY recheckButton2.accessKey "T">
+<!ENTITY recheckButton2.label "Recheck Text">

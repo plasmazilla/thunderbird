@@ -21,5 +21,7 @@ locale passwordmgr sv-SE sv-SE/locale/sv-SE/passwordmgr/
 locale pipnss sv-SE sv-SE/locale/sv-SE/pipnss/
 locale pippki sv-SE sv-SE/locale/sv-SE/pippki/
 locale places sv-SE sv-SE/locale/sv-SE/places/
+locale pluginproblem sv-SE sv-SE/locale/sv-SE/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

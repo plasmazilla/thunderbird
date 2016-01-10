@@ -21,5 +21,7 @@ locale passwordmgr ta-LK ta-LK/locale/ta-LK/passwordmgr/
 locale pipnss ta-LK ta-LK/locale/ta-LK/pipnss/
 locale pippki ta-LK ta-LK/locale/ta-LK/pippki/
 locale places ta-LK ta-LK/locale/ta-LK/places/
+locale pluginproblem ta-LK ta-LK/locale/ta-LK/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

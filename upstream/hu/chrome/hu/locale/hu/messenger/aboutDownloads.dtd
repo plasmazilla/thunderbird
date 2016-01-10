@@ -17,5 +17,8 @@
 <!ENTITY cmd.open.accesskey                        "M">
 <!ENTITY cmd.removeFromHistory.label               "Eltávolítás az előzményekből">
 <!ENTITY cmd.removeFromHistory.accesskey           "E">
-<!ENTITY cmd.clearDownloads.label                  "Letöltések törlése">
-<!ENTITY cmd.clearDownloads.accesskey              "t">
+<!ENTITY cmd.clearList.label                       "Lista törlése">
+<!ENTITY cmd.clearList.accesskey                   "i">
+<!ENTITY cmd.clearList.tooltip                     "Minden bejegyzés eltávolítása a mentett fájlok listájából a folyamatban lévő letöltések kivételével.">
+<!ENTITY cmd.searchDownloads.label                 "Keresés…">
+<!ENTITY cmd.searchDownloads.key                   "K">

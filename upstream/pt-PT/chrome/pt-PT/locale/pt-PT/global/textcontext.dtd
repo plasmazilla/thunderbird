@@ -12,8 +12,8 @@
 <!ENTITY undoCmd.accesskey "D">
 <!ENTITY selectAllCmd.label "Selecionar tudo">
 <!ENTITY selectAllCmd.accesskey "a">
-<!ENTITY deleteCmd.label "Eliminar">
-<!ENTITY deleteCmd.accesskey "E">
+<!ENTITY deleteCmd.label "Apagar">
+<!ENTITY deleteCmd.accesskey "A">
 
 <!ENTITY spellAddToDictionary.label "Adicionar ao dicionário">
 <!ENTITY spellAddToDictionary.accesskey "d">
@@ -27,12 +27,11 @@
 
 <!ENTITY searchTextBox.clear.label "Limpar">
 
-<!ENTITY fillLoginMenu.accesskey      "F">
-
-<!ENTITY fillLoginMenu.label          "Fill Login">
-<!ENTITY fillPasswordMenu.accesskey   "F">
-<!ENTITY fillPasswordMenu.label       "Fill Password">
-<!ENTITY fillUsernameMenu.accesskey   "F">
-<!ENTITY fillUsernameMenu.label       "Fill Username">
-<!ENTITY noLoginSuggestions.label     "(No Login Suggestions)">
-<!ENTITY viewSavedLogins.label        "View Saved Logins">
+<!ENTITY fillLoginMenu.label          "Preencher credenciais">
+<!ENTITY fillLoginMenu.accesskey      "P">
+<!ENTITY fillPasswordMenu.label       "Preencher palavra-passe">
+<!ENTITY fillPasswordMenu.accesskey   "P">
+<!ENTITY fillUsernameMenu.label       "Preencher nome de utilizador">
+<!ENTITY fillUsernameMenu.accesskey   "P">
+<!ENTITY noLoginSuggestions.label     "(Nenhuma sugestão)">
+<!ENTITY viewSavedLogins.label        "Ver credenciais guardadas">

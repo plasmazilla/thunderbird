@@ -21,5 +21,7 @@ locale passwordmgr uk uk/locale/uk/passwordmgr/
 locale pipnss uk uk/locale/uk/pipnss/
 locale pippki uk uk/locale/uk/pippki/
 locale places uk uk/locale/uk/places/
+locale pluginproblem uk uk/locale/uk/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

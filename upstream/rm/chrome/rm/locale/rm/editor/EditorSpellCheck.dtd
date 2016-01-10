@@ -28,11 +28,12 @@
 <!ENTITY addToUserDictionaryButton.accessKey "A">
 <!ENTITY editUserDictionaryButton.label "Modifitgar…">
 <!ENTITY editUserDictionaryButton.accessKey "M">
-<!ENTITY recheckButton.label "Controllar anc ina giada la pagina">
-<!ENTITY recheckButton.accessKey "C">
 <!ENTITY closeButton.label "Serrar">
 <!ENTITY closeButton.accessKey "S">
 <!ENTITY sendButton.label "Trametter">
 <!ENTITY sendButton.accessKey "e">
 <!ENTITY languagePopup.label "Lingua:">
 <!ENTITY languagePopup.accessKey "L">
+
+<!ENTITY recheckButton2.accessKey "T">
+<!ENTITY recheckButton2.label "Recheck Text">

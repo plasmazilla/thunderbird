@@ -79,8 +79,8 @@
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY editRewrapCmd.accesskey "w">
-<!ENTITY deleteCmd.label "Eliminar">
-<!ENTITY deleteCmd.accesskey "l">
+<!ENTITY deleteCmd.label "Apagar">
+<!ENTITY deleteCmd.accesskey "A">
 <!ENTITY editRewrapCmd.label "w">
 <!ENTITY editRewrapCmd.key "R">
 <!ENTITY renameAttachmentCmd.label "Mudar nome do anexo...">
@@ -215,6 +215,7 @@
 <!ENTITY addressButton.tooltip "Selecionar um destinatário do livro de endereços">
 <!ENTITY attachButton.tooltip "Incluir um anexo">
 <!ENTITY spellingButton.tooltip "Verificar ortografia da seleção ou da mensagem">
+<!ENTITY statusLanguageText.tooltip "Idioma da verificação ortográfica">
 <!ENTITY saveButton.tooltip "Guardar esta mensagem">
 <!ENTITY cutButton.tooltip              "Cortar">
 <!ENTITY copyButton.tooltip             "Copiar">
@@ -277,8 +278,8 @@
 
 <!ENTITY openAttachment.label "Abrir">
 <!ENTITY openAttachment.accesskey "A">
-<!ENTITY delete.label "Eliminar">
-<!ENTITY delete.accesskey "l">
+<!ENTITY delete.label "Apagar">
+<!ENTITY delete.accesskey "A">
 <!ENTITY removeAttachment.label "Remover anexo">
 <!ENTITY removeAttachment.accesskey "m">
 <!ENTITY renameAttachment.label "Mudar nome...">

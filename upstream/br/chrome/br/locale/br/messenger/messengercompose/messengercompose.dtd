@@ -305,3 +305,5 @@
 
 <!ENTITY addressesSidebarTitle.label "Darempredoù">
 
+
+<!ENTITY statusLanguageText.tooltip "Spell checking language">

@@ -77,3 +77,5 @@
 <!ENTITY copyPref.key "C">
 <!ENTITY copyPref.label "පිටපත් කරන්න">
 <!ENTITY copyPref.accesskey "C">
+
+<!ENTITY focusSearch2.key "f">

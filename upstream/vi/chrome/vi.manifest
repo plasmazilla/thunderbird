@@ -21,5 +21,7 @@ locale passwordmgr vi vi/locale/vi/passwordmgr/
 locale pipnss vi vi/locale/vi/pipnss/
 locale pippki vi vi/locale/vi/pippki/
 locale places vi vi/locale/vi/places/
+locale pluginproblem vi vi/locale/vi/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

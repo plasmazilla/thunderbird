@@ -305,3 +305,5 @@
 
 <!ENTITY addressesSidebarTitle.label "Contatos">
 
+
+<!ENTITY statusLanguageText.tooltip "Spell checking language">

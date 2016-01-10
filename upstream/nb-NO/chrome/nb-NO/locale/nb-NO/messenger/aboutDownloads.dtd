@@ -19,3 +19,9 @@
 <!ENTITY cmd.removeFromHistory.accesskey           "e">
 <!ENTITY cmd.clearDownloads.label                  "Tøm nedlastinger">
 <!ENTITY cmd.clearDownloads.accesskey              "T">
+
+<!ENTITY cmd.clearList.accesskey                   "C">
+<!ENTITY cmd.clearList.label                       "Clear List">
+<!ENTITY cmd.clearList.tooltip                     "Remove all entries from the list of saved files, except ongoing downloads.">
+<!ENTITY cmd.searchDownloads.key                   "F">
+<!ENTITY cmd.searchDownloads.label                 "Search…">
