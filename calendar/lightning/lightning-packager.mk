@@ -39,13 +39,13 @@ XPI_ZIP_IN=$(_ABS_XPI_STAGE_PATH)/$(ENUS_PKGNAME).xpi
 
 # This variable is to allow the wget-en-US target to know which ftp server to download from
 ifndef EN_US_BINARY_URL
-ifdef UPLOAD_HOST
-# If this url is missing, and UPLOAD_HOST is defined its probably the release
+ifdef DOWNLOAD_HOST
+# If this url is missing, and DOWNLOAD_HOST is defined its probably the release
 # run where we can't influence the download location. Fake it from the env vars
 # we have
 BUILD_NR=$(shell echo $(POST_UPLOAD_CMD) | sed -n -e 's/.*-n \([0-9]*\).*/\1/p')
 CANDIDATE_NR=$(if $(LIGHTNING_VERSION),$(LIGHTNING_VERSION),$(XPI_VERSION))
-EN_US_BINARY_URL=http://$(UPLOAD_HOST)/pub/mozilla.org/calendar/lightning/nightly/$(CANDIDATE_NR)-candidates/build$(BUILD_NR)/$(MOZ_PKG_PLATFORM)
+EN_US_BINARY_URL=http://$(DOWNLOAD_HOST)/pub/calendar/lightning/candidates/$(CANDIDATE_NR)-candidates/build$(BUILD_NR)/$(MOZ_PKG_PLATFORM)
 endif
 endif
 
@@ -182,6 +182,7 @@ upload-%: LTN_UPLOAD_CMD := $(patsubst $(THUNDERBIRD_VERSION)%,$(LIGHTNING_VERSI
 upload-%: stage_upload
 	POST_UPLOAD_CMD="$(LTN_UPLOAD_CMD)" \
 	  $(PYTHON) $(MOZILLA_DIR)/build/upload.py --base-path $(DIST) \
+	  --properties-file $(DIST)/$(XPI_NAME)_build_properties.json \
 	  "$(DIST)/$(MOZ_PKG_PLATFORM)/$(XPI_PKGNAME).xpi"
 
 stage_upload:

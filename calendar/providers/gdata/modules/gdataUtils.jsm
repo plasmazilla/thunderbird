@@ -84,7 +84,7 @@ function migrateItemMetadata(aOfflineStorage, aOldItem, aNewItem, aMetadata) {
 
     // If an exception was turned into an EXDATE, we need to clear its metadata
     if (aOldItem.recurrenceInfo && aNewItem.recurrenceInfo) {
-        let newExIds = new Set(aNewItem.recurrenceInfo.getExceptionIds({}).map(function(x) x.icalString));
+        let newExIds = new Set(aNewItem.recurrenceInfo.getExceptionIds({}).map(function(x) { return x.icalString; }));
         for each (let exId in aOldItem.recurrenceInfo.getExceptionIds({})) {
             if (!newExIds.has(exId.icalString)) {
                 let ex = aOldItem.recurrenceInfo.getExceptionFor(exId);
@@ -607,7 +607,7 @@ function JSONToEvent(aEntry, aCalendar, aTimezone, aDefaultReminders, aReference
             // Sometimes recurring event instances don't have recurringEventId
             // set, but are still instances. work around by detecting the ID.
             // http://code.google.com/a/google.com/p/apps-api-issues/issues/detail?id=3199
-            let hack = aEntry.id.match(/([^_]*)_(\d{8}(T\d{6}Z)?)/);
+            let hack = aEntry.id.match(/([^_]*)_(\d{8}(T\d{6}Z)?)$/);
             item.recurrenceId = hack ? cal.createDateTime(hack[2]) : null;
         }
         item.status = (aEntry.status ? aEntry.status.toUpperCase() : null);
@@ -939,7 +939,7 @@ ItemSaver.prototype = {
             }
 
             let exceptionItems = [];
-            let defaultReminders = (aData.defaultReminders || []).map(function(x) JSONToAlarm(x, true));
+            let defaultReminders = (aData.defaultReminders || []).map(function(x) { return JSONToAlarm(x, true); });
 
             let tzs = cal.getTimezoneService();
             let defaultTimezone = (aData.timeZone ? tzs.getTimezone(aData.timeZone) :
@@ -989,6 +989,9 @@ ItemSaver.prototype = {
                 // If an item was found, we can process this exception. Otherwise
                 // save it for later, maybe its on the next page of the request.
                 if (item) {
+                    if (!item.isMutable) {
+                        item = item.clone();
+                    }
                     yield this.processException(exc, item);
                 } else {
                     this.missingParents.push(exc);
@@ -1242,7 +1245,7 @@ function spinEventLoop() {
     spinEventLoop.lastSpin = new Date();
 
     let deferred = PromiseUtils.defer();
-    Services.tm.currentThread.dispatch({ run: function() deferred.resolve(true) }, 0);
+    Services.tm.currentThread.dispatch({ run: function() { return deferred.resolve(true); } }, 0);
     return deferred.promise;
 }
 spinEventLoop.lastSpin = new Date();

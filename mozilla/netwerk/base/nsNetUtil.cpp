@@ -310,16 +310,14 @@ NS_NewInputStreamChannelInternal(nsIChannel        **outChannel,
                                  nsIPrincipal       *aLoadingPrincipal,
                                  nsIPrincipal       *aTriggeringPrincipal,
                                  nsSecurityFlags     aSecurityFlags,
-                                 nsContentPolicyType aContentPolicyType,
-                                 nsIURI             *aBaseURI /* = nullptr */)
+                                 nsContentPolicyType aContentPolicyType)
 {
   nsCOMPtr<nsILoadInfo> loadInfo =
     new mozilla::LoadInfo(aLoadingPrincipal,
                           aTriggeringPrincipal,
                           aLoadingNode,
                           aSecurityFlags,
-                          aContentPolicyType,
-                          aBaseURI);
+                          aContentPolicyType);
   if (!loadInfo) {
     return NS_ERROR_UNEXPECTED;
   }
@@ -363,8 +361,7 @@ NS_NewInputStreamChannelInternal(nsIChannel        **outChannel,
                                  nsIPrincipal       *aTriggeringPrincipal,
                                  nsSecurityFlags     aSecurityFlags,
                                  nsContentPolicyType aContentPolicyType,
-                                 bool                aIsSrcdocChannel /* = false */,
-                                 nsIURI             *aBaseURI /* = nullptr */)
+                                 bool                aIsSrcdocChannel /* = false */)
 {
   nsresult rv;
   nsCOMPtr<nsIStringInputStream> stream;
@@ -390,8 +387,7 @@ NS_NewInputStreamChannelInternal(nsIChannel        **outChannel,
                                         aLoadingPrincipal,
                                         aTriggeringPrincipal,
                                         aSecurityFlags,
-                                        aContentPolicyType,
-                                        aBaseURI);
+                                        aContentPolicyType);
 
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -412,8 +408,7 @@ NS_NewInputStreamChannel(nsIChannel        **outChannel,
                          nsIPrincipal       *aLoadingPrincipal,
                          nsSecurityFlags     aSecurityFlags,
                          nsContentPolicyType aContentPolicyType,
-                         bool                aIsSrcdocChannel /* = false */,
-                         nsIURI             *aBaseURI /* = nullptr */)
+                         bool                aIsSrcdocChannel /* = false */)
 {
   return NS_NewInputStreamChannelInternal(outChannel,
                                           aUri,
@@ -424,8 +419,7 @@ NS_NewInputStreamChannel(nsIChannel        **outChannel,
                                           nullptr, // aTriggeringPrincipal
                                           aSecurityFlags,
                                           aContentPolicyType,
-                                          aIsSrcdocChannel,
-                                          aBaseURI);
+                                          aIsSrcdocChannel);
 }
 
 nsresult
@@ -914,9 +908,9 @@ NS_GetReferrerFromChannel(nsIChannel *channel,
 }
 
 nsresult
-NS_ParseContentType(const nsACString &rawContentType,
-                    nsCString        &contentType,
-                    nsCString        &contentCharset)
+NS_ParseRequestContentType(const nsACString &rawContentType,
+                           nsCString        &contentType,
+                           nsCString        &contentCharset)
 {
     // contentCharset is left untouched if not present in rawContentType
     nsresult rv;
@@ -924,8 +918,26 @@ NS_ParseContentType(const nsACString &rawContentType,
     NS_ENSURE_SUCCESS(rv, rv);
     nsCString charset;
     bool hadCharset;
-    rv = util->ParseContentType(rawContentType, charset, &hadCharset,
-                                contentType);
+    rv = util->ParseRequestContentType(rawContentType, charset, &hadCharset,
+                                       contentType);
+    if (NS_SUCCEEDED(rv) && hadCharset)
+        contentCharset = charset;
+    return rv;
+}
+
+nsresult
+NS_ParseResponseContentType(const nsACString &rawContentType,
+                            nsCString        &contentType,
+                            nsCString        &contentCharset)
+{
+    // contentCharset is left untouched if not present in rawContentType
+    nsresult rv;
+    nsCOMPtr<nsINetUtil> util = do_GetNetUtil(&rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+    nsCString charset;
+    bool hadCharset;
+    rv = util->ParseResponseContentType(rawContentType, charset, &hadCharset,
+                                        contentType);
     if (NS_SUCCEEDED(rv) && hadCharset)
         contentCharset = charset;
     return rv;

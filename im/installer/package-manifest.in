@@ -42,7 +42,7 @@
 @APPNAME@/Contents/Info.plist
 @APPNAME@/Contents/PkgInfo
 @RESPATH@/instantbird.icns
-@RESPATH@/en.lproj/*
+@RESPATH@/@LPROJ_ROOT@.lproj/*
 #endif
 
 [@AB_CD@]
@@ -419,10 +419,6 @@
 @RESPATH@/components/nsTaggingService.js
 @RESPATH@/components/PlacesCategoriesStarter.js
 @RESPATH@/components/servicesComponents.manifest
-@RESPATH@/components/TCPSocket.js
-@RESPATH@/components/TCPServerSocket.js
-@RESPATH@/components/TCPSocketParentIntermediary.js
-@RESPATH@/components/TCPSocket.manifest
 #ifdef MOZ_WEBRTC
 @RESPATH@/components/PeerConnection.js
 @RESPATH@/components/PeerConnection.manifest
@@ -442,9 +438,6 @@
 @RESPATH@/components/filepicker.xpt
 @RESPATH@/components/nsFilePicker.js
 @RESPATH@/components/nsFilePicker.manifest
-#endif
-#ifdef MOZ_ENABLE_DBUS
-@RESPATH@/components/@DLL_PREFIX@dbusservice@DLL_SUFFIX@
 #endif
 #ifdef MOZ_ENABLE_PROFILER_SPS
 @RESPATH@/components/profiler.xpt
@@ -546,6 +539,8 @@
 #endif
 @RESPATH@/components/nsUpdateTimerManager.js
 @RESPATH@/components/nsUpdateTimerManager.manifest
+@RESPATH@/components/utils.manifest
+@RESPATH@/components/simpleServices.js
 @RESPATH@/components/extensions.xpt
 @RESPATH@/components/extensions.manifest
 @RESPATH@/components/update.xpt

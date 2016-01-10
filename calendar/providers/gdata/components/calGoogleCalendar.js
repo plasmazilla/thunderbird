@@ -58,7 +58,7 @@ calGoogleCalendar.prototype = {
     }),
 
     /* Used to reset the local cache between releases */
-    CACHE_DB_VERSION: 2,
+    CACHE_DB_VERSION: 3,
 
     /* Member Variables */
     mCalendarName: null,
@@ -100,16 +100,16 @@ calGoogleCalendar.prototype = {
         }
     },
 
-    get isDefaultCalendar() this.mCalendarName ? !this.mCalendarName.endsWith("@group.calendar.google.com") : false,
+    get isDefaultCalendar() { return this.mCalendarName ? !this.mCalendarName.endsWith("@group.calendar.google.com") : false; },
 
     /*
      * implement calICalendar
      */
-    get type() "gdata",
-    get providerID() "{a62ef8ec-5fdc-40c2-873c-223b8a6925cc}",
-    get canRefresh() true,
+    get type() { return "gdata"; },
+    get providerID() { return "{a62ef8ec-5fdc-40c2-873c-223b8a6925cc}"; },
+    get canRefresh() { return true; },
 
-    get id() this.mID,
+    get id() { return this.mID; },
     set id(val) {
         let setter = this.__proto__.__proto__.__lookupSetter__("id");
         val = setter.call(this, val);
@@ -120,7 +120,7 @@ calGoogleCalendar.prototype = {
         return val;
     },
 
-    get uri() this.mUri,
+    get uri() { return this.mUri; },
     set uri(aUri) {
         const protocols = ["http", "https", "webcal", "webcals"];
         this.mUri = aUri;
@@ -128,7 +128,7 @@ calGoogleCalendar.prototype = {
             // new format:  googleapi://session-id/?calendar=calhash@group.calendar.google.com&tasks=taskhash
             let [fullUser, path] = aUri.path.substr(2).split("/", 2);
             let parameters = new Map(path.substr(1).split("&").filter(Boolean)
-                             .map(function(x) x.split("=", 2).map(decodeURIComponent)));
+                             .map(function(x) { return x.split("=", 2).map(decodeURIComponent); }));
 
             if (parameters.size == 0) {
                 this.mCalendarName = fullUser;
@@ -339,7 +339,7 @@ calGoogleCalendar.prototype = {
     deleteItemOrUseCache: calendarShim.deleteItemOrUseCache,
     notifyPureOperationComplete: calendarShim.notifyPureOperationComplete,
 
-    addItem: function(aItem, aListener) this.adoptItem(aItem.clone(), aListener),
+    addItem: function(aItem, aListener) { return this.adoptItem(aItem.clone(), aListener); },
     adoptItem: function(aItem, aListener) {
         function stackContains(part, max) {
             if (max === undefined) max = 8;
@@ -600,29 +600,52 @@ calGoogleCalendar.prototype = {
         this.mObservers.notify("onLoad", [this]);
     },
 
+    migrateStorageCache: function() {
+        let cacheVersion = this.getProperty("cache.version");
+        if (!cacheVersion || cacheVersion >= this.CACHE_DB_VERSION) {
+            // Either up to date or first run, make sure property set right.
+            this.setProperty("cache.version", this.CACHE_DB_VERSION);
+            return Promise.resolve(false);
+        }
+
+        let needsReset = false;
+        cal.LOG("[calGoogleCalendar] Migrating cache from " +
+                cacheVersion + " to " + this.CACHE_DB_VERSION + " for " + this.name);
+
+        if (cacheVersion < 2) {
+            // The initial version 1.0 had some issues that required resetting
+            // the cache.
+            needsReset = true;
+        }
+
+        if (cacheVersion < 3) {
+            // There was an issue with ids from the birthday calendar, we need
+            // to reset just this calendar. See bug 1169062.
+            let birthdayCalendar = "#contacts@group.v.calendar.google.com";
+            if (this.mCalendarName && this.mCalendarName == birthdayCalendar) {
+                needsReset = true;
+            }
+        }
+
+        // Migration all done. Reset if requested.
+        if (needsReset) {
+            return this.resetSync().then(function() {
+                this.setProperty("cache.version", this.CACHE_DB_VERSION);
+                return needsReset;
+            }.bind(this));
+        } else {
+            this.setProperty("cache.version", this.CACHE_DB_VERSION);
+            return Promise.resolve(needsReset);
+        }
+    },
+
     /**
      * Implement calIChangeLog
      */
-    get offlineStorage() this.mOfflineStorage,
+    get offlineStorage() { return this.mOfflineStorage; },
     set offlineStorage(val) {
         this.mOfflineStorage = val;
-        let cacheVersion = this.getProperty("cache.version");
-        let resetPromise;
-        if (cacheVersion && cacheVersion != this.CACHE_DB_VERSION) {
-            cal.LOG("[calGoogleCalendar] Migrating cache from " +
-                    cacheVersion + " to " + this.CACHE_DB_VERSION);
-            this.resetSync()
-            resetPromise = this.resetSync();
-        } else if (!cacheVersion) {
-            resetPromise = Promise.resolve();
-        }
-
-        if (resetPromise) {
-            resetPromise.then(function() {
-                this.setProperty("cache.version", this.CACHE_DB_VERSION);
-            }.bind(this));
-        }
-
+        this.migrateStorageCache();
         return val;
     },
 
@@ -680,7 +703,7 @@ calGoogleCalendar.prototype = {
             calendarRequest.uri = this.createUsersURI("calendarList", this.mCalendarName)
             calendarPromise = this.session.asyncItemRequest(calendarRequest).then(function(aData) {
                 if (aData.defaultReminders) {
-                    this.defaultReminders = aData.defaultReminders.map(function(x) JSONToAlarm(x, true));
+                    this.defaultReminders = aData.defaultReminders.map(function(x) { return JSONToAlarm(x, true); });
                 } else {
                     this.defaultReminders = [];
                 }
@@ -780,7 +803,7 @@ calGoogleCalendar.prototype = {
      * provider, but we want to advertise that we will always take care of
      * notifications.
      */
-    canNotify: function(aMethod, aItem) true
+    canNotify: function(aMethod, aItem) { return true; }
 };
 
 var NSGetFactory = XPCOMUtils.generateNSGetFactory([calGoogleCalendar]);

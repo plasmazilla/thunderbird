@@ -56,7 +56,7 @@ private:
   bool GetUTF8LibPath(nsACString& aOutLibPath);
 
   virtual bool RecvSetNodeId(const nsCString& aNodeId) override;
-  virtual bool RecvStartPlugin() override;
+  virtual bool AnswerStartPlugin() override;
 
   virtual PCrashReporterChild* AllocPCrashReporterChild(const NativeThreadId& aThread) override;
   virtual bool DeallocPCrashReporterChild(PCrashReporterChild*) override;
@@ -71,7 +71,7 @@ private:
                                                   ProcessId aOtherPid) override;
   void GMPContentChildActorDestroy(GMPContentChild* aGMPContentChild);
 
-  virtual bool RecvCrashPluginNow(const GMPCrashReason& aReason) override;
+  virtual bool RecvCrashPluginNow() override;
   virtual bool RecvBeginAsyncShutdown() override;
   virtual bool RecvCloseActive() override;
 

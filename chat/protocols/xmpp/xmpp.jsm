@@ -33,14 +33,52 @@ XPCOMUtils.defineLazyServiceGetter(this, "UuidGenerator",
                                    "@mozilla.org/uuid-generator;1",
                                    "nsIUUIDGenerator");
 
-XPCOMUtils.defineLazyGetter(this, "_", function()
+XPCOMUtils.defineLazyGetter(this, "_", () =>
   l10nHelper("chrome://chat/locale/xmpp.properties")
 );
 
 XPCOMUtils.defineLazyGetter(this, "TXTToHTML", function() {
   let cs = Cc["@mozilla.org/txttohtmlconv;1"].getService(Ci.mozITXTToHTMLConv);
-  return function(aTxt) cs.scanTXT(aTxt, cs.kEntities);
+  return aTxt => cs.scanTXT(aTxt, cs.kEntities);
 });
+
+// Parses the status from a presence stanza into an object of statusType,
+// statusText and idleSince.
+function parseStatus(aStanza) {
+  let statusType = Ci.imIStatusInfo.STATUS_AVAILABLE;
+  let show = aStanza.getElement(["show"]);
+  if (show) {
+    show = show.innerText;
+    if (show == "away")
+      statusType = Ci.imIStatusInfo.STATUS_AWAY;
+    else if (show == "chat")
+      statusType = Ci.imIStatusInfo.STATUS_AVAILABLE; //FIXME
+    else if (show == "dnd")
+      statusType = Ci.imIStatusInfo.STATUS_UNAVAILABLE;
+    else if (show == "xa")
+      statusType = Ci.imIStatusInfo.STATUS_IDLE;
+  }
+
+  let idleSince = 0;
+  let query = aStanza.getElement(["query"]);
+  if (query && query.uri == Stanza.NS.last) {
+    let now = Math.floor(Date.now() / 1000);
+    idleSince = now - parseInt(query.attributes["seconds"], 10);
+    statusType = Ci.imIStatusInfo.STATUS_IDLE;
+  }
+
+  // Mark official Android clients as mobile.
+  const kAndroidNodeURI = "http://www.android.com/gtalk/client/caps";
+  if (aStanza.getChildrenByNS(Stanza.NS.caps)
+             .some(s => s.localName == "c" &&
+                        s.attributes["node"] == kAndroidNodeURI))
+    statusType = Ci.imIStatusInfo.STATUS_MOBILE;
+
+  let status = aStanza.getElement(["status"]);
+  status = status ? status.innerText : "";
+
+  return {statusType: statusType, statusText: status, idleSince: idleSince};
+};
 
 /* This is an ordered list, used to determine chat buddy flags:
  *  index < member    -> noFlags
@@ -52,40 +90,61 @@ XPCOMUtils.defineLazyGetter(this, "TXTToHTML", function() {
 const kRoles = ["outcast", "visitor", "participant", "member", "moderator",
                 "admin", "owner"];
 
-function MUCParticipant(aNick, aName, aStanza)
+function MUCParticipant(aNick, aJid, aPresenceStanza)
 {
-  this._jid = aName;
+  this._jid = aJid;
   this.name = aNick;
-  this.stanza = aStanza;
+  this.onPresenceStanza(aPresenceStanza);
 }
 MUCParticipant.prototype = {
   __proto__: ClassInfo("prplIConvChatBuddy", "XMPP ConvChatBuddy object"),
 
   buddy: false,
-  get alias() this.name,
+
+  // The occupant jid of the participant which is of the form room@domain/nick.
+  _jid: null,
+
+  // The real jid of the participant which is of the form local@domain/resource.
+  accountJid: null,
+
+  statusType: null,
+  statusText: null,
+  get alias() { return this.name; },
 
   role: 2, // "participant" by default
-  set stanza(aStanza) {
-    this._stanza = aStanza;
 
-    let x =
-      aStanza.getChildren("x").filter(function (c) c.uri == Stanza.NS.muc_user);
+  // Called when a presence stanza is received for this participant.
+  onPresenceStanza: function(aStanza) {
+    let statusInfo = parseStatus(aStanza);
+    this.statusType = statusInfo.statusType;
+    this.statusText = statusInfo.statusText;
+
+    let x = aStanza.children.filter(child => child.localName == "x" &&
+                                             child.uri == Stanza.NS.muc_user);
     if (x.length == 0)
       return;
+
+    // XEP-0045 (7.2.3): We only expect a single <x/> element of this namespace,
+    // so we ignore any others.
     x = x[0];
+
     let item = x.getElement(["item"]);
     if (!item)
       return;
 
     this.role = Math.max(kRoles.indexOf(item.attributes["role"]),
                          kRoles.indexOf(item.attributes["affiliation"]));
+
+    let accountJid = item.attributes["jid"];
+    if (accountJid)
+      this.accountJid = accountJid;
   },
 
-  get noFlags() this.role < kRoles.indexOf("member"),
-  get voiced() this.role == kRoles.indexOf("member"),
-  get halfOp() this.role == kRoles.indexOf("moderator"),
-  get op() this.role == kRoles.indexOf("admin"),
-  get founder() this.role == kRoles.indexOf("owner"),
+  get noFlags() { return this.role < kRoles.indexOf("member"); },
+  get voiced() { return this.role == kRoles.indexOf("member"); },
+  get halfOp() { return this.role == kRoles.indexOf("moderator"); },
+  get op() { return this.role == kRoles.indexOf("admin"); },
+  get founder() { return this.role == kRoles.indexOf("owner"); },
   typing: false
 };
 
@@ -105,6 +164,9 @@ const XMPPMUCConversationPrototype = {
   },
 
   _targetResource: "",
+
+  // True while we are rejoining a room previously parted by the user.
+  _rejoined: false,
 
   get topic() this._topic,
   set topic(aTopic) {
@@ -187,6 +249,17 @@ const XMPPMUCConversationPrototype = {
     let codes = x.getElements(["status"]).map(elt => elt.attributes["code"]);
     let item = x.getElement(["item"]);
 
+    // Changes the nickname of a participant for this muc.
+    let changeNick = () => {
+      if (!item  || !item.attributes["nick"]) {
+        this.WARN("Received a MUC presence code 303 or 210 stanza without an " +
+                  "item element or a nick attribute.");
+        return;
+      }
+      let newNick = item.attributes["nick"];
+      this.updateNick(nick, newNick, nick == this.nick);
+    };
+
     if (aStanza.attributes["type"] == "unavailable") {
       if (!this._participants.has(nick)) {
         this.WARN("received unavailable presence for an unknown MUC participant: " +
@@ -196,27 +269,66 @@ const XMPPMUCConversationPrototype = {
       if (codes.indexOf("303") != -1) {
         // XEP-0045 (7.6): Changing Nickname.
         // Service Updates Nick for user.
-        if (!item  || !item.attributes["nick"]) {
-          this.WARN("Received a MUC presence code 303 stanza without an item " +
-                    "element or a nick attribute.");
-          return;
-        }
-        let participant = this._participants.get(nick);
-        participant.name = item.attributes["nick"];
+        changeNick();
         return;
       }
       if (item && item.attributes["role"] == "none") {
-        // XEP-0045: the user is no longer an occupant.
+        // XEP-0045: an occupant has left the room.
         this.removeParticipant(nick);
-        if (codes.indexOf("110") != -1) {
-          // XEP-0045 7.14: Self-presence.
-          // This presence refers to this account.
+
+        // Who caused the participant to leave the room.
+        let actor = item.getElement(["actor"]);
+        let actorNick = actor ? actor.attributes["nick"] : "";
+        let isActor = actorNick ? ".actor" : "";
+
+        // Why the participant left.
+        let reasonNode = item.getElement(["reason"]);
+        let reason = reasonNode ? reasonNode.innerText : "";
+        let isReason = reason ? ".reason" : "";
+
+        let isYou = nick == this.nick ? ".you" : "";
+        let affectedNick = isYou ? "" : nick;
+        if (isYou)
           this.left = true;
+
+        let message;
+        if (codes.indexOf("301") != -1) {
+          // XEP-0045 (9.1): Banning a User.
+          message = "conversation.message.banned";
+        }
+        else if (codes.indexOf("307") != -1) {
+          // XEP-0045 (8.2): Kicking an Occupant.
+          message = "conversation.message.kicked";
+        }
+        else if (codes.indexOf("322") != -1 || codes.indexOf("321") != -1) {
+          // XEP-0045: Inform user that he or she is being removed from the
+          // room because the room has been changed to members-only and the
+          // user is not a member.
+          message = "conversation.message.removedNonMember";
+        }
+        else if (codes.indexOf("332") != -1) {
+          // XEP-0045: Inform user that he or she is being removed from the
+          // room because the MUC service is being shut down.
+          message = "conversation.message.mucShutdown";
+
+          // The reason here just duplicates what's in the system message.
+          reason = isReason = "";
+        }
+        else {
+          // XEP-0045 (7.14): Received when the user parts a room.
+          message = "conversation.message.parted";
+
+          // The reason is in a status element in this case.
+          reasonNode = aStanza.getElement(["status"]);
+          reason = reasonNode ? reasonNode.innerText : "";
+          isReason = reason ? ".reason" : "";
         }
 
-        // Bug 1146093: Add an appropriate system message telling the
-        // user what happened (banned or removed or kicked from
-        // MUC room) using codes.
+        if (message) {
+          let messageID = message + isYou + isActor + isReason;
+          let params = [actorNick, affectedNick, reason].filter(s => s);
+          this.writeMessage(this.name, _(messageID, ...params), {system: true});
+        }
       }
       else
         this.WARN("Unhandled type==unavailable MUC presence stanza.");
@@ -243,6 +355,13 @@ const XMPPMUCConversationPrototype = {
         return true;
       });
     }
+    else if (codes.indexOf("210") != -1) {
+      // XEP-0045 (7.6): Changing Nickname.
+      // Service modifies this user's nickname in accordance with local service
+      // policies.
+      changeNick();
+      return;
+    }
     else if (codes.indexOf("110") != -1) {
       // XEP-0045: Room exists and joined successfully.
       this.left = false;
@@ -256,9 +375,18 @@ const XMPPMUCConversationPrototype = {
       this._participants.set(nick, participant);
       this.notifyObservers(new nsSimpleEnumerator([participant]),
                            "chat-buddy-add");
+      if (this.nick != nick && !this.joining) {
+        this.writeMessage(this.name, _("conversation.message.join", nick),
+                          {system: true});
+      }
+      else if (this.nick == nick && this._rejoined) {
+        this.writeMessage(this.name, _("conversation.message.rejoined"),
+                          {system: true});
+        this._rejoined = false;
+      }
     }
     else {
-      this._participants.get(nick).stanza = aStanza;
+      this._participants.get(nick).onPresenceStanza(aStanza);
       this.notifyObservers(this._participants.get(nick), "chat-buddy-update");
     }
   },
@@ -294,34 +422,8 @@ const XMPPMUCConversationPrototype = {
     this.writeMessage(from, aMsg, flags);
   },
 
-  getNormalizedChatBuddyName: function(aNick)
-    this._account.normalizeFullJid(this.name + "/" + aNick),
-
-  // Removes a participant from MUC conversation.
-  removeParticipant: function(aNick) {
-    if (!this._participants.has(aNick))
-      return;
-
-    this._participants.delete(aNick);
-    let nickString = Cc["@mozilla.org/supports-string;1"]
-                       .createInstance(Ci.nsISupportsString);
-    nickString.data = aNick;
-    this.notifyObservers(new nsSimpleEnumerator([nickString]),
-                         "chat-buddy-remove");
-  },
-
-  // Removes all participant in MUC conversation.
-  removeAllParticipants: function() {
-    let stringNicknames = [];
-    this._participants.forEach(function(aParticipant) {
-      let stringNickname = Cc["@mozilla.org/supports-string;1"]
-                              .createInstance(Ci.nsISupportsString);
-      stringNickname.data = aParticipant.name;
-      stringNicknames.push(stringNickname);
-    });
-    this.notifyObservers(new nsSimpleEnumerator(stringNicknames),
-                         "chat-buddy-remove");
-    this._participants.clear();
+  getNormalizedChatBuddyName: function(aNick) {
+    return this._account.normalizeFullJid(this.name + "/" + aNick);
   },
 
   // Leaves MUC conversation.
@@ -330,6 +432,91 @@ const XMPPMUCConversationPrototype = {
                             aMsg ? Stanza.node("status", null, null, aMsg.trim()) : null);
     this._account.sendStanza(s);
     delete this.chatRoomFields;
+  },
+
+  // Bans a participant from MUC conversation.
+  ban: function(aNickName, aMsg = null) {
+    // XEP-0045 (9.1): Banning a User.
+    let participant = this._participants.get(aNickName);
+    if (!participant) {
+      this.writeMessage(this.name,
+                        _("conversation.error.nickNotInRoom", aNickName),
+                        {system: true});
+      return;
+    }
+    if (!participant.accountJid) {
+      this.writeMessage(this.name,
+                        _("conversation.error.banCommandAnonymousRoom"),
+                        {system: true});
+      return;
+    }
+
+    let attributes = {affiliation: "outcast", jid: participant.accountJid};
+    let item = Stanza.node("item", null, attributes,
+      aMsg ? Stanza.node("reason", null, null, aMsg) : null);
+    let s = Stanza.iq("set", null, this.name,
+                      Stanza.node("query", Stanza.NS.muc_admin, null, item));
+    this._account.sendStanza(s, this._banKickHandler, this);
+  },
+
+  // Kicks a participant from MUC conversation.
+  kick: function(aNickName, aMsg = null) {
+    // XEP-0045 (8.2): Kicking an Occupant.
+    let attributes = {role: "none", nick: aNickName};
+    let item = Stanza.node("item", null, attributes,
+      aMsg ? Stanza.node("reason", null, null, aMsg) : null);
+    let s = Stanza.iq("set", null, this.name,
+                      Stanza.node("query", Stanza.NS.muc_admin, null, item));
+    this._account.sendStanza(s, this._banKickHandler, this);
+  },
+
+  // Callback for ban and kick commands.
+  _banKickHandler: function(aStanza) {
+    if (aStanza.attributes["type"] == "error") {
+      let error = this._account.parseError(aStanza);
+      let message;
+      switch (error.condition) {
+        case "not-allowed":
+          message = _("conversation.error.banKickCommandNotAllowed");
+          break;
+        case "conflict":
+          message = _("conversation.error.banKickCommandConflict");
+          break;
+        default:
+          return false;
+      }
+      this.writeMessage(this.name, message, {system: true});
+      return true;
+    }
+    else if (aStanza.attributes["type"] == "result")
+      return true;
+    return false;
+  },
+
+  // Changes nick in MUC conversation to a new one.
+  setNick: function(aNewNick) {
+    let notAcceptable = (aError) => {
+      // XEP-0045 (7.6): Changing Nickname (example 53).
+      let message = _("conversation.error.changeNickFailedNotAcceptable",
+                      aNewNick);
+      this.writeMessage(this.name, message, {system: true, error: true});
+      // TODO: We should then discover user's reserved nickname (it could be
+      // discovered before joining a room).
+      // XEP-0045 (7.12): Discovering Reserved Room Nickname.
+      return true;
+    };
+    let conflict = (aError) => {
+      // XEP-0045 (7.2.9): Nickname Conflict.
+      let message = _("conversation.error.changeNickFailedConflict", aNewNick);
+      this.writeMessage(this.name, message, {system: true, error: true});
+      return true;
+    };
+    let errorHandler = this._account.handleErrors({notAcceptable: notAcceptable,
+                                                   conflict: conflict});
+
+    // XEP-0045 (7.6): Changing Nickname.
+    let s = Stanza.presence({to: this.name + "/" + aNewNick}, null);
+    this._account.sendStanza(s, errorHandler);
   },
 
   /* Called when the user closed the conversation */
@@ -361,10 +548,10 @@ const XMPPConversationPrototype = {
   // recipient jid (stored in the userName) is of the form room@domain/nick.
   _isMucParticipant: false,
 
-  get buddy() this._account._buddies.get(this.name),
-  get title() this.contactDisplayName,
-  get contactDisplayName() this.buddy ? this.buddy.contactDisplayName : this.name,
-  get userName() this.buddy ? this.buddy.userName : this.name,
+  get buddy() { return this._account._buddies.get(this.name); },
+  get title() { return this.contactDisplayName; },
+  get contactDisplayName() { return this.buddy ? this.buddy.contactDisplayName : this.name; },
+  get userName() { return this.buddy ? this.buddy.userName : this.name; },
 
   // Returns jid (room@domain/nick) if it is with a MUC participant, and the
   // name of conversation otherwise.
@@ -391,9 +578,10 @@ const XMPPConversationPrototype = {
     return jid.node;
   },
 
-  get shouldSendTypingNotifications()
-    this.supportChatStateNotifications &&
-    Services.prefs.getBoolPref("purple.conversations.im.send_typing"),
+  get shouldSendTypingNotifications() {
+    return this.supportChatStateNotifications &&
+           Services.prefs.getBoolPref("purple.conversations.im.send_typing");
+  },
 
   /* Called when the user is typing a message
    * aString - the currently typed message
@@ -602,7 +790,7 @@ const XMPPAccountBuddyPrototype = {
   // _serverAlias is set by jsProtoHelper to the value we cached in sqlite.
   // Use it only if we have neither of the other two values; usually because
   // we haven't connected to the server yet.
-  get serverAlias() this._rosterAlias || this._vCardFormattedName || this._serverAlias,
+  get serverAlias() { return this._rosterAlias || this._vCardFormattedName || this._serverAlias; },
   set serverAlias(aNewAlias) {
     if (!this._rosterItem) {
       this.ERROR("attempting to update the server alias of an account buddy " +
@@ -626,9 +814,9 @@ const XMPPAccountBuddyPrototype = {
   },
 
   /* Display name of the buddy */
-  get contactDisplayName() this.buddy.contact.displayName || this.displayName,
+  get contactDisplayName() { return this.buddy.contact.displayName || this.displayName; },
 
-  get tag() this._tag,
+  get tag() { return this._tag; },
   set tag(aNewTag) {
     let oldTag = this._tag;
     if (oldTag.name == aNewTag.name) {
@@ -648,11 +836,11 @@ const XMPPAccountBuddyPrototype = {
     let oldXML = item.getXML();
     // Remove the old tag if it was listed in the roster item.
     item.children =
-      item.children.filter(function (c) c.qName != "group" ||
-                                        c.innerText != oldTag.name);
+      item.children.filter(c => c.qName != "group" ||
+                                c.innerText != oldTag.name);
     // Ensure the new tag is listed.
     let newTagName = aNewTag.name;
-    if (!item.getChildren("group").some(function (g) g.innerText == newTagName))
+    if (!item.getChildren("group").some(g => g.innerText == newTagName))
       item.addChild(Stanza.node("group", null, null, newTagName));
     // Avoid sending anything to the server if the roster item hasn't changed.
     // It's possible that the roster item hasn't changed if the roster
@@ -710,7 +898,7 @@ const XMPPAccountBuddyPrototype = {
     let dataArray = [content.charCodeAt(i) for (i in content)];
     ch.update(dataArray, dataArray.length);
     let hash = ch.finish(false);
-    function toHexString(charCode) ("0" + charCode.toString(16)).slice(-2)
+    function toHexString(charCode) { return ("0" + charCode.toString(16)).slice(-2); }
     this._photoHash = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
 
     let istream = Cc["@mozilla.org/io/string-input-stream;1"]
@@ -760,47 +948,16 @@ const XMPPAccountBuddyPrototype = {
         preferred = undefined;
     }
     else {
-      let statusType = Ci.imIStatusInfo.STATUS_AVAILABLE;
-      let show = aStanza.getElement(["show"]);
-      if (show) {
-        show = show.innerText;
-        if (show == "away")
-          statusType = Ci.imIStatusInfo.STATUS_AWAY;
-        else if (show == "chat")
-          statusType = Ci.imIStatusInfo.STATUS_AVAILABLE; //FIXME
-        else if (show == "dnd")
-          statusType = Ci.imIStatusInfo.STATUS_UNAVAILABLE;
-        else if (show == "xa")
-          statusType = Ci.imIStatusInfo.STATUS_IDLE;
-      }
-
-      let idleSince = 0;
-      let query = aStanza.getElement(["query"]);
-      if (query && query.uri == Stanza.NS.last) {
-        let now = Math.floor(Date.now() / 1000);
-        idleSince = now - parseInt(query.attributes["seconds"], 10);
-        statusType = Ci.imIStatusInfo.STATUS_IDLE;
-      }
-
-      // Mark official Android clients as mobile.
-      const kAndroidNodeURI = "http://www.android.com/gtalk/client/caps";
-      if (aStanza.getChildrenByNS(Stanza.NS.caps)
-                 .some(function(s) s.localName == "c" &&
-                                   s.attributes["node"] == kAndroidNodeURI))
-        statusType = Ci.imIStatusInfo.STATUS_MOBILE;
-
-      let status = aStanza.getElement(["status"]);
-      status = status ? status.innerText : "";
-
+      let statusInfo = parseStatus(aStanza);
       let priority = aStanza.getElement(["priority"]);
       priority = priority ? parseInt(priority.innerText, 10) : 0;
 
       if (!this._resources)
         this._resources = {};
       this._resources[resource] = {
-        statusType: statusType,
-        statusText: status,
-        idleSince: idleSince,
+        statusType: statusInfo.statusType,
+        statusText: statusInfo.statusText,
+        idleSince: statusInfo.idleSince,
         priority: priority,
         stanza: aStanza
       };
@@ -853,11 +1010,12 @@ const XMPPAccountBuddyPrototype = {
   },
 
   /* Can send messages to buddies who appear offline */
-  get canSendMessage() this.account.connected,
+  get canSendMessage() { return this.account.connected; },
 
   /* Called when the user wants to chat with the buddy */
-  createConversation: function()
-    this._account.createConversation(this.normalizedName)
+  createConversation: function() {
+    return this._account.createConversation(this.normalizedName);
+  }
 };
 function XMPPAccountBuddy(aAccount, aBuddy, aTag, aUserName)
 {
@@ -880,7 +1038,7 @@ const XMPPAccountPrototype = {
   /* Generate unique id for a stanza. Using id and unique sid is defined in
    * RFC 6120 (Section 8.2.3, 4.7.3).
    */
-  generateId: function() UuidGenerator.generateUUID().toString().slice(1, -1),
+  generateId: () => UuidGenerator.generateUUID().toString().slice(1, -1),
 
   _init: function(aProtoInstance, aImAccount) {
     GenericAccountPrototype._init.call(this, aProtoInstance, aImAccount);
@@ -895,12 +1053,12 @@ const XMPPAccountPrototype = {
     this._mucs = new NormalizedMap(this.normalize.bind(this));
   },
 
-  get canJoinChat() true,
+  get canJoinChat() { return true; },
   chatRoomFields: {
-    room: {get label() _("chatRoomField.room"), required: true},
-    server: {get label() _("chatRoomField.server"), required: true},
-    nick: {get label() _("chatRoomField.nick"), required: true},
-    password: {get label() _("chatRoomField.password"), isPassword: true}
+    room: {get label() { return _("chatRoomField.room"); }, required: true},
+    server: {get label() { return _("chatRoomField.server"); }, required: true},
+    nick: {get label() { return _("chatRoomField.nick"); }, required: true},
+    password: {get label() { return _("chatRoomField.password"); }, isPassword: true}
   },
   parseDefaultChatName: function(aDefaultChatName) {
     if (!aDefaultChatName)
@@ -947,6 +1105,10 @@ const XMPPAccountPrototype = {
     if (muc) {
       if (!muc.left)
         return muc; // We are already in this conversation.
+      else if (!muc.chatRoomFields) {
+        // We are rejoining a room that was parted by the user.
+        muc._rejoined = true;
+      }
     }
     else {
       muc = new this._MUCConversationConstructor(this, jid, nick);
@@ -961,7 +1123,13 @@ const XMPPAccountPrototype = {
     let password = aComponents.getValue("password");
     let x = Stanza.node("x", Stanza.NS.muc, null,
                         password ? Stanza.node("password", null, null, password) : null);
-    this.sendStanza(Stanza.presence({to: jid + "/" + nick}, x));
+    let logString;
+    if (password) {
+      logString = "<presence .../> (Stanza containing password to join MUC " +
+        jid + "/" + nick + " not logged)";
+    }
+    this.sendStanza(Stanza.presence({to: jid + "/" + nick}, x),
+      undefined, undefined, logString);
     return muc;
   },
 
@@ -1083,6 +1251,105 @@ const XMPPAccountPrototype = {
     let s = Stanza.presence({to: aRequest.userName, type: aReply})
     this.sendStanza(s);
     this.removeBuddyRequest(aRequest);
+  },
+
+  requestBuddyInfo: function(aJid) {
+    if (!this.connected) {
+      Services.obs.notifyObservers(EmptyEnumerator, "user-info-received", aJid);
+      return;
+    }
+
+    let userName;
+    let tooltipInfo = [];
+    let jid = this._parseJID(aJid);
+    let muc = this._mucs.get(jid.node + "@" + jid.domain);
+    if (muc) {
+      let participant = muc._participants.get(jid.resource);
+      if (participant) {
+        if (participant.accountJid)
+          userName = participant.accountJid;
+        if (!muc.left) {
+          let statusType = participant.statusType;
+          let statusText = participant.statusText;
+          tooltipInfo.push(new TooltipInfo(statusType, statusText, true));
+        }
+      }
+    }
+
+    let iq = Stanza.iq("get", null, aJid, Stanza.node("vCard", Stanza.NS.vcard));
+    this.sendStanza(iq, aStanza => {
+      let vCardInfo = {};
+      let vCardNode = aStanza.getElement(["vCard"]);
+
+      // In the case of an error response, we just notify the observers with
+      // what info we already have.
+      if (aStanza.attributes["type"] == "result" && vCardNode)
+        vCardInfo = this.parseVCard(vCardNode);
+
+      // The real jid of participant which is of the form local@domain/resource.
+      // We consider the jid is provided by server is more correct than jid is
+      // set by the user.
+      if (userName)
+        vCardInfo.userName = userName;
+
+      // vCard fields we want to display in the tooltip.
+      const kTooltipFields = ["userName", "fullName", "nickname", "title",
+                              "organization", "email", "birthday", "locality",
+                              "country"];
+
+      for (let field of kTooltipFields) {
+        if (vCardInfo.hasOwnProperty(field))
+          tooltipInfo.push(new TooltipInfo(_("tooltip." + field), vCardInfo[field]));
+      }
+      Services.obs.notifyObservers(new nsSimpleEnumerator(tooltipInfo),
+                                   "user-info-received", aJid);
+    });
+  },
+
+  // Parses the vCard into the properties of the returned object.
+  parseVCard: function(aVCardNode) {
+    // XEP-0054: vcard-temp.
+    let aResult = {};
+    for (let node of aVCardNode.children.filter(child => child.type == "node")) {
+      let localName = node.localName;
+      let innerText = node.innerText;
+      if (innerText) {
+        if (localName == "FN")
+          aResult.fullName = innerText;
+        else if (localName == "NICKNAME")
+          aResult.nickname = innerText;
+        else if (localName == "TITLE")
+          aResult.title = innerText;
+        else if (localName == "BDAY")
+          aResult.birthday = innerText;
+        else if (localName == "JABBERID")
+          aResult.userName = innerText;
+      }
+      if (localName == "ORG") {
+        let organization = node.getElement(["ORGNAME"]);
+        if (organization && organization.innerText)
+          aResult.organization = organization.innerText;
+      }
+      else if (localName == "EMAIL") {
+        let userID = node.getElement(["USERID"]);
+        if (userID && userID.innerText)
+          aResult.email = userID.innerText;
+      }
+      else if (localName == "ADR") {
+        let locality = node.getElement(["LOCALITY"]);
+        if (locality && locality.innerText)
+          aResult.locality = locality.innerText;
+
+        let country = node.getElement(["CTRY"]);
+        if (country && country.innerText)
+          aResult.country = country.innerText;
+      }
+      else if (localName == "PHOTO")
+        aResult.photo = node;
+      // TODO: Parse the other fields of vCard and display it in system messages
+      // in response to /whois.
+    }
+    return aResult;
   },
 
   // Returns undefined if not an error stanza, and an object
@@ -1235,13 +1502,27 @@ const XMPPAccountPrototype = {
       }
     }
     else if (type == "get") {
+      let id = aStanza.attributes["id"];
+      let from = aStanza.attributes["from"];
+
       // XEP-0199: XMPP server-to-client ping (XEP-0199)
       let ping = aStanza.getElement(["ping"]);
       if (ping && ping.uri == Stanza.NS.ping) {
-        if (aStanza.attributes["from"] == this._jid.domain) {
-          this.sendStanza(Stanza.iq("result", aStanza.attributes["id"],
-                          this._jid.domain));
-        }
+        if (from == this._jid.domain)
+          this.sendStanza(Stanza.iq("result", id, this._jid.domain));
+        return;
+      }
+
+      let query = aStanza.getElement(["query"]);
+      if (query && query.uri == Stanza.NS.version) {
+        // XEP-0092: Software Version.
+        let children = [];
+        children.push(Stanza.node("name", null, null, Services.appinfo.name));
+        children.push(Stanza.node("version", null, null,
+                                  Services.appinfo.version));
+        let versionQuery = Stanza.node("query", Stanza.NS.version, null,
+                                       children);
+        this.sendStanza(Stanza.iq("result", id, from, versionQuery));
         return;
       }
     }
@@ -1298,7 +1579,7 @@ const XMPPAccountPrototype = {
         let from = receivedStanza.attributes["from"];
         if (aStanza.attributes["type"] != "result" || !query ||
             query.uri != Stanza.NS.disco_info) {
-          this.WARN("Could not get features for this service: " + from);
+          this.LOG("Could not get features for this service: " + from);
           return true;
         }
         let features = query.getElements(["feature"])
@@ -1513,16 +1794,13 @@ const XMPPAccountPrototype = {
       return;
 
     let foundFormattedName = false;
-    for each (let c in vCard.children) {
-      if (c.type != "node")
-        continue;
-      if (c.localName == "FN") {
-        buddy.vCardFormattedName = c.innerText;
-        foundFormattedName = true;
-      }
-      if (c.localName == "PHOTO")
-        buddy._saveIcon(c);
+    let vCardInfo = this.parseVCard(vCard);
+    if (vCardInfo.fullName) {
+      buddy.vCardFormattedName = vCardInfo.fullName;
+      foundFormattedName = true;
     }
+    if (vCardInfo.photo)
+      buddy._saveIcon(vCardInfo.photo);
     if (!foundFormattedName && buddy._vCardFormattedName)
       buddy.vCardFormattedName = "";
     buddy._vCardReceived = true;
@@ -1590,7 +1868,7 @@ const XMPPAccountPrototype = {
         // If the server specified at least one group, ensure the group we use
         // as the account buddy's tag is still a group on the server...
         let tagName = buddy.tag.name;
-        if (!groups.some(function (g) g.innerText == tagName)) {
+        if (!groups.some(g => g.innerText == tagName)) {
           // ... otherwise we need to move our account buddy to a new group.
           tagName = groups[0].innerText;
           if (tagName) { // Should always be true, but check just in case...
@@ -1689,8 +1967,8 @@ const XMPPAccountPrototype = {
 
   /* Public methods */
 
-  sendStanza(aStanza, aCallback, aThis) {
-    return this._connection.sendStanza(aStanza, aCallback, aThis);
+  sendStanza(aStanza, aCallback, aThis, aLogString) {
+    return this._connection.sendStanza(aStanza, aCallback, aThis, aLogString);
   },
 
   // Variations of the XMPP protocol can change these default constructors:
@@ -1944,7 +2222,7 @@ const XMPPAccountPrototype = {
       // a user action. This is to avoid removing data from the server each
       // time the user connects from a new profile.
       this._userVCard.children =
-        this._userVCard.children.filter(function (n) n.qName != "FN");
+        this._userVCard.children.filter(n => n.qName != "FN");
     }
     delete this._forceUserDisplayNameUpdate;
 
@@ -1965,7 +2243,7 @@ const XMPPAccountPrototype = {
       // Like for the display name, we remove a photo without
       // replacing it only if the call is caused by a user action.
       this._userVCard.children =
-        this._userVCard.children.filter(function (n) n.qName != "PHOTO");
+        this._userVCard.children.filter(n => n.qName != "PHOTO");
     }
     delete this._forceUserIconUpdate;
 

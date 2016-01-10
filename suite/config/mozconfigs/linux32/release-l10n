@@ -1,3 +1,4 @@
+no_tooltool=1
 . "$topsrcdir/build/unix/mozconfig.linux32"
 
 ac_add_options --with-l10n-base=../../l10n
@@ -20,4 +21,3 @@ export MOZILLA_OFFICIAL=1
 ac_add_options --with-ccache=/usr/bin/ccache
 
 ac_add_options --disable-stdcxx-compat
-

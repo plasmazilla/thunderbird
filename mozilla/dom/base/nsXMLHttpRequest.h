@@ -499,7 +499,6 @@ public:
   // response
   void GetResponseURL(nsAString& aUrl);
   uint32_t Status();
-  uint32_t InternalErrorCode();
   void GetStatusText(nsCString& aStatusText);
   void GetResponseHeader(const nsACString& aHeader, nsACString& aResult,
                          ErrorResult& aRv);
@@ -644,7 +643,6 @@ protected:
   nsCOMPtr<nsIPrincipal> mPrincipal;
   nsCOMPtr<nsIChannel> mChannel;
   nsCOMPtr<nsIDocument> mResponseXML;
-  nsCOMPtr<nsIChannel> mCORSPreflightChannel;
   nsTArray<nsCString> mCORSUnsafeHeaders;
 
   nsCOMPtr<nsIStreamListener> mXMLParserStreamListener;
@@ -752,7 +750,6 @@ protected:
   nsCOMPtr<nsITimer> mTimeoutTimer;
   void StartTimeoutTimer();
   void HandleTimeoutCallback();
-  nsresult mErrorStatus;
 
   bool mErrorLoad;
   bool mWaitingForOnStopRequest;

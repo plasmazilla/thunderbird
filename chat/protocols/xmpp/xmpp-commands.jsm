@@ -8,20 +8,42 @@ const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "_", function()
+XPCOMUtils.defineLazyGetter(this, "_", () =>
   l10nHelper("chrome://chat/locale/xmpp.properties")
 );
 
 // Get conversation object.
-function getConv(aConv) aConv.wrappedJSObject;
+function getConv(aConv) {
+  return aConv.wrappedJSObject;
+}
 
 // Get account object.
-function getAccount(aConv) getConv(aConv)._account;
+function getAccount(aConv) {
+  return getConv(aConv)._account;
+}
+
+// Trims the string and splits it in two parts on the first space
+// if there is one. Returns the non-empty parts in an array.
+function splitInput(aString) {
+  let params = aString.trim();
+  if (!params)
+    return [];
+
+  let splitParams = [];
+  let offset = params.indexOf(" ");
+  if (offset != -1) {
+    splitParams.push(params.slice(0, offset));
+    splitParams.push(params.slice(offset + 1));
+  }
+  else
+    splitParams.push(params);
+  return splitParams;
+}
 
 var commands = [
   {
     name: "join",
-    get helpString() _("command.join3", "join"),
+    get helpString() { return _("command.join3", "join"); },
     run: function(aMsg, aConv, aReturnedConv) {
       let account = getAccount(aConv);
       let params = aMsg.trim();
@@ -54,7 +76,7 @@ var commands = [
   },
   {
     name: "part",
-    get helpString() _("command.part2", "part"),
+    get helpString() { return _("command.part2", "part"); },
     usageContext: Ci.imICommand.CMD_CONTEXT_CHAT,
     run: function(aMsg, aConv) {
       let conv = getConv(aConv);
@@ -65,12 +87,88 @@ var commands = [
   },
   {
     name: "topic",
-    get helpString() _("command.topic", "topic"),
+    get helpString() { return _("command.topic", "topic"); },
     usageContext: Ci.imICommand.CMD_CONTEXT_CHAT,
     run: function(aMsg, aConv) {
       let conv = getConv(aConv);
       if (!conv.left)
         conv.topic = aMsg;
+      return true;
+    }
+  },
+  {
+    name: "ban",
+    get helpString() { return _("command.ban", "ban"); },
+    usageContext: Ci.imICommand.CMD_CONTEXT_CHAT,
+    run: function(aMsg, aConv) {
+      let params = splitInput(aMsg);
+      if (!params.length)
+        return false;
+
+      let conv = getConv(aConv);
+      if (!conv.left)
+        conv.ban(params[0], params[1]);
+      return true;
+    }
+  },
+  {
+    name: "kick",
+    get helpString() { return _("command.kick", "kick"); },
+    usageContext: Ci.imICommand.CMD_CONTEXT_CHAT,
+    run: function(aMsg, aConv) {
+      let params = splitInput(aMsg);
+      if (!params.length)
+        return false;
+
+      let conv = getConv(aConv);
+      if (!conv.left)
+        conv.ban(params[0], params[1]);
+      return true;
+    }
+  },
+  {
+    name: "nick",
+    get helpString() { return _("command.nick", "nick"); },
+    usageContext: Ci.imICommand.CMD_CONTEXT_CHAT,
+    run: function(aMsg, aConv) {
+      let params = aMsg.trim().split(/\s+/);
+      if (!params[0])
+        return false;
+
+      let conv = getConv(aConv);
+      if (!conv.left)
+        conv.setNick(params[0]);
+      return true;
+    }
+  },
+  {
+    name: "msg",
+    get helpString() { return _("command.msg", "msg"); },
+    usageContext: Ci.imICommand.CMD_CONTEXT_CHAT,
+    run: function(aMsg, aConv, aReturnedConv) {
+      let params = splitInput(aMsg);
+      if (params.length != 2)
+        return false;
+      let [nickName, msg] = params;
+
+      let conv = getConv(aConv);
+      if (conv.left)
+        return true;
+
+      if (!conv._participants.has(nickName)) {
+        conv.writeMessage(conv.name,
+                          _("conversation.error.nickNotInRoom", nickName),
+                          {system: true});
+        return true;
+      }
+      let account = getAccount(aConv);
+      let privateConv = account.createConversation(conv.name + "/" + nickName);
+      if (!privateConv)
+        return true;
+      privateConv.sendMsg(msg.trim());
+
+      if (aReturnedConv)
+        aReturnedConv.value = privateConv;
       return true;
     }
   }

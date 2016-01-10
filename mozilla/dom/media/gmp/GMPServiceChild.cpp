@@ -181,36 +181,38 @@ GeckoMediaPluginServiceChild::GetNodeId(const nsAString& aOrigin,
   return NS_OK;
 }
 
-void
-GeckoMediaPluginServiceChild::CrashPluginNow(uint32_t aPluginId, GMPCrashReason aReason)
+NS_IMETHODIMP
+GeckoMediaPluginServiceChild::UpdateTrialCreateState(const nsAString& aKeySystem,
+                                                     uint32_t aState)
 {
   if (NS_GetCurrentThread() != mGMPThread) {
-    mGMPThread->Dispatch(NS_NewRunnableMethodWithArgs<uint32_t, GMPCrashReason>(
-      this, &GeckoMediaPluginServiceChild::CrashPluginNow,
-      aPluginId, aReason), NS_DISPATCH_NORMAL);
-    return;
+    mGMPThread->Dispatch(NS_NewRunnableMethodWithArgs<nsString, uint32_t>(
+      this, &GeckoMediaPluginServiceChild::UpdateTrialCreateState,
+      aKeySystem, aState), NS_DISPATCH_NORMAL);
+    return NS_OK;
   }
 
   class Callback : public GetServiceChildCallback
   {
   public:
-    Callback(uint32_t aPluginId, GMPCrashReason aReason)
-      : mPluginId(aPluginId)
-      , mReason(aReason)
+    Callback(const nsAString& aKeySystem, uint32_t aState)
+      : mKeySystem(aKeySystem)
+      , mState(aState)
     { }
 
     virtual void Done(GMPServiceChild* aService) override
     {
-      aService->SendCrashPluginNow(mPluginId, mReason);
+      aService->SendUpdateGMPTrialCreateState(mKeySystem, mState);
     }
 
   private:
-    uint32_t mPluginId;
-    GMPCrashReason mReason;
+    nsString mKeySystem;
+    uint32_t mState;
   };
 
-  UniquePtr<GetServiceChildCallback> callback(new Callback(aPluginId, aReason));
+  UniquePtr<GetServiceChildCallback> callback(new Callback(aKeySystem, aState));
   GetServiceChild(Move(callback));
+  return NS_OK;
 }
 
 NS_IMETHODIMP

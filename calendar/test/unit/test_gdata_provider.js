@@ -84,7 +84,7 @@ function GDataServer(calendarId, tasksId) {
 GDataServer.prototype = {
     items: null,
 
-    get baseUri() "http://localhost:" + this.server.identity.primaryPort + "/",
+    get baseUri() { return "http://localhost:" + this.server.identity.primaryPort + "/"; },
 
     start: function() {
         this.server.start(-1);
@@ -434,6 +434,40 @@ function run_test() {
         }});
     }});
 }
+
+add_task(function* test_migrate_cache() {
+    let uriString = "googleapi://xpcshell/?calendar=xpcshell%40example.com";
+    let uri = Services.io.newURI(uriString, null, null);
+    let client = cal.getCalendarManager().createCalendar("gdata", uri);
+    let unwrapped = client.wrappedJSObject;
+    let migrateStorageCache = unwrapped.migrateStorageCache.bind(unwrapped);
+
+    monkeyPatch(unwrapped, "resetSync", function(protofunc) {
+        return Promise.resolve();
+    });
+
+    // No version, should not reset
+    equal((yield migrateStorageCache()), false);
+    equal(client.getProperty("cache.version"), 3);
+
+    // Check migrate 1 -> 2
+    unwrapped.CACHE_DB_VERSION = 2;
+    client.setProperty("cache.version", 1);
+    equal((yield migrateStorageCache()), true);
+    equal(client.getProperty("cache.version"), 2);
+
+    // Check migrate 2 -> 3 normal calendar
+    unwrapped.CACHE_DB_VERSION = 3;
+    client.setProperty("cache.version", 2);
+    equal((yield migrateStorageCache()), false);
+
+    // Check migrate 2 -> 3 birthday calendar
+    unwrapped.CACHE_DB_VERSION = 3;
+    uri = "googleapi://xpcshell/?calendar=%23contacts%40group.v.calendar.google.com";
+    unwrapped.uri = Services.io.newURI(uri, null, null);
+    client.setProperty("cache.version", 2);
+    equal((yield migrateStorageCache()), true);
+});
 
 add_test(function test_migrate_uri() {
     function checkMigrate(fromUri, session, calendarId, tasksId) {
@@ -929,6 +963,75 @@ add_task(function* test_recurring_event() {
     occ = event.recurrenceInfo.getNextOccurrence(event.startDate);
     equal(occ.title, "changed");
     equal(gServer.events.length, 2);
+
+    gServer.resetClient(client);
+});
+
+add_task(function* test_recurring_exception() {
+    gServer.syncs = [{
+        token: "1",
+        events: [{
+            "kind": "calendar#event",
+            "etag": "\"1\"",
+            "id": "go6ijb0b46hlpbu4eeu92njevo",
+            "created": "2006-06-08T21:04:52.000Z",
+            "updated": "2006-06-08T21:05:49.138Z",
+            "summary": "New Event",
+            "creator": gServer.creator,
+            "organizer": gServer.creator,
+            "start": { "dateTime": "2006-06-10T18:00:00+02:00" },
+            "end": {"dateTime": "2006-06-10T20:00:00+02:00" },
+            "iCalUID": "go6ijb0b46hlpbu4eeu92njevo@google.com",
+            "recurrence": [
+                "RRULE:FREQ=WEEKLY"
+            ]
+        },{
+            "kind": "calendar#event",
+            "etag": "\"2\"",
+            "id": "go6ijb0b46hlpbu4eeu92njevo_20060617T160000Z",
+            "summary": "New Event changed",
+            "start": { "dateTime": "2006-06-17T18:00:00+02:00" },
+            "end": {"dateTime": "2006-06-17T20:00:00+02:00" },
+            "recurringEventId": "go6ijb0b46hlpbu4eeu92njevo",
+            "originalStartTime": { "dateTime": "2006-06-17T18:00:00+02:00" }
+        }]
+    },{
+        // This sync run tests an exception where the master item is not part
+        // of the item stream.
+        token: "2",
+        events: [{
+            "kind": "calendar#event",
+            "etag": "\"3\"",
+            "id": "go6ijb0b46hlpbu4eeu92njevo_20060617T160000Z",
+            "summary": "New Event changed",
+            "start": { "dateTime": "2006-06-17T18:00:00+02:00" },
+            "end": {"dateTime": "2006-06-17T20:00:00+02:00" },
+            "status": "cancelled",
+            "recurringEventId": "go6ijb0b46hlpbu4eeu92njevo",
+            "originalStartTime": { "dateTime": "2006-06-17T18:00:00+02:00" }
+        }]
+    }];
+
+    let client = yield gServer.getClient();
+    let pclient = cal.async.promisifyCalendar(client.wrappedJSObject);
+
+    let items = yield pclient.getAllItems();
+    equal(items.length, 1);
+
+    let exIds = items[0].recurrenceInfo.getExceptionIds({});
+    equal(exIds.length, 1);
+
+    let ex = items[0].recurrenceInfo.getExceptionFor(exIds[0]);
+    equal(ex.title, "New Event changed");
+
+    client.refresh();
+    yield gServer.waitForLoad(client);
+
+    items = yield pclient.getAllItems();
+    equal(items.length, 1);
+
+    exIds = items[0].recurrenceInfo.getExceptionIds({});
+    equal(exIds.length, 0);
 
     gServer.resetClient(client);
 });

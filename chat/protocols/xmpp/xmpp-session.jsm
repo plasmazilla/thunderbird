@@ -11,15 +11,15 @@ Cu.import("resource:///modules/socket.jsm");
 Cu.import("resource:///modules/xmpp-xml.jsm");
 Cu.import("resource:///modules/xmpp-authmechs.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "_", function()
+XPCOMUtils.defineLazyGetter(this, "_", () =>
   l10nHelper("chrome://chat/locale/xmpp.properties")
 );
 
 // Workaround because a lazy getter can't be exported.
-XPCOMUtils.defineLazyGetter(this, "_defaultResource", function()
+XPCOMUtils.defineLazyGetter(this, "_defaultResource", () =>
   l10nHelper("chrome://branding/locale/brand.properties")("brandShortName")
 );
-__defineGetter__("XMPPDefaultResource", function() _defaultResource);
+__defineGetter__("XMPPDefaultResource", () => _defaultResource);
 
 function XMPPSession(aHost, aPort, aSecurity, aJID, aPassword, aAccount) {
   this._host = aHost;
@@ -88,10 +88,10 @@ XMPPSession.prototype = {
       this.resetPingTimer();
   },
 
-  get DEBUG() this._account.DEBUG,
-  get LOG() this._account.LOG,
-  get WARN() this._account.WARN,
-  get ERROR() this._account.ERROR,
+  get DEBUG() { return this._account.DEBUG; },
+  get LOG() { return this._account.LOG; },
+  get WARN() { return this._account.WARN; },
+  get ERROR() { return this._account.ERROR; },
 
   _security: null,
   _encrypted: false,
@@ -115,8 +115,8 @@ XMPPSession.prototype = {
   },
 
   /* Send a text message to the server */
-  send: function(aMsg) {
-    this.sendString(aMsg);
+  send: function(aMsg, aLogString) {
+    this.sendString(aMsg, "UTF-8", aLogString);
   },
 
   /* Send a stanza to the server.
@@ -125,12 +125,12 @@ XMPPSession.prototype = {
    * return true if the stanza was handled, false if not. Note that an
    * undefined return value is treated as true.
    */
-  sendStanza: function(aStanza, aCallback, aThis) {
+  sendStanza: function(aStanza, aCallback, aThis, aLogString) {
     if (!aStanza.attributes.hasOwnProperty("id"))
       aStanza.attributes["id"] = this._account.generateId();
     if (aCallback)
       this._handlers.set(aStanza.attributes.id, aCallback.bind(aThis));
-    this.send(aStanza.getXML());
+    this.send(aStanza.getXML(), aLogString);
     this.checkPingTimer(true);
     return aStanza.attributes.id;
   },
@@ -256,7 +256,7 @@ XMPPSession.prototype = {
         return;
       }
       if (starttls &&
-          starttls.children.some(function (c) c.localName == "required")) {
+          starttls.children.some(c => c.localName == "required")) {
         this.onError(Ci.prplIAccount.ERROR_ENCRYPTION_ERROR,
                      _("connection.error.startTLSRequired"));
         return;
@@ -306,13 +306,15 @@ XMPPSession.prototype = {
       let authMechanisms = this._account.authMechanisms || XMPPAuthMechanisms;
       let selectedMech = "";
       let canUsePlain = false;
-      mechs = mechs.getChildren("mechanism");
-      for each (let m in mechs) {
+      // RFC 6120, 6.4.1: The order of <mechanism/> elements in
+      // the XML indicates the preference order of the SASL mechanisms
+      // according to the receiving entity (which is not necessarily the
+      // preference order according to the initiating entity).
+      for (let m of mechs.getChildren("mechanism")) {
         let mech = m.innerText;
-        if (mech == "PLAIN" && !this._encrypted) {
-          // If PLAIN is proposed over an unencrypted connection,
-          // remember that it's a possibility but don't bother
-          // checking if the user allowed it until we have verified
+        if (mech == "PLAIN") {
+          // If PLAIN is proposed, remember that it's a possibility but don't
+          // bother checking if the user allowed it until we have verified
           // that nothing more secure is available.
           canUsePlain = true;
         }
@@ -322,7 +324,8 @@ XMPPSession.prototype = {
         }
       }
       if (!selectedMech && canUsePlain) {
-        if (this._connectionSecurity == "allow_unencrypted_plain_auth")
+        if (this._encrypted ||
+            this._connectionSecurity == "allow_unencrypted_plain_auth")
           selectedMech = "PLAIN";
         else {
           this.onError(Ci.prplIAccount.ERROR_AUTHENTICATION_IMPOSSIBLE,
@@ -372,7 +375,7 @@ XMPPSession.prototype = {
       }
 
       if (result.send)
-        this.send(result.send.getXML());
+        this.send(result.send.getXML(), result.log);
       if (result.done)
         this.onXmppStanza = this.stanzaListeners.authResult;
     },
@@ -469,6 +472,7 @@ XMPPSession.prototype = {
         Stanza.node("resource", null, null, this._resource)
       ];
 
+      let logString;
       if (("digest" in values) && this._streamId) {
         let hashBase = this._streamId + this._password;
 
@@ -484,10 +488,12 @@ XMPPSession.prototype = {
         ch.update(data, data.length);
         let hash = ch.finish(false);
         let toHexString =
-          function(charCode) ("0" + charCode.toString(16)).slice(-2);
+          charCode => ("0" + charCode.toString(16)).slice(-2);
         let digest = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
 
         children.push(Stanza.node("digest", null, null, digest));
+        logString =
+          "legacyAuth stanza containing SHA-1 hash of the password not logged";
       }
       else if ("password" in values) {
         if (!this._encrypted &&
@@ -497,6 +503,7 @@ XMPPSession.prototype = {
           return;
         }
         children.push(Stanza.node("password", null, null, this._password));
+        logString = "legacyAuth stanza containing password not logged";
       }
       else {
         this.onError(Ci.prplIAccount.ERROR_AUTHENTICATION_IMPOSSIBLE,
@@ -506,7 +513,8 @@ XMPPSession.prototype = {
 
       let s = Stanza.iq("set", null, this._domain,
                         Stanza.node("query", Stanza.NS.auth, null, children));
-      this.sendStanza(s);
+      this.sendStanza(s, undefined, undefined,
+        '<iq type="set".../> (' + logString + ')');
     },
     sessionStarted: function(aStanza) {
       this.resetPingTimer();

@@ -477,6 +477,10 @@ const Socket = {
    */
   // Signifies the beginning of an async request
   onStartRequest: function(aRequest, aContext) {
+    if (this.disconnected) {
+      // Ignore this if we're already disconnected.
+      return;
+    }
     this.DEBUG("onStartRequest");
   },
   // Called to signify the end of an asynchronous request.
@@ -675,10 +679,10 @@ const Socket = {
                 Ci.nsIBadCertListener2, Ci.nsIProtocolProxyCallback],
   QueryInterface: function(iid) {
     if (iid.equals(Ci.nsISupports) ||
-        this._interfaces.some(function(i) i.equals(iid)))
+        this._interfaces.some(i => i.equals(iid)))
       return this;
 
     throw Cr.NS_ERROR_NO_INTERFACE;
   },
-  getInterface: function(iid) this.QueryInterface(iid)
+  getInterface: function(iid) { return this.QueryInterface(iid); }
 };

@@ -315,7 +315,7 @@ loadNSSLibs(const char *apkName)
   return setup_nss_functions(nss_handle, nspr_handle, plc_handle);
 }
 
-extern "C" NS_EXPORT void JNICALL
+extern "C" NS_EXPORT void MOZ_JNICALL
 Java_org_mozilla_gecko_mozglue_GeckoLoader_loadGeckoLibsNative(JNIEnv *jenv, jclass jGeckoAppShellClass, jstring jApkName)
 {
   jenv->GetJavaVM(&sJavaVM);
@@ -334,7 +334,7 @@ Java_org_mozilla_gecko_mozglue_GeckoLoader_loadGeckoLibsNative(JNIEnv *jenv, jcl
   jenv->ReleaseStringUTFChars(jApkName, str);
 }
 
-extern "C" NS_EXPORT void JNICALL
+extern "C" NS_EXPORT void MOZ_JNICALL
 Java_org_mozilla_gecko_mozglue_GeckoLoader_loadSQLiteLibsNative(JNIEnv *jenv, jclass jGeckoAppShellClass, jstring jApkName) {
   const char* str;
   // XXX: java doesn't give us true UTF8, we should figure out something
@@ -352,7 +352,7 @@ Java_org_mozilla_gecko_mozglue_GeckoLoader_loadSQLiteLibsNative(JNIEnv *jenv, jc
   jenv->ReleaseStringUTFChars(jApkName, str);
 }
 
-extern "C" NS_EXPORT void JNICALL
+extern "C" NS_EXPORT void MOZ_JNICALL
 Java_org_mozilla_gecko_mozglue_GeckoLoader_loadNSSLibsNative(JNIEnv *jenv, jclass jGeckoAppShellClass, jstring jApkName) {
   const char* str;
   // XXX: java doesn't give us true UTF8, we should figure out something
@@ -370,9 +370,9 @@ Java_org_mozilla_gecko_mozglue_GeckoLoader_loadNSSLibsNative(JNIEnv *jenv, jclas
   jenv->ReleaseStringUTFChars(jApkName, str);
 }
 
-typedef void (*GeckoStart_t)(void *, const nsXREAppData *);
+typedef void (*GeckoStart_t)(JNIEnv*, char*, const nsXREAppData*);
 
-extern "C" NS_EXPORT void JNICALL
+extern "C" NS_EXPORT void MOZ_JNICALL
 Java_org_mozilla_gecko_mozglue_GeckoLoader_nativeRun(JNIEnv *jenv, jclass jc, jstring jargs)
 {
   GeckoStart_t GeckoStart;
@@ -387,7 +387,7 @@ Java_org_mozilla_gecko_mozglue_GeckoLoader_nativeRun(JNIEnv *jenv, jclass jc, js
   jenv->GetStringUTFRegion(jargs, 0, len, args);
   args[len] = '\0';
   ElfLoader::Singleton.ExpectShutdown(false);
-  GeckoStart(args, &sAppData);
+  GeckoStart(jenv, args, &sAppData);
   ElfLoader::Singleton.ExpectShutdown(true);
   free(args);
 }

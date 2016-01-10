@@ -75,9 +75,9 @@ add_task(function* maildirToMbox() {
   do_check_eq(gInboxFolder.getTotalMessages(false), 0);
 
   // Check for subjects. maildir order for messages may not match
-  // order for creation, hence the indexOf(subject).
+  // order for creation, hence the array.includes.
   for (let subject of gTestSubjects) {
-    do_check_true(subjects.indexOf(subject) != -1);
+    do_check_true(subjects.includes(subject));
   }
 
   // Make sure the body matches the message.
@@ -123,9 +123,9 @@ add_task(function* mboxToMaildir() {
   do_check_eq(gTestFolder.getTotalMessages(false), 0);
 
   // Check for subjects. maildir order for messages may not match
-  // order for creation, hence the indexOf(subject).
+  // order for creation, hence the array.includes.
   for (let subject of gTestSubjects) {
-    do_check_true(subjects.indexOf(subject) != -1);
+    do_check_true(subjects.includes(subject));
   }
 
   // Make sure the body matches the message.

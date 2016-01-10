@@ -26,6 +26,21 @@ this.ContentWebRTC = {
     Services.obs.addObserver(handlePCRequest, "PeerConnection:request", false);
     Services.obs.addObserver(updateIndicators, "recording-device-events", false);
     Services.obs.addObserver(removeBrowserSpecificIndicator, "recording-window-ended", false);
+
+    if (Services.appinfo.processType == Services.appinfo.PROCESS_TYPE_CONTENT)
+      Services.obs.addObserver(processShutdown, "content-child-shutdown", false);
+  },
+
+  uninit: function() {
+    Services.obs.removeObserver(handleGUMRequest, "getUserMedia:request");
+    Services.obs.removeObserver(handlePCRequest, "PeerConnection:request");
+    Services.obs.removeObserver(updateIndicators, "recording-device-events");
+    Services.obs.removeObserver(removeBrowserSpecificIndicator, "recording-window-ended");
+
+    if (Services.appinfo.processType == Services.appinfo.PROCESS_TYPE_CONTENT)
+      Services.obs.removeObserver(processShutdown, "content-child-shutdown");
+
+    this._initialized = false;
   },
 
   // Called only for 'unload' to remove pending gUM prompts in reloaded frames.
@@ -80,6 +95,18 @@ function handlePCRequest(aSubject, aTopic, aData) {
   let { windowID, innerWindowID, callID, isSecure } = aSubject;
   let contentWindow = Services.wm.getOuterWindowWithId(windowID);
 
+  let mm = getMessageManagerForWindow(contentWindow);
+  if (!mm) {
+    // Workaround for Bug 1207784. To use WebRTC, add-ons right now use
+    // hiddenWindow.mozRTCPeerConnection which is only privileged on OSX. Other
+    // platforms end up here without a message manager.
+    // TODO: Remove once there's a better way (1215591).
+
+    // Skip permission check in the absence of a message manager.
+    Services.obs.notifyObservers(null, "PeerConnection:response:allow", callID);
+    return;
+  }
+
   if (!contentWindow.pendingPeerConnectionRequests) {
     setupPendingListsInitially(contentWindow);
   }
@@ -92,8 +119,6 @@ function handlePCRequest(aSubject, aTopic, aData) {
     documentURI: contentWindow.document.documentURI,
     secure: isSecure,
   };
-
-  let mm = getMessageManagerForWindow(contentWindow);
   mm.sendAsyncMessage("rtcpeer:Request", request);
 }
 
@@ -315,4 +340,8 @@ function getMessageManagerForWindow(aContentWindow) {
   } catch(e if e.result == Cr.NS_NOINTERFACE) {
     return null;
   }
+}
+
+function processShutdown() {
+  ContentWebRTC.uninit();
 }
