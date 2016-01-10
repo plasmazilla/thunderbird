@@ -4,11 +4,15 @@ mozilla/dom/html/reftests/toblob-todataurl/sample.js
 mail/jquery/jquery-1.6.4.min.js
 mail/jquery/jquery-ui-1.8.2.min.js
 mozilla/addon-sdk/source/examples/actor-repl/data/codemirror-compressed.js
+mozilla/browser/components/loop/content/shared/libs/react-0.12.2.js
 mozilla/browser/components/loop/content/shared/libs/react-0.12.2-prod.js
 mozilla/browser/components/loop/content/shared/libs/sdk-content/js/dynamic_config.min.js
 mozilla/browser/components/pocket/panels/js/vendor/jquery-2.1.1.min.js
 mozilla/browser/components/pocket/panels/js/vendor/jquery.tokeninput.min.js
 mozilla/browser/components/translation/cld2/cld-worker.js
+mozilla/browser/devtools/shared/vendor/dagre-d3.js
+mozilla/browser/devtools/shared/vendor/react-dev.js
+mozilla/browser/devtools/shared/vendor/react.js
 mozilla/browser/locales/en-US/searchplugins/amazondotcom.xml s,>data:.*<, type="image/x-icon">http://www.amazon.com/favicon.ico<,
 mozilla/browser/locales/en-US/searchplugins/answers.xml s,>data:.*<, type="image/x-icon">http://www.answers.com/favicon.ico<,
 mozilla/browser/locales/en-US/searchplugins/bing.xml s,>data:.*<, type="image/x-icon">http://www.bing.com/favicon.ico<,
@@ -59,6 +63,16 @@ mozilla/testing/marionette/client/marionette/runner/mixins/browsermob-proxy-py/d
 mozilla/testing/marionette/client/marionette/runner/mixins/resources/htmlreport/jquery.js
 mozilla/testing/mochitest/MochiKit/packed.js
 mozilla/testing/mozbase/mozrunner/mozrunner/resources/metrotestharness.exe
+mozilla/testing/talos/talos/page_load_test/canvasmark/scripts/jquery-1.4.2.min.js
+mozilla/testing/talos/talos/page_load_test/canvasmark/scripts/k3d-min.js
+mozilla/testing/talos/talos/page_load_test/canvasmark/scripts/mathlib-min.js
+mozilla/testing/talos/talos/page_load_test/dromaeo/lib/ext-base.js
+mozilla/testing/talos/talos/page_load_test/dromaeo/lib/ext-core.js
+mozilla/testing/talos/talos/page_load_test/v8_7/regexp.js
+mozilla/testing/talos/talos/scripts/jszip.min.js
+mozilla/testing/talos/talos/startup_test/media/tools/MediaUtils
+mozilla/testing/talos/talos/startup_test/media/tools/PESQ
+mozilla/testing/talos/talos/startup_test/sessionrestore/profile/sessionstore.js
 mozilla/toolkit/components/maintenanceservice/maintenanceservice.rc
 mozilla/toolkit/components/maintenanceservice/resource.h
 mozilla/toolkit/crashreporter/client/crashreporter.rc
