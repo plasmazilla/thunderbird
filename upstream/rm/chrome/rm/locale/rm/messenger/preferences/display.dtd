@@ -45,6 +45,12 @@
 <!ENTITY colorButton.label       "Colurs">
 <!ENTITY colorButton.accesskey   "C">
 
+<!-- Advanced -->
+
+<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
+     "After displaying for [___] seconds",
+     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
+
 <!ENTITY autoMarkAsRead.accesskey         "A">
 
 <!ENTITY autoMarkAsRead.label             "Automatically mark messages as read">

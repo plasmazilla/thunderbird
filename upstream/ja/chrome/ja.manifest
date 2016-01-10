@@ -21,5 +21,7 @@ locale passwordmgr ja ja/locale/ja/passwordmgr/
 locale pipnss ja ja/locale/ja/pipnss/
 locale pippki ja ja/locale/ja/pippki/
 locale places ja ja/locale/ja/places/
+locale pluginproblem ja ja/locale/ja/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

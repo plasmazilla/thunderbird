@@ -80,6 +80,7 @@
 <!ENTITY boolean.accesskey "B">
 
 <!ENTITY focusSearch.key "r">
+<!ENTITY focusSearch2.key "f">
 <!ENTITY searchPrefs.accesskey "r">
 
 <!ENTITY searchPrefs.label "Search:">

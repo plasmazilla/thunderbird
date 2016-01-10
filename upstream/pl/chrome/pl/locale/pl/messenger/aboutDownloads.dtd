@@ -15,3 +15,9 @@
 <!ENTITY cmd.removeFromHistory.accesskey "U">
 <!ENTITY cmd.clearDownloads.label "Wyczyść pobrane">
 <!ENTITY cmd.clearDownloads.accesskey "e">
+
+<!ENTITY cmd.clearList.accesskey                   "C">
+<!ENTITY cmd.clearList.label                       "Clear List">
+<!ENTITY cmd.clearList.tooltip                     "Remove all entries from the list of saved files, except ongoing downloads.">
+<!ENTITY cmd.searchDownloads.key                   "F">
+<!ENTITY cmd.searchDownloads.label                 "Search…">

@@ -4,7 +4,6 @@
 
 <!ENTITY itemGeneral.label       "General">
 <!ENTITY dataChoicesTab.label    "Decisiuns da datas">
-<!ENTITY itemDisplay.label       "Leger &amp; vista">
 <!ENTITY itemUpdate.label        "Exequir l'actualisaziun">
 <!ENTITY itemNetworking.label    "Rait &amp; capacitad da memorisar">
 <!ENTITY itemCertificates.label  "Certificats">
@@ -14,10 +13,9 @@
 <!ENTITY enableGlodaSearch.accesskey   "E">
 <!ENTITY allowHWAccel.label            "Utilisar sche pussaivel l'acceleraziun cun hardware da grafica">
 <!ENTITY allowHWAccel.accesskey        "h">
-
 <!ENTITY storeType.label               "Message Store Type for new accounts:">
 <!ENTITY storeType.accesskey           "T">
-<!ENTITY mboxStore.label               "Ina datoteca gronda (mbox)">
+<!ENTITY mboxStore2.label              "Ina datoteca per ordinatur (mbox)">
 <!ENTITY maildirStore.label            "Ina datoteca per messadi (maildir)">
 
 <!ENTITY scrolling.label               "Defilada">
@@ -42,42 +40,16 @@
 
 <!-- Data Choices -->
 <!ENTITY telemetrySection.label          "Telemetria">
-<!ENTITY telemetryDesc.label             "Cundivida infurmaziuns davart la prestaziun, l'utilisaziun, la hardware e la persunalisaziun dal program dad e-mails cun &vendorShortName; per gidar da meglierar &brandShortName; ">
+<!ENTITY telemetryDesc.label             "Cundivida infurmaziuns davart la prestaziun, l'utilisaziun, la hardware e la persunalisaziun dal program dad e-mails cun &vendorShortName; per gidar a meglierar &brandShortName;">
 <!ENTITY enableTelemetry.label           "Activar la telemetria">
 <!ENTITY enableTelemetry.accesskey       "T">
 <!ENTITY telemetryLearnMore.label        "Ulteriuras infurmaziuns">
 
 <!ENTITY crashReporterSection.label      "Rapportader da collaps">
-<!ENTITY crashReporterDesc.label         "&brandShortName; trametta rapports davart collaps per gidar &vendorShortName; da render pli stabel e segir tes program dad e-mails">
+<!ENTITY crashReporterDesc.label         "&brandShortName; trametta rapports davart collaps per gidar &vendorShortName; da meglierar la stabilitad e segirezza da tes program dad e-mails">
 <!ENTITY enableCrashReporter.label       "Activar il rapportader da collaps">
 <!ENTITY enableCrashReporter.accesskey   "c">
 <!ENTITY crashReporterLearnMore.label    "Ulteriuras infurmaziuns">
-
-<!-- Display and Reading Settings -->
-<!ENTITY reading.caption               "Leger">
-<!ENTITY display.caption               "Vista">
-<!ENTITY showCondensedAddresses.label  "Mussar mo il num per mussar da persunas en mes cudeschet d'adressas">
-<!ENTITY showCondensedAddresses.accesskey "S">
-
-<!ENTITY autoMarkAsRead.label          "Marcar automaticamain ils messadis sco legids">
-<!ENTITY autoMarkAsRead.accesskey      "A">
-<!ENTITY markAsReadNoDelay.label       "Immediatamain cun mussar">
-<!ENTITY markAsReadNoDelay.accesskey   "I">
-<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
-     "After displaying for [___] seconds",
-     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
-<!ENTITY markAsReadDelay.label         "Suenter avair mussà durant">
-<!ENTITY markAsReadDelay.accesskey     "d">
-<!ENTITY secondsLabel.label            "secundas">
-<!ENTITY openMsgIn.label               "Avrir messadis en:">
-<!ENTITY openMsgInNewTab.label         "In nov tab">
-<!ENTITY openMsgInNewTab.accesskey     "t">
-<!ENTITY reuseExpRadio0.label          "Ina nova fanestra">
-<!ENTITY reuseExpRadio0.accesskey      "n">
-<!ENTITY reuseExpRadio1.label          "Ina fanestra existenta">
-<!ENTITY reuseExpRadio1.accesskey      "e">
-<!ENTITY closeMsgOnMoveOrDelete.label  "Serrar la fanestra/il tab dal messadi cun spustar u stizzar">
-<!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
 
 <!-- Update -->
 <!ENTITY updateApp.label                 "Actualisaziuns da &brandShortName;:">
@@ -135,5 +107,3 @@
 <!ENTITY viewCertificates.accesskey     "C">
 <!ENTITY viewSecurityDevices.label      "Moduls da criptadi">
 <!ENTITY viewSecurityDevices.accesskey  "c">
-
-<!ENTITY mboxStore2.label              "File per folder (mbox)">

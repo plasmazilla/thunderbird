@@ -21,5 +21,7 @@ locale passwordmgr pa-IN pa-IN/locale/pa-IN/passwordmgr/
 locale pipnss pa-IN pa-IN/locale/pa-IN/pipnss/
 locale pippki pa-IN pa-IN/locale/pa-IN/pippki/
 locale places pa-IN pa-IN/locale/pa-IN/places/
+locale pluginproblem pa-IN pa-IN/locale/pa-IN/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

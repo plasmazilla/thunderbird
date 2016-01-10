@@ -28,8 +28,8 @@
 <!ENTITY addToUserDictionaryButton.accessKey "f">
 <!ENTITY editUserDictionaryButton.label "Szerkesztés…">
 <!ENTITY editUserDictionaryButton.accessKey "z">
-<!ENTITY recheckButton.label "Újraellenőrzés">
-<!ENTITY recheckButton.accessKey "Ú">
+<!ENTITY recheckButton2.label "Szöveg újraellenőrzése">
+<!ENTITY recheckButton2.accessKey "v">
 <!ENTITY closeButton.label "Bezárás">
 <!ENTITY closeButton.accessKey "B">
 <!ENTITY sendButton.label "Küldés">

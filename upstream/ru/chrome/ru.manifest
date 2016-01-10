@@ -21,5 +21,7 @@ locale passwordmgr ru ru/locale/ru/passwordmgr/
 locale pipnss ru ru/locale/ru/pipnss/
 locale pippki ru ru/locale/ru/pippki/
 locale places ru ru/locale/ru/places/
+locale pluginproblem ru ru/locale/ru/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

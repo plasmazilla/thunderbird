@@ -40,6 +40,7 @@
 <!ENTITY threadColumn.label "Tema">
 <!ENTITY fromColumn.label "Da">
 <!ENTITY recipientColumn.label "Destinatur">
+<!ENTITY correspondentColumn.label "Correspundents">
 <!ENTITY subjectColumn.label "Object">
 <!ENTITY dateColumn.label "Data">
 <!ENTITY priorityColumn.label "Prioritad">
@@ -58,9 +59,10 @@
 
 <!-- Thread Pane Tooltips -->
 <!ENTITY columnChooser2.tooltip "Tscherner las colonnas per mussar">
-<!ENTITY threadColumn2.tooltip "Mussar gruppà tenor tema"> 
+<!ENTITY threadColumn2.tooltip "Mussar gruppà tenor tema">
 <!ENTITY fromColumn2.tooltip "Zavrar tenor speditur">
 <!ENTITY recipientColumn2.tooltip "Zavrar tenor destinatur">
+<!ENTITY correspondentColumn2.tooltip "Zavrar tenor correspundents">
 <!ENTITY subjectColumn2.tooltip "Zavrar tenor object">
 <!ENTITY dateColumn2.tooltip "Zavrar tenor data">
 <!ENTITY priorityColumn2.tooltip "Zavrar tenor prioritad">
@@ -76,6 +78,3 @@
 <!ENTITY starredColumn2.tooltip "Zavrar tenor staila">
 <!ENTITY locationColumn2.tooltip "Zavrar tenor lieu">
 <!ENTITY idColumn2.tooltip "Zavrar tenor successiun da retschavida">
-
-<!ENTITY correspondentColumn.label "Correspondents">
-<!ENTITY correspondentColumn2.tooltip "Sort by correspondents">

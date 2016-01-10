@@ -47,3 +47,5 @@
 <!ENTITY integer.accesskey "H">
 <!ENTITY boolean.label "Boolsk">
 <!ENTITY boolean.accesskey "B">
+
+<!ENTITY focusSearch2.key "f">

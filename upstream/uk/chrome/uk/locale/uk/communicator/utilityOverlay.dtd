@@ -26,13 +26,13 @@
 <!ENTITY pasteCmd.label            "Вставити">
 <!ENTITY pasteCmd.key            "V">
 <!ENTITY pasteCmd.accesskey          "т">
-<!ENTITY deleteCmd.label          "Стерти">
-<!ENTITY deleteCmd.accesskey        "С">
+<!ENTITY deleteCmd.label          "Видалити">
+<!ENTITY deleteCmd.accesskey        "В">
 <!ENTITY selectAllCmd.label          "Виділити все">
 <!ENTITY selectAllCmd.key          "A">
 <!ENTITY selectAllCmd.accesskey        "с">
-<!ENTITY preferencesCmd2.label "Options">
-<!ENTITY preferencesCmd2.accesskey "O">
+<!ENTITY preferencesCmd2.label "Налаштування">
+<!ENTITY preferencesCmd2.accesskey "Н">
 <!ENTITY preferencesCmdUnix.label       "Налаштування">
 <!ENTITY preferencesCmdUnix.accesskey     "Н">
 

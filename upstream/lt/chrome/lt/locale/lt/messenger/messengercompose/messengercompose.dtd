@@ -305,3 +305,5 @@
 
 <!ENTITY addressesSidebarTitle.label "Adresatai">
 
+
+<!ENTITY statusLanguageText.tooltip "Spell checking language">

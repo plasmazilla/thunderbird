@@ -59,6 +59,8 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 
 <!ENTITY aboutSupport.appBasicsMultiProcessSupport "Multi-processamento de janelas">
 
+<!ENTITY aboutSupport.appBasicsSafeMode "Modo de segurança">
+
 <!ENTITY aboutSupport.showDir.label "Abrir diretório">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
 variant of aboutSupport.showDir.label.  This allows us to use the preferred
@@ -101,6 +103,3 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Tentar o modo de segurança">
 <!ENTITY aboutSupport.restartInSafeMode.label "Reiniciar com os extras desativados…">
-
-
-<!ENTITY aboutSupport.appBasicsSafeMode "Safe Mode">

@@ -47,3 +47,5 @@
 <!ENTITY integer.accesskey "v">
 <!ENTITY boolean.label "Loginis">
 <!ENTITY boolean.accesskey "L">
+
+<!ENTITY focusSearch2.key "f">

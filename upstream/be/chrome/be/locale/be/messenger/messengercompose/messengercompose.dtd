@@ -266,3 +266,4 @@
 
 <!ENTITY priorityButton.title "Priority">
 <!ENTITY priorityButton.tooltiptext "Change the message priority">
+<!ENTITY statusLanguageText.tooltip "Spell checking language">

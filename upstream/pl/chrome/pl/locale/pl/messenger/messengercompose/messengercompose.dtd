@@ -296,3 +296,5 @@
 
 <!-- Title for the address picker panel -->
 <!ENTITY addressesSidebarTitle.label "Adresy">
+
+<!ENTITY statusLanguageText.tooltip "Spell checking language">

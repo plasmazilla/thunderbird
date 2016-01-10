@@ -305,3 +305,5 @@
 
 <!ENTITY addressesSidebarTitle.label "Kontakty">
 
+
+<!ENTITY statusLanguageText.tooltip "Spell checking language">

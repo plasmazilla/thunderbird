@@ -43,3 +43,6 @@
 <!ENTITY languagePopup.label "שפה:">
 <!ENTITY languagePopup.accessKey "פ">
 
+
+<!ENTITY recheckButton2.accessKey "T">
+<!ENTITY recheckButton2.label "Recheck Text">

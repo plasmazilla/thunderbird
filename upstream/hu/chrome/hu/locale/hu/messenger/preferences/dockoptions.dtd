@@ -13,5 +13,4 @@
 <!ENTITY showAllUnreadMessagesCount.accesskey  "O">
 <!ENTITY dockIconBadge.label                   "Appikon megjelölése">
 <!ENTITY dockIconShow.label                    "Appikon megjelölése ezzel:">
-
-<!ENTITY directNotificationSettings.label      "You can disable the badge on the Notification pane of System Preferences.">
+<!ENTITY directNotificationSettings.label      "A kitűzőt a Rendszerbeállítások Értesítés lapján tudja letiltani.">

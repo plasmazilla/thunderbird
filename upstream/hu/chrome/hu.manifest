@@ -21,5 +21,7 @@ locale passwordmgr hu hu/locale/hu/passwordmgr/
 locale pipnss hu hu/locale/hu/pipnss/
 locale pippki hu hu/locale/hu/pippki/
 locale places hu hu/locale/hu/places/
+locale pluginproblem hu hu/locale/hu/pluginproblem/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/
