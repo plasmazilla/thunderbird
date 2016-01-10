@@ -1119,7 +1119,7 @@ index 3850b46..ae7afbd 100644
 +brandFullName=Icedove
 +vendorShortName=Mozilla
 diff --git a/upstream/rm/chrome/rm/locale/rm/branding/brand.dtd b/upstream/rm/chrome/rm/locale/rm/branding/brand.dtd
-index 95b2114..10e1494 100755
+index 95b2114..10e1494 100644
 --- a/upstream/rm/chrome/rm/locale/rm/branding/brand.dtd
 +++ b/upstream/rm/chrome/rm/locale/rm/branding/brand.dtd
 @@ -2,7 +2,7 @@
@@ -1134,7 +1134,7 @@ index 95b2114..10e1494 100755
 +<!ENTITY  vendorShortName "Mozilla">
  <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird ed ils logos da Thunderbird èn marcas commerzialas da la Mozilla Foundation.">
 diff --git a/upstream/rm/chrome/rm/locale/rm/branding/brand.properties b/upstream/rm/chrome/rm/locale/rm/branding/brand.properties
-index 597f5a5..8fea34e 100755
+index 597f5a5..8fea34e 100644
 --- a/upstream/rm/chrome/rm/locale/rm/branding/brand.properties
 +++ b/upstream/rm/chrome/rm/locale/rm/branding/brand.properties
 @@ -2,6 +2,6 @@
