@@ -245,6 +245,7 @@ protected:
   void ReverseSort();
   void ReverseThreads();
   nsresult SaveSortInfo(nsMsgViewSortTypeValue sortType, nsMsgViewSortOrderValue sortOrder);
+  nsresult RestoreSortInfo();
   nsresult PersistFolderInfo(nsIDBFolderInfo **dbFolderInfo);
   void     SetMRUTimeForFolder(nsIMsgFolder *folder);
 
@@ -395,6 +396,7 @@ protected:
   bool mShowSizeInLines;    // for news we show lines instead of size when true
   bool mSortThreadsByRoot;  // as opposed to by the newest message
   bool m_sortValid;
+  bool m_checkedCustomColumns;
   bool mSelectionSummarized;
   // we asked the front end to summarize the selection and it did not.
   bool mSummarizeFailed;
@@ -407,8 +409,10 @@ protected:
   nsTArray <MsgViewSortColumnInfo> m_sortColumns;
   nsMsgViewSortTypeValue  m_sortType;
   nsMsgViewSortOrderValue m_sortOrder;
+  nsString m_curCustomColumn;
   nsMsgViewSortTypeValue m_secondarySort;
   nsMsgViewSortOrderValue m_secondarySortOrder;
+  nsString m_secondaryCustomColumn;
   nsMsgViewFlagsTypeValue m_viewFlags;
 
   // I18N date formatter service which we'll want to cache locally.
@@ -453,7 +457,9 @@ protected:
   nsTArray<nsString> m_customColumnHandlerIDs;
   
   nsIMsgCustomColumnHandler* GetColumnHandler(const char16_t*);
-  nsIMsgCustomColumnHandler* GetCurColumnHandlerFromDBInfo();
+  nsIMsgCustomColumnHandler* GetCurColumnHandler();
+  bool CustomColumnsInSortAndNotRegistered();
+  void EnsureCustomColumnsValid();
 
 #ifdef DEBUG_David_Bienvenu
 void InitEntryInfoForIndex(nsMsgViewIndex i, IdKeyPtr &EntryInfo);

@@ -53,14 +53,18 @@ public:
 
   }
 
-  nsresult Init() override {
+  nsRefPtr<InitPromise> Init() override {
     mSurfaceTexture = AndroidSurfaceTexture::Create();
     if (!mSurfaceTexture) {
       NS_WARNING("Failed to create SurfaceTexture for video decode\n");
-      return NS_ERROR_FAILURE;
+      return InitPromise::CreateAndReject(DecoderFailureReason::INIT_ERROR, __func__);
     }
 
-    return InitDecoder(mSurfaceTexture->JavaSurface());
+    if (NS_FAILED(InitDecoder(mSurfaceTexture->JavaSurface()))) {
+      return InitPromise::CreateAndReject(DecoderFailureReason::INIT_ERROR, __func__);
+    }
+
+    return InitPromise::CreateAndResolve(TrackInfo::kVideoTrack, __func__);
   }
 
   void Cleanup() override {
@@ -202,7 +206,7 @@ public:
   AudioDataDecoder(const AudioInfo& aConfig, MediaFormat::Param aFormat, MediaDataDecoderCallback* aCallback)
     : MediaCodecDataDecoder(MediaData::Type::AUDIO_DATA, aConfig.mMimeType, aFormat, aCallback)
   {
-    JNIEnv* env = GetJNIForThread();
+    JNIEnv* const env = jni::GetEnvForThread();
 
     jni::Object::LocalRef buffer(env);
     NS_ENSURE_SUCCESS_VOID(aFormat->GetByteBuffer(NS_LITERAL_STRING("csd-0"), &buffer));
@@ -231,22 +235,30 @@ public:
     int32_t size;
     NS_ENSURE_SUCCESS(rv = aInfo->Size(&size), rv);
 
-    const int32_t numFrames = (size / numChannels) / 2;
-    AudioDataValue* audio = new AudioDataValue[size];
-    PodCopy(audio, static_cast<AudioDataValue*>(aBuffer), size);
-
     int32_t offset;
     NS_ENSURE_SUCCESS(rv = aInfo->Offset(&offset), rv);
+
+#ifdef MOZ_SAMPLE_TYPE_S16
+    int32_t numSamples = size / 2;
+#else
+#error We only support 16-bit integer PCM
+#endif
+
+    const int32_t numFrames = numSamples / numChannels;
+    AudioDataValue* audio = new AudioDataValue[numSamples];
+
+    uint8_t* bufferStart = static_cast<uint8_t*>(aBuffer) + offset;
+    PodCopy(audio, reinterpret_cast<AudioDataValue*>(bufferStart), numSamples);
 
     int64_t presentationTimeUs;
     NS_ENSURE_SUCCESS(rv = aInfo->PresentationTimeUs(&presentationTimeUs), rv);
 
-    nsRefPtr<AudioData> data = new AudioData(offset, presentationTimeUs,
-                                             aDuration.ToMicroseconds(),
-                                             numFrames,
-                                             audio,
-                                             numChannels,
-                                             sampleRate);
+    nsRefPtr<AudioData> data = new AudioData(0, presentationTimeUs,
+                                           aDuration.ToMicroseconds(),
+                                           numFrames,
+                                           audio,
+                                           numChannels,
+                                           sampleRate);
     ENVOKE_CALLBACK(Output, data);
     return NS_OK;
   }
@@ -349,9 +361,17 @@ MediaCodecDataDecoder::~MediaCodecDataDecoder()
   Shutdown();
 }
 
-nsresult MediaCodecDataDecoder::Init()
+nsRefPtr<MediaDataDecoder::InitPromise> MediaCodecDataDecoder::Init()
 {
-  return InitDecoder(nullptr);
+  nsresult rv = InitDecoder(nullptr);
+
+  TrackInfo::TrackType type =
+    (mType == MediaData::AUDIO_DATA ? TrackInfo::TrackType::kAudioTrack
+                                    : TrackInfo::TrackType::kVideoTrack);
+
+  return NS_SUCCEEDED(rv) ?
+           InitPromise::CreateAndResolve(type, __func__) :
+           InitPromise::CreateAndReject(MediaDataDecoder::DecoderFailureReason::INIT_ERROR, __func__);
 }
 
 nsresult MediaCodecDataDecoder::InitDecoder(Surface::Param aSurface)
@@ -419,7 +439,7 @@ void MediaCodecDataDecoder::DecoderLoop()
   bool draining = false;
   bool waitingEOF = false;
 
-  AutoLocalJNIFrame frame(GetJNIForThread(), 1);
+  AutoLocalJNIFrame frame(jni::GetEnvForThread(), 1);
   nsRefPtr<MediaRawData> sample;
 
   MediaFormat::LocalRef outputFormat(frame.GetEnv());

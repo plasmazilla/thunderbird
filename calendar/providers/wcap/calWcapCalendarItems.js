@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://calendar/modules/calAlarmUtils.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
 
@@ -143,7 +144,7 @@ calWcapCalendar.prototype.getAlarmParams =
 function calWcapCalendar_getAlarmParams(item) {
     let params = null;
     // xxx TODO ALARMSUPPORT check if WCAP supports multiple alarms
-    let alarms = item.getAlarms({}).filter(function(x) x.action == "EMAIL");
+    let alarms = item.getAlarms({}).filter(x => x.action == "EMAIL");
     let alarm = alarms.length > 0 && alarms[0];
 
     if (alarm) {
@@ -1343,6 +1344,7 @@ function calWcapCalendar_replayChangesOn(listener) {
 
     try {
         var writeListener = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onGetResult: function() {},
             onOperationComplete: function(aCalendar, status, opType, id, detail) {
                 if (!Components.isSuccessCode(status)) {

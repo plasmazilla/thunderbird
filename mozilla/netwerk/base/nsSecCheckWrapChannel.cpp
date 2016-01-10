@@ -5,7 +5,7 @@
 
 #include "nsContentSecurityManager.h"
 #include "nsSecCheckWrapChannel.h"
-#include "nsHttpChannel.h"
+#include "nsIForcePendingChannel.h"
 #include "nsCOMPtr.h"
 
 static PRLogModuleInfo*
@@ -29,8 +29,8 @@ NS_INTERFACE_MAP_BEGIN(nsSecCheckWrapChannelBase)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIHttpChannel)
   NS_INTERFACE_MAP_ENTRY(nsIRequest)
   NS_INTERFACE_MAP_ENTRY(nsIChannel)
-  NS_INTERFACE_MAP_ENTRY(nsIUploadChannel)
-  NS_INTERFACE_MAP_ENTRY(nsIUploadChannel2)
+  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsIUploadChannel, mUploadChannel)
+  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsIUploadChannel2, mUploadChannel2)
   NS_INTERFACE_MAP_ENTRY(nsISecCheckWrapChannel)
 NS_INTERFACE_MAP_END
 
@@ -84,8 +84,80 @@ nsSecCheckWrapChannel::nsSecCheckWrapChannel(nsIChannel* aChannel,
   }
 }
 
+// static
+already_AddRefed<nsIChannel>
+nsSecCheckWrapChannel::MaybeWrap(nsIChannel* aChannel, nsILoadInfo* aLoadInfo)
+{
+  // Maybe a custom protocol handler actually returns a gecko
+  // http/ftpChannel - To check this we will check whether the channel
+  // implements a gecko non-scriptable interface e.g. nsIForcePendingChannel.
+  nsCOMPtr<nsIForcePendingChannel> isGeckoChannel = do_QueryInterface(aChannel);
+
+  nsCOMPtr<nsIChannel> channel;
+  if (isGeckoChannel) {
+    // If it is a gecko channel (ftp or http) we do not need to wrap it.
+    channel = aChannel;
+    channel->SetLoadInfo(aLoadInfo);
+  } else {
+    channel = new nsSecCheckWrapChannel(aChannel, aLoadInfo);
+  }
+  return channel.forget();
+}
+
 nsSecCheckWrapChannel::~nsSecCheckWrapChannel()
 {
+}
+
+//---------------------------------------------------------
+// SecWrapChannelStreamListener helper
+//---------------------------------------------------------
+
+class SecWrapChannelStreamListener final : public nsIStreamListener
+{
+  public:
+    SecWrapChannelStreamListener(nsIRequest *aRequest,
+                                 nsIStreamListener *aStreamListener)
+    : mRequest(aRequest)
+    , mListener(aStreamListener) {}
+
+    NS_DECL_ISUPPORTS
+    NS_DECL_NSISTREAMLISTENER
+    NS_DECL_NSIREQUESTOBSERVER
+
+  private:
+    ~SecWrapChannelStreamListener() {}
+
+    nsCOMPtr<nsIRequest>        mRequest;
+    nsCOMPtr<nsIStreamListener> mListener;
+};
+
+NS_IMPL_ISUPPORTS(SecWrapChannelStreamListener,
+                  nsIStreamListener,
+                  nsIRequestObserver)
+
+NS_IMETHODIMP
+SecWrapChannelStreamListener::OnStartRequest(nsIRequest *aRequest,
+                                             nsISupports *aContext)
+{
+  return mListener->OnStartRequest(mRequest, aContext);
+}
+
+NS_IMETHODIMP
+SecWrapChannelStreamListener::OnStopRequest(nsIRequest *aRequest,
+                                            nsISupports *aContext,
+                                            nsresult aStatus)
+{
+  return mListener->OnStopRequest(mRequest, aContext, aStatus);
+}
+
+NS_IMETHODIMP
+SecWrapChannelStreamListener::OnDataAvailable(nsIRequest *aRequest,
+                                              nsISupports *aContext,
+                                              nsIInputStream *aInStream,
+                                              uint64_t aOffset,
+                                              uint32_t aCount)
+{
+  return mListener->OnDataAvailable(mRequest, aContext, aInStream, aOffset, aCount);
 }
 
 //---------------------------------------------------------
@@ -111,10 +183,11 @@ nsSecCheckWrapChannel::SetLoadInfo(nsILoadInfo* aLoadInfo)
 NS_IMETHODIMP
 nsSecCheckWrapChannel::AsyncOpen2(nsIStreamListener *aListener)
 {
-  nsCOMPtr<nsIStreamListener> listener = aListener;
-  nsresult rv = nsContentSecurityManager::doContentSecurityCheck(this, listener);
+  nsCOMPtr<nsIStreamListener> secWrapChannelListener =
+    new SecWrapChannelStreamListener(this, aListener);
+  nsresult rv = nsContentSecurityManager::doContentSecurityCheck(this, secWrapChannelListener);
   NS_ENSURE_SUCCESS(rv, rv);
-  return AsyncOpen(listener, nullptr);
+  return AsyncOpen(secWrapChannelListener, nullptr);
 }
 
 NS_IMETHODIMP

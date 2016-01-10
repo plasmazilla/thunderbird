@@ -288,8 +288,7 @@ nsresult NS_NewInputStreamChannelInternal(nsIChannel        **outChannel,
                                           nsIPrincipal       *aLoadingPrincipal,
                                           nsIPrincipal       *aTriggeringPrincipal,
                                           nsSecurityFlags     aSecurityFlags,
-                                          nsContentPolicyType aContentPolicyType,
-                                          nsIURI             *aBaseURI = nullptr);
+                                          nsContentPolicyType aContentPolicyType);
 
 
 nsresult /* NS_NewInputStreamChannelPrincipal */
@@ -311,8 +310,7 @@ nsresult NS_NewInputStreamChannelInternal(nsIChannel        **outChannel,
                                           nsIPrincipal       *aTriggeringPrincipal,
                                           nsSecurityFlags     aSecurityFlags,
                                           nsContentPolicyType aContentPolicyType,
-                                          bool                aIsSrcdocChannel = false,
-                                          nsIURI             *aBaseURI = nullptr);
+                                          bool                aIsSrcdocChannel = false);
 
 nsresult NS_NewInputStreamChannel(nsIChannel        **outChannel,
                                   nsIURI             *aUri,
@@ -321,8 +319,7 @@ nsresult NS_NewInputStreamChannel(nsIChannel        **outChannel,
                                   nsIPrincipal       *aLoadingPrincipal,
                                   nsSecurityFlags     aSecurityFlags,
                                   nsContentPolicyType aContentPolicyType,
-                                  bool                aIsSrcdocChannel = false,
-                                  nsIURI             *aBaseURI = nullptr);
+                                  bool                aIsSrcdocChannel = false);
 
 nsresult NS_NewInputStreamPump(nsIInputStreamPump **result,
                                nsIInputStream      *stream,
@@ -489,9 +486,13 @@ nsresult NS_GetURLSpecFromDir(nsIFile      *file,
 nsresult NS_GetReferrerFromChannel(nsIChannel *channel,
                                    nsIURI **referrer);
 
-nsresult NS_ParseContentType(const nsACString &rawContentType,
-                             nsCString        &contentType,
-                             nsCString        &contentCharset);
+nsresult NS_ParseRequestContentType(const nsACString &rawContentType,
+                                    nsCString        &contentType,
+                                    nsCString        &contentCharset);
+
+nsresult NS_ParseResponseContentType(const nsACString &rawContentType,
+                                     nsCString        &contentType,
+                                     nsCString        &contentCharset);
 
 nsresult NS_ExtractCharsetFromContentType(const nsACString &rawContentType,
                                           nsCString        &contentCharset,

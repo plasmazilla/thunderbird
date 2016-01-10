@@ -244,7 +244,17 @@ var BookmarkPropertiesPanel = {
 
         case "folder":
           this._itemType = BOOKMARK_FOLDER;
-          PlacesUtils.livemarks.getLivemark({ id: this._itemId }, this);
+          PlacesUtils.livemarks.getLivemark({ id: this._itemId })
+                               .then(aLivemark => {
+            this._itemType = LIVEMARK_CONTAINER;
+            this._feedURI = aLivemark.feedURI;
+            this._siteURI = aLivemark.siteURI;
+            this._fillEditProperties();
+
+            document.documentElement
+                    .getButton("accept").disabled = !this._inputIsValid();
+            window.outerHeight += this._element("nameRow").boxObject.height * 2;
+          }, () => undefined);
       }
 
       // Description
@@ -294,7 +304,7 @@ var BookmarkPropertiesPanel = {
         acceptButton.disabled = this._readOnly;
         break;
       case ACTION_ADD:
-        this._fillAddProperties();
+        this._createNewItem().then(() => this._fillAddProperties());
         // if this is an uri related dialog disable accept button until
         // the user fills an uri value.
         if (this._itemType == BOOKMARK_ITEM)
@@ -370,20 +380,6 @@ var BookmarkPropertiesPanel = {
     }
   },
 
-  // mozILivemarkCallback
-  onCompletion: function BPP_onCompletion(aStatus, aLivemark) {
-    if (Components.isSuccessCode(aStatus)) {
-      this._itemType = LIVEMARK_CONTAINER;
-      this._feedURI = aLivemark.feedURI;
-      this._siteURI = aLivemark.siteURI;
-      this._fillEditProperties();
-
-      document.documentElement
-              .getButton("accept").disabled = !this._inputIsValid();
-      window.outerHeight += this._element("nameRow").boxObject.height * 2;
-    }
-  },
-
   _beginBatch: function BPP__beginBatch() {
     if (this._batching)
       return;
@@ -407,7 +403,6 @@ var BookmarkPropertiesPanel = {
   },
 
   _fillAddProperties: function BPP__fillAddProperties() {
-    this._createNewItem();
     // Edit the new item
     gEditItemOverlay.initPanel(this._itemId,
                                { hiddenRows: this._hiddenRows });
@@ -417,12 +412,14 @@ var BookmarkPropertiesPanel = {
     var locationField = this._element("locationField");
     if (locationField.value == "about:blank")
       locationField.value = "";
+    if (this._itemType == BOOKMARK_ITEM)
+      acceptButton.disabled = !this._inputIsValid();
+    window.sizeToContent();
   },
 
   // nsISupports
   QueryInterface: function BPP_QueryInterface(aIID) {
     if (aIID.equals(Components.interfaces.nsIDOMEventListener) ||
-        aIID.equals(Components.interfaces.mozILivemarkCallback) ||
         aIID.equals(Components.interfaces.nsISupports))
       return this;
 
@@ -631,6 +628,13 @@ var BookmarkPropertiesPanel = {
     }
 
     PlacesUtils.transactionManager.doTransaction(txn);
-    this._itemId = PlacesUtils.bookmarks.getIdForItemAt(container, index);
+    var promise = txn._promise || {
+      then: function(callback) {
+        callback();
+        return this;
+      }
+    };
+    return promise.then(() =>
+      this._itemId = PlacesUtils.bookmarks.getIdForItemAt(container, index));
   }
 };

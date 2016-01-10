@@ -569,6 +569,14 @@ calItemBase.prototype = {
             }
         }
         if (attendee) {
+            if (attendee.commonName) {
+                // migration code for bug 1209399 to remove leading/training double quotes in
+                attendee.commonName = attendee.commonName
+                                              .replace(/^["]*([^"]*)["]*$/, "$1");
+                if (attendee.commonName.length == 0) {
+                    attendee.commonName = null;
+                }
+            }
             this.modify();
             this.mAttendees = this.getAttendees({});
             this.mAttendees.push(attendee);
@@ -606,7 +614,7 @@ calItemBase.prototype = {
     addAttachment: function cIB_addAttachment(attachment) {
         this.modify();
         this.mAttachments = this.getAttachments({});
-        if (!this.mAttachments.some(function(x) x.hashId == attachment.hashId)) {
+        if (!this.mAttachments.some(x => x.hashId == attachment.hashId)) {
             this.mAttachments.push(attachment);
         }
     },

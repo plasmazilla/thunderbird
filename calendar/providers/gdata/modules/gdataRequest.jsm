@@ -126,7 +126,7 @@ calGoogleRequest.prototype = {
      * The type of this reqest. Must be one of
      * GET, ADD, MODIFY, DELETE
      */
-    get type() this.method,
+    get type() { return this.method; },
 
     set type(v) {
         let valid = [this.GET, this.ADD, this.MODIFY, this.PATCH, this.DELETE];
@@ -197,12 +197,20 @@ calGoogleRequest.prototype = {
                 uristring += "?" + params.join("&");
             }
             let uri = Services.io.newURI(uristring, null, null);
-            let channel = Services.io.newChannelFromURI2(uri,
+            let channel;
+            if ("newChannelFromURI2" in Services.io) {
+                // Lightning 4.3+
+                channel = Services.io.newChannelFromURI2(uri,
                                                          null,
                                                          Services.scriptSecurityManager.getSystemPrincipal(),
                                                          null,
                                                          Components.interfaces.nsILoadInfo.SEC_NORMAL,
                                                          Components.interfaces.nsIContentPolicy.TYPE_OTHER);
+            } else {
+                // Lightning 4.2 and older
+                channel = Services.io.newChannelFromURI(uri);
+            }
+
             cal.LOG("[calGoogleRequest] Requesting " + this.method + " " +
                     channel.URI.spec);
 

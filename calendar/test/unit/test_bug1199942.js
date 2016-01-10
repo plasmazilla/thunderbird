@@ -55,7 +55,7 @@ function serializeEvent_test() {
 
     // check whether all attendees get returned with expected id
     for (let attendee of attendees) {
-        ok(expectedIds.some(id => id == attendee.id));
+        ok(expectedIds.includes(attendee.id));
     }
 
     // serialize the event again and check whether the attendees still are in shape

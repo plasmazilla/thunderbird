@@ -506,13 +506,35 @@ nsContextMenu.prototype = {
   },
 
   initPasswordManagerItems: function() {
-    let showFillPassword = this.onPassword;
-    let disableFillPassword = !Services.logins.isLoggedIn || this.target.disabled || this.target.readOnly;
-    this.showItem("fill-login-separator", showFillPassword);
-    this.showItem("fill-login", showFillPassword);
-    this.setItemAttr("fill-login", "disabled", disableFillPassword);
+    let loginFillInfo = gContextMenuContentData && gContextMenuContentData.loginFillInfo;
 
-    if (!showFillPassword || disableFillPassword) {
+    // If we could not find a password field we
+    // don't want to show the form fill option.
+    let showFill = loginFillInfo && loginFillInfo.passwordField.found;
+
+    // Disable the fill option if the user has set a master password
+    // or if the password field or target field are disabled.
+    let disableFill = !loginFillInfo ||
+                      !Services.logins ||
+                      !Services.logins.isLoggedIn ||
+                      loginFillInfo.passwordField.disabled ||
+                      (!this.onPassword && loginFillInfo.usernameField.disabled);
+
+    this.showItem("fill-login-separator", showFill);
+    this.showItem("fill-login", showFill);
+    this.setItemAttr("fill-login", "disabled", disableFill);
+
+    // Set the correct label for the fill menu
+    let fillMenu = document.getElementById("fill-login");
+    if (this.onPassword) {
+      fillMenu.setAttribute("label", fillMenu.getAttribute("label-password"));
+      fillMenu.setAttribute("accesskey", fillMenu.getAttribute("accesskey-password"));
+    } else {
+      fillMenu.setAttribute("label", fillMenu.getAttribute("label-login"));
+      fillMenu.setAttribute("accesskey", fillMenu.getAttribute("accesskey-login"));
+    }
+
+    if (!showFill || disableFill) {
       return;
     }
     let documentURI = gContextMenuContentData.documentURIObject;
@@ -1005,27 +1027,8 @@ nsContextMenu.prototype = {
 
   // View Partial Source
   viewPartialSource: function(aContext) {
-    var focusedWindow = document.commandDispatcher.focusedWindow;
-    if (focusedWindow == window)
-      focusedWindow = gBrowser.selectedBrowser.contentWindowAsCPOW;
-
-    var docCharset = null;
-    if (focusedWindow)
-      docCharset = "charset=" + focusedWindow.document.characterSet;
-
-    // "View Selection Source" and others such as "View MathML Source"
-    // are mutually exclusive, with the precedence given to the selection
-    // when there is one
-    var reference = null;
-    if (aContext == "selection")
-      reference = focusedWindow.getSelection();
-    else if (aContext == "mathml")
-      reference = this.target;
-    else
-      throw "not reached";
-
-    let inTab = Services.prefs.getBoolPref("view_source.tab");
-    if (inTab) {
+    let inWindow = !Services.prefs.getBoolPref("view_source.tab");
+    let openSelectionFn = inWindow ? null : function() {
       let tabBrowser = gBrowser;
       // In the case of sidebars and chat windows, gBrowser is defined but null,
       // because no #content element exists.  For these cases, we need to find
@@ -1040,22 +1043,11 @@ nsContextMenu.prototype = {
         relatedToCurrent: true,
         inBackground: false
       });
-      let viewSourceBrowser = tabBrowser.getBrowserForTab(tab);
-      if (aContext == "selection") {
-        top.gViewSourceUtils
-           .viewSourceFromSelectionInBrowser(reference, viewSourceBrowser);
-      } else {
-        top.gViewSourceUtils
-           .viewSourceFromFragmentInBrowser(reference, aContext,
-                                            viewSourceBrowser);
-      }
-    } else {
-      // unused (and play nice for fragments generated via XSLT too)
-      var docUrl = null;
-      window.openDialog("chrome://global/content/viewPartialSource.xul",
-                        "_blank", "scrollbars,resizable,chrome,dialog=no",
-                        docUrl, docCharset, reference, aContext);
+      return tabBrowser.getBrowserForTab(tab);
     }
+
+    let target = aContext == "mathml" ? this.target : null;
+    top.gViewSourceUtils.viewPartialSourceInBrowser(gBrowser.selectedBrowser, target, openSelectionFn);
   },
 
   // Open new "view source" window with the frame's URL.
@@ -1216,7 +1208,7 @@ nsContextMenu.prototype = {
 
   // Save URL of clicked-on frame.
   saveFrame: function () {
-    saveDocument(this.target.ownerDocument);
+    saveBrowser(this.browser, false, this.frameOuterWindowID);
   },
 
   // Helper function to wait for appropriate MIME-type headers and

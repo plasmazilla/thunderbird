@@ -7,6 +7,7 @@
 #include "mozilla/DebugOnly.h"
 
 #include "nsIOService.h"
+#include "nsIDOMNode.h"
 #include "nsIProtocolHandler.h"
 #include "nsIFileProtocolHandler.h"
 #include "nscore.h"
@@ -20,6 +21,7 @@
 #include "nsIProxiedProtocolHandler.h"
 #include "nsIProxyInfo.h"
 #include "nsEscape.h"
+#include "nsNetUtil.h"
 #include "nsNetCID.h"
 #include "nsCRT.h"
 #include "nsSecCheckWrapChannel.h"
@@ -42,6 +44,7 @@
 #include "nsThreadUtils.h"
 #include "mozilla/LoadInfo.h"
 #include "mozilla/net/NeckoCommon.h"
+#include "mozilla/Services.h"
 #include "mozilla/Telemetry.h"
 #include "mozilla/net/DNS.h"
 #include "CaptivePortalService.h"
@@ -749,8 +752,11 @@ nsIOService::NewChannelFromURIWithProxyFlagsInternal(nsIURI* aURI,
             rv = pph->NewProxiedChannel(aURI, nullptr, aProxyFlags, aProxyURI,
                                         getter_AddRefs(channel));
             NS_ENSURE_SUCCESS(rv, rv);
-            // we have to wrap that channel
-            channel = new nsSecCheckWrapChannel(channel, aLoadInfo);
+
+            // The protocol handler does not implement NewProxiedChannel2, so
+            // maybe we need to wrap the channel (see comment in MaybeWrap
+            // function).
+            channel = nsSecCheckWrapChannel::MaybeWrap(channel, aLoadInfo);
         }
     }
     else {
@@ -760,8 +766,10 @@ nsIOService::NewChannelFromURIWithProxyFlagsInternal(nsIURI* aURI,
         if (NS_FAILED(rv)) {
             rv = handler->NewChannel(aURI, getter_AddRefs(channel));
             NS_ENSURE_SUCCESS(rv, rv);
-            // we have to wrap that channel
-            channel = new nsSecCheckWrapChannel(channel, aLoadInfo);
+            // The protocol handler does not implement NewChannel2, so
+            // maybe we need to wrap the channel (see comment in MaybeWrap
+            // function).
+            channel = nsSecCheckWrapChannel::MaybeWrap(channel, aLoadInfo);
         }
     }
 
@@ -1494,10 +1502,21 @@ nsIOService::Observe(nsISupports *subject,
 
 // nsINetUtil interface
 NS_IMETHODIMP
-nsIOService::ParseContentType(const nsACString &aTypeHeader,
-                              nsACString &aCharset,
-                              bool *aHadCharset,
-                              nsACString &aContentType)
+nsIOService::ParseRequestContentType(const nsACString &aTypeHeader,
+                                     nsACString &aCharset,
+                                     bool *aHadCharset,
+                                     nsACString &aContentType)
+{
+    net_ParseRequestContentType(aTypeHeader, aContentType, aCharset, aHadCharset);
+    return NS_OK;
+}
+
+// nsINetUtil interface
+NS_IMETHODIMP
+nsIOService::ParseResponseContentType(const nsACString &aTypeHeader,
+                                      nsACString &aCharset,
+                                      bool *aHadCharset,
+                                      nsACString &aContentType)
 {
     net_ParseContentType(aTypeHeader, aContentType, aCharset, aHadCharset);
     return NS_OK;

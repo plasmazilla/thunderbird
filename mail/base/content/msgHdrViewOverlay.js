@@ -2788,6 +2788,8 @@ function ConversationOpener()
 
 ConversationOpener.prototype = {
   openConversationForMessages: function(messages) {
+    if (messages.length < 1)
+      return;
     try {
       this._items = [];
       this._msgHdr = messages[0];

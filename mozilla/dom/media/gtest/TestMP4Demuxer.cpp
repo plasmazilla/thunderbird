@@ -6,10 +6,10 @@
 #include "gtest/gtest.h"
 #include "MP4Demuxer.h"
 #include "MP4Stream.h"
-#include "MozPromise.h"
+#include "mozilla/MozPromise.h"
 #include "MediaDataDemuxer.h"
 #include "mozilla/SharedThreadPool.h"
-#include "TaskQueue.h"
+#include "mozilla/TaskQueue.h"
 #include "mozilla/ArrayUtils.h"
 #include "MockMediaResource.h"
 #include "VideoUtils.h"
@@ -426,3 +426,13 @@ TEST(MP4Demuxer, GetNextKeyframe)
     );
   });
 }
+
+TEST(MP4Demuxer, ZeroInMoov)
+{
+  nsRefPtr<MP4DemuxerBinding> binding = new MP4DemuxerBinding("short-zero-in-moov.mp4");
+  binding->RunTestAndWait([binding] () {
+    // It demuxes without error. That is sufficient.
+    binding->mTaskQueue->BeginShutdown();
+  });
+}
+

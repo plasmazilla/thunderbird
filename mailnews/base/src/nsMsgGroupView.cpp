@@ -155,6 +155,11 @@ nsresult nsMsgGroupView::GetAgeBucketValue(nsIMsgDBHdr *aMsgHdr, uint32_t * aAge
       *aAgeBucket = (dateOfMsg >= lastTwoWeeks) ? 4 : 5;
     }
   }
+  else
+  {
+    // All that remains is a future date.
+    *aAgeBucket = 6;
+  }
   return NS_OK;
 }
 
@@ -231,12 +236,10 @@ nsresult nsMsgGroupView::HashHdr(nsIMsgDBHdr *msgHdr, nsString& aHashKey)
     }
     case nsMsgViewSortType::byCustom:
     {
-      nsIMsgCustomColumnHandler* colHandler = GetCurColumnHandlerFromDBInfo();
+      nsIMsgCustomColumnHandler* colHandler = GetCurColumnHandler();
       if (colHandler)
-      {
         rv = colHandler->GetSortStringForRow(msgHdr, aHashKey);
-        break;
-      }
+      break;
     }
     case nsMsgViewSortType::byCorrespondent:
       if (IsOutgoingMsg(msgHdr))
@@ -383,6 +386,17 @@ NS_IMETHODIMP nsMsgGroupView::OpenWithHdrs(nsISimpleEnumerator *aHeaders, nsMsgV
   m_sortOrder = aSortOrder;
   m_viewFlags = aViewFlags | nsMsgViewFlagsType::kThreadedDisplay | nsMsgViewFlagsType::kGroupBySort;
   SaveSortInfo(m_sortType, m_sortOrder);
+
+  if (m_sortType == nsMsgViewSortType::byCustom)
+  {
+    // If the desired sort is a custom column and there is no handler found,
+    // it hasn't been registered yet; after the custom column observer is
+    // notified with MsgCreateDBView and registers the handler, it will come
+    // back and build the view.
+    nsIMsgCustomColumnHandler* colHandler = GetCurColumnHandler();
+    if (!colHandler)
+      return rv;
+  }
 
   bool hasMore;
   nsCOMPtr <nsISupports> supports;
@@ -709,14 +723,36 @@ NS_IMETHODIMP nsMsgGroupView::GetRowProperties(int32_t aRow, nsAString& aPropert
   return nsMsgDBView::GetRowProperties(aRow, aProperties);
 }
 
-NS_IMETHODIMP nsMsgGroupView::GetCellProperties(int32_t aRow, nsITreeColumn *aCol, nsAString& aProperties)
+NS_IMETHODIMP nsMsgGroupView::GetCellProperties(int32_t aRow,
+                                                nsITreeColumn *aCol,
+                                                nsAString& aProperties)
 {
   if (!IsValidIndex(aRow))
     return NS_MSG_INVALID_DBVIEW_INDEX;
 
   if (m_flags[aRow] & MSG_VIEW_FLAG_DUMMY)
   {
-    aProperties.AssignLiteral("dummy");
+    aProperties.AssignLiteral("dummy read");
+
+    if (!(m_flags[aRow] & nsMsgMessageFlags::Elided))
+      return NS_OK;
+
+    // Set unread property if a collapsed group thread has unread.
+    nsCOMPtr <nsIMsgDBHdr> msgHdr;
+    nsresult rv = GetMsgHdrForViewIndex(aRow, getter_AddRefs(msgHdr));
+    NS_ENSURE_SUCCESS(rv, rv);
+    nsString hashKey;
+    rv = HashHdr(msgHdr, hashKey);
+    if (NS_FAILED(rv))
+      return NS_OK;
+    nsCOMPtr<nsIMsgThread> msgThread;
+    m_groupsTable.Get(hashKey, getter_AddRefs(msgThread));
+    nsMsgGroupThread *groupThread = static_cast<nsMsgGroupThread *>(msgThread.get());
+    uint32_t numUnrMsg = 0;
+    groupThread->GetNumUnreadChildren(&numUnrMsg);
+    if (numUnrMsg > 0)
+      aProperties.AppendLiteral(" hasUnread");
+
     return NS_OK;
   }
 
@@ -784,7 +820,10 @@ NS_IMETHODIMP nsMsgGroupView::CellTextForColumn(int32_t aRow,
             aValue.Assign(m_kOldMailString);
             break;
           default:
-            NS_ASSERTION(false, "bad age thread");
+            // Future date, error/spoofed.
+            if (m_kFutureDateString.IsEmpty())
+              m_kFutureDateString.Adopt(GetString(MOZ_UTF16("futureDate")));
+            aValue.Assign(m_kFutureDateString);
             break;
           }
           break;
@@ -841,13 +880,12 @@ NS_IMETHODIMP nsMsgGroupView::CellTextForColumn(int32_t aRow,
           break;
         case nsMsgViewSortType::byCustom:
         {
-          nsIMsgCustomColumnHandler* colHandler =
-            GetCurColumnHandlerFromDBInfo();
+          nsIMsgCustomColumnHandler* colHandler = GetCurColumnHandler();
           if (colHandler)
-          {
             rv = colHandler->GetSortStringForRow(msgHdr.get(), aValue);
-            break;
-          }
+          if (aValue.IsEmpty())
+            aValue.AssignLiteral("*");
+          break;
         }
 
         default:
@@ -954,3 +992,23 @@ bool nsMsgGroupView::GroupViewUsesDummyRow()
   // Return true to always use a header row as root grouped parent row.
   return true;
 }
+
+NS_IMETHODIMP nsMsgGroupView::AddColumnHandler(const nsAString& column,
+                                                 nsIMsgCustomColumnHandler* handler)
+{
+  nsMsgDBView::AddColumnHandler(column, handler);
+
+  // If the sortType is byCustom and the desired custom column is the one just
+  // registered, build the view.
+  if (m_viewFlags & nsMsgViewFlagsType::kGroupBySort &&
+      m_sortType == nsMsgViewSortType::byCustom)
+  {
+    nsAutoString curCustomColumn;
+    GetCurCustomColumn(curCustomColumn);
+    if (curCustomColumn == column)
+      RebuildView(m_viewFlags);
+  }
+
+  return NS_OK;
+}
+

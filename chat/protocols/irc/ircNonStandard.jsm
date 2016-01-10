@@ -22,7 +22,7 @@ Cu.import("resource:///modules/ircUtils.jsm");
 var ircNonStandard = {
   name: "Non-Standard IRC Extensions",
   priority: ircHandlers.DEFAULT_PRIORITY + 1,
-  isEnabled: function() true,
+  isEnabled: () => true,
 
   commands: {
     "NOTICE": function(aMessage) {
@@ -52,7 +52,7 @@ var ircNonStandard = {
       // serverPassword preference was not set by the user. Attempt to log into
       // ZNC using the account password.
       if (target == "auth" &&
-          aMessage.params[1] == "*** You need to send your password. Try /quote PASS <username>:<password>") {
+          aMessage.params[1].startsWith("*** You need to send your password.")) {
         if (this.imAccount.password) {
           // Send the password now, if it is available.
           this.shouldAuthenticate = false;

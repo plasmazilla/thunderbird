@@ -1,3 +1,4 @@
+no_tooltool=1
 . "$topsrcdir/build/unix/mozconfig.linux"
 
 ac_add_options --with-l10n-base=../../l10n
@@ -6,12 +7,8 @@ ac_add_options --enable-optimize
 ac_add_options --enable-update-channel=${MOZ_UPDATE_CHANNEL}
 ac_add_options --enable-update-packaging
 
-export CFLAGS="-gdwarf-2"
-export CXXFLAGS="-gdwarf-2"
-
 # For NSS symbols
 export MOZ_DEBUG_SYMBOLS=1
-ac_add_options --enable-debug-symbols="-gdwarf-2"
 
 # Needed to enable breakpad in application.ini
 export MOZILLA_OFFICIAL=1
@@ -20,4 +17,3 @@ export MOZILLA_OFFICIAL=1
 ac_add_options --with-ccache=/usr/bin/ccache
 
 ac_add_options --disable-stdcxx-compat
-
