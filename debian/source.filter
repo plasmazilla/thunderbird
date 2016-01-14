@@ -13,15 +13,6 @@ mozilla/browser/components/translation/cld2/cld-worker.js
 mozilla/browser/devtools/shared/vendor/dagre-d3.js
 mozilla/browser/devtools/shared/vendor/react-dev.js
 mozilla/browser/devtools/shared/vendor/react.js
-mozilla/browser/locales/en-US/searchplugins/amazondotcom.xml s,>data:.*<, type="image/x-icon">http://www.amazon.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/answers.xml s,>data:.*<, type="image/x-icon">http://www.answers.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/bing.xml s,>data:.*<, type="image/x-icon">http://www.bing.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/creativecommons.xml s,>data:.*<, type="image/x-icon">http://www.creativecommons.org/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/eBay.xml s,>data:.*<, type="image/x-icon">http://www.ebay.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/google.xml s,>data:.*<, type="image/x-icon">http://www.google.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/twitter.xml s,>data:.*<, type="image/x-icon">http://www.twitter.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/wikipedia.xml s,>data:.*<, type="image/x-icon">http://en.wikipedia.org/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/yahoo.xml s,>data:.*<, type="image/x-icon">http://www.yahoo.com/favicon.ico<,
 mozilla/build/mobile/robocop/robotium-solo-4.3.1.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-javadoc.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-sources.jar
