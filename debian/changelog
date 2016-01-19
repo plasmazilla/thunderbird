@@ -1,3 +1,30 @@
+icedove (43.0~b1-1) experimental; urgency=medium
+
+  [ Christoph Goehre ]
+  * [ef5b1ef] debian/rules: split override_dh_install into arch and indep
+    section (Closes: #806047)
+  * [02d5d7c] debian/source.filter: remove filter for searchplugins
+
+  [ Guido Günther ]
+  * [2008a71] Clarify relation between icedove and the calendar extensions
+    (Closes: #809017)
+
+  [ Carsten Schoenert ]
+  * [11ffac0] debian/source.filter: modifying file list to ignore
+  * [926912b] Imported Upstream version 43.0~b1
+  * [32cd8c0] rebuild patch queue from patch-queue branch
+    added patches:
+    - d-hacks/Allow-unsigned-addons-in-usr-lib-share-mozilla-extensions.patch
+    removed patches (fixed upstream):
+    - reproducible/Generate-sorted-libical-header-list.patch
+  * [a1637e4] debian/control: increase B-D on libnspr-dev and libnss3-dev
+  * [f9937c1] debian/source.filter: sort entries alphabetical
+  * [326f74d] debian/source.filter: adding new files to filter out
+  * [9b9d9b9] debian/copyright: update due upstream changes
+  * [69664c7] d/icedove.install: searchplugins isn't alive anymore
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 19 Jan 2016 11:41:50 -0500
+
 icedove (42.0~b2-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
