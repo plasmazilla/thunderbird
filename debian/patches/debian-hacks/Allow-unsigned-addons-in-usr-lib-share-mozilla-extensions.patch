@@ -1,0 +1,36 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Sat, 5 Dec 2015 18:23:58 +0900
+Subject: Allow unsigned addons in /usr/{lib,share}/mozilla/extensions
+
+---
+ mozilla/toolkit/mozapps/extensions/content/extensions.js    | 2 ++
+ mozilla/toolkit/mozapps/extensions/internal/XPIProvider.jsm | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/mozilla/toolkit/mozapps/extensions/content/extensions.js b/mozilla/toolkit/mozapps/extensions/content/extensions.js
+index 49ce10e..c06a5dd 100644
+--- a/mozilla/toolkit/mozapps/extensions/content/extensions.js
++++ b/mozilla/toolkit/mozapps/extensions/content/extensions.js
+@@ -200,6 +200,8 @@ function loadView(aViewId) {
+ }
+ 
+ function isCorrectlySigned(aAddon) {
++  if (aAddon.scope == AddonManager.SCOPE_SYSTEM)
++    return true;
+   if (aAddon.signedState <= AddonManager.SIGNEDSTATE_MISSING)
+     return false;
+   if (aAddon.foreignInstall && aAddon.signedState < AddonManager.SIGNEDSTATE_SIGNED)
+diff --git a/mozilla/toolkit/mozapps/extensions/internal/XPIProvider.jsm b/mozilla/toolkit/mozapps/extensions/internal/XPIProvider.jsm
+index 9045be1..ce5ddbc 100644
+--- a/mozilla/toolkit/mozapps/extensions/internal/XPIProvider.jsm
++++ b/mozilla/toolkit/mozapps/extensions/internal/XPIProvider.jsm
+@@ -613,7 +613,8 @@ function isUsableAddon(aAddon) {
+   if (aAddon.type == "theme" && aAddon.internalName == XPIProvider.defaultSkin)
+     return true;
+ 
+-  if (mustSign(aAddon.type)) {
++  if (aAddon._installLocation.scope != AddonManager.SCOPE_SYSTEM &&
++      mustSign(aAddon.type)) {
+     if (aAddon.signedState <= AddonManager.SIGNEDSTATE_MISSING)
+       return false;
+     if (aAddon.foreignInstall && aAddon.signedState < AddonManager.SIGNEDSTATE_SIGNED)
