@@ -10,7 +10,7 @@ Subject: changing the default search engine
  create mode 100644 mail/locales/en-US/searchplugins/duckduckgo.xml
 
 diff --git a/mail/locales/en-US/chrome/messenger-region/region.properties b/mail/locales/en-US/chrome/messenger-region/region.properties
-index a1e7254..6a38453 100644
+index fcc870d..1b03963 100644
 --- a/mail/locales/en-US/chrome/messenger-region/region.properties
 +++ b/mail/locales/en-US/chrome/messenger-region/region.properties
 @@ -3,12 +3,12 @@

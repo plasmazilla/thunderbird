@@ -1,0 +1,78 @@
+From: Heiher <r@hev.cc>
+Date: Sun, 1 Nov 2015 05:10:03 +0800
+Subject: FTBFS mips: adoptions to get build on mips(el) working 2/4
+
+Bug 1213146 - IonMonkey: MIPS: Remove AssemblerMIPSShared::asAsm. r=arai
+
+Original patch is taken from Iceweasel.
+---
+ mozilla/js/src/jit/mips-shared/Assembler-mips-shared.cpp | 10 ++--------
+ mozilla/js/src/jit/mips-shared/Assembler-mips-shared.h   |  6 ++----
+ 2 files changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.cpp b/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.cpp
+index a342cb6..75567af 100644
+--- a/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.cpp
++++ b/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.cpp
+@@ -100,12 +100,6 @@ AssemblerMIPSShared::PatchableJumpAddress(JitCode* code, uint32_t pe_)
+     return code->raw() + pe_;
+ }
+ 
+-Assembler&
+-AssemblerMIPSShared::asAsm()
+-{
+-    return *static_cast<Assembler*>(this);
+-}
+-
+ void
+ AssemblerMIPSShared::copyJumpRelocationTable(uint8_t* dest)
+ {
+@@ -132,7 +126,7 @@ AssemblerMIPSShared::processCodeLabels(uint8_t* rawCode)
+ {
+     for (size_t i = 0; i < codeLabels_.length(); i++) {
+         CodeLabel label = codeLabels_[i];
+-        asAsm().Bind(rawCode, label.dest(), rawCode + label.src()->offset());
++        Bind(rawCode, label.dest(), rawCode + label.src()->offset());
+     }
+ }
+ 
+@@ -1308,7 +1302,7 @@ AssemblerMIPSShared::bind(Label* label, BufferOffset boff)
+ 
+             // Second word holds a pointer to the next branch in label's chain.
+             next = inst[1].encode();
+-            asAsm().bind(reinterpret_cast<InstImm*>(inst), b.getOffset(), dest.getOffset());
++            bind(reinterpret_cast<InstImm*>(inst), b.getOffset(), dest.getOffset());
+ 
+             b = BufferOffset(next);
+         } while (next != LabelBase::INVALID_OFFSET);
+diff --git a/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.h b/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.h
+index 803247a..a939a98 100644
+--- a/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.h
++++ b/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.h
+@@ -648,8 +648,6 @@ class MIPSBufferWithExecutableCopy : public MIPSBuffer
+     }
+ };
+ 
+-class Assembler;
+-
+ class AssemblerMIPSShared : public AssemblerShared
+ {
+   public:
+@@ -733,8 +731,6 @@ class AssemblerMIPSShared : public AssemblerShared
+     uint32_t actualIndex(uint32_t) const;
+     static uint8_t* PatchableJumpAddress(JitCode* code, uint32_t index);
+   protected:
+-    Assembler& asAsm();
+-
+     // structure for fixing up pc-relative loads/jumps when a the machine code
+     // gets moved (executable copy, gc, etc.)
+     struct RelativePatch
+@@ -1034,6 +1030,8 @@ class AssemblerMIPSShared : public AssemblerShared
+ 
+     // label operations
+     void bind(Label* label, BufferOffset boff = BufferOffset());
++    virtual void bind(InstImm* inst, uint32_t branch, uint32_t target) = 0;
++    virtual void Bind(uint8_t* rawCode, AbsoluteLabel* label, const void* address) = 0;
+     uint32_t currentOffset() {
+         return nextOffset().getOffset();
+     }

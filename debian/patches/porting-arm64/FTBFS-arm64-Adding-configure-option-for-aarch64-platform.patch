@@ -1,0 +1,26 @@
+From: Makoto Kato <m_kato@ga2.so-net.ne.jp>
+Date: Fri, 30 Oct 2015 17:08:25 +0900
+Subject: FTBFS arm64: Adding configure option for aarch64 platform
+
+Bug 1219566 - Add aarch64 macro to webrtc/trunk/build/build_config.h. r=rjesup
+
+Original patch is taken from Iceweasel.
+---
+ mozilla/media/webrtc/trunk/build/build_config.h | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/mozilla/media/webrtc/trunk/build/build_config.h b/mozilla/media/webrtc/trunk/build/build_config.h
+index 1a9579e..55ed38c 100644
+--- a/mozilla/media/webrtc/trunk/build/build_config.h
++++ b/mozilla/media/webrtc/trunk/build/build_config.h
+@@ -156,6 +156,10 @@
+ #elif defined(__alpha__)
+ #define ARCH_CPU_ALPHA 1
+ #define ARCH_CPU_64_BITS 1
++#elif defined(__aarch64__)
++#define ARCH_CPU_ARM_FAMILY 1
++#define ARCH_CPU_ARM64 1
++#define ARCH_CPU_64_BITS 1
+ #else
+ #error Please add support for your architecture in build/build_config.h
+ #endif

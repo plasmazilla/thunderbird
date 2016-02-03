@@ -8,7 +8,7 @@ Subject: Bug 628252 - os2.cc fails to compile against GCC 4.6, missing
  1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/gfx/ots/src/os2.cc b/mozilla/gfx/ots/src/os2.cc
-index 8cdc5d0..12ced80 100644
+index fd5cdd1..dd1e11d 100644
 --- a/mozilla/gfx/ots/src/os2.cc
 +++ b/mozilla/gfx/ots/src/os2.cc
 @@ -3,6 +3,7 @@

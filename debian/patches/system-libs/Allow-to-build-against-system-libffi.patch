@@ -4,20 +4,14 @@ Subject: Allow to build against system libffi
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=551138
 ---
- mozilla/js/src/configure.in | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ mozilla/js/src/configure.in | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
 
 diff --git a/mozilla/js/src/configure.in b/mozilla/js/src/configure.in
-index 469609f..5302c76 100644
+index 245ac9e..d2d3332 100644
 --- a/mozilla/js/src/configure.in
 +++ b/mozilla/js/src/configure.in
-@@ -1,4 +1,4 @@
--dnl -*- Mode: Autoconf; tab-width: 4; indent-tabs-mode: nil; -*-
-+        dnl -*- Mode: Autoconf; tab-width: 4; indent-tabs-mode: nil; -*-
- dnl vi: set tabstop=4 shiftwidth=4 expandtab syntax=m4:
- dnl This Source Code Form is subject to the terms of the Mozilla Public
- dnl License, v. 2.0. If a copy of the MPL was not distributed with this
-@@ -3021,6 +3021,19 @@ MOZ_ARG_WITH_STRING(wrap-malloc,
+@@ -3024,6 +3024,19 @@ MOZ_ARG_WITH_STRING(wrap-malloc,
      WRAP_LDFLAGS="${WRAP_LDFLAGS} $withval")
  
  dnl ========================================================

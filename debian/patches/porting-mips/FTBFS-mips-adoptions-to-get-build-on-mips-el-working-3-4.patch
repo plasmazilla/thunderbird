@@ -1,0 +1,127 @@
+From: Heiher <r@hev.cc>
+Date: Sun, 1 Nov 2015 05:10:06 +0800
+Subject: FTBFS mips: adoptions to get build on mips(el) working 3/4
+
+Bug 1213146 - IonMonkey: MIPS: Move Assembler::PatchDataWithValueCheck to architecture specific. r=lth
+
+Original patch is taken from Iceweasel.
+---
+ mozilla/js/src/jit/mips-shared/Assembler-mips-shared.cpp | 7 -------
+ mozilla/js/src/jit/mips-shared/Assembler-mips-shared.h   | 2 --
+ mozilla/js/src/jit/mips32/Assembler-mips32.cpp           | 8 ++++++++
+ mozilla/js/src/jit/mips32/Assembler-mips32.h             | 3 ++-
+ mozilla/js/src/jit/mips64/Assembler-mips64.cpp           | 8 ++++++++
+ mozilla/js/src/jit/mips64/Assembler-mips64.h             | 3 ++-
+ 6 files changed, 20 insertions(+), 11 deletions(-)
+
+diff --git a/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.cpp b/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.cpp
+index 75567af..6dbc8d2 100644
+--- a/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.cpp
++++ b/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.cpp
+@@ -1361,13 +1361,6 @@ AssemblerMIPSShared::as_sync(uint32_t stype)
+     writeInst(InstReg(op_special, zero, zero, zero, stype, ff_sync).encode());
+ }
+ 
+-void
+-AssemblerMIPSShared::PatchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue, ImmPtr expectedValue)
+-{
+-    Assembler::PatchDataWithValueCheck(label, PatchedImmPtr(newValue.value),
+-                            PatchedImmPtr(expectedValue.value));
+-}
+-
+ // This just stomps over memory with 32 bits of raw data. Its purpose is to
+ // overwrite the call of JITed code with 32 bits worth of an offset. This will
+ // is only meant to function on code that has been invalidated, so it should
+diff --git a/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.h b/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.h
+index a939a98..a42a976 100644
+--- a/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.h
++++ b/mozilla/js/src/jit/mips-shared/Assembler-mips-shared.h
+@@ -1084,8 +1084,6 @@ class AssemblerMIPSShared : public AssemblerShared
+ 
+     static uint32_t NopSize() { return 4; }
+ 
+-    static void PatchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue,
+-                                        ImmPtr expectedValue);
+     static void PatchWrite_Imm32(CodeLocationLabel label, Imm32 imm);
+ 
+     static uint32_t AlignDoubleArg(uint32_t offset) {
+diff --git a/mozilla/js/src/jit/mips32/Assembler-mips32.cpp b/mozilla/js/src/jit/mips32/Assembler-mips32.cpp
+index c11a586..87a963e 100644
+--- a/mozilla/js/src/jit/mips32/Assembler-mips32.cpp
++++ b/mozilla/js/src/jit/mips32/Assembler-mips32.cpp
+@@ -399,6 +399,14 @@ Assembler::WriteLuiOriInstructions(Instruction* inst0, Instruction* inst1,
+ }
+ 
+ void
++Assembler::PatchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue,
++                                   ImmPtr expectedValue)
++{
++    PatchDataWithValueCheck(label, PatchedImmPtr(newValue.value),
++                            PatchedImmPtr(expectedValue.value));
++}
++
++void
+ Assembler::PatchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
+                                    PatchedImmPtr expectedValue)
+ {
+diff --git a/mozilla/js/src/jit/mips32/Assembler-mips32.h b/mozilla/js/src/jit/mips32/Assembler-mips32.h
+index b986390..25877b1 100644
+--- a/mozilla/js/src/jit/mips32/Assembler-mips32.h
++++ b/mozilla/js/src/jit/mips32/Assembler-mips32.h
+@@ -122,7 +122,6 @@ class Assembler : public AssemblerMIPSShared
+ 
+   public:
+     using AssemblerMIPSShared::bind;
+-    using AssemblerMIPSShared::PatchDataWithValueCheck;
+ 
+     void bind(RepatchLabel* label);
+     void Bind(uint8_t* rawCode, AbsoluteLabel* label, const void* address);
+@@ -144,6 +143,8 @@ class Assembler : public AssemblerMIPSShared
+                                         Register reg, uint32_t value);
+ 
+     static void PatchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall);
++    static void PatchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue,
++                                        ImmPtr expectedValue);
+     static void PatchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
+                                         PatchedImmPtr expectedValue);
+ 
+diff --git a/mozilla/js/src/jit/mips64/Assembler-mips64.cpp b/mozilla/js/src/jit/mips64/Assembler-mips64.cpp
+index 1d490f8..5a199ad 100644
+--- a/mozilla/js/src/jit/mips64/Assembler-mips64.cpp
++++ b/mozilla/js/src/jit/mips64/Assembler-mips64.cpp
+@@ -438,6 +438,14 @@ Assembler::WriteLoad64Instructions(Instruction* inst0, Register reg, uint64_t va
+ }
+ 
+ void
++Assembler::PatchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue,
++                                   ImmPtr expectedValue)
++{
++    PatchDataWithValueCheck(label, PatchedImmPtr(newValue.value),
++                            PatchedImmPtr(expectedValue.value));
++}
++
++void
+ Assembler::PatchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
+                                    PatchedImmPtr expectedValue)
+ {
+diff --git a/mozilla/js/src/jit/mips64/Assembler-mips64.h b/mozilla/js/src/jit/mips64/Assembler-mips64.h
+index fc55787..85ca1c1 100644
+--- a/mozilla/js/src/jit/mips64/Assembler-mips64.h
++++ b/mozilla/js/src/jit/mips64/Assembler-mips64.h
+@@ -124,7 +124,6 @@ class Assembler : public AssemblerMIPSShared
+     static uintptr_t GetPointer(uint8_t*);
+ 
+     using AssemblerMIPSShared::bind;
+-    using AssemblerMIPSShared::PatchDataWithValueCheck;
+ 
+     void bind(RepatchLabel* label);
+     void Bind(uint8_t* rawCode, AbsoluteLabel* label, const void* address);
+@@ -146,6 +145,8 @@ class Assembler : public AssemblerMIPSShared
+ 
+ 
+     static void PatchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall);
++    static void PatchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue,
++                                        ImmPtr expectedValue);
+     static void PatchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
+                                         PatchedImmPtr expectedValue);
+ 

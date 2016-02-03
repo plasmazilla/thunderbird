@@ -9,10 +9,10 @@ This can be used to symlink to /etc/ice*/pref.
  1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/toolkit/xre/nsXREDirProvider.cpp b/mozilla/toolkit/xre/nsXREDirProvider.cpp
-index 7d09374..b074e33 100644
+index dfac7fc..bff2b4b 100644
 --- a/mozilla/toolkit/xre/nsXREDirProvider.cpp
 +++ b/mozilla/toolkit/xre/nsXREDirProvider.cpp
-@@ -691,6 +691,7 @@ nsXREDirProvider::LoadAppBundleDirs()
+@@ -700,6 +700,7 @@ nsXREDirProvider::LoadAppBundleDirs()
  #endif
  
  static const char *const kAppendPrefDir[] = { "defaults", "preferences", nullptr };
@@ -20,7 +20,7 @@ index 7d09374..b074e33 100644
  
  #ifdef DEBUG_bsmedberg
  static void
-@@ -732,6 +733,7 @@ nsXREDirProvider::GetFilesInternal(const char* aProperty,
+@@ -741,6 +742,7 @@ nsXREDirProvider::GetFilesInternal(const char* aProperty,
      LoadDirIntoArray(mXULAppDir, kAppendPrefDir, directories);
      LoadDirsIntoArray(mAppBundleDirectories,
                        kAppendPrefDir, directories);

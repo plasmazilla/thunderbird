@@ -10,20 +10,25 @@ following message.
 
 The original patch comes from Richard Brown <rbraun@sceen.net>
 https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2014-March/015565.html
+
+After release of Thunderbird 44 there are additional changes made as the
+various configuration files where splitted into more files.
 ---
- mozilla/dom/plugins/ipc/PluginModuleChild.cpp      |  6 ++---
+ mozilla/dom/plugins/ipc/PluginModuleChild.cpp      |  6 +++---
  mozilla/dom/plugins/ipc/PluginModuleChild.h        |  2 +-
- mozilla/ipc/chromium/moz.build                     | 26 ++++++++++++++++++++++
+ mozilla/ipc/chromium/chromium-config.mozbuild      |  5 +++++
+ mozilla/ipc/chromium/moz.build                     | 23 ++++++++++++++++++++++
  mozilla/ipc/chromium/src/base/message_loop.cc      |  4 ++--
  .../ipc/chromium/src/base/process_util_posix.cc    |  2 +-
  mozilla/ipc/chromium/src/build/build_config.h      |  3 ++-
- .../ipc/chromium/src/chrome/common/transport_dib.h |  6 ++---
- mozilla/ipc/glue/GeckoChildProcessHost.cpp         |  8 +++----
+ .../ipc/chromium/src/chrome/common/transport_dib.h |  6 +++---
+ .../src/third_party/libeventcommon.mozbuild        |  5 +++++
+ mozilla/ipc/glue/GeckoChildProcessHost.cpp         |  8 ++++----
  mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp       |  4 +++-
- 9 files changed, 45 insertions(+), 16 deletions(-)
+ 11 files changed, 52 insertions(+), 16 deletions(-)
 
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
-index da475c1..a4df936 100644
+index eac4fcf..b8fe2d6 100644
 --- a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
 +++ b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
 @@ -308,7 +308,7 @@ PluginModuleChild::InitForChrome(const std::string& aPluginFilename,
@@ -66,30 +71,28 @@ index e399a4c..374e7d4 100644
      NP_PLUGINUNIXINIT mInitializeFunc;
  #elif defined(OS_WIN) || defined(OS_MACOSX)
      NP_PLUGININIT mInitializeFunc;
+diff --git a/mozilla/ipc/chromium/chromium-config.mozbuild b/mozilla/ipc/chromium/chromium-config.mozbuild
+index 53bd383..8f01010 100644
+--- a/mozilla/ipc/chromium/chromium-config.mozbuild
++++ b/mozilla/ipc/chromium/chromium-config.mozbuild
+@@ -68,5 +68,10 @@ else:
+             'OS_BSD': 1,
+         })
+ 
++    elif CONFIG['OS_ARCH'] == 'GNU':
++        DEFINES.update({
++            'OS_HURD': 1,
++        })
++
+     else:
+         DEFINES['OS_LINUX'] = 1
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index 9a4a23c..e44ce1b 100644
+index d6a27e4..9815985 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
-@@ -12,6 +12,7 @@ os_freebsd = 0
- os_netbsd = 0
- os_openbsd = 0
- os_bsd = 0
-+os_hurd = 0
- os_linux = 0
- 
- if CONFIG['OS_ARCH'] == 'WINNT':
-@@ -32,6 +33,8 @@ else:
-     elif CONFIG['OS_ARCH'] == 'OpenBSD':
-         os_openbsd = 1
-         os_bsd = 1
-+    elif CONFIG['OS_ARCH'] == 'GNU':
-+        os_hurd = 1
-     else:
-         os_linux = 1
- 
-@@ -246,6 +249,29 @@ if os_bsd:
+@@ -161,6 +161,29 @@ if os_bsd or os_linux:
+             'src/base/message_pump_qt.cc',
          ]
-         LOCAL_INCLUDES += ['src/third_party/libevent/bsd']
  
 +if os_hurd:
 +    SOURCES += [
@@ -118,7 +121,7 @@ index 9a4a23c..e44ce1b 100644
  if '86' not in ost and 'arm' not in ost and 'mips' not in ost:
      SOURCES += [
 diff --git a/mozilla/ipc/chromium/src/base/message_loop.cc b/mozilla/ipc/chromium/src/base/message_loop.cc
-index 3c93161..650bdc9 100644
+index 7f72412..ffaa939 100644
 --- a/mozilla/ipc/chromium/src/base/message_loop.cc
 +++ b/mozilla/ipc/chromium/src/base/message_loop.cc
 @@ -19,7 +19,7 @@
@@ -204,6 +207,29 @@ index e56685b..0d698d9 100644
    explicit TransportDIB(base::SharedMemoryHandle dib);
    base::SharedMemory shared_memory_;
  #elif defined(OS_LINUX)
+diff --git a/mozilla/ipc/chromium/src/third_party/libeventcommon.mozbuild b/mozilla/ipc/chromium/src/third_party/libeventcommon.mozbuild
+index f573618..84513f7 100644
+--- a/mozilla/ipc/chromium/src/third_party/libeventcommon.mozbuild
++++ b/mozilla/ipc/chromium/src/third_party/libeventcommon.mozbuild
+@@ -8,6 +8,7 @@ os_win = 0
+ os_posix = 0
+ os_macosx = 0
+ os_bsd = 0
++os_hurd = 0
+ os_linux = 0
+ 
+ if CONFIG['OS_ARCH'] == 'WINNT':
+@@ -21,6 +22,10 @@ else:
+                                'NetBSD', 'OpenBSD']:
+         os_bsd = 1
+         libevent_include_suffix = 'bsd'
++    # attempt to get GNU hurd into the build again, further modification probably needed
++    elif CONFIG['OS_ARCH'] == 'GNU':
++        os_hurd = 1
++        libevent_include_suffix = 'gnu'
+     else:
+         os_linux = 1
+         if CONFIG['OS_TARGET'] == 'Android':
 diff --git a/mozilla/ipc/glue/GeckoChildProcessHost.cpp b/mozilla/ipc/glue/GeckoChildProcessHost.cpp
 index 7469bd6..8739ff3 100644
 --- a/mozilla/ipc/glue/GeckoChildProcessHost.cpp
@@ -245,10 +271,10 @@ index 7469bd6..8739ff3 100644
  #endif
                    false, &process, arch);
 diff --git a/mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp b/mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp
-index 77d477a..d300e4e 100644
+index 3685ece..dc1615e 100644
 --- a/mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp
 +++ b/mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp
-@@ -116,10 +116,12 @@ class AutoSetHandlingSignal
+@@ -117,10 +117,12 @@ class AutoSetHandlingSignal
  # define R13_sig(p) ((p)->sc_r13)
  # define R14_sig(p) ((p)->sc_r14)
  # define R15_sig(p) ((p)->sc_r15)

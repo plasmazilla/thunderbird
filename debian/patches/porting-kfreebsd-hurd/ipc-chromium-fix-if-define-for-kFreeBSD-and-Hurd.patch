@@ -10,23 +10,9 @@ things needs to expanded.
 The changes is an adoption of the previous droped patch 'Fix
 ipc/chromium on kFreeBSD and Hurd' from the the version 17.
 ---
- mozilla/ipc/chromium/moz.build                         | 2 +-
  mozilla/ipc/chromium/src/base/platform_thread_posix.cc | 8 ++++----
- 2 files changed, 5 insertions(+), 5 deletions(-)
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index c32fba1..9a4a23c 100644
---- a/mozilla/ipc/chromium/moz.build
-+++ b/mozilla/ipc/chromium/moz.build
-@@ -225,7 +225,7 @@ if os_bsd:
-     ]
-     if CONFIG['OS_ARCH'] == 'GNU_kFreeBSD':
-         SOURCES += [
--            'src/base/process_util_linux.cc'
-+            'src/base/process_util_linux.cc',
-         ]
-     else:
-         SOURCES += [
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 index f14bb74..b9a9eaa 100644
 --- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
