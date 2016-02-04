@@ -309,22 +309,9 @@ Files: mozilla/browser/components/translation/cld2/*
 Copyright: 2013-2014, Google Inc.
 License: Apache-2.0
 
-Files: mozilla/browser/devtools/commandline/test/*
-       mozilla/browser/extensions/pdfjs/test/*
+Files: mozilla/browser/extensions/pdfjs/test/*
 Copyright: no-info-found
 License: Public-Domain
-
-Files: mozilla/browser/devtools/commandline/test/browser_gcli_spell.js
-Copyright: 2009, Panagiotis Astithas
-License: ISC
-
-Files: mozilla/browser/devtools/shared/widgets/CubicBezierWidget.js
-Copyright: 2013, Lea Verou.
-License: Expat
-
-Files: mozilla/browser/devtools/tilt/tilt-math.js
-Copyright: 2011, Brandon Jones
-License: MPL-2.0
 
 Files: mozilla/browser/extensions/pdfjs/content/*
        mozilla/browser/extensions/shumway/*
@@ -1787,7 +1774,6 @@ License: GPL-3
 
 Files: mozilla/js/src/devtools/rootAnalysis/analyze.py
        mozilla/js/src/devtools/vprof/testVprofMT.c
-       mozilla/js/src/jit-test/tests/ion/inlining/*
        mozilla/js/src/jit/BacktrackingAllocator.h
 Copyright: no-info-found
 License: MPL-2.0
@@ -1799,40 +1785,6 @@ License: MPL-2.0
 Files: mozilla/js/src/irregexp/*
 Copyright: 2006-2014, the V8 project authors
 License: BSD-3-clause
-
-Files: mozilla/js/src/jit-test/tests/basic/string-endswith.js
-       mozilla/js/src/jit-test/tests/basic/string-startswith.js
-Copyright: 2013, Mathias Bynens
-License: Expat
-
-Files: mozilla/js/src/jit-test/tests/sunspider/check-3d-morph.js
-       mozilla/js/src/jit-test/tests/sunspider/check-3d-raytrace.js
-       mozilla/js/src/jit-test/tests/sunspider/check-bitops-bitwise-and.js
-       mozilla/js/src/jit-test/tests/sunspider/check-string-tagcloud.js
-Copyright: 2006-2009, 2012, Apple Inc.
-License: BSD-2
-
-Files: mozilla/js/src/jit-test/tests/sunspider/check-date-format-xparb.js
-Copyright: 2004, Baron Schwartz <baron at sequent dot org>
-License: LGPL-2.1
-
-Files: mozilla/js/src/jit-test/tests/sunspider/check-math-cordic.js
-Copyright: Rich Moore
-License: BSD-2
-
-Files: mozilla/js/src/jit-test/tests/v8-v5/*
-Copyright: 2006-2014, the V8 project authors
-License: BSD-3-clause
-
-Files: mozilla/js/src/jit-test/tests/v8-v5/check-crypto.js
-       mozilla/js/src/octane/crypto.js
-Copyright: 2003-2005, Tom Wu
-License: Expat
-
-Files: mozilla/js/src/jit-test/tests/v8-v5/check-deltablue.js
-Copyright: 2008, the V8 project authors
-           1996, John Maloney and Mario Wolczko
-License: GPL-2+
 
 Files: mozilla/js/src/jit/ExecutableAllocator.cpp
        mozilla/js/src/jit/ExecutableAllocator.h
@@ -1904,7 +1856,6 @@ Files: mozilla/js/src/tests/ecma/Array/15.4.4.5-1.js
        mozilla/js/src/tests/ecma_6/shell.js
        mozilla/js/src/tests/ecma_7/shell.js
        mozilla/js/src/tests/js1_6/extensions/regress-456826.js
-       mozilla/js/src/tests/js1_7/block/regress-351606.js
        mozilla/js/src/tests/js1_8/extensions/regress-476414-01.js
        mozilla/js/src/tests/js1_8/extensions/regress-476414-02.js
        mozilla/js/src/tests/js1_8_5/regress/regress-355569.js
@@ -2520,7 +2471,6 @@ Files: mozilla/mobile/android/base/animation/Rotate3DAnimation.java
        mozilla/mobile/android/base/widget/ActivityChooserModel.java
        mozilla/mobile/android/base/widget/DateTimePicker.java
        mozilla/mobile/android/stumbler/java/org/mozilla/mozstumbler/service/utils/PersistentIntentService.java
-       mozilla/mobile/android/tests/background/junit3/src/fxa/TestAccountLoader.java
        mozilla/mobile/android/thirdparty/ch/boye/httpclientandroidlib/androidextra/Base64.java
        mozilla/mobile/android/thirdparty/com/nineoldandroids/*
        mozilla/mobile/android/thirdparty/com/nineoldandroids/view/ViewPropertyAnimator.java
@@ -2668,11 +2618,8 @@ Files: mozilla/netwerk/dns/nameprep.c
        mozilla/netwerk/dns/nameprepdata.c
        mozilla/netwerk/dns/nameprep_template.c
        mozilla/netwerk/dns/nsIDNKitInterface.h
-       mozilla/netwerk/dns/race.c
 Copyright: 2000-2002, Japan Network Information Center
 License: BSD-3-clause
-
-
 
 Files: mozilla/netwerk/dns/prepare_tlds.py
        mozilla/netwerk/protocol/rtsp/rtsp/RtspPrlog.h
@@ -3405,30 +3352,7 @@ Files: mozilla/toolkit/crashreporter/test/browser/browser_clearReports.js
 Copyright: no-info-found
 License: MPL-2.0
 
-Files: mozilla/toolkit/devtools/gcli/source/*
-Copyright: 2012-2014, Mozilla Foundation and contributors
-License: Apache-2.0
-
-Files: mozilla/toolkit/devtools/gcli/source/lib/gcli/util/prism.js
-Copyright: no-info-found
-License: Expat
-
-Files: mozilla/toolkit/devtools/jsbeautify/src/*
-Copyright: 2007-2013, Einar Lielmanis and contributors
-License: Expat
-
-Files: mozilla/toolkit/devtools/qrcode/decoder/*
-Copyright: 2007, ZXing authors
-License: Apache-2.0
-
-Files: mozilla/toolkit/devtools/qrcode/encoder/*
-Copyright: 2009, Kazuhiko Arase
-License: Expat
-
-Files: mozilla/toolkit/devtools/server/tests/browser/head.js
-       mozilla/toolkit/devtools/server/tests/unit/test_get-executable-lines-source-map.js
-       mozilla/toolkit/devtools/server/tests/unit/test_get-executable-lines.js
-       mozilla/toolkit/identity/tests/unit/test_load_modules.js
+Files: mozilla/toolkit/identity/tests/unit/test_load_modules.js
        mozilla/toolkit/locales/compare-locales.pl
        mozilla/toolkit/locales/en-US/chrome/global/devtools/*
        mozilla/toolkit/modules/tests/xpcshell/test_propertyListsUtils.js
@@ -3488,10 +3412,6 @@ Files: mozilla/toolkit/devtools/server/tests/browser/head.js
        mozilla/toolkit/mozapps/update/tests/unit_service_updater/marSuccessPartialSvc.js
 Copyright: no-info-found
 License: MPL-2.0
-
-Files: mozilla/toolkit/devtools/webconsole/network-helper.js
-Copyright: 2007, Parakey Inc.
-License: BSD-3-clause
 
 Files: mozilla/toolkit/mozapps/update/updater/bspatch.cpp
        mozilla/toolkit/mozapps/update/updater/bspatch.h
