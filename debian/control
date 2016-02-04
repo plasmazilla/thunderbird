@@ -42,8 +42,8 @@ Build-Depends: autoconf2.13,
 	yasm (>= 1.1),
 	zip,
 	zlib1g-dev
-Vcs-Git: git://anonscm.debian.org/pkg-mozilla/icedove.git
-Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-mozilla/icedove.git;a=summary
+Vcs-Git: https://anonscm.debian.org/cgit/pkg-mozilla/icedove.git
+Vcs-Browser: https://anonscm.debian.org/cgit/pkg-mozilla/icedove.git
 Homepage: http://www.mozilla.org/thunderbird/
 X-Debian-Homepage: http://wiki.debian.org/Icedove
 Standards-Version: 3.9.6
