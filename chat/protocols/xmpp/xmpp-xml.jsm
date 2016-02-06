@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["Stanza", "XMPPParser"];
+this.EXPORTED_SYMBOLS = ["Stanza", "XMPPParser"];
 
-const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 
-const NS = {
+var NS = {
   xml                       : "http://www.w3.org/XML/1998/namespace",
   xhtml                     : "http://www.w3.org/1999/xhtml",
   xhtml_im                  : "http://jabber.org/protocol/xhtml-im",
@@ -91,7 +91,7 @@ var TOP_LEVEL_ELEMENTS = {
 };
 
 /* Stanza Builder */
-const Stanza = {
+var Stanza = {
   NS: NS,
 
   /* Create a presence stanza */

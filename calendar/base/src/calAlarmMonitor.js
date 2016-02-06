@@ -24,8 +24,8 @@ function calAlarmMonitor() {
                             .createInstance(Components.interfaces.nsISound);
 }
 
-const calAlarmMonitorClassID = Components.ID("{4b7ae030-ed79-11d9-8cd6-0800200c9a66}");
-const calAlarmMonitorInterfaces = [
+var calAlarmMonitorClassID = Components.ID("{4b7ae030-ed79-11d9-8cd6-0800200c9a66}");
+var calAlarmMonitorInterfaces = [
     Components.interfaces.nsIObserver,
     Components.interfaces.calIAlarmServiceObserver
 ];
@@ -118,7 +118,8 @@ calAlarmMonitor.prototype = {
         }
 
         let calAlarmWindow = peekAlarmWindow();
-        if (!calAlarmWindow  && !this.mWindowOpening) {
+        if (!calAlarmWindow  && (!this.mWindowOpening ||
+                                  this.mWindowOpening.closed)) {
             this.mWindowOpening = Services.ww.openWindow(
                 null,
                 "chrome://calendar/content/calendar-alarm-dialog.xul",
@@ -170,5 +171,11 @@ calAlarmMonitor.prototype = {
         });
     },
 
-    onAlarmsLoaded: function cAM_onAlarmsLoaded(aCalendar) {}
+    onAlarmsLoaded: function cAM_onAlarmsLoaded(aCalendar) {
+        // the alarm dialog won't close while alarms are loading, check again now
+        let calAlarmWindow = peekAlarmWindow();
+        if (calAlarmWindow && this.mAlarms.length == 0) {
+            calAlarmWindow.closeIfEmpty();
+        }
+    }
 };

@@ -1448,7 +1448,7 @@ nsresult nsMsgDBFolder::AddMarkAllReadUndoAction(nsIMsgWindow *msgWindow,
                                                  nsMsgKey *thoseMarked,
                                                  uint32_t numMarked)
 {
-  nsRefPtr<nsMsgReadStateTxn> readStateTxn = new nsMsgReadStateTxn();
+  RefPtr<nsMsgReadStateTxn> readStateTxn = new nsMsgReadStateTxn();
   if (!readStateTxn)
     return NS_ERROR_OUT_OF_MEMORY;
 
@@ -1821,7 +1821,7 @@ public:
 
 private:
   nsCOMPtr<nsIMsgWindow> mMsgWindow;
-  nsRefPtr<nsMsgDBFolder> mFolder;
+  RefPtr<nsMsgDBFolder> mFolder;
 };
 
 nsresult nsMsgDBFolder::HandleAutoCompactEvent(nsIMsgWindow *aWindow)
@@ -4484,32 +4484,11 @@ NS_IMETHODIMP nsMsgDBFolder::GetDeletable(bool *deletable)
 
 NS_IMETHODIMP nsMsgDBFolder::GetDisplayRecipients(bool *displayRecipients)
 {
-  nsresult rv;
   *displayRecipients = false;
   if (mFlags & nsMsgFolderFlags::SentMail && !(mFlags & nsMsgFolderFlags::Inbox))
     *displayRecipients = true;
   else if (mFlags & nsMsgFolderFlags::Queue)
     *displayRecipients = true;
-  else
-  {
-    // Only mail folders can be FCC folders
-    if (mFlags & nsMsgFolderFlags::Mail || mFlags & nsMsgFolderFlags::ImapBox)
-    {
-      // There's one FCC folder for sent mail, and one for sent news
-      nsIMsgFolder *fccFolders[2];
-      int numFccFolders = 0;
-      for (int i = 0; i < numFccFolders; i++)
-      {
-        bool isAncestor;
-        if (NS_SUCCEEDED(rv = fccFolders[i]->IsAncestorOf(this, &isAncestor)))
-        {
-          if (isAncestor)
-            *displayRecipients = true;
-        }
-        NS_RELEASE(fccFolders[i]);
-      }
-    }
-  }
   return NS_OK;
 }
 

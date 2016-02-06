@@ -14,22 +14,22 @@ load("../../../resources/messageGenerator.js");
 load("../../../resources/messageModifier.js");
 load("../../../resources/messageInjection.js");
 
-let gMessenger = Cc["@mozilla.org/messenger;1"]
+var gMessenger = Cc["@mozilla.org/messenger;1"]
                    .createInstance(Ci.nsIMessenger);
 
 // Create a message generator
-const msgGen = gMessageGenerator = new MessageGenerator();
+var msgGen = gMessageGenerator = new MessageGenerator();
 // Create a message scenario generator using that message generator
-const scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
+var scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
 
-const imageAttachment =
+var imageAttachment =
   'iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAABHNCSVQICAgIfAhkiAAAAAlwS' +
   'FlzAAAN1wAADdcBQiibeAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAA' +
   'A5SURBVCiRY/z//z8DKYCJJNXkaGBgYGD4D8NQ5zUgiTVAxeBqSLaBkVRPM0KtIhrQ3km0jwe' +
   'SNQAAlmAY+71EgFoAAAAASUVORK5CYII=';
 
 // create some messages that have various types of attachments
-let messages = [
+var messages = [
   // image attachment (normal content type sanity test)
   { attachments: [{ body: imageAttachment,
                     contentType: 'image/png',
@@ -45,7 +45,7 @@ let messages = [
     testContentType: "application/pdf" },
 ];
 
-let gStreamListener = {
+var gStreamListener = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIStreamListener]),
 
   // nsIRequestObserver part
@@ -76,7 +76,7 @@ let gStreamListener = {
   },
 };
 
-let gMessageHeaderSink = {
+var gMessageHeaderSink = {
   handleAttachment: function(aContentType, aUrl, aDisplayName, aUri,
                              aIsExternalAttachment) {
     gMessageHeaderSink.contentType = aContentType;
@@ -97,7 +97,7 @@ let gMessageHeaderSink = {
   resetProperties: function () {}
 };
 
-let msgWindow = Cc["@mozilla.org/messenger/msgwindow;1"]
+var msgWindow = Cc["@mozilla.org/messenger/msgwindow;1"]
                   .createInstance(Ci.nsIMsgWindow);
 msgWindow.msgHeaderSink = gMessageHeaderSink;
 
@@ -127,11 +127,11 @@ function test_message_attachments(info) {
 
 /* ===== Driver ===== */
 
-let tests = [
+var tests = [
   parameterizeTest(test_message_attachments, messages),
 ];
 
-let gInbox;
+var gInbox;
 
 function run_test() {
   // use mbox injection because the fake server chokes sometimes right now

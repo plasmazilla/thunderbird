@@ -73,6 +73,9 @@
 #ifndef MOZ_STATIC_JS
 @BINPATH@/@DLL_PREFIX@mozjs@DLL_SUFFIX@
 #endif
+#ifdef MOZ_DMD
+@BINPATH@/@DLL_PREFIX@dmd@DLL_SUFFIX@
+#endif
 #ifndef MOZ_NATIVE_NSPR
 #ifndef MOZ_FOLD_LIBS
 @BINPATH@/@DLL_PREFIX@nspr4@DLL_SUFFIX@
@@ -184,8 +187,12 @@
 @RESPATH@/components/content_events.xpt
 @RESPATH@/components/content_geckomediaplugins.xpt
 @RESPATH@/components/content_html.xpt
+#ifdef MOZ_WEBRTC
+@RESPATH@/components/content_webrtc.xpt
+#endif
 @RESPATH@/components/content_xslt.xpt
 @RESPATH@/components/cookie.xpt
+@RESPATH@/components/devtools_security.xpt
 @RESPATH@/components/directory.xpt
 @RESPATH@/components/docshell.xpt
 @RESPATH@/components/dom.xpt
@@ -208,12 +215,16 @@
 @RESPATH@/components/dom_network.xpt
 @RESPATH@/components/dom_notification.xpt
 @RESPATH@/components/dom_offline.xpt
+#ifdef MOZ_PAY
+@RESPATH@/components/dom_payment.xpt
+#endif
 @RESPATH@/components/dom_permissionsettings.xpt
 @RESPATH@/components/dom_power.xpt
 @RESPATH@/components/dom_push.xpt
 @RESPATH@/components/dom_presentation.xpt
 @RESPATH@/components/dom_quota.xpt
 @RESPATH@/components/dom_range.xpt
+@RESPATH@/components/dom_security.xpt
 @RESPATH@/components/dom_settings.xpt
 @RESPATH@/components/dom_sidebar.xpt
 @RESPATH@/components/dom_smil.xpt
@@ -345,6 +356,7 @@
 @RESPATH@/components/urlformatter.xpt
 @RESPATH@/components/webBrowser_core.xpt
 @RESPATH@/components/webbrowserpersist.xpt
+@RESPATH@/components/webvtt.xpt
 @RESPATH@/components/widget.xpt
 #ifdef XP_MACOSX
 @RESPATH@/components/widget_cocoa.xpt
@@ -386,6 +398,8 @@
 @RESPATH@/components/ContactManager.manifest
 @RESPATH@/components/contentAreaDropListener.js
 @RESPATH@/components/contentAreaDropListener.manifest
+@RESPATH@/components/nsCrashMonitor.js
+@RESPATH@/components/crashmonitor.manifest
 @RESPATH@/components/crypto-SDR.js
 @RESPATH@/components/cryptoComponents.manifest
 @RESPATH@/components/DataStoreImpl.js
@@ -485,6 +499,11 @@
 @RESPATH@/components/PageThumbsProtocol.js
 @RESPATH@/components/BrowserPageThumbs.manifest
 @RESPATH@/components/passwordmgr.manifest
+#ifdef MOZ_PAY
+@RESPATH@/components/Payment.js
+@RESPATH@/components/PaymentFlowInfo.js
+@RESPATH@/components/Payment.manifest
+#endif
 #ifdef MOZ_WEBRTC
 @RESPATH@/components/PeerConnection.js
 @RESPATH@/components/PeerConnection.manifest
@@ -528,6 +547,8 @@
 @RESPATH@/components/Webapps.js
 @RESPATH@/components/Webapps.manifest
 @RESPATH@/components/WebContentConverter.js
+@RESPATH@/components/WebVTT.manifest
+@RESPATH@/components/WebVTTParserWrapper.js
 @RESPATH@/components/XULStore.js
 @RESPATH@/components/XULStore.manifest
 
@@ -542,17 +563,18 @@
 @RESPATH@/chrome/toolkit@JAREXT@
 @RESPATH@/chrome/toolkit.manifest
 
+; DevTools
+@RESPATH@/chrome/devtools@JAREXT@
+@RESPATH@/chrome/devtools.manifest
+@RESPATH@/@PREF_DIR@/devtools.js
+
 ; classic theme
 @RESPATH@/chrome/classic@JAREXT@
 @RESPATH@/chrome/classic.manifest
-#ifdef MOZ_OMNIJAR
-@RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}.xpi
-#else
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/chrome.manifest
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/icon.png
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/install.rdf
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/preview.png
-#endif
 
 ; modern theme
 #ifdef MOZ_OMNIJAR
@@ -884,13 +906,14 @@ bin/libfreebl_32int64_3.so
 @RESPATH@/components/newMailNotificationService.js
 
 ; Address Sanitizer
-#ifdef MOZ_ASAN
-#ifdef CLANG_CXX
+#if defined(CLANG_CXX)
+#if defined(MOZ_ASAN) || defined(MOZ_TSAN)
 @BINPATH@/llvm-symbolizer
 #endif
-#ifdef CLANG_CL
-@BINPATH@/clang_rt.asan_dynamic-i386.dll
 #endif
+
+#if defined(MOZ_ASAN) && defined(CLANG_CL)
+@BINPATH@/clang_rt.asan_dynamic-i386.dll
 #endif
 
 [chatzilla]

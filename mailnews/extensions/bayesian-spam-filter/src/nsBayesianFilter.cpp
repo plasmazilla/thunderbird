@@ -1526,7 +1526,7 @@ void nsBayesianFilter::classifyMessage(
         double distance = std::abs(prob - 0.5);
         if (distance >= .1)
         {
-          nsresult rv = setAnalysis(token, traitIndex, distance, prob);
+          mozilla::DebugOnly<nsresult> rv = setAnalysis(token, traitIndex, distance, prob);
           NS_ASSERTION(NS_SUCCEEDED(rv), "Problem in setAnalysis");
         }
       }
@@ -1632,7 +1632,6 @@ void nsBayesianFilter::classifyMessage(
         for (uint32_t tokenIndex = 0; tokenIndex < usedTokenCount; tokenIndex++)
         {
           TraitAnalysis& ta = traitAnalyses[last - 1 - tokenIndex];
-          double S, H;
           int32_t chi_error;
           S = chi2P(-2.0 * sArray[tokenIndex], 2.0 * clueCount, &chi_error);
           if (!chi_error)

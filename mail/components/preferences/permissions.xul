@@ -7,10 +7,7 @@
 <?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
 <?xml-stylesheet href="chrome://messenger/skin/preferences/preferences.css" type="text/css"?>
 
-<!DOCTYPE dialog [
-  <!ENTITY % dtd1 SYSTEM "chrome://messenger/locale/preferences/permissions.dtd"> %dtd1;
-  <!ENTITY % dtd2 SYSTEM "chrome://messenger/locale/editContactOverlay.dtd"> %dtd2;
-]>
+<!DOCTYPE dialog SYSTEM "chrome://messenger/locale/preferences/permissions.dtd">
 
 <window id="PermissionsDialog" class="windowDialog"
         windowtype="mailnews:permissions"
@@ -78,9 +75,9 @@
     <spacer flex="1"/>
     <hbox class="actionButtons" align="right" flex="1">
       <button oncommand="close();" icon="close"
-              label="&editContactPanelCancel.label;" accesskey="&editContactPanelCancel.accesskey;" />
+              label="&button.cancel.label;" accesskey="&button.cancel.accesskey;" />
       <button id="btnApplyChanges" oncommand="gPermissionManager.onApplyChanges();" icon="save"
-              label="&editContactPanelDone.label;" accesskey="&editContactPanelDone.accesskey;"/>
+              label="&button.ok.label;" accesskey="&button.ok.accesskey;"/>
     </hbox>
   </vbox>
 </window>

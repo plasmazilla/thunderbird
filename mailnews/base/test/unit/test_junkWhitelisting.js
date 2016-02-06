@@ -27,8 +27,8 @@ Components.utils.import("resource:///modules/mailServices.js");
  */
  
 // indices into hdrs[] of email by domain
-const kDomainTest = 0;
-const kDomainExample = 1;
+var kDomainTest = 0;
+var kDomainExample = 1;
 
 var Files = 
 [
@@ -36,7 +36,7 @@ var Files =
   "../../../data/bugmail3"
 ]
 
-let hdrs = [];
+var hdrs = [];
 
 function run_test()
 {

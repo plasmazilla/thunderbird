@@ -147,7 +147,7 @@ XPCWrappedNativeScope::XPCWrappedNativeScope(JSContext* cx,
         if (!mInterposition && addonId && isSystem) {
           bool interpositionEnabled = mozilla::Preferences::GetBool(
             "extensions.interposition.enabled", false);
-          if (interpositionEnabled) {
+          if (interpositionEnabled || BrowserTabsRemoteAutostart()) {
             mInterposition = do_GetService("@mozilla.org/addons/default-addon-shims;1");
             MOZ_ASSERT(mInterposition);
             UpdateInterpositionWhitelist(cx, mInterposition);
@@ -783,12 +783,18 @@ XPCWrappedNativeScope::UpdateInterpositionWhitelist(JSContext* cx,
     {
         JSAutoCompartment ac(cx, whitelistObj);
 
-        uint32_t length;
-        if (!JS_IsArrayObject(cx, whitelistObj) ||
-            !JS_GetArrayLength(cx, whitelistObj, &length)) {
+        bool isArray;
+        if (!JS_IsArrayObject(cx, whitelistObj, &isArray))
+            return false;
+
+        if (!isArray) {
             JS_ReportError(cx, "Whitelist must be an array.");
             return false;
         }
+
+        uint32_t length;
+        if (!JS_GetArrayLength(cx, whitelistObj, &length))
+            return false;
 
         for (uint32_t i = 0; i < length; i++) {
             RootedValue idval(cx);

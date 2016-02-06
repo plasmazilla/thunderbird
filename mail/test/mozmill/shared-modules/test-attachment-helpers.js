@@ -2,15 +2,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "attachment-helpers";
+var MODULE_NAME = "attachment-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["mock-object-helpers"];
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["mock-object-helpers"];
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
-let gMockFilePickReg;
+var gMockFilePickReg;
 
 function setupModule(module) {
   let moh = collector.getModule('mock-object-helpers');
@@ -35,7 +35,7 @@ function MockFilePickerConstructor() {
   return gMockFilePicker;
 };
 
-let gMockFilePicker = {
+var gMockFilePicker = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIFilePicker]),
   defaultExtension: "",
   filterIndex: null,

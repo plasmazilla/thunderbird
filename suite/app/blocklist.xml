@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<blocklist xmlns="http://www.mozilla.org/2006/addons-blocklist" lastupdate="1445462022000">
+<blocklist xmlns="http://www.mozilla.org/2006/addons-blocklist" lastupdate="1449088954000">
   <emItems>
       <emItem  blockID="i58" id="webmaster@buzzzzvideos.info">
                         <versionRange  minVersion="0" maxVersion="*">
@@ -112,6 +112,12 @@
                     </versionRange>
                     <prefs>
                   <pref>browser.search.defaultenginename</pref>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i1058" id="amo-validator-bypass@example.com">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
+                    </versionRange>
+                    <prefs>
               </prefs>
     </emItem>
       <emItem  blockID="i140" id="mozillahmpg@mozilla.org">
@@ -325,7 +331,7 @@
                     <prefs>
               </prefs>
     </emItem>
-      <emItem  blockID="i856" id="/^({94d62e35-4b43-494c-bf52-ba5935df36ef}|firefox@advanceelite\.com|{bb7b7a60-f574-47c2-8a0b-4c56f2da9802})$/">
+      <emItem  blockID="i376" id="{9e09ac65-43c0-4b9d-970f-11e2e9616c55}">
                         <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
@@ -379,6 +385,12 @@
     </emItem>
       <emItem  blockID="i966" id="{5C655500-E712-41e7-9349-CE462F844B19}">
                         <versionRange  minVersion="0" maxVersion="1.0.1-signed" severity="1">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i1050" id="87aukfkausiopoawjsuifhasefgased278djasi@jetpack">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -888,7 +900,7 @@
                     <prefs>
               </prefs>
     </emItem>
-      <emItem  blockID="i376" id="{9e09ac65-43c0-4b9d-970f-11e2e9616c55}">
+      <emItem  blockID="i856" id="/^({94d62e35-4b43-494c-bf52-ba5935df36ef}|firefox@advanceelite\.com|{bb7b7a60-f574-47c2-8a0b-4c56f2da9802})$/">
                         <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
@@ -2616,12 +2628,13 @@
                             <infoURL>https://get.adobe.com/flashplayer/</infoURL>
           </pluginItem>
       <pluginItem  blockID="p180">
-                  <match name="filename" exp="JavaAppletPlugin\.plugin" />                                    <versionRange  minVersion="Java 7 Update 0" maxVersion="Java 7 Update 11" severity="0" vulnerabilitystatus="1">
+                  <match name="filename" exp="JavaAppletPlugin\.plugin" />                                    <versionRange  minVersion="Java 7 Update 0" maxVersion="Java 7 Update 10" severity="0" vulnerabilitystatus="1">
                                 <targetApplication  id="{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}">
                               <versionRange  minVersion="2.14" maxVersion="*" />
                           </targetApplication>
                   </versionRange>
-                        </pluginItem>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
       <pluginItem  blockID="p182">
       <match name="name" exp="Java\(TM\) Platform SE 7 U([0-9]|(1[0-1]))(\s[^\d\._U]|$)" />            <match name="filename" exp="npjp2\.dll" />                                    <versionRange  severity="0" vulnerabilitystatus="1">
                                 <targetApplication  id="{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}">
@@ -3017,6 +3030,46 @@
                   <match name="filename" exp="(NPSWF32.*\.dll)|(NPSWF64.*\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="19.0" maxVersion="19.0.0.225" severity="0" vulnerabilitystatus="1"></versionRange>
                             <infoURL>https://get.adobe.com/flashplayer/</infoURL>
           </pluginItem>
+      <pluginItem  blockID="p1052">
+                  <match name="filename" exp="JavaAppletPlugin\.plugin" />                      <versionRange  minVersion="Java 7 Update 11" maxVersion="Java 7 Update 11" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1053">
+                  <match name="filename" exp="nprpplugin\.dll" />                      <versionRange  minVersion="0" maxVersion="17.0.10.7" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://real.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1054">
+                  <match name="filename" exp="np32dsw_[0-9]+\.dll" />                      <versionRange  minVersion="0" maxVersion="12.2.0.162" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/shockwave/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1055">
+                  <match name="filename" exp="DirectorShockwave\.plugin" />                      <versionRange  minVersion="0" maxVersion="12.2.0.162" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/shockwave/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1059">
+                  <match name="filename" exp="JavaAppletPlugin\.plugin" />                      <versionRange  minVersion="Java 7 Update 81" maxVersion="Java 7 Update 90" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1060">
+                  <match name="filename" exp="JavaAppletPlugin\.plugin" />                      <versionRange  minVersion="Java 8 Update 46" maxVersion="Java 8 Update 64" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1061">
+      <match name="name" exp="Java\(TM\) Platform SE 7 U(8[1-9]|90)(\s[^\d\._U]|$)" />            <match name="filename" exp="npjp2\.dll" />                      <versionRange  severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1062">
+      <match name="name" exp="Java\(TM\) Platform SE 8 U(4[6-9]|5\d|6[0-4])(\s[^\d\._U]|$)" />            <match name="filename" exp="npjp2\.dll" />                      <versionRange  severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1063">
+      <match name="name" exp="Java(\(TM\))? Plug-in 10\.(8[1-9]|90)(\.[0-9]+)?([^\d\._]|$)" />            <match name="filename" exp="libnpjp2\.so" />                      <versionRange  severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1064">
+      <match name="name" exp="Java(\(TM\))? Plug-in 11\.(4[6-9]|5\d|6[0-4])(\.[0-9]+)?([^\d\._]|$)" />            <match name="filename" exp="libnpjp2\.so" />                      <versionRange  severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://java.com/</infoURL>
+          </pluginItem>
     </pluginItems>
 
   <gfxItems>
@@ -3064,7 +3117,7 @@
                       <device>0x9807</device>
                   </devices>
             <feature>DIRECT3D_9_LAYERS</feature>      <featureStatus>BLOCKED_DEVICE</featureStatus>    </gfxBlacklistEntry>
-    <gfxBlacklistEntry  blockID="g511">      <os>WINNT 5.1</os>      <vendor>0x8086</vendor>            <feature>DIRECT3D_9_LAYERS, WEBGL_ANGLE</feature>      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>      <driverVersion>6.14.10.5218</driverVersion>      <driverVersionComparator>LESS_THAN</driverVersionComparator>    </gfxBlacklistEntry>
+    <gfxBlacklistEntry  blockID="g511">      <os>WINNT 5.1</os>      <vendor>0x8086</vendor>            <feature>DIRECT3D_9_LAYERS</feature>      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>      <driverVersion>6.14.10.5218</driverVersion>      <driverVersionComparator>LESS_THAN</driverVersionComparator>    </gfxBlacklistEntry>
     <gfxBlacklistEntry  blockID="g974">      <os>WINNT 10.0</os>      <vendor>0x1002</vendor>              <devices>
                       <device>0x6920</device>
                       <device>0x6921</device>
@@ -3081,6 +3134,11 @@
                       <device>0x6903</device>
                       <device>0x6907</device>
                       <device>0x7300</device>
+                      <device>0x9870</device>
+                      <device>0x9874</device>
+                      <device>0x9875</device>
+                      <device>0x9876</device>
+                      <device>0x9877</device>
                   </devices>
             <feature>DIRECT2D</feature>      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>      <driverVersion>15.201.1151.0</driverVersion>      <driverVersionComparator>LESS_THAN</driverVersionComparator>    </gfxBlacklistEntry>
     <gfxBlacklistEntry  blockID="g984">      <os>All</os>      <vendor>0x8086</vendor>            <feature>DIRECT2D</feature>      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>      <driverVersion>8.15.10.2413</driverVersion>      <driverVersionComparator>LESS_THAN_OR_EQUAL</driverVersionComparator>    </gfxBlacklistEntry>
@@ -3100,8 +3158,14 @@
                       <device>0x6903</device>
                       <device>0x6907</device>
                       <device>0x7300</device>
+                      <device>0x9870</device>
+                      <device>0x9874</device>
+                      <device>0x9875</device>
+                      <device>0x9876</device>
+                      <device>0x9877</device>
                   </devices>
             <feature>DIRECT2D</feature>      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>      <driverVersion>15.201.1151.0</driverVersion>      <driverVersionComparator>LESS_THAN</driverVersionComparator>    </gfxBlacklistEntry>
+    <gfxBlacklistEntry  blockID="g1057">      <os>WINNT 5.1</os>      <vendor>0x8086</vendor>            <feature>WEBGL_ANGLE</feature>      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>      <driverVersion>6.14.10.5218</driverVersion>      <driverVersionComparator>LESS_THAN</driverVersionComparator>    </gfxBlacklistEntry>
     </gfxItems>
 
   <certItems>

@@ -12,10 +12,10 @@
  *     http://www.stack.nl/~jilles/cgi-bin/hgwebdir.cgi/irc-documentation-jilles/raw-file/tip/reference/draft-meglio-irc-watch-00.txt
  */
 
-const EXPORTED_SYMBOLS = ["ircWATCH", "isupportWATCH", "ircMONITOR",
+this.EXPORTED_SYMBOLS = ["ircWATCH", "isupportWATCH", "ircMONITOR",
                           "isupportMONITOR"];
 
-const {interfaces: Ci, utils: Cu} = Components;
+var {interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 Cu.import("resource:///modules/ircHandlers.jsm");
@@ -27,7 +27,7 @@ function setStatus(aAccount, aNick, aStatus) {
 
   if (aStatus == "AWAY") {
     // We need to request the away message.
-    aAccount.requestBuddyInfo(aNick);
+    aAccount.requestCurrentWhois(aNick);
   }
   else {
     // Clear the WHOIS information.

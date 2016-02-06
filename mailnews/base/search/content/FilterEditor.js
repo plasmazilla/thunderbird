@@ -31,16 +31,16 @@ var gFilterActionStrings = ["none", "movemessage", "setpriorityto", "deletemessa
                             "ignoresubthread", "markasunread"];
 
 // A temporary filter with the current state of actions in the UI.
-let gTempFilter = null;
+var gTempFilter = null;
 // A nsIArray of the currently defined actions in the order they will be run.
-let gActionListOrdered = null;
+var gActionListOrdered = null;
 
 var gFilterEditorMsgWindow = null;
 
-const nsMsgFilterAction = Components.interfaces.nsMsgFilterAction;
-const nsMsgFilterType   = Components.interfaces.nsMsgFilterType;
-const nsIMsgRuleAction  = Components.interfaces.nsIMsgRuleAction;
-const nsMsgSearchScope  = Components.interfaces.nsMsgSearchScope;
+var nsMsgFilterAction = Components.interfaces.nsMsgFilterAction;
+var nsMsgFilterType   = Components.interfaces.nsMsgFilterType;
+var nsIMsgRuleAction  = Components.interfaces.nsIMsgRuleAction;
+var nsMsgSearchScope  = Components.interfaces.nsMsgSearchScope;
 
 function filterEditorOnLoad()
 {

@@ -8,25 +8,25 @@ Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
-let gFilterListMsgWindow = null;
-let gCurrentFilterList;
-let gCurrentFolder;
-let gSelectedFolder = null;
+var gFilterListMsgWindow = null;
+var gCurrentFilterList;
+var gCurrentFolder;
+var gSelectedFolder = null;
 
-let gFilterListbox = null;
-let gEditButton = null;
-let gDeleteButton = null;
-let gTopButton = null;
-let gUpButton = null;
-let gDownButton = null;
-let gBottomButton = null;
-let gSearchBox = null;
-let gRunFiltersFolder = null;
-let gRunFiltersButton = null;
+var gFilterListbox = null;
+var gEditButton = null;
+var gDeleteButton = null;
+var gTopButton = null;
+var gUpButton = null;
+var gDownButton = null;
+var gBottomButton = null;
+var gSearchBox = null;
+var gRunFiltersFolder = null;
+var gRunFiltersButton = null;
 
-let gFilterBundle = null;
+var gFilterBundle = null;
 
-const msgMoveMotion = {
+var msgMoveMotion = {
   Up     : 0,
   Down   : 1,
   Top    : 2,
@@ -652,7 +652,7 @@ function rebuildFilterList()
     enabledCell.setAttribute("enabled", filter.enabled);
     listitem._filter = filter;
 
-    if (selectedNames.indexOf(filter.filterName) != -1)
+    if (selectedNames.includes(filter.filterName))
       gFilterListbox.addItemToSelection(listitem);
 
     listitemIndex++;

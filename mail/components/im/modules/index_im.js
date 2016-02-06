@@ -2,9 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = [];
+this.EXPORTED_SYMBOLS = [];
 
-const {classes: Cc, interfaces: Ci, utils: Cu, Constructor: CC} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu, Constructor: CC} = Components;
 
 Cu.import("resource:///modules/gloda/public.js");
 Cu.import("resource:///modules/gloda/datamodel.js");
@@ -23,18 +23,18 @@ XPCOMUtils.defineLazyModuleGetter(this, "AsyncShutdown",
 XPCOMUtils.defineLazyModuleGetter(this, "GlodaDatastore",
                                   "resource:///modules/gloda/datastore.js");
 
-const kCacheFileName = "indexedFiles.json";
+var kCacheFileName = "indexedFiles.json";
 
-const FileInputStream = CC("@mozilla.org/network/file-input-stream;1",
+var FileInputStream = CC("@mozilla.org/network/file-input-stream;1",
                            "nsIFileInputStream",
                            "init");
-const ScriptableInputStream = CC("@mozilla.org/scriptableinputstream;1",
+var ScriptableInputStream = CC("@mozilla.org/scriptableinputstream;1",
                                  "nsIScriptableInputStream",
                                  "init");
 
 // kIndexingDelay is how long we wait from the point of scheduling an indexing
 // job to actually carrying it out.
-const kIndexingDelay = 5000; // in milliseconds
+var kIndexingDelay = 5000; // in milliseconds
 
 XPCOMUtils.defineLazyGetter(this, "MailFolder", () =>
   Cc["@mozilla.org/rdf/resource-factory;1?name=mailbox"].createInstance(Ci.nsIMsgFolder)
@@ -155,7 +155,7 @@ IMConversationNoun.objFromRow = function(aRow) {
   return conv;
 };
 
-const EXT_NAME = "im";
+var EXT_NAME = "im";
 
 // --- special (on-row) attributes
 Gloda.defineAttribute({

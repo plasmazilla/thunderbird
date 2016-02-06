@@ -6,6 +6,7 @@
  * This Source Code Form is "Incompatible With Secondary Licenses", as
  * defined by the Mozilla Public License, v. 2.0. */
 
+const nsICookiePermission  = Components.interfaces.nsICookiePermission;
 const ALLOW = Services.perms.ALLOW_ACTION;         // 1
 const BLOCK = Services.perms.DENY_ACTION;          // 2
 const SESSION = nsICookiePermission.ACCESS_SESSION;// 8
@@ -58,8 +59,8 @@ var permissionObserver = {
   {
     if (aTopic == "perm-changed") {
       var permission = aSubject.QueryInterface(Components.interfaces.nsIPermission);
-      if (/^https?/.test(gPermURI.scheme) &&
-          permission.host == gPermURI.host && permission.type in gPermObj)
+      if (/^https?/.test(gPermURI.scheme) && permission.type in gPermObj &&
+          permission.matchesURI(gPermURI, true))
         initRow(permission.type);
     }
   }
@@ -123,7 +124,7 @@ function onCheckboxClick(aPartId)
   var command  = document.getElementById("cmd_" + aPartId + "Toggle");
   var checkbox = document.getElementById(aPartId + "Def");
   if (checkbox.checked) {
-    Services.perms.remove(gPermURI.host, aPartId);
+    Services.perms.remove(gPermURI, aPartId);
     command.setAttribute("disabled", "true");
     var perm = gPermObj[aPartId]();
     setRadioState(aPartId, perm);

@@ -25,9 +25,9 @@ load("../../../../resources/messageModifier.js");
 load("../../../../resources/messageInjection.js");
 
 // Create a message generator
-const msgGen = gMessageGenerator = new MessageGenerator();
+var msgGen = gMessageGenerator = new MessageGenerator();
 // Create a message scenario generator using that message generator
-const scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
+var scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
 
 Components.utils.import("resource:///modules/gloda/mimemsg.js");
 
@@ -555,7 +555,7 @@ function test_attachments_correctness () {
 var bogusMessage = msgGen.makeMessage({ body: { body: "whatever" } });
 bogusMessage._contentType = "woooooo"; // Breaking abstraction boundaries. Bad.
 
-let weirdMessageInfos = [
+var weirdMessageInfos = [
   // This message has an unnamed part as an attachment (with
   // Content-Disposition: inline and which is displayable inline). Previously,
   // libmime would emit notifications for this to be treated as an attachment,

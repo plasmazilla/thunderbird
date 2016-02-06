@@ -351,7 +351,7 @@ NS_IMETHODIMP nsMsgDBService::OpenMailDBFromFile(nsIFile *aFolderName,
   if (*pMessageDB)
     return NS_OK;
 
-  nsRefPtr<nsMailDatabase> msgDB = new nsMailDatabase;
+  RefPtr<nsMailDatabase> msgDB = new nsMailDatabase;
   NS_ENSURE_TRUE(msgDB, NS_ERROR_OUT_OF_MEMORY);
   rv = msgDB->Open(this, dbPath, aCreate, aLeaveInvalidDB);
   if (rv == NS_ERROR_FILE_TARGET_DOES_NOT_EXIST)
@@ -1621,7 +1621,6 @@ nsresult nsMsgDatabase::InitNewDB()
       dbFolderInfo->SetBooleanProperty(kFixedBadRefThreadingProp, true);
       nsIMdbStore *store = GetStore();
       // create the unique table for the dbFolderInfo.
-      nsresult mdberr;
       struct mdbOid allMsgHdrsTableOID;
       struct mdbOid allThreadsTableOID;
       if (!store)
@@ -1633,7 +1632,7 @@ nsresult nsMsgDatabase::InitNewDB()
       allThreadsTableOID.mOid_Id = kAllThreadsTableKey;
 
       // TODO: check this error value?
-      mdberr  = store->NewTableWithOid(GetEnv(), &allMsgHdrsTableOID, m_hdrTableKindToken,
+      (void) store->NewTableWithOid(GetEnv(), &allMsgHdrsTableOID, m_hdrTableKindToken,
         false, nullptr, &m_mdbAllMsgHeadersTable);
 
       // error here is not fatal.
@@ -3034,7 +3033,7 @@ nsMsgDatabase::GetFilterEnumerator(nsIArray *searchTerms, bool aReverse,
                                    nsISimpleEnumerator **aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
-  nsRefPtr<nsMsgFilteredDBEnumerator> e = 
+  RefPtr<nsMsgFilteredDBEnumerator> e = 
     new nsMsgFilteredDBEnumerator(this, m_mdbAllMsgHeadersTable, aReverse,
                                   searchTerms);
 
@@ -4381,7 +4380,7 @@ nsIMsgThread *  nsMsgDatabase::GetThreadForSubject(nsCString &subject)
     else
     {
       nsresult  rv;
-      nsRefPtr<nsMsgThread> pThread;
+      RefPtr<nsMsgThread> pThread;
 
       nsCOMPtr <nsIMdbPortTableCursor> tableCursor;
       m_mdbStore->GetPortTableCursor(GetEnv(), m_hdrRowScopeToken, m_threadTableKindToken,
@@ -4978,7 +4977,7 @@ nsresult nsMsgDatabase::DumpContents()
   nsMsgKey key;
   uint32_t i;
 
-  nsRefPtr<nsMsgKeyArray> keys = new nsMsgKeyArray;
+  RefPtr<nsMsgKeyArray> keys = new nsMsgKeyArray;
   if (!keys)
     return NS_ERROR_OUT_OF_MEMORY;
   nsresult rv = ListAllKeys(keys);
@@ -5702,7 +5701,7 @@ NS_IMETHODIMP
 nsMsgDatabase::GetCachedHits(const char *aSearchFolderUri, nsISimpleEnumerator **aEnumerator)
 {
   nsCOMPtr <nsIMdbTable> table;
-  nsresult err = GetSearchResultsTable(aSearchFolderUri, false, getter_AddRefs(table));
+  (void) GetSearchResultsTable(aSearchFolderUri, false, getter_AddRefs(table));
   if (!table)
     return NS_ERROR_FAILURE; // expected result for no cached hits
   nsMsgDBEnumerator* e = new nsMsgDBEnumerator(this, table, nullptr, nullptr);

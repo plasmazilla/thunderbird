@@ -303,7 +303,8 @@ static uint32_t StringHash(const char *ubuf, int32_t len = -1)
 
 inline uint32_t StringHash(const nsAutoString& str)
 {
-    return StringHash(reinterpret_cast<const char*>(str.get()),
+    const char16_t *strbuf = str.get();
+    return StringHash(reinterpret_cast<const char*>(strbuf),
                       str.Length() * 2);
 }
 
@@ -501,7 +502,7 @@ nsresult FormatFileSize(int64_t size, bool useKB, nsAString &formattedSize)
                                getter_AddRefs(bundle));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  float unitSize = size < 0 ? 0.0 : size;
+  double unitSize = size < 0 ? 0.0 : size;
   uint32_t unitIndex = 0;
 
   if (useKB) {
@@ -2117,7 +2118,7 @@ MsgExamineForProxy(nsIChannel *channel, nsIProxyInfo **proxyInfo)
   // XXX: This "interface" ID is exposed, but it's not hooked up to the QI.
   // Until it is, use a static_cast for now.
 #if 0
-  nsRefPtr<nsProtocolProxyService> rawProxyService = do_QueryObject(proxyService, &rv);
+  RefPtr<nsProtocolProxyService> rawProxyService = do_QueryObject(proxyService, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 #else
   nsProtocolProxyService *rawProxyService = static_cast<nsProtocolProxyService*>(proxyService.get());
@@ -2372,7 +2373,7 @@ MsgDetectCharsetFromFile(nsIFile *aFile, nsACString &aCharset)
   if (detector) {
     nsAutoCString buffer;
 
-    nsRefPtr<CharsetDetectionObserver> observer = new CharsetDetectionObserver();
+    RefPtr<CharsetDetectionObserver> observer = new CharsetDetectionObserver();
 
     rv = detector->Init(observer);
     NS_ENSURE_SUCCESS(rv, rv);

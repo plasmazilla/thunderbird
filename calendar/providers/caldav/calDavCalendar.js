@@ -22,16 +22,16 @@ Components.utils.import("resource://calendar/modules/calAsyncUtils.jsm");
 // calDavCalendar.js
 //
 
-const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n';
+var xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n';
 
-const davNS = "DAV:"
-const caldavNS = "urn:ietf:params:xml:ns:caldav";
-const calservNS = "http://calendarserver.org/ns/";
-const MIME_TEXT_CALENDAR = "text/calendar; charset=utf-8";
-const MIME_TEXT_XML = "text/xml; charset=utf-8";
+var davNS = "DAV:"
+var caldavNS = "urn:ietf:params:xml:ns:caldav";
+var calservNS = "http://calendarserver.org/ns/";
+var MIME_TEXT_CALENDAR = "text/calendar; charset=utf-8";
+var MIME_TEXT_XML = "text/xml; charset=utf-8";
 
-const cICL = Components.interfaces.calIChangeLog;
-const cIOL = Components.interfaces.calIOperationListener;
+var cICL = Components.interfaces.calIChangeLog;
+var cIOL = Components.interfaces.calIOperationListener;
 
 function caldavNSResolver(prefix) {
     const ns = {
@@ -79,22 +79,22 @@ function calDavCalendar() {
 }
 
 // some shorthand
-const calICalendar = Components.interfaces.calICalendar;
-const calIErrors = Components.interfaces.calIErrors;
-const calIFreeBusyInterval = Components.interfaces.calIFreeBusyInterval;
-const calICalDavCalendar = Components.interfaces.calICalDavCalendar;
+var calICalendar = Components.interfaces.calICalendar;
+var calIErrors = Components.interfaces.calIErrors;
+var calIFreeBusyInterval = Components.interfaces.calIFreeBusyInterval;
+var calICalDavCalendar = Components.interfaces.calICalDavCalendar;
 
 // used in checking calendar URI for (Cal)DAV-ness
-const kDavResourceTypeNone = 0;
-const kDavResourceTypeCollection = 1;
-const kDavResourceTypeCalendar = 2;
+var kDavResourceTypeNone = 0;
+var kDavResourceTypeCollection = 1;
+var kDavResourceTypeCalendar = 2;
 
 // used for etag checking
-const CALDAV_MODIFY_ITEM = "modify";
-const CALDAV_DELETE_ITEM = "delete";
+var CALDAV_MODIFY_ITEM = "modify";
+var CALDAV_DELETE_ITEM = "delete";
 
-const calDavCalendarClassID = Components.ID("{a35fc6ea-3d92-11d9-89f9-00045ace3b8d}");
-const calDavCalendarInterfaces = [
+var calDavCalendarClassID = Components.ID("{a35fc6ea-3d92-11d9-89f9-00045ace3b8d}");
+var calDavCalendarInterfaces = [
     Components.interfaces.calICalendarProvider,
     Components.interfaces.nsIInterfaceRequestor,
     Components.interfaces.calIFreeBusyProvider,
@@ -565,9 +565,9 @@ calDavCalendar.prototype = {
                 } // else use outbound email-based iTIP (from cal.ProviderBase)
                 break;
             case "capabilities.tasks.supported":
-                return (this.supportedItemTypes.indexOf("VTODO") > -1);
+                return (this.supportedItemTypes.includes("VTODO"));
             case "capabilities.events.supported":
-                return (this.supportedItemTypes.indexOf("VEVENT") > -1);
+                return (this.supportedItemTypes.includes("VEVENT"));
             case "capabilities.autoschedule.supported":
                 return this.hasAutoScheduling;
         }
@@ -1843,7 +1843,7 @@ calDavCalendar.prototype = {
             if (supportedComponents && supportedComponents.length) {
                 thisCalendar.mSupportedItemTypes = [ compName
                     for each (compName in supportedComponents)
-                    if (thisCalendar.mGenerallySupportedItemTypes.indexOf(compName) >= 0)
+                    if (thisCalendar.mGenerallySupportedItemTypes.includes(compName))
                 ];
                 cal.LOG("Adding supported items: " + thisCalendar.mSupportedItemTypes.join(",") + " for calendar: " + thisCalendar.name);
             }
@@ -1968,14 +1968,14 @@ calDavCalendar.prototype = {
                 // URL but a) doesn't use it and b) 405s on etag queries to it
                 thisCalendar.mShouldPollInbox = false;
             }
-            if (dav && dav.indexOf("calendar-auto-schedule") != -1) {
+            if (dav && dav.includes("calendar-auto-schedule")) {
                 if (thisCalendar.verboseLogging()) {
                     cal.LOG("CalDAV: Calendar " + thisCalendar.name +
                             " supports calendar-auto-schedule");
                 }
                 thisCalendar.hasAutoScheduling = true;
                 // leave outbound inbox/outbox scheduling off
-            } else if (dav && dav.indexOf("calendar-schedule") != -1) {
+            } else if (dav && dav.includes("calendar-schedule")) {
                 if (thisCalendar.verboseLogging()) {
                     cal.LOG("CalDAV: Calendar " + thisCalendar.name +
                             " generally supports calendar-schedule");
@@ -1983,7 +1983,7 @@ calDavCalendar.prototype = {
                 thisCalendar.hasScheduling = true;
             }
 
-            if (thisCalendar.hasAutoScheduling || (dav && dav.indexOf("calendar-schedule") != -1)) {
+            if (thisCalendar.hasAutoScheduling || (dav && dav.includes("calendar-schedule"))) {
                 // XXX - we really shouldn't register with the fb service
                 // if another calendar with the same principal-URL has already
                 // done so. We also shouldn't register with the fb service if we
@@ -2611,7 +2611,7 @@ calDavCalendar.prototype = {
         // value and not null!
         return ((this.hasScheduling || this.hasAutoScheduling) &&
                 (this.mInboxUrl != null) &&
-                aString.indexOf(this.mInboxUrl.spec) == 0);
+                aString.startsWith(this.mInboxUrl.spec));
     },
 
     /**
@@ -2995,7 +2995,7 @@ calDavObserver.prototype = {
 };
 
 /** Module Registration */
-const scriptLoadOrder = [
+var scriptLoadOrder = [
     "calUtils.js",
     "calDavRequestHandlers.js"
 ];

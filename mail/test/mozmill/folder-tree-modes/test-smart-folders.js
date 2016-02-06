@@ -22,7 +22,7 @@ var smartInboxFolder;
 
 var inboxSet;
 
-const nsMsgFolderFlags = Components.interfaces.nsMsgFolderFlags;
+var nsMsgFolderFlags = Components.interfaces.nsMsgFolderFlags;
 
 function setupModule(module) {
   let fdh = collector.getModule("folder-display-helpers");
@@ -219,13 +219,13 @@ function assert_folder_and_children_not_in_scope(folder, searchScope)
 
 function assert_uri_found(folderURI, scopeList)
 {
-  if (scopeList.indexOf(folderURI) == -1)
+  if (!scopeList.includes(folderURI))
     throw new Error("scope " + scopeList + "doesn't contain " + folderURI);
 }
 
 function assert_uri_not_found(folderURI, scopeList)
 {
-  if (scopeList.indexOf(folderURI) != -1)
+  if (scopeList.includes(folderURI))
     throw new Error("scope " + scopeList + "contains " + folderURI +
                     " but shouldn't");
 }

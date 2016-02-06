@@ -9,9 +9,9 @@ Components.utils.import("resource:///modules/gloda/log4moz.js");
 ////////////////////////////////////////////////////////////////////////////////
 //// Constants
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -177,5 +177,5 @@ nsActivityManager.prototype = {
 ////////////////////////////////////////////////////////////////////////////////
 //// Module
 
-let components = [nsActivityManager];
-const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);
+var components = [nsActivityManager];
+var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

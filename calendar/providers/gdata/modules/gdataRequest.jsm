@@ -13,7 +13,7 @@ CuImport("resource://gre/modules/Preferences.jsm", this);
 
 CuImport("resource://calendar/modules/calUtils.jsm", this);
 
-const cIE = Components.interfaces.calIErrors;
+var cIE = Components.interfaces.calIErrors;
 
 var API_BASE = {
     EVENTS: "https://www.googleapis.com/calendar/v3/",
@@ -54,7 +54,7 @@ calGoogleRequest.DELETE = "DELETE";
 calGoogleRequest.GET = "GET";
 calGoogleRequest.PATCH = "PATCH";
 
-const GDATA_ERROR_BASE = Components.interfaces.calIErrors.ERROR_BASE + 0x400;
+var GDATA_ERROR_BASE = Components.interfaces.calIErrors.ERROR_BASE + 0x400;
 calGoogleRequest.LOGIN_FAILED = GDATA_ERROR_BASE + 1;
 calGoogleRequest.CONFLICT_DELETED = GDATA_ERROR_BASE + 2;
 calGoogleRequest.CONFLICT_MODIFY = GDATA_ERROR_BASE + 3;
@@ -130,7 +130,7 @@ calGoogleRequest.prototype = {
 
     set type(v) {
         let valid = [this.GET, this.ADD, this.MODIFY, this.PATCH, this.DELETE];
-        if (valid.indexOf(v) < 0) {
+        if (!valid.includes(v)) {
             throw new Components.Exception("Invalid request type: " + v,
                                             Components.results.NS_ERROR_ILLEGAL_VALUE);
         }

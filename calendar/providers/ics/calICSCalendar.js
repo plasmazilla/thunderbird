@@ -19,10 +19,10 @@ Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
 //
 // XXX Should do locks, so that external changes are not overwritten.
 
-const CI = Components.interfaces;
-const calIOperationListener = Components.interfaces.calIOperationListener;
-const calICalendar = Components.interfaces.calICalendar;
-const calIErrors = Components.interfaces.calIErrors;
+var CI = Components.interfaces;
+var calIOperationListener = Components.interfaces.calIOperationListener;
+var calICalendar = Components.interfaces.calICalendar;
+var calIErrors = Components.interfaces.calIErrors;
 
 function icsNSResolver(prefix) {
     const ns = {
@@ -48,8 +48,8 @@ function calICSCalendar() {
     this.queue = new Array();
     this.mModificationActions = [];
 }
-const calICSCalendarClassID = Components.ID("{f8438bff-a3c9-4ed5-b23f-2663b5469abf}");
-const calICSCalendarInterfaces = [
+var calICSCalendarClassID = Components.ID("{f8438bff-a3c9-4ed5-b23f-2663b5469abf}");
+var calICSCalendarInterfaces = [
     Components.interfaces.calICalendarProvider,
     Components.interfaces.calICalendar,
     Components.interfaces.calISchedulingSupport,
@@ -666,9 +666,7 @@ calICSCalendar.prototype = {
         function purgeBackupsByType(files, type) {
             // filter out backups of the type we care about.
             var filteredFiles = files.filter(
-                function f(v) {
-                    return (v.name.indexOf("calBackupData_"+pseudoID+"_"+type) != -1)
-                });
+                v => v.name.includes("calBackupData_"+pseudoID+"_"+type));
             // Sort by lastmodifed
             filteredFiles.sort(
                 function s(a,b) {
@@ -1109,7 +1107,7 @@ fileHooks.prototype = {
 };
 
 /** Module Registration */
-const scriptLoadOrder = [
+var scriptLoadOrder = [
     "calUtils.js",
 ];
 

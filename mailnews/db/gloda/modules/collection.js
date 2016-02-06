@@ -2,16 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ['GlodaCollection', 'GlodaCollectionManager'];
+this.EXPORTED_SYMBOLS = ['GlodaCollection', 'GlodaCollectionManager'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/gloda/log4moz.js");
 
-const LOG = Log4Moz.repository.getLogger("gloda.collection");
+var LOG = Log4Moz.repository.getLogger("gloda.collection");
 
 /**
  * @namespace Central registry and logic for all collections.

@@ -7,13 +7,13 @@
  * property from the folderPaneBox, but that we still persist width.
  */
 
-let MODULE_NAME = "test-migrate-to-rdf-ui-3";
-let RELATIVE_ROOT = "../shared-modules";
-let MODULE_REQUIRES = ["folder-display-helpers"];
+var MODULE_NAME = "test-migrate-to-rdf-ui-3";
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers"];
 
-let Cc = Components.classes;
-let Ci = Components.interfaces;
-let Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
 
@@ -27,13 +27,13 @@ function setupModule(module) {
  */
 function test_qfb_button_moved() {
   let currentSet = mc.e("tabbar-toolbar").currentSet;
-  assert_equals(-1, currentSet.indexOf("qfb-show-filter-bar"),
+  assert_false(currentSet.includes("qfb-show-filter-bar"),
                 "We found the QFB filter toggle where we shouldn't have.");
 
   // Now make sure that we've got the QFB filter toggle in the mail bar,
   // and that it is placed before the gloda-search and any spring, spacer,
   // or separator items.
   currentSet = mc.e("mail-bar3").currentSet;
-  assert_not_equals(-1, currentSet.indexOf("button-tag,qfb-show-filter-bar,spring"),
+  assert_true(currentSet.includes("button-tag,qfb-show-filter-bar,spring"),
                 "We didn't find the QFB filter toggle where we should have.");
 }

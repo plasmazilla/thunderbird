@@ -14,7 +14,7 @@ load("../../../resources/asyncTestUtils.js");
 // Globals
 Components.utils.import("resource:///modules/mailServices.js");
 
-const gMessage = "bugmail10"; // message file used as the test message
+var gMessage = "bugmail10"; // message file used as the test message
 
 setupIMAPPump();
 
@@ -27,7 +27,7 @@ var tests = [
   endTest
 ]
 
-let gSubfolder;
+var gSubfolder;
 function createSubfolder()
 {
   IMAPPump.incomingServer.rootFolder.createSubfolder("Subfolder", null);
@@ -102,7 +102,7 @@ function endTest()
 
 // listeners
 
-let mfnListener =
+var mfnListener =
 {
   folderAdded: function folderAdded(aFolder)
   {

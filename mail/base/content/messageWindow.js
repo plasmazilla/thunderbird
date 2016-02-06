@@ -12,8 +12,8 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/MsgHdrSyntheticView.js");
 
 // from MailNewsTypes.h
-const nsMsgKey_None = 0xFFFFFFFF;
-const nsMsgViewIndex_None = 0xFFFFFFFF;
+var nsMsgKey_None = 0xFFFFFFFF;
+var nsMsgViewIndex_None = 0xFFFFFFFF;
 
 /* globals for a particular window */
 
@@ -444,6 +444,12 @@ function actuallyLoadMessage() {
     // this is a message header, so show it
     if (msgHdr) {
       if (originViewWrapper) {
+        // The original view must have a collapsed group header thread's
+        // message(s) found in expand mode before it's cloned, for any to
+        // be selected.
+        if (originViewWrapper.showGroupedBySort)
+          originViewWrapper.dbView.findIndexOfMsgHdr(msgHdr, true);
+
         gFolderDisplay.cloneView(originViewWrapper);
       }
       else {
@@ -502,6 +508,9 @@ function displayMessage(aMsgHdr, aViewWrapperToClone)
   gFolderDisplay.clearSelection();
 
   if (aViewWrapperToClone) {
+    if (aViewWrapperToClone.showGroupedBySort)
+      aViewWrapperToClone.dbView.findIndexOfMsgHdr(aMsgHdr, true);
+
     gFolderDisplay.cloneView(aViewWrapperToClone);
   }
   else {

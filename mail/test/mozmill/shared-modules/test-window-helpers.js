@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "window-helpers";
+var MODULE_NAME = "window-helpers";
 
 Cu.import('resource:///modules/iteratorUtils.jsm');
 Cu.import('resource://gre/modules/NetUtil.jsm');
@@ -23,38 +23,38 @@ Cu.import('resource://mozmill/modules/utils.js', utils);
  * Timeout to use when waiting for the first window ever to load.  This is
  *  long because we are basically waiting for the entire app startup process.
  */
-const FIRST_WINDOW_EVER_TIMEOUT_MS = 30000;
+var FIRST_WINDOW_EVER_TIMEOUT_MS = 30000;
 /**
  * Interval to check if the window has shown up for the first window ever to
  *  load.  The check interval is longer because it's less likely the window
  *  is going to show up quickly and there is a cost to the check.
  */
-const FIRST_WINDOW_CHECK_INTERVAL_MS = 300;
+var FIRST_WINDOW_CHECK_INTERVAL_MS = 300;
 
 /**
  * Timeout for opening a window.
  */
-const WINDOW_OPEN_TIMEOUT_MS = 10000;
+var WINDOW_OPEN_TIMEOUT_MS = 10000;
 /**
  * Check interval for opening a window.
  */
-const WINDOW_OPEN_CHECK_INTERVAL_MS = 100;
+var WINDOW_OPEN_CHECK_INTERVAL_MS = 100;
 
 /**
  * Timeout for closing a window.
  */
-const WINDOW_CLOSE_TIMEOUT_MS = 10000;
+var WINDOW_CLOSE_TIMEOUT_MS = 10000;
 /**
  * Check interval for closing a window.
  */
-const WINDOW_CLOSE_CHECK_INTERVAL_MS = 100;
+var WINDOW_CLOSE_CHECK_INTERVAL_MS = 100;
 
 /**
  * Timeout for focusing a window.  Only really an issue on linux.
  */
-const WINDOW_FOCUS_TIMEOUT_MS = 10000;
+var WINDOW_FOCUS_TIMEOUT_MS = 10000;
 
-const hiddenWindow = Services.appShell.hiddenDOMWindow;
+var hiddenWindow = Services.appShell.hiddenDOMWindow;
 
 // Have a dummy mark_action function in case test-folder-display-helpers does
 // not provide us with one.
@@ -244,13 +244,12 @@ var WindowWatcher = {
    */
   waitForWindowOpen: function WindowWatcher_waitForWindowOpen(aWindowType) {
     this.waitingForOpen = aWindowType;
-    utils.waitFor(function () this.monitorizeOpen(),
+    utils.waitFor(() => this.monitorizeOpen(),
                   "Timed out waiting for window open!",
                   this._firstWindowOpened ? WINDOW_OPEN_TIMEOUT_MS
                     : FIRST_WINDOW_EVER_TIMEOUT_MS,
                   this._firstWindowOpened ? WINDOW_OPEN_CHECK_INTERVAL_MS
-                    : FIRST_WINDOW_CHECK_INTERVAL_MS,
-                  this);
+                    : FIRST_WINDOW_CHECK_INTERVAL_MS);
 
     this.waitingForOpen = null;
     let xulWindow = this.waitingList.get(aWindowType);
@@ -397,9 +396,10 @@ var WindowWatcher = {
    */
   waitingForClose: null,
   waitForWindowClose: function WindowWatcher_waitForWindowClose() {
-    utils.waitFor(function () this.monitorizeClose(),
+    utils.waitFor(() => this.monitorizeClose(),
                   "Timeout waiting for window to close!",
-      WINDOW_CLOSE_TIMEOUT_MS, WINDOW_CLOSE_CHECK_INTERVAL_MS, this);
+                  WINDOW_CLOSE_TIMEOUT_MS,
+                  WINDOW_CLOSE_CHECK_INTERVAL_MS);
     let didDisappear = (this.waitingList.get(this.waitingForClose) == null);
     let windowType = this.waitingForClose;
     this.waitingList.delete(windowType);
@@ -766,8 +766,8 @@ function _wait_for_generic_load(aDetails, aURLOrPredicate) {
 }
 
 
-let observationWaitFuncs = {};
-let observationSaw = {};
+var observationWaitFuncs = {};
+var observationSaw = {};
 /**
  * Plan for a notification to be sent via the observer service.
  *
@@ -1093,7 +1093,7 @@ var AugmentEverybodyWith = {
  * border but are no longer so (bug 595652), so we need these wrappers to
  * perform the operations at the center when aLeft or aTop aren't passed in.
  */
-const MOUSE_OPS_TO_WRAP = [
+var MOUSE_OPS_TO_WRAP = [
   "click", "doubleClick", "mouseDown", "mouseOut", "mouseOver", "mouseUp",
   "middleClick", "rightClick",
 ];
@@ -1848,7 +1848,7 @@ function captureWindowStatesForErrorReporting(normalizeForJsonFunc) {
       Array.prototype.slice.call(
           win.document.documentElement.getElementsByTagName("menupopup"))
         .filter(x => x.state != "closed")
-        .map(function (x) normalizeForJsonFunc(x));
+        .map(x => normalizeForJsonFunc(x));
 
     let ignoredFocusedWindow = {};
     let winfo = {

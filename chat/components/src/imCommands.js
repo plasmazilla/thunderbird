@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 
 Cu.import("resource:///modules/imServices.jsm");
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
@@ -230,7 +230,7 @@ CommandsService.prototype = {
 
     let matchResult;
     if (aMessage[0] != "/" ||
-        !(matchResult = /^\/([a-z]+)(?: |$)([\s\S]*)/.exec(aMessage)))
+        !(matchResult = /^\/([a-z0-9]+)(?: |$)([\s\S]*)/.exec(aMessage)))
       return false;
 
     let [, name, args] = matchResult;
@@ -254,4 +254,4 @@ CommandsService.prototype = {
   contractID: "@mozilla.org/chat/commands-service;1"
 };
 
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([CommandsService]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([CommandsService]);

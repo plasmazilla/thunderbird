@@ -31,7 +31,7 @@ function teardownTest(module) {
  * Strings found in the about:support HTML or text that should clearly mark the
  * data as being from about:support.
  */
-const ABOUT_SUPPORT_STRINGS = ["Application Basics", "Mail and News Accounts",
+var ABOUT_SUPPORT_STRINGS = ["Application Basics", "Mail and News Accounts",
                                "Extensions", "Modified Preferences", "Graphics",
                                "JavaScript", "Accessibility", "Library Versions"];
 
@@ -39,7 +39,7 @@ const ABOUT_SUPPORT_STRINGS = ["Application Basics", "Mail and News Accounts",
  * Strings that if found in the about:support text or HTML usually indicate an
  * error.
  */
-const ABOUT_SUPPORT_ERROR_STRINGS = ["undefined", "null"];
+var ABOUT_SUPPORT_ERROR_STRINGS = ["undefined", "null"];
 
 
 /*
@@ -56,7 +56,7 @@ function open_about_support() {
                                         "about:support");
   // We have one variable that's asynchronously populated -- wait for it to be
   // populated.
-  mc.waitFor(function () tab.browser.contentWindow.gExtensions !== undefined,
+  mc.waitFor(() => (tab.browser.contentWindow.gExtensions !== undefined),
              "Timeout waiting for about:support's gExtensions to populate.");
   return tab;
 }
@@ -115,7 +115,7 @@ function test_accounts_in_order() {
   close_tab(tab);
 }
 
-const UNIQUE_ID = "3a9e1694-7115-4237-8b1e-1cabe6e35073";
+var UNIQUE_ID = "3a9e1694-7115-4237-8b1e-1cabe6e35073";
 
 /**
  * Test that a modified preference on the whitelist but not on the blacklist
@@ -127,7 +127,7 @@ function test_modified_pref_on_whitelist() {
   Services.prefs.setBoolPref(prefName, true);
   let tab = open_about_support();
   // Check that the prefix is actually in the whitelist.
-  if (tab.browser.contentWindow.PREFS_WHITELIST.indexOf(PREFIX) == -1)
+  if (!tab.browser.contentWindow.PREFS_WHITELIST.includes(PREFIX))
     mark_failure(["The prefs whitelist doesn't contain " + PREFIX]);
 
   assert_content_tab_text_present(tab, prefName);
@@ -156,7 +156,7 @@ function test_modified_pref_on_blacklist() {
   let tab = open_about_support();
   // Check that the prefix is in the blacklist.
   if (!tab.browser.contentWindow.PREFS_BLACKLIST.some(
-        function(regex) regex.test(PREFIX))) {
+        regex => regex.test(PREFIX))) {
     mark_failure(["The prefs blacklist doesn't include " + PREFIX]);
   }
   assert_content_tab_text_absent(tab, prefName);

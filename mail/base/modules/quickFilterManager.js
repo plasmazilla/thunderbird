@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["QuickFilterState", "QuickFilterManager",
+this.EXPORTED_SYMBOLS = ["QuickFilterState", "QuickFilterManager",
                           "MessageTextFilter", "QuickFilterSearchListener"];
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/PluralForm.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -17,12 +17,12 @@ Cu.import("resource:///modules/errUtils.js");
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource:///modules/searchSpec.js");
 
-const Application = Cc["@mozilla.org/steel/application;1"]
+var Application = Cc["@mozilla.org/steel/application;1"]
                       .getService(Ci.steelIApplication);
 
-const nsMsgSearchAttrib = Components.interfaces.nsMsgSearchAttrib;
-const nsMsgMessageFlags = Components.interfaces.nsMsgMessageFlags;
-const nsMsgSearchOp = Components.interfaces.nsMsgSearchOp;
+var nsMsgSearchAttrib = Components.interfaces.nsMsgSearchAttrib;
+var nsMsgMessageFlags = Components.interfaces.nsMsgMessageFlags;
+var nsMsgSearchOp = Components.interfaces.nsMsgSearchOp;
 
 // XXX we need to know whether the gloda indexer is enabled for upsell reasons,
 // but this should really just be exposed on the main Gloda public interface.
@@ -49,7 +49,7 @@ function shallowObjCopy(obj) {
  *  additional 3-panes will likely trigger this unless we go out of our way to
  *  implement propagation across those boundaries (and we're not).
  */
-const FILTER_VISIBILITY_DEFAULT = true;
+var FILTER_VISIBILITY_DEFAULT = true;
 
 /**
  * Represents the state of a quick filter bar.  This mainly decorates the
@@ -298,7 +298,7 @@ QuickFilterSearchListener.prototype = {
  * will want to do is register a normal filter and collapse the normal text
  * filter text-box.  You add your own text box, etc.
  */
-let QuickFilterManager = {
+var QuickFilterManager = {
   /**
    * List of filter definitions, potentially prioritized.
    */
@@ -627,7 +627,7 @@ QuickFilterManager.defineFilter({
  *    meaning don't constraint, true meaning yes should be present, false
  *    meaning no, don't be present
  */
-let TagFacetingFilter = {
+var TagFacetingFilter = {
   name: "tags",
   domId: "qfb-tags",
 
@@ -939,7 +939,7 @@ QuickFilterManager.defineFilter({
  * Our state looks like {text: "", states: {a: true, b: false}} where a and b
  * are text filters.
  */
-let MessageTextFilter = {
+var MessageTextFilter = {
   name: "text",
   domId: "qfb-qs-textbox",
   /**

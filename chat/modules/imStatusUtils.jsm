@@ -2,9 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["Status"];
+this.EXPORTED_SYMBOLS = ["Status"];
 
-const {interfaces: Ci, utils: Cu} = Components;
+var {interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 Cu.import("resource:///modules/imServices.jsm");
@@ -13,8 +13,8 @@ XPCOMUtils.defineLazyGetter(this, "_", () =>
   l10nHelper("chrome://chat/locale/status.properties")
 );
 
-const imIStatusInfo = Ci.imIStatusInfo;
-let statusAttributes = {};
+var imIStatusInfo = Ci.imIStatusInfo;
+var statusAttributes = {};
 statusAttributes[imIStatusInfo.STATUS_UNKNOWN] = "unknown";
 statusAttributes[imIStatusInfo.STATUS_OFFLINE] = "offline";
 statusAttributes[imIStatusInfo.STATUS_INVISIBLE] = "invisible";
@@ -24,7 +24,7 @@ statusAttributes[imIStatusInfo.STATUS_AWAY] = "away";
 statusAttributes[imIStatusInfo.STATUS_UNAVAILABLE] = "unavailable";
 statusAttributes[imIStatusInfo.STATUS_AVAILABLE] = "available";
 
-const Status = {
+var Status = {
   toAttribute: aStatusType =>
     aStatusType in statusAttributes ? statusAttributes[aStatusType] : "unknown",
 

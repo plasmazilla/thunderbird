@@ -6,14 +6,14 @@
  * Tests the Hightail Bigfile backend.
  */
 
-let Cu = Components.utils;
-let Cc = Components.classes;
-let Ci = Components.interfaces;
+var Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
 
-const MODULE_NAME = 'test-cloudfile-backend-hightail';
+var MODULE_NAME = 'test-cloudfile-backend-hightail';
 
-const RELATIVE_ROOT = '../shared-modules';
-const MODULE_REQUIRES = ['folder-display-helpers',
+var RELATIVE_ROOT = '../shared-modules';
+var MODULE_REQUIRES = ['folder-display-helpers',
                          'compose-helpers',
                          'cloudfile-hightail-helpers',
                          'observer-helpers',

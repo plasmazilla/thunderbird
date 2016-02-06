@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "junk-helpers";
+var MODULE_NAME = "junk-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
+var RELATIVE_ROOT = "../shared-modules";
 // we need this for the main controller
-const MODULE_REQUIRES = ["folder-display-helpers"];
+var MODULE_REQUIRES = ["folder-display-helpers"];
 
 var elib = {};
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
@@ -131,7 +131,7 @@ function delete_mail_marked_as_junk(aNumDeletesExpected, aController) {
     // fine, because we already have all sorts of events when messages are
     // deleted). The only assumption is that deleteJunkInFolder is synchronous
     // if no messages are deleted.
-    utils.waitFor(function () numMessagesDeleted != null,
+    utils.waitFor(() => numMessagesDeleted != null,
                   "Timeout waiting for numMessagesDeleted to turn " +
                   "non-null. This either means that deleteJunkInFolder " +
                   "didn't get called or that it didn't return a value.");

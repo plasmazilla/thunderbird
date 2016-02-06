@@ -8,9 +8,9 @@ Components.utils.import("resource:///modules/gloda/log4moz.js");
 ////////////////////////////////////////////////////////////////////////////////
 //// Constants
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
 
 ////////////////////////////////////////////////////////////////////////////////
 //// Base class for nsActivityProcess and nsActivityEvent objects
@@ -347,5 +347,5 @@ nsActivityWarning.prototype = {
 ///////////////////////////////////////////////////////////////////////////////
 //// Module
 
-let components = [nsActivityProcess, nsActivityEvent, nsActivityWarning];
-const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);
+var components = [nsActivityProcess, nsActivityEvent, nsActivityWarning];
+var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

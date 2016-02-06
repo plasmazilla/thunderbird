@@ -24,6 +24,7 @@ upload::
 source-upload::
 	@$(MAKE) -C suite/installer source-upload
 
+
 # mochitests need to be run from the Mozilla build system
 ifdef ENABLE_TESTS
 # Backend is implemented in mozilla/testing/testsuite-targets.mk.
