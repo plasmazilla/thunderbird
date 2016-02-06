@@ -2,24 +2,24 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["GlodaAttributeDBDef", "GlodaAccount",
+this.EXPORTED_SYMBOLS = ["GlodaAttributeDBDef", "GlodaAccount",
                     "GlodaConversation", "GlodaFolder", "GlodaMessage",
                     "GlodaContact", "GlodaIdentity", "GlodaAttachment"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/mailServices.js");
 
 Cu.import("resource:///modules/gloda/log4moz.js");
-const LOG = Log4Moz.repository.getLogger("gloda.datamodel");
+var LOG = Log4Moz.repository.getLogger("gloda.datamodel");
 
 Cu.import("resource:///modules/gloda/utils.js");
 
 // Make it lazy.
-let gMessenger;
+var gMessenger;
 function getMessenger () {
   if (!gMessenger)
     gMessenger = Cc["@mozilla.org/messenger;1"].createInstance(Ci.nsIMessenger);
@@ -117,7 +117,7 @@ GlodaAttributeDBDef.prototype = {
   }
 };
 
-let GlodaHasAttributesMixIn = {
+var GlodaHasAttributesMixIn = {
   enumerateAttributes: function gloda_attrix_enumerateAttributes() {
     let nounDef = this.NOUN_DEF;
     for each (let [key, value] in Iterator(this)) {

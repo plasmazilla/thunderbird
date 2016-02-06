@@ -4,7 +4,7 @@
 
 Components.utils.import("resource:///modules/imServices.jsm");
 
-const EXPORTED_SYMBOLS = [
+this.EXPORTED_SYMBOLS = [
   "smileImMarkup", // used to add smile:// img tags into IM markup.
   "smileTextNode", // used to add smile:// img tags to the content of a textnode
   "smileString", // used to add smile:// img tags into a string without parsing it as HTML. Be sure the string doesn't contain HTML tags.
@@ -12,8 +12,8 @@ const EXPORTED_SYMBOLS = [
   "getSmileyList" // used to display a list of smileys in the UI
 ];
 
-const kEmoticonsThemePref = "messenger.options.emoticonsTheme";
-const kThemeFile = "theme.js";
+var kEmoticonsThemePref = "messenger.options.emoticonsTheme";
+var kThemeFile = "theme.js";
 
 __defineGetter__("gTheme", function() {
   delete this.gTheme;

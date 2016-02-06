@@ -2,8 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["Notifications"];
-const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+this.EXPORTED_SYMBOLS = ["Notifications"];
+var {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/imServices.jsm");
 Cu.import("resource:///modules/hiddenWindow.jsm");
@@ -13,7 +13,7 @@ Cu.import("resource://gre/modules/Timer.jsm");
 
 // Time in seconds: it is the minimum time of inactivity
 // needed to show the bundled notification.
-const kTimeToWaitForMoreMsgs = 3;
+var kTimeToWaitForMoreMsgs = 3;
 
 var Notifications = {
   get ellipsis () {

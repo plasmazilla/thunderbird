@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["Extractor"];
+this.EXPORTED_SYMBOLS = ["Extractor"];
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/Preferences.jsm");
@@ -403,7 +403,7 @@ Extractor.prototype = {
 
                     if (this.isValidDay(day)) {
                         for (let i = 0; i < 12; i++) {
-                            if (this.months[i].split("|").indexOf(month.toLowerCase()) != -1) {
+                            if (this.months[i].split("|").includes(month.toLowerCase())) {
                                 let rev = this.prefixSuffixStartEnd(res, relation, this.email);
                                 this.guess(year, i + 1, day, null, null,
                                            rev.start, rev.end, rev.pattern, rev.relation, pattern);
@@ -448,7 +448,7 @@ Extractor.prototype = {
                     if (this.isValidDay(day)) {
                         for (let i = 0; i < 12; i++) {
                             let ms = this.months[i].unescape().split("|");
-                            if (ms.indexOf(month.toLowerCase()) != -1) {
+                            if (ms.includes(month.toLowerCase())) {
                                 let date = {year: this.now.getFullYear(), month: i + 1, day: day};
                                 if (this.isPastDate(date, this.now)) {
                                     // find next such date
@@ -1252,7 +1252,7 @@ Extractor.prototype = {
         if (isNaN(r)) {
             for (let i = 0; i <= 31; i++) {
                 let ns = numbers[i].split("|");
-                if (ns.indexOf(number.toLowerCase()) != -1) {
+                if (ns.includes(number.toLowerCase())) {
                     return i;
                 }
             }

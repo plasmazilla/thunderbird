@@ -8,7 +8,7 @@
  * need to be made to support differences in OAuth usage.
  */
 
-const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 
 var EXPORTED_SYMBOLS = ["OAuth"];
 
@@ -237,7 +237,7 @@ OAuth.prototype = {
               delete this.window;
             },
             _checkForRedirect: function(aURL) {
-              if (aURL.indexOf(this._parent.completionURI) != 0)
+              if (!aURL.startsWith(this._parent.completionURI))
                 return;
 
               this._parent.finishAuthorizationRequest();

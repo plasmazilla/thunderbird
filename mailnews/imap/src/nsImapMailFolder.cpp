@@ -789,7 +789,7 @@ NS_IMETHODIMP nsImapMailFolder::UpdateFolderWithListener(nsIMsgWindow *aMsgWindo
       // hold a reference to the offline sync object. If ProcessNextOperation
       // runs a url, a reference will be added to it. Otherwise, it will get
       // destroyed when the refptr goes out of scope.
-      nsRefPtr<nsImapOfflineSync> goOnline = new nsImapOfflineSync(aMsgWindow, this, this);
+      RefPtr<nsImapOfflineSync> goOnline = new nsImapOfflineSync(aMsgWindow, this, this);
       if (goOnline)
       {
         m_urlListener = aUrlListener;
@@ -2245,7 +2245,7 @@ NS_IMETHODIMP nsImapMailFolder::DeleteMessages(nsIArray *messages,
     if (allowUndo)
     {
       //need to take care of these two delete models
-      nsRefPtr<nsImapMoveCopyMsgTxn> undoMsgTxn = new nsImapMoveCopyMsgTxn;
+      RefPtr<nsImapMoveCopyMsgTxn> undoMsgTxn = new nsImapMoveCopyMsgTxn;
       if (!undoMsgTxn || NS_FAILED(undoMsgTxn->Init(this, &srcKeyArray, messageIds.get(), nullptr,
                                                     true, isMove)))
         return NS_ERROR_OUT_OF_MEMORY;
@@ -2674,7 +2674,7 @@ NS_IMETHODIMP nsImapMailFolder::UpdateImapMailboxInfo(nsIImapProtocol* aProtocol
       PR_snprintf(intStrBuf, sizeof(intStrBuf), "%llu",  mailboxHighestModSeq);
       dbFolderInfo->SetCharProperty(kModSeqPropertyName, nsDependentCString(intStrBuf));
     }
-    nsRefPtr<nsMsgKeyArray> keys = new nsMsgKeyArray;
+    RefPtr<nsMsgKeyArray> keys = new nsMsgKeyArray;
     if (!keys)
       return NS_ERROR_OUT_OF_MEMORY;
     rv = mDatabase->ListAllKeys(keys);
@@ -2915,6 +2915,7 @@ NS_IMETHODIMP nsImapMailFolder::UpdateImapMailboxStatus(
 
 NS_IMETHODIMP nsImapMailFolder::ParseMsgHdrs(nsIImapProtocol *aProtocol, nsIImapHeaderXferInfo *aHdrXferInfo)
 {
+  NS_ENSURE_ARG_POINTER(aHdrXferInfo);
   int32_t numHdrs;
   nsCOMPtr <nsIImapHeaderInfo> headerInfo;
   nsCOMPtr <nsIImapUrl> aImapUrl;
@@ -5259,7 +5260,7 @@ nsImapMailFolder::OnStopRunningUrl(nsIURI *aUrl, nsresult aExitCode)
                   rv = srcFolder->GetMsgDatabase(getter_AddRefs(srcDB));
               if (NS_SUCCEEDED(rv) && srcDB)
               {
-                nsRefPtr<nsImapMoveCopyMsgTxn> msgTxn;
+                RefPtr<nsImapMoveCopyMsgTxn> msgTxn;
                 nsTArray<nsMsgKey> srcKeyArray;
                 if (m_copyState->m_allowUndo)
                 {
@@ -5318,7 +5319,7 @@ nsImapMailFolder::OnStopRunningUrl(nsIURI *aUrl, nsresult aExitCode)
             m_copyState->m_msgWindow->GetTransactionManager(getter_AddRefs(txnMgr));
             if (txnMgr)
             {
-              nsresult rv2 = txnMgr->DoTransaction(m_copyState->m_undoMsgTxn);
+              mozilla::DebugOnly<nsresult> rv2 = txnMgr->DoTransaction(m_copyState->m_undoMsgTxn);
               NS_ASSERTION(NS_SUCCEEDED(rv2), "doing transaction failed");
             }
           }
@@ -5627,7 +5628,7 @@ nsImapMailFolder::SetCopyResponseUid(const char* msgIdString,
                                      nsIImapUrl * aUrl)
 {   // CopyMessages() only
   nsresult rv = NS_OK;
-  nsRefPtr<nsImapMoveCopyMsgTxn> msgTxn;
+  RefPtr<nsImapMoveCopyMsgTxn> msgTxn;
   nsCOMPtr<nsISupports> copyState;
 
   if (aUrl)
@@ -5645,7 +5646,7 @@ nsImapMailFolder::SetCopyResponseUid(const char* msgIdString,
   {
     nsCString urlSourceMsgIds, undoTxnSourceMsgIds;
     aUrl->GetListOfMessageIds(urlSourceMsgIds);
-    nsRefPtr<nsImapMoveCopyMsgTxn> imapUndo = m_pendingOfflineMoves[0];
+    RefPtr<nsImapMoveCopyMsgTxn> imapUndo = m_pendingOfflineMoves[0];
     if (imapUndo)
     {
       imapUndo->GetSrcMsgIds(undoTxnSourceMsgIds);
@@ -5757,7 +5758,7 @@ nsImapMailFolder::SetAppendMsgUid(nsMsgKey aKey,
 
     if (mailCopyState->m_undoMsgTxn) // CopyMessages()
     {
-        nsRefPtr<nsImapMoveCopyMsgTxn> msgTxn;
+        RefPtr<nsImapMoveCopyMsgTxn> msgTxn;
         msgTxn = mailCopyState->m_undoMsgTxn;
         msgTxn->AddDstKey(aKey);
     }
@@ -5936,7 +5937,7 @@ nsImapMailFolder::FillInFolderProps(nsIMsgImapFolderProps *aFolderProps)
 {
   NS_ENSURE_ARG(aFolderProps);
   const char* folderTypeStringID;
-  const char* folderTypeDescStringID;
+  const char* folderTypeDescStringID = nullptr;
   const char* folderQuotaStatusStringID;
   nsString folderType;
   nsString folderTypeDesc;
@@ -6904,7 +6905,7 @@ nsImapMailFolder::CopyMessagesWithStream(nsIMsgFolder* srcFolder,
     nsTArray<nsMsgKey> srcKeyArray;
     rv = BuildIdsAndKeyArray(messages, messageIds, srcKeyArray);
 
-    nsRefPtr<nsImapMoveCopyMsgTxn> undoMsgTxn = new nsImapMoveCopyMsgTxn;
+    RefPtr<nsImapMoveCopyMsgTxn> undoMsgTxn = new nsImapMoveCopyMsgTxn;
 
     if (!undoMsgTxn || NS_FAILED(undoMsgTxn->Init(srcFolder, &srcKeyArray, messageIds.get(), this,
                                 true, isMove)))
@@ -7355,12 +7356,12 @@ nsresult nsImapMailFolder::CopyMessagesOffline(nsIMsgFolder* srcFolder,
         }
       }
       EnableNotifications(nsIMsgFolder::allMessageCountNotifications, true, false);
-      nsRefPtr<nsImapOfflineTxn> addHdrMsgTxn = new
+      RefPtr<nsImapOfflineTxn> addHdrMsgTxn = new
         nsImapOfflineTxn(this, &addedKeys, nullptr, this, isMove, nsIMsgOfflineImapOperation::kAddedHeader,
                          addedHdrs);
       if (addHdrMsgTxn && txnMgr)
          txnMgr->DoTransaction(addHdrMsgTxn);
-      nsRefPtr<nsImapOfflineTxn> undoMsgTxn = new
+      RefPtr<nsImapOfflineTxn> undoMsgTxn = new
         nsImapOfflineTxn(srcFolder, &srcKeyArray, messageIds.get(), this,
                          isMove, moveCopyOpType, srcMsgs);
       if (undoMsgTxn)
@@ -7694,7 +7695,7 @@ nsImapMailFolder::CopyMessages(nsIMsgFolder* srcFolder,
                                         copySupport, msgWindow);
     if (NS_SUCCEEDED(rv) && m_copyState->m_allowUndo)
     {
-      nsRefPtr<nsImapMoveCopyMsgTxn> undoMsgTxn = new nsImapMoveCopyMsgTxn;
+      RefPtr<nsImapMoveCopyMsgTxn> undoMsgTxn = new nsImapMoveCopyMsgTxn;
       if (!undoMsgTxn || NS_FAILED(undoMsgTxn->Init(srcFolder, &keyArray,
                                    messageIds.get(), this,
                                    true, isMove)))
@@ -7741,7 +7742,7 @@ public:
   nsresult AdvanceToNextFolder(nsresult aStatus);
 protected:
   ~nsImapFolderCopyState();
-  nsRefPtr<nsImapMailFolder> m_newDestFolder;
+  RefPtr<nsImapMailFolder> m_newDestFolder;
   nsCOMPtr<nsISupports> m_origSrcFolder;
   nsCOMPtr<nsIMsgFolder> m_curDestParent;
   nsCOMPtr<nsIMsgFolder> m_curSrcFolder;
@@ -9645,10 +9646,10 @@ void nsImapMailFolder::PlaybackTimerCallback(nsITimer *aTimer, void *aClosure)
   
   NS_ASSERTION(request->SrcFolder->m_pendingPlaybackReq == request, "wrong playback request pointer");
   
-  nsRefPtr<nsImapOfflineSync> offlineSync = new nsImapOfflineSync(request->MsgWindow, nullptr, request->SrcFolder, true);
+  RefPtr<nsImapOfflineSync> offlineSync = new nsImapOfflineSync(request->MsgWindow, nullptr, request->SrcFolder, true);
   if (offlineSync)
   {
-    nsresult rv = offlineSync->ProcessNextOperation();
+    mozilla::DebugOnly<nsresult> rv = offlineSync->ProcessNextOperation();
     NS_ASSERTION(NS_SUCCEEDED(rv), "pseudo-offline playback is not successful");
   }
   

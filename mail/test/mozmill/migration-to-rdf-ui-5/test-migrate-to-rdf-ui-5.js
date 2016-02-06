@@ -7,11 +7,11 @@
  * button to the mail toolbar, and that we've collapsed the main menu.
  */
 
-let MODULE_NAME = "test-migrate-to-rdf-ui-5";
-let RELATIVE_ROOT = "../shared-modules";
-let MODULE_REQUIRES = ["folder-display-helpers"];
+var MODULE_NAME = "test-migrate-to-rdf-ui-5";
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers"];
 
-const kAppMenuButton = "button-appmenu";
+var kAppMenuButton = "button-appmenu";
 
 function setupModule(module) {
   collector.getModule("folder-display-helpers").installInto(module);
@@ -26,7 +26,7 @@ function setupModule(module) {
  */
 function assert_button_at_end_of_toolbar(aToolbarID, aButtonID) {
   let currentSet = mc.e(aToolbarID).currentSet;
-  assert_not_equals(-1, currentSet.indexOf(aButtonID),
+  assert_true(currentSet.includes(aButtonID),
                    "We didn't find the button with ID " + aButtonID +
                    "where we should have for the toolbar with ID " +
                    aToolbarID);

@@ -2,14 +2,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["IOUtils"];
+this.EXPORTED_SYMBOLS = ["IOUtils"];
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const kStringBlockSize = 4096;
-const kStreamBlockSize = 8192;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var kStringBlockSize = 4096;
+var kStreamBlockSize = 8192;
 
 var IOUtils =
 {

@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 Cu.import("resource:///modules/imServices.jsm");
 Cu.import("resource://gre/modules/DownloadUtils.jsm");
 
 // This is the list of notifications that the account manager window observes
-const events = [
+var events = [
   "prpl-quit",
   "account-list-updated",
   "account-added",
@@ -578,7 +578,7 @@ var gAccountManager = {
 };
 
 
-let gAMDragAndDrop = {
+var gAMDragAndDrop = {
   ACCOUNT_MIME_TYPE: "application/x-moz-richlistitem",
   // Size of the scroll zone on the top and on the bottom of the account list
   MAGIC_SCROLL_HEIGHT: 20,

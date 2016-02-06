@@ -7,12 +7,12 @@
  * for inspiration and idioms (and also a name :).
  */
 
-const EXPORTED_SYMBOLS = ["GlodaDatastore"];
+this.EXPORTED_SYMBOLS = ["GlodaDatastore"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/IOUtils.js");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -23,11 +23,11 @@ Cu.import("resource:///modules/gloda/datamodel.js");
 Cu.import("resource:///modules/gloda/databind.js");
 Cu.import("resource:///modules/gloda/collection.js");
 
-const MIN_CACHE_SIZE = 8 * 1048576;
-const MAX_CACHE_SIZE = 64 * 1048576;
-const MEMSIZE_FALLBACK_BYTES = 256 * 1048576;
+var MIN_CACHE_SIZE = 8 * 1048576;
+var MAX_CACHE_SIZE = 64 * 1048576;
+var MEMSIZE_FALLBACK_BYTES = 256 * 1048576;
 
-let PCH_LOG = Log4Moz.repository.getLogger("gloda.ds.pch");
+var PCH_LOG = Log4Moz.repository.getLogger("gloda.ds.pch");
 
 /**
  * Commit async handler; hands off the notification to
@@ -72,7 +72,7 @@ PostCommitHandler.prototype = {
   }
 };
 
-let QFQ_LOG = Log4Moz.repository.getLogger("gloda.ds.qfq");
+var QFQ_LOG = Log4Moz.repository.getLogger("gloda.ds.qfq");
 
 /**
  * Singleton collection listener used by |QueryFromQueryCallback| to assist in
@@ -86,7 +86,7 @@ let QFQ_LOG = Log4Moz.repository.getLogger("gloda.ds.qfq");
  *  also deals with caching so that our identity invariant is maintained: user
  *  code should only ever see one distinct instance of a thing at a time.
  */
-let QueryFromQueryResolver = {
+var QueryFromQueryResolver = {
   onItemsAdded: function(aIgnoredItems, aCollection, aFake) {
     let originColl = aCollection.dataStack ? aCollection.dataStack.pop()
                                            : aCollection.data;
@@ -572,7 +572,7 @@ ExplainedStatementProcessor.prototype = {
 };
 
 // See the documentation on GlodaDatastore._schemaVersion to understand these:
-const DB_SCHEMA_ACCEPT_LEAVE_LOW = 31,
+var DB_SCHEMA_ACCEPT_LEAVE_LOW = 31,
       DB_SCHEMA_ACCEPT_LEAVE_HIGH = 34,
       DB_SCHEMA_ACCEPT_DOWNGRADE_LOW = 35,
       DB_SCHEMA_ACCEPT_DOWNGRADE_HIGH = 39,

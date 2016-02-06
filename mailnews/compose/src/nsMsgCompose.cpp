@@ -1086,7 +1086,7 @@ nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *ide
       if (deliverMode == nsIMsgCompDeliverMode::AutoSaveAsDraft)
         deliverMode = nsIMsgCompDeliverMode::SaveAsDraft;
 
-      nsRefPtr<nsIMsgCompose> msgCompose(this);
+      RefPtr<nsIMsgCompose> msgCompose(this);
       composeSendListener->SetMsgCompose(msgCompose);
       composeSendListener->SetDeliverMode(deliverMode);
 
@@ -1141,8 +1141,9 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
   nsCOMPtr<nsIPrompt> prompt;
 
   // i'm assuming the compose window is still up at this point...
-  if (!prompt && m_window)
-     m_window->GetPrompter(getter_AddRefs(prompt));
+  nsCOMPtr<nsPIDOMWindow> window(do_QueryInterface(m_window));
+  if (window)
+    window->GetPrompter(getter_AddRefs(prompt));
 
   // Set content type based on which type of compose window we had.
   nsString contentType = (m_composeHTML) ? NS_LITERAL_STRING("text/html"):
@@ -2655,9 +2656,10 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
         // Handle "followup-to: poster" magic keyword here
         if (followUpTo.EqualsLiteral("poster"))
         {
-          nsCOMPtr<nsIDOMWindow> composeWindow;
+          nsCOMPtr<nsIDOMWindow> domWindow;
           nsCOMPtr<nsIPrompt> prompt;
-          compose->GetDomWindow(getter_AddRefs(composeWindow));
+          compose->GetDomWindow(getter_AddRefs(domWindow));
+          nsCOMPtr<nsPIDOMWindow> composeWindow(do_QueryInterface(domWindow));
           if (composeWindow)
             composeWindow->GetPrompter(getter_AddRefs(prompt));
           nsMsgDisplayMessageByName(prompt, MOZ_UTF16("followupToSenderMessage"));

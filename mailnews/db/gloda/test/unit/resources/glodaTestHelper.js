@@ -40,9 +40,9 @@ registerFolderEventLogHelper();
 
 
 // Create a message generator
-const msgGen = gMessageGenerator = new MessageGenerator();
+var msgGen = gMessageGenerator = new MessageGenerator();
 // Create a message scenario generator using that message generator
-const scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
+var scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
 
 Components.utils.import("resource:///modules/errUtils.js");
 
@@ -70,7 +70,7 @@ Services.prefs.setBoolPref("mailnews.database.global.indexer.perform_initial_swe
 // yes to debug output
 Services.prefs.setBoolPref("mailnews.database.global.logging.dump", true);
 
-const ENVIRON_MAPPINGS = [
+var ENVIRON_MAPPINGS = [
   {
     envVar: "GLODA_DATASTORE_EXPLAIN_TO_PATH",
     prefName: "mailnews.database.global.datastore.explainToPath"
@@ -78,7 +78,7 @@ const ENVIRON_MAPPINGS = [
 ];
 
 // -- Propagate environment variables to prefs as appropriate:
-let environ = Cc["@mozilla.org/process/environment;1"]
+var environ = Cc["@mozilla.org/process/environment;1"]
                 .getService(Ci.nsIEnvironment);
 for each (let [, {envVar, prefName}] in Iterator(ENVIRON_MAPPINGS)) {
  if (environ.exists(envVar)) {
@@ -99,14 +99,14 @@ Components.utils.import("resource:///modules/gloda/mimemsg.js");
 
 // -- Add a logger listener that throws when we give it a warning/error.
 Components.utils.import("resource:///modules/gloda/log4moz.js");
-let throwingAppender = new Log4Moz.ThrowingAppender(do_throw);
+var throwingAppender = new Log4Moz.ThrowingAppender(do_throw);
 throwingAppender.level = Log4Moz.Level.Warn;
 Log4Moz.repository.rootLogger.addAppender(throwingAppender);
 
 var LOG = Log4Moz.repository.getLogger("gloda.test");
 
 // index_msg does not export this, so we need to provide it.
-const GLODA_BAD_MESSAGE_ID = 2,
+var GLODA_BAD_MESSAGE_ID = 2,
       GLODA_OLD_BAD_MESSAGE_ID = 1;
 
 // -- Add a hook that makes folders not filthy when we first see them.
@@ -247,7 +247,7 @@ if (logHelperHasInterestedListeners) {
   }
 }
 
-const _wait_for_gloda_indexer_defaults = {
+var _wait_for_gloda_indexer_defaults = {
   verifier: null,
   augment: false,
   deleted: null,
@@ -1095,8 +1095,8 @@ function wait_for_gloda_db_flush() {
   return false;
 }
 
-let _gloda_simulate_hang_data = null;
-let _gloda_simulate_hang_waiting_for_hang = false;
+var _gloda_simulate_hang_data = null;
+var _gloda_simulate_hang_waiting_for_hang = false;
 
 function _simulate_hang_on_MsgHdrToMimeMessage() {
   _gloda_simulate_hang_data = [MsgHdrToMimeMessage, null, arguments];

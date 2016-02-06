@@ -6,7 +6,7 @@ Components.utils.import("resource://gre/modules/PluralForm.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 
-const mailtolength = 7;
+var mailtolength = 7;
 
 /**
  * Function to change the highlighted row back to the row that is currently
@@ -68,6 +68,10 @@ function fillMailContextMenu(event)
       return false;
     }
   }
+
+  goUpdateCommand('cmd_killThread');
+  goUpdateCommand('cmd_killSubthread');
+  goUpdateCommand('cmd_watchThread');
 
   goUpdateCommand('cmd_printpreview');
   goUpdateCommand('cmd_print');
@@ -348,9 +352,18 @@ function fillFolderPaneContextMenu(aEvent)
   function checkCanSubscribeToFolder(folder) {
     if (checkIsVirtualFolder(folder))
       return false;
+
+    // All feed account folders, besides Trash, are subscribable.
+    if (folder.server.type == "rss" &&
+        !(folder.flags & nsMsgFolderFlags.Trash))
+      return true;
+
+    // We only want the subscribe item on the account nodes.
+    if (!folder.isServer)
+      return false;
+
     return folder.server.type == "nntp" ||
-           folder.server.type == "imap" ||
-           folder.server.type == "rss";
+           folder.server.type == "imap";
   }
   var haveOnlySubscribableFolders = folders.every(checkCanSubscribeToFolder);
 

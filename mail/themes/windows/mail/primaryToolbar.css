@@ -49,8 +49,10 @@ menu:not(:-moz-lwtheme):-moz-window-inactive {
 }
 
 @media (-moz-os-version: windows-win10) {
-  #tabs-toolbar {
-    background-image: none;
+  @media (-moz-windows-default-theme) and (-moz-windows-default-theme) {
+    #tabs-toolbar {
+      background-image: none;
+    }
   }
 }
 
@@ -147,8 +149,15 @@ menu:not(:-moz-lwtheme):-moz-window-inactive {
   border-top: none;
   background-image: linear-gradient(rgba(253, 253, 253, 0.45),
                                     rgba(255, 255, 255, 0));
-  box-shadow: 0 1px 0 rgba(253, 253, 253, 0.45) inset,
-              0 -1px 0 ThreeDShadow inset;
+  box-shadow: 0 1px 0 rgba(253, 253, 253, 0.45) inset;
+}
+
+.mail-toolbox::after,
+.contentTabToolbox::after {
+  content: "";
+  display: -moz-box;
+  height: 1px;
+  background-color: ThreeDShadow;
 }
 
 .mail-toolbox > toolbar:-moz-lwtheme,
@@ -1172,6 +1181,15 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
     background-repeat: no-repeat;
   }
 
+  @media not all and (-moz-windows-default-theme) {
+    #tabbar-toolbar .toolbarbutton-1,
+    #tabbar-toolbar .toolbarbutton-menubutton-button,
+    #tabbar-toolbar .toolbarbutton-menubutton-dropmarker {
+      -moz-appearance: none;
+      margin-bottom: 1px;
+    }
+  }
+
   #tabbar-toolbar
     .toolbarbutton-menubutton-button:not([disabled]):hover:-moz-locale-dir(rtl) {
     background-position: 1px -1px, 100% -1px;
@@ -1763,10 +1781,9 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
 }
 
 @media (-moz-windows-glass) {
-  .mail-toolbox:not(:-moz-lwtheme),
-  .contentTabToolbox:not(:-moz-lwtheme) {
-    box-shadow: 0 1px 0 rgba(253, 253, 253, 0.45) inset,
-                0 -1px 0 #AABCCF inset;
+  .mail-toolbox::after,
+  .contentTabToolbox::after {
+    background-color: #aabccf;
   }
 
   #navigation-toolbox > #mail-toolbar-menubar2:not(:-moz-lwtheme) {
@@ -1937,9 +1954,9 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
 
 @media (-moz-windows-default-theme) and (-moz-os-version: windows-win8),
        (-moz-windows-default-theme) and (-moz-os-version: windows-win10) {
-  .mail-toolbox,
-  .contentTabToolbox {
-    box-shadow: 0 -1px 0 #c2c2c2 inset;
+  .mail-toolbox::after,
+  .contentTabToolbox::after {
+    background-color: #c2c2c2;
   }
 
   .findbar-button,
@@ -1997,5 +2014,101 @@ toolbar[mode="text"] .button-appmenu .toolbarbutton-icon {
   .toolbarbutton-1[checked=true]:not(:active):hover {
     background-color: rgba(90%, 90%, 90%, .4);
     transition: background-color .4s;
+  }
+
+  #button-getmsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#getmsg-flat");
+  }
+
+  #button-newmsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#newmsg-flat");
+  }
+
+  #button-address {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#address-flat");
+  }
+
+  #button-reply {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#reply-flat");
+  }
+
+  #button-replyall {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#replyall-flat");
+  }
+
+  #button-replylist {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#replylist-flat");
+  }
+
+  #button-forward {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#forward-flat");
+  }
+
+  .junk-button {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#junk-flat");
+  }
+
+  #button-print {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#print-flat");
+  }
+
+  #button-stop {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#stop-flat");
+  }
+
+  #button-file {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#file-flat");
+  }
+
+  #button-nextUnread {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#nextUnread-flat");
+  }
+
+  #button-previousUnread {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#previousUnread-flat");
+  }
+
+  #button-mark {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#mark-flat");
+  }
+
+  #button-tag {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#tag-flat");
+  }
+
+  #button-goback {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#goback-flat");
+  }
+
+  #button-goforward {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#goforward-flat");
+  }
+
+  #button-compact {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#compact-flat");
+  }
+
+  #button-archive {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#archive-flat");
+  }
+
+  #button-chat {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#chat-flat");
+  }
+
+  #button-nextMsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#nextMsg-flat");
+  }
+
+  #button-previousMsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#previousMsg-flat");
+  }
+
+  #qfb-show-filter-bar {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#filter-flat");
+  }
+
+  .button-appmenu {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#appButton-flat");
   }
 }

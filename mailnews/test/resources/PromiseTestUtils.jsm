@@ -7,7 +7,7 @@
  * with mailnews tests.
  */
 
-const EXPORTED_SYMBOLS = ['PromiseTestUtils'];
+this.EXPORTED_SYMBOLS = ['PromiseTestUtils'];
 
 var Cc = Components.classes;
 var Ci = Components.interfaces;
@@ -163,7 +163,7 @@ PromiseTestUtils.PromiseStreamListener.prototype = {
  * @return         promise that resolves when the event occurs
  */
 
-const nsIMFNService = Ci.nsIMsgFolderNotificationService;
+var nsIMFNService = Ci.nsIMsgFolderNotificationService;
 PromiseTestUtils.promiseFolderEvent = function promiseFolderEvent(folder, event) {
   return new Promise( (resolve, reject) => {
     let eventAtom = Cc["@mozilla.org/atom-service;1"]

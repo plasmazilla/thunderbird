@@ -11,12 +11,12 @@ Components.utils.import("resource:///modules/MailUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
 
-const ADDR_DB_LARGE_COMMIT       = 1;
+var ADDR_DB_LARGE_COMMIT       = 1;
 
-const kClassicMailLayout = 0;
-const kWideMailLayout = 1;
-const kVerticalMailLayout = 2;
-const kMailLayoutCommandMap =
+var kClassicMailLayout = 0;
+var kWideMailLayout = 1;
+var kVerticalMailLayout = 2;
+var kMailLayoutCommandMap =
 {
   "cmd_viewClassicMailLayout": kClassicMailLayout,
   "cmd_viewWideMailLayout": kWideMailLayout,
@@ -27,9 +27,9 @@ const kMailLayoutCommandMap =
 // content for a particular message.
 // if you change or add more values to these constants, be sure to modify
 // the corresponding definitions in nsMsgContentPolicy.cpp
-const kNoRemoteContentPolicy = 0;
-const kBlockRemoteContent = 1;
-const kAllowRemoteContent = 2;
+var kNoRemoteContentPolicy = 0;
+var kBlockRemoteContent = 1;
+var kAllowRemoteContent = 2;
 
 // Timer to mark read, if the user has configured the app to mark a message as
 // read if it is viewed for more than n seconds.
@@ -834,7 +834,7 @@ function ToggleMessageTagKey(keyNumber)
   let curKeys = msgHdr.getStringProperty("keywords").split(" ");
   if (msgHdr.label)
     curKeys.push("$label" + msgHdr.label);
-  let addKey = curKeys.indexOf(key) < 0;
+  let addKey = !curKeys.includes(key);
 
   ToggleMessageTag(key, addKey);
 }
@@ -1313,7 +1313,7 @@ function UpdateDeleteToolbarButton()
   // Never show "Undelete" in the 3-pane for folders, when delete would
   // apply to the selected folder.
   if (gFolderDisplay.focusedPane == document.getElementById("folderTree") &&
-      GetNumSelectedMessages() == 0)
+      gFolderDisplay.selectedCount == 0)
     deleteButtonDeck.selectedIndex = 0;
   else
     deleteButtonDeck.selectedIndex = SelectedMessagesAreDeleted() ? 1 : 0;
@@ -1323,7 +1323,7 @@ function UpdateDeleteCommand()
   var value = "value";
   if (SelectedMessagesAreDeleted())
     value += "IMAPDeleted";
-  if (GetNumSelectedMessages() < 2)
+  if (gFolderDisplay.selectedCount < 2)
     value += "Message";
   else
     value += "Messages";
@@ -2081,7 +2081,7 @@ function MsgSaveAsFile()
 
 function MsgSaveAsTemplate()
 {
-  if (GetNumSelectedMessages() == 1)
+  if (gFolderDisplay.selectedCount == 1)
     SaveAsTemplate(gFolderDisplay.selectedMessageUris[0]);
 }
 
@@ -2141,18 +2141,11 @@ function MsgOpenNewTabForFolder(aBackground)
 
 function MsgOpenSelectedMessages()
 {
-  // Grouped By Sort dummy header row <enter> toggles the thread's open/close
-  // state. Let tree.xml handle it.
-  if (gFolderDisplay.view.showGroupedBySort &&
-      gFolderDisplay.treeSelection && gFolderDisplay.treeSelection.count == 1 &&
-      gFolderDisplay.view.isGroupedByHeaderAtIndex(gFolderDisplay.treeSelection.currentIndex)) {
-    return;
-  }
-
   // Toggle message body (feed summary) and content-base url in message pane or
   // load in browser, per pref, otherwise open summary or web page in new window
   // or tab, per that pref.
-  if (gFolderDisplay.selectedMessageIsFeed) {
+  if (gFolderDisplay.treeSelection && gFolderDisplay.treeSelection.count == 1 &&
+      gFolderDisplay.selectedMessageIsFeed) {
     let msgHdr = gFolderDisplay.selectedMessage;
     if (document.documentElement.getAttribute("windowtype") == "mail:3pane" &&
         FeedMessageHandler.onOpenPref == FeedMessageHandler.kOpenToggleInMessagePane) {
@@ -2618,7 +2611,7 @@ function SpaceHit(event)
     // These elements should always take priority over scrolling.
     const importantElements = ["otherActionsButton", "attachmentToggle"];
     contentWindow = window.content;
-    if (focusedElement && importantElements.indexOf(focusedElement.id) != -1)
+    if (focusedElement && importantElements.includes(focusedElement.id))
       return;
   }
   else if (focusedElement && !hRefForClickEvent(event))
@@ -2888,8 +2881,8 @@ function HandleJunkStatusChanged(folder)
 
   // If multiple message are selected and we change the junk status
   // we don't want to show the junk bar (since the message pane is blank).
-  let msgHdr = (GetNumSelectedMessages() == 1) ?
-    gMessageDisplay.displayedMessage : null;
+  let msgHdr = gFolderDisplay.selectedCount == 1 ?
+                 gMessageDisplay.displayedMessage : null;
   let junkBarWasDisplayed = gMessageNotificationBar.isShowingJunkNotification();
   gMessageNotificationBar.setJunkMsg(msgHdr);
 

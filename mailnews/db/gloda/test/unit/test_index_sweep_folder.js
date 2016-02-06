@@ -69,7 +69,7 @@ function _spin_folder_indexer_gen(aFolderHandle, aExpectedJobGoal) {
  * The value itself does not matter; it just needs to be present and be in a
  *  certain range for our logic testing.
  */
-const arbitraryGlodaId = 4096;
+var arbitraryGlodaId = 4096;
 
 /**
  * When we enter a filthy folder we should be marking all the messages as filthy
@@ -148,7 +148,7 @@ function test_count_pass() {
   yield spin_folder_indexer(folder, 2);
 }
 
-let tests = [
+var tests = [
   test_propagate_filthy_from_folder_to_messages,
   test_count_pass,
 ];

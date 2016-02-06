@@ -2,14 +2,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = [
+this.EXPORTED_SYMBOLS = [
   "XMPPConversationPrototype",
   "XMPPMUCConversationPrototype",
   "XMPPAccountBuddyPrototype",
   "XMPPAccountPrototype"
 ];
 
-const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/imServices.jsm");
 Cu.import("resource:///modules/imStatusUtils.jsm");
@@ -87,7 +87,7 @@ function parseStatus(aStanza) {
  *          admin     -> op
  *          owner     -> founder
  */
-const kRoles = ["outcast", "visitor", "participant", "member", "moderator",
+var kRoles = ["outcast", "visitor", "participant", "member", "moderator",
                 "admin", "owner"];
 
 function MUCParticipant(aNick, aJid, aPresenceStanza)
@@ -149,7 +149,7 @@ MUCParticipant.prototype = {
 };
 
 // MUC (Multi-User Chat)
-const XMPPMUCConversationPrototype = {
+var XMPPMUCConversationPrototype = {
   __proto__: GenericConvChatPrototype,
   // By default users are not in a MUC.
   _left: true,
@@ -170,39 +170,28 @@ const XMPPMUCConversationPrototype = {
 
   get topic() this._topic,
   set topic(aTopic) {
-    let notAuthorized = (aError) => {
-      // XEP-0045 (8.1): Unauthorized subject change.
-      let message = _("conversation.error.changeTopicFailedNotAuthorized");
-      this.writeMessage(this.name, message, {system: true, error: true});
-      return true;
-    };
-    let errorHandler = this._account.handleErrors({forbidden: notAuthorized,
-                                                   notAcceptable: notAuthorized,
-                                                   itemNotFound: notAuthorized});
-
     // XEP-0045 (8.1): Modifying the room subject.
     let subject = Stanza.node("subject", null, null, aTopic.trim());
     let s = Stanza.message(this.name, null, null,{type: "groupchat"}, subject);
-    this._account.sendStanza(s, errorHandler);
+    let notAuthorized = _("conversation.error.changeTopicFailedNotAuthorized");
+    this._account.sendStanza(s, this._account.handleErrors({
+      forbidden: notAuthorized,
+      notAcceptable: notAuthorized,
+      itemNotFound: notAuthorized
+    }, this));
   },
   get topicSettable() true,
 
   /* Called when the user enters a chat message */
   sendMsg: function (aMsg) {
-    let notInRoom = (aError) => {
-      // If the sender is not in the room.
-      let from = aError.stanza.attributes["from"];
-      let message = _("conversation.error.sendFailedAsNotInRoom",
-                      this._account.normalize(from), aMsg);
-      this.writeMessage(from, message, {system: true, error: true});
-      return true;
-    };
-    let errorHandler = this._account.handleErrors({itemNotFound: notInRoom,
-                                                   notAcceptable: notInRoom});
-
     // XEP-0045 (7.4): Sending a message to all occupants in a room.
     let s = Stanza.message(this.name, aMsg, null, {type: "groupchat"});
-    this._account.sendStanza(s, errorHandler);
+    let notInRoom = _("conversation.error.sendFailedAsNotInRoom",
+                      this.name, aMsg);
+    this._account.sendStanza(s, this._account.handleErrors({
+      itemNotFound: notInRoom,
+      notAcceptable: notInRoom
+    }, this));
   },
 
   /* Called by the account when a presence stanza is received for this muc */
@@ -434,6 +423,24 @@ const XMPPMUCConversationPrototype = {
     delete this.chatRoomFields;
   },
 
+  // Invites a user to MUC conversation.
+  invite: function(aJID, aMsg = null) {
+    // XEP-0045 (7.8): Inviting Another User to a Room.
+    // XEP-0045 (7.8.2): Mediated Invitation.
+    let invite = Stanza.node("invite", null, {to: aJID},
+      aMsg ? Stanza.node("reason", null, null, aMsg) : null);
+    let x = Stanza.node("x", Stanza.NS.muc_user, null, invite);
+    let s = Stanza.node("message", null, {to: this.name}, x);
+    this._account.sendStanza(s, this._account.handleErrors({
+      forbidden: _("conversation.error.inviteFailedForbidden"),
+      // ejabberd uses error not-allowed to indicate that this account does not
+      // have the required privileges to invite users instead of forbidden error,
+      // and this is not mentioned in the spec (XEP-0045).
+      notAllowed: _("conversation.error.inviteFailedForbidden"),
+      itemNotFound: _("conversation.error.failedJIDNotFound", aJID)
+    }, this));
+  },
+
   // Bans a participant from MUC conversation.
   ban: function(aNickName, aMsg = null) {
     // XEP-0045 (9.1): Banning a User.
@@ -472,51 +479,51 @@ const XMPPMUCConversationPrototype = {
 
   // Callback for ban and kick commands.
   _banKickHandler: function(aStanza) {
-    if (aStanza.attributes["type"] == "error") {
-      let error = this._account.parseError(aStanza);
-      let message;
-      switch (error.condition) {
-        case "not-allowed":
-          message = _("conversation.error.banKickCommandNotAllowed");
-          break;
-        case "conflict":
-          message = _("conversation.error.banKickCommandConflict");
-          break;
-        default:
-          return false;
-      }
-      this.writeMessage(this.name, message, {system: true});
+    if (aStanza.attributes["type"] == "result")
       return true;
-    }
-    else if (aStanza.attributes["type"] == "result")
-      return true;
-    return false;
+    let errorHandler = this._account.handleErrors({
+      notAllowed: _("conversation.error.banKickCommandNotAllowed"),
+      conflict: _("conversation.error.banKickCommandConflict")
+    }, this);
+    return errorHandler(aStanza);
   },
 
   // Changes nick in MUC conversation to a new one.
   setNick: function(aNewNick) {
-    let notAcceptable = (aError) => {
-      // XEP-0045 (7.6): Changing Nickname (example 53).
-      let message = _("conversation.error.changeNickFailedNotAcceptable",
-                      aNewNick);
-      this.writeMessage(this.name, message, {system: true, error: true});
-      // TODO: We should then discover user's reserved nickname (it could be
-      // discovered before joining a room).
-      // XEP-0045 (7.12): Discovering Reserved Room Nickname.
-      return true;
-    };
-    let conflict = (aError) => {
-      // XEP-0045 (7.2.9): Nickname Conflict.
-      let message = _("conversation.error.changeNickFailedConflict", aNewNick);
-      this.writeMessage(this.name, message, {system: true, error: true});
-      return true;
-    };
-    let errorHandler = this._account.handleErrors({notAcceptable: notAcceptable,
-                                                   conflict: conflict});
-
     // XEP-0045 (7.6): Changing Nickname.
     let s = Stanza.presence({to: this.name + "/" + aNewNick}, null);
-    this._account.sendStanza(s, errorHandler);
+    this._account.sendStanza(s, this._account.handleErrors({
+      // XEP-0045 (7.6): Changing Nickname (example 53).
+      // TODO: We should discover if the user has a reserved nickname (maybe
+      // before joining a room), cf. XEP-0045 (7.12).
+      notAcceptable: _("conversation.error.changeNickFailedNotAcceptable",
+                       aNewNick),
+      // XEP-0045 (7.2.9): Nickname Conflict.
+      conflict: _("conversation.error.changeNickFailedConflict", aNewNick)
+    }, this));
+  },
+
+  // Called by the account when a message stanza is received for this muc and
+  // needs to be handled.
+  onMessageStanza: function(aStanza) {
+    let x = aStanza.getElement(["x"]);
+    let decline = x.getElement(["decline"]);
+    if (decline) {
+      // XEP-0045 (7.8): Inviting Another User to a Room.
+      // XEP-0045 (7.8.2): Mediated Invitation.
+      let invitee = decline.attributes["jid"];
+      let reasonNode = decline.getElement(["reason"]);
+      let reason = reasonNode ? reasonNode.innerText : "";
+      let msg;
+      if (reason)
+        msg = _("conversation.message.invitationDeclined.reason", invitee, reason);
+      else
+        msg = _("conversation.message.invitationDeclined", invitee);
+
+      this.writeMessage(this.name, msg, {system: true});
+    }
+    else
+      this.WARN("Unhandled message stanza.");
   },
 
   /* Called when the user closed the conversation */
@@ -537,7 +544,7 @@ function XMPPMUCConversation(aAccount, aJID, aNick)
 XMPPMUCConversation.prototype = XMPPMUCConversationPrototype;
 
 /* Helper class for buddy conversations */
-const XMPPConversationPrototype = {
+var XMPPConversationPrototype = {
   __proto__: GenericConvIMPrototype,
 
   _typingTimer: null,
@@ -728,7 +735,7 @@ function XMPPConversation(aAccount, aNormalizedName, aMucParticipant)
 XMPPConversation.prototype = XMPPConversationPrototype;
 
 /* Helper class for buddies */
-const XMPPAccountBuddyPrototype = {
+var XMPPAccountBuddyPrototype = {
   __proto__: GenericAccountBuddyPrototype,
 
   subscription: "none",
@@ -777,6 +784,7 @@ const XMPPAccountBuddyPrototype = {
     if (old != this.displayName)
       this._notifyObservers("display-name-changed", old);
   },
+  _vCardReceived: false,
   // _vCardFormattedName is the display name the contact has set for
   // himself in his vCard. It's read-only from our point of view.
   _vCardFormattedName: "",
@@ -967,7 +975,7 @@ const XMPPAccountBuddyPrototype = {
     if (photo && photo.uri == Stanza.NS.vcard_update) {
       let hash = photo.innerText;
       if (hash && hash != this._photoHash)
-        this._account._requestVCard(this.normalizedName);
+        this._account._addVCardRequest(this.normalizedName);
       else if (!hash && this._photoHash) {
         delete this._photoHash;
         this.buddyIconFilename = "";
@@ -1024,7 +1032,7 @@ function XMPPAccountBuddy(aAccount, aBuddy, aTag, aUserName)
 XMPPAccountBuddy.prototype = XMPPAccountBuddyPrototype;
 
 /* Helper class for account */
-const XMPPAccountPrototype = {
+var XMPPAccountPrototype = {
   __proto__: GenericAccountPrototype,
 
   _jid: null, // parsed Jabber ID: node, domain, resource
@@ -1034,6 +1042,9 @@ const XMPPAccountPrototype = {
   // Contains the domain of MUC service which is obtained using service
   // discovery.
   _mucService: null,
+
+  // An array of jids for which we still need to request vCards.
+  _pendingVCardRequests: [],
 
   /* Generate unique id for a stanza. Using id and unique sid is defined in
    * RFC 6120 (Section 8.2.3, 4.7.3).
@@ -1275,6 +1286,8 @@ const XMPPAccountPrototype = {
         }
       }
     }
+    Services.obs.notifyObservers(new nsSimpleEnumerator(tooltipInfo),
+                                 "user-info-received", aJid);
 
     let iq = Stanza.iq("get", null, aJid, Stanza.node("vCard", Stanza.NS.vcard));
     this.sendStanza(iq, aStanza => {
@@ -1297,6 +1310,7 @@ const XMPPAccountPrototype = {
                               "organization", "email", "birthday", "locality",
                               "country"];
 
+      let tooltipInfo = [];
       for (let field of kTooltipFields) {
         if (vCardInfo.hasOwnProperty(field))
           tooltipInfo.push(new TooltipInfo(_("tooltip." + field), vCardInfo[field]));
@@ -1411,16 +1425,21 @@ const XMPPAccountPrototype = {
   },
 
   // Returns an error-handling callback for use with sendStanza generated
-  // from aHandlers, an object containing the error handlers.
-  // If the stanza passed to the callback is an error stanza, and
-  // aHandlers contains a method with the name of the defined condition
-  // of the error, that method is called. It should return true if the
-  // error was handled.
+  // from aHandlers, an object defining the error handlers.
+  // If the stanza passed to the callback is an error stanza, it checks if
+  // aHandlers contains a property with the name of the defined condition
+  // of the error.
+  // * If the property is a function, it is called with the parsed error
+  //   as its argument, bound to aThis (if provided).
+  //   It should return true if the error was handled.
+  // * If the property is a string, it is displayed as a system message
+  //   in the conversation given by aThis.
   handleErrors(aHandlers, aThis) {
     return (aStanza) => {
       let error = this.parseError(aStanza);
       if (!error)
         return false;
+
       let toCamelCase = aStr => {
         // Turn defined condition string into a valid camelcase
         // JS property name.
@@ -1429,9 +1448,31 @@ const XMPPAccountPrototype = {
         return uncapitalize(aStr.split("-").map(capitalize).join(""));
       }
       let condition = toCamelCase(error.condition);
+      // Check if we have a handler property for this kind of error.
       if (!(condition in aHandlers))
         return false;
-      return aHandlers[condition].call(aThis, error);
+
+      let handler = aHandlers[condition];
+      if (typeof handler == "string") {
+        // The string is an error message to be displayed in the conversation.
+        if (!aThis || !aThis.writeMessage) {
+          this.ERROR("HandleErrors was passed an error message string, but " +
+            "no conversation to display it in:\n" + handler);
+          return true;
+        }
+        aThis.writeMessage(aThis.name, handler, {system: true, error: true});
+        return true;
+      }
+      else if (typeof handler == "function") {
+        // If we're given a function, call this error handler.
+        return handler.call(aThis, error);
+      }
+      else {
+        // If this happens, there's a bug somewhere.
+        this.ERROR("HandleErrors was passed a handler for '" + condition +
+          "'' which is neither a function nor a string.");
+        return false;
+      }
     };
   },
 
@@ -1654,6 +1695,7 @@ const XMPPAccountPrototype = {
     let norm = this.normalize(from);
 
     let type = aStanza.attributes["type"];
+    let x = aStanza.getElement(["x"]);
     let body;
     let b = aStanza.getElement(["body"]);
     if (b) {
@@ -1742,6 +1784,15 @@ const XMPPAccountPrototype = {
       if (conv)
         conv.incomingMessage(null, aStanza);
     }
+    else if (x && x.uri == Stanza.NS.muc_user) {
+      let muc = this._mucs.get(norm);
+      if (!muc) {
+        this.WARN("Received a groupchat message for unknown MUC " + norm);
+        return;
+      }
+      muc.onMessageStanza(aStanza);
+      return;
+    }
 
     // Don't create a conversation to only display the typing notifications.
     if (!this._conv.has(norm) && !this._conv.has(from))
@@ -1780,18 +1831,33 @@ const XMPPAccountPrototype = {
     this._disconnect(aError, aException.toString());
   },
 
-  /* Callbacks for Query stanzas */
-  /* When a vCard is received */
-  _vCardReceived: false,
   onVCard: function(aStanza) {
-    let jid = this.normalize(aStanza.attributes["from"]);
-    if (!jid || !this._buddies.has(jid))
+    let jid = this._pendingVCardRequests.shift();
+    this._requestNextVCard();
+    if (!this._buddies.has(jid)) {
+      this.WARN("Received a vCard for unknown buddy " + jid);
       return;
-    let buddy = this._buddies.get(jid);
+    }
 
     let vCard = aStanza.getElement(["vCard"]);
-    if (!vCard)
+    let error = this.parseError(aStanza);
+    if ((error && (error.condition == "item-not-found" ||
+         error.condition == "service-unavailable")) ||
+        !vCard || !vCard.children.length) {
+      this.LOG("No vCard exists (or the user does not exist) for " + jid);
       return;
+    }
+    else if (error) {
+      this.WARN("Received unexpected vCard error " + error.condition);
+      return;
+    }
+
+    let buddy = this._buddies.get(jid);
+    let stanzaJid = this.normalize(aStanza.attributes["from"]);
+    if (jid && jid != stanzaJid) {
+      this.ERROR("Received vCard for a different jid (" + stanzaJid + ") " +
+                 "than the requested " + jid);
+    }
 
     let foundFormattedName = false;
     let vCardInfo = this.parseVCard(vCard);
@@ -1804,6 +1870,21 @@ const XMPPAccountPrototype = {
     if (!foundFormattedName && buddy._vCardFormattedName)
       buddy.vCardFormattedName = "";
     buddy._vCardReceived = true;
+  },
+
+  _requestNextVCard: function() {
+    if (!this._pendingVCardRequests.length)
+      return;
+    let s = Stanza.iq("get", null, this._pendingVCardRequests[0],
+                      Stanza.node("vCard", Stanza.NS.vcard));
+    this.sendStanza(s, this.onVCard, this);
+  },
+
+  _addVCardRequest: function(aJID) {
+    let requestPending = !!this._pendingVCardRequests.length;
+    this._pendingVCardRequests.push(aJID);
+    if (!requestPending)
+      this._requestNextVCard();
   },
 
   // XEP-0029 (Section 2) and RFC 6122 (Section 2): The node and domain are
@@ -1897,7 +1978,7 @@ const XMPPAccountPrototype = {
     // We request the vCard only if we haven't received it yet and are
     // subscribed to presence for that contact.
     if ((subscription == "both" || subscription == "to") && !buddy._vCardReceived)
-      this._requestVCard(jid);
+      this._addVCardRequest(jid);
 
     let alias = "name" in aItem.attributes ? aItem.attributes["name"] : "";
     if (alias) {
@@ -1927,11 +2008,6 @@ const XMPPAccountPrototype = {
   _forgetRosterItem: function(aJID) {
     Services.contacts.accountBuddyRemoved(this._buddies.get(aJID));
     this._buddies.delete(aJID);
-  },
-  _requestVCard: function(aJID) {
-    let s = Stanza.iq("get", null, aJID,
-                      Stanza.node("vCard", Stanza.NS.vcard));
-    this.sendStanza(s, this.onVCard, this);
   },
 
   /* When the roster is received */
@@ -2045,6 +2121,9 @@ const XMPPAccountPrototype = {
     // Also clear the cached user vCard, as we will want to redownload it
     // after reconnecting.
     delete this._userVCard;
+
+    // Clear vCard requests.
+    this._pendingVCardRequests = [];
 
     this.reportDisconnected();
   },
@@ -2258,3 +2337,9 @@ const XMPPAccountPrototype = {
       this.LOG("Not sending the vCard because the server stored vCard is identical.");
   }
 };
+function XMPPAccount(aProtocol, aImAccount)
+{
+  this._pendingVCardRequests = [];
+  this._init(aProtocol, aImAccount);
+}
+XMPPAccount.prototype = XMPPAccountPrototype;

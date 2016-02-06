@@ -20,7 +20,7 @@ load("../../../resources/asyncTestUtils.js");
 // Globals
 Components.utils.import("resource:///modules/mailServices.js");
 
-const gMessage = "SpamAssassinYes"; // message file used as the test message
+var gMessage = "SpamAssassinYes"; // message file used as the test message
 
 setupIMAPPump();
 
@@ -35,7 +35,7 @@ var tests = [
   endTest,
 ]
 
-let gJunkFolder;
+var gJunkFolder;
 function createJunkFolder()
 {
   IMAPPump.incomingServer.rootFolder.createSubfolder("Junk", null);
@@ -158,7 +158,7 @@ function run_test()
   async_run_tests(tests);
 }
 
-let mfnListener =
+var mfnListener =
 {
   msgsMoveCopyCompleted: function (aMove, aSrcMsgs, aDestFolder, aDestMsgs)
   {

@@ -25,6 +25,8 @@ MAR_CHANNEL_ID=seamonkey-comm-central
 MOZ_HELP_VIEWER=1
 MOZ_MEDIA_NAVIGATOR=1
 MOZ_MORK=1
+# Enable navigator.mozPay
+MOZ_PAY=1
 MOZ_SAFE_BROWSING=1
 MOZ_SERVICES_COMMON=1
 MOZ_SERVICES_CRYPTO=1
@@ -46,3 +48,6 @@ MOZ_UA_BUILDID=20100101
 MOZ_APP_ID={92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}
 MOZ_PROFILE_MIGRATOR=1
 MOZ_APP_STATIC_INI=1
+
+# Include the DevTools client, not just the server (which is the default)
+MOZ_DEVTOOLS=all

@@ -3,19 +3,19 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-let EXPORTED_SYMBOLS = ["WinTaskbarJumpList"];
+var EXPORTED_SYMBOLS = ["WinTaskbarJumpList"];
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
 
 // Prefs
-const PREF_TASKBAR_BRANCH    = "mail.taskbar.lists.";
-const PREF_TASKBAR_ENABLED   = "enabled";
-const PREF_TASKBAR_TASKS     = "tasks.enabled";
+var PREF_TASKBAR_BRANCH    = "mail.taskbar.lists.";
+var PREF_TASKBAR_ENABLED   = "enabled";
+var PREF_TASKBAR_TASKS     = "tasks.enabled";
 
 XPCOMUtils.defineLazyGetter(this, "_stringBundle", function () {
   return Services.strings
@@ -41,7 +41,7 @@ function _getString(aName) {
 /**
  * Task list
  */
-let gTasks = [
+var gTasks = [
   // Write new message
   {
     get title()       { return _getString("taskbar.tasks.composeMessage.label"); },
@@ -60,7 +60,7 @@ let gTasks = [
 ];
 
 
-let WinTaskbarJumpList = {
+var WinTaskbarJumpList = {
 
   /**
    * Startup, shutdown, and update

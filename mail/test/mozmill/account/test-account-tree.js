@@ -6,13 +6,13 @@
  * This test checks proper operation of the account tree in the Account manager.
  */
 
-const MODULE_NAME = "test-account-tree";
+var MODULE_NAME = "test-account-tree";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers", "window-helpers",
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers", "window-helpers",
                          "account-manager-helpers"];
 
-let gPopAccount, gOriginalAccountCount;
+var gPopAccount, gOriginalAccountCount;
 
 function setupModule(module) {
   collector.getModule("window-helpers").installInto(module);
@@ -120,7 +120,7 @@ function subtest_check_default_account_highlight(amc)
   // is attached to this property.
   let propArray = accountTree.view
     .getCellProperties(accountRow, accountTree.columns.getColumnAt(0)).split(" ");
-  assert_not_equals(propArray.indexOf("isDefaultServer-true"), -1);
+  assert_true(propArray.includes("isDefaultServer-true"));
 
   // Now select another account that is not default.
   accountRow = get_account_tree_row(gPopAccount.key, null, amc);
@@ -129,7 +129,7 @@ function subtest_check_default_account_highlight(amc)
   // There should isDefaultServer-true on its tree cell.
   propArray = accountTree.view
     .getCellProperties(accountRow, accountTree.columns.getColumnAt(0)).split(" ");
-  assert_equals(propArray.indexOf("isDefaultServer-true"), -1);
+  assert_false(propArray.includes("isDefaultServer-true"));
 }
 /**
  * Bug 58713.
@@ -161,7 +161,7 @@ function subtest_check_selection_after_account_deletion(amc)
   for (let i = 0; i < accountTreeNode.childNodes.length; i++) {
     if ("_account" in accountTreeNode.childNodes[i]) {
       let curAccount = accountTreeNode.childNodes[i]._account;
-      if (accountList.indexOf(curAccount) == -1)
+      if (!accountList.includes(curAccount))
         accountList.push(curAccount);
     }
   }

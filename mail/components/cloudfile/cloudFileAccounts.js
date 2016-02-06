@@ -2,21 +2,21 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["cloudFileAccounts"];
+this.EXPORTED_SYMBOLS = ["cloudFileAccounts"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
-const Cr = Components.results;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cu = Components.utils;
+var Cr = Components.results;
 
-const CATEGORY = "cloud-files";
-const PREF_ROOT = "mail.cloud_files.";
-const ACCOUNT_ROOT = PREF_ROOT + "accounts.";
+var CATEGORY = "cloud-files";
+var PREF_ROOT = "mail.cloud_files.";
+var ACCOUNT_ROOT = PREF_ROOT + "accounts.";
 
 // The following constants are used to query and insert entries
 // into the nsILoginManager.
-const PWDMGR_HOST = "chrome://messenger/cloudfile";
-const PWDMGR_REALM = "BigFiles Auth Token";
+var PWDMGR_HOST = "chrome://messenger/cloudfile";
+var PWDMGR_REALM = "BigFiles Auth Token";
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -58,7 +58,7 @@ var cloudFileAccounts = {
     let existingKeys = this._accountKeys;
     for (let n = 1; ; n++) {
 
-      if (existingKeys.indexOf("account" + n) == -1)
+      if (!existingKeys.includes("account" + n))
         return "account" + n;
     }
   },

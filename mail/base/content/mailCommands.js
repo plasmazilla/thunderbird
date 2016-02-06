@@ -358,11 +358,12 @@ function SaveAsFile(uris)
       let msgHdr = messenger.messageServiceFromURI(uris[i])
                             .messageURIToMsgHdr(uris[i]);
 
-      let name = GenerateFilenameFromMsgHdr(msgHdr);
-      name = GenerateValidFilename(name, ".eml");
+      let nameBase = GenerateFilenameFromMsgHdr(msgHdr);
+      let name = GenerateValidFilename(nameBase, ".eml");
+
       let number = 2;
-      while (filenames.indexOf(name) != -1) { // should be unlikely
-        name = name.substring(0, name.length - 4) + "-" + number + ".eml";
+      while (filenames.includes(name)) { // should be unlikely
+        name = GenerateValidFilename(nameBase + "-" + number, ".eml");
         number++;
       }
       filenames.push(name);
@@ -447,9 +448,9 @@ function ViewPageSource(messages)
     return false;
   }
 
-  try {
-    var mailCharacterSet = "charset=" + msgWindow.mailCharacterSet;
+  var browser = getBrowser();
 
+  try {
     for (var i = 0; i < numMessages; i++)
     {
       // Now, we need to get a URL from a URI
@@ -459,8 +460,9 @@ function ViewPageSource(messages)
       // display the message source, not the processed HTML.
       url = url.replace(/type=application\/x-message-display&/, "");
       window.openDialog("chrome://global/content/viewSource.xul",
-                        "_blank", "all,dialog=no", url,
-                        mailCharacterSet);
+                        "_blank", "all,dialog=no",
+                        {URL: url, browser: browser,
+                         outerWindowID: browser.outerWindowID});
     }
     return true;
   } catch (e) {

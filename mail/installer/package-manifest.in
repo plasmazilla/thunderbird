@@ -309,6 +309,10 @@
 @RESPATH@/chrome/classic@JAREXT@
 @RESPATH@/chrome/classic.manifest
 
+; DevTools
+@RESPATH@/chrome/devtools@JAREXT@
+@RESPATH@/chrome/devtools.manifest
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Default Profile Settings
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -396,6 +400,7 @@
 @RESPATH@/components/docshell.xpt
 @RESPATH@/components/dom.xpt
 @RESPATH@/components/dom_apps.xpt
+@RESPATH@/components/dom_newapps.xpt
 @RESPATH@/components/dom_base.xpt
 @RESPATH@/components/dom_system.xpt
 @RESPATH@/components/dom_canvas.xpt
@@ -555,6 +560,7 @@
 @RESPATH@/components/FeedProcessor.js
 @RESPATH@/components/Downloads.manifest
 @RESPATH@/components/DownloadLegacy.js
+@RESPATH@/components/BrowserPageThumbs.manifest
 @RESPATH@/components/crashmonitor.manifest
 @RESPATH@/components/nsCrashMonitor.js
 @RESPATH@/components/SiteSpecificUserAgent.js
@@ -632,6 +638,8 @@
 @RESPATH@/components/FormAutofillStartup.js
 @RESPATH@/components/contentAreaDropListener.manifest
 @RESPATH@/components/contentAreaDropListener.js
+@RESPATH@/components/PackagedAppUtils.manifest
+@RESPATH@/components/PackagedAppUtils.js
 ; GNOME hooks
 #ifdef MOZ_ENABLE_GNOME_COMPONENT
 @RESPATH@/components/@DLL_PREFIX@mozgnome@DLL_SUFFIX@
@@ -702,6 +710,10 @@
 @RESPATH@/components/nsUrlClassifierListManager.js
 @RESPATH@/components/nsUrlClassifierLib.js
 @RESPATH@/components/url-classifier.xpt
+
+; Signed Packaged Content
+@RESPATH@/components/InstallPackagedWebapp.manifest
+@RESPATH@/components/InstallPackagedWebapp.js
 
 ; ANGLE GLES-on-D3D rendering library
 #ifdef MOZ_ANGLE_RENDERER

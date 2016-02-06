@@ -17,7 +17,7 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/mailServices.js");
 
-let abController = null;
+var abController = null;
 var addrBook1, addrBook2, addrBook3, addrBook4;
 var mListA, mListB, mListC, mListD, mListE;
 var windowHelper;
@@ -355,8 +355,8 @@ function test_writing_to_mailing_list() {
   let to = composeWin.window.gMsgCompose.compFields.to;
 
   // Make sure we're writing to all contacts in the mailing list.
-  for each (contact in contacts) {
-    assert_not_equals(-1, to.indexOf(contact.primaryEmail));
-    assert_not_equals(-1, to.indexOf(contact.displayName));
+  for (let contact of contacts) {
+    assert_true(to.includes(contact.primaryEmail));
+    assert_true(to.includes(contact.displayName));
   }
 }

@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "folder-display-helpers";
+var MODULE_NAME = "folder-display-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
+var RELATIVE_ROOT = "../shared-modules";
 // we need window-helpers for augment_controller
-const MODULE_REQUIRES = ["window-helpers"];
+var MODULE_REQUIRES = ["window-helpers"];
 
 var EventUtils = {};
 Cu.import('resource://mozmill/stdlib/EventUtils.js', EventUtils);
@@ -21,14 +21,14 @@ Cu.import('resource://mozmill/modules/utils.js', utils);
 
 Cu.import("resource:///modules/gloda/log4moz.js");
 
-const nsMsgViewIndex_None = 0xffffffff;
+var nsMsgViewIndex_None = 0xffffffff;
 Cu.import('resource:///modules/MailConsts.js');
 Cu.import("resource:///modules/mailServices.js");
 Cu.import('resource:///modules/MailUtils.js');
 Cu.import('resource:///modules/mailViewManager.js');
 Cu.import("resource://gre/modules/Services.jsm");
 
-const FILE_LOAD_PATHS = [
+var FILE_LOAD_PATHS = [
   "../resources",
   "../../../../mailnews/test/resources",
   "../../../../mail/base/test/unit/resources",
@@ -38,13 +38,13 @@ const FILE_LOAD_PATHS = [
 /**
  * Server hostname as set in runtest.py
  */
-const FAKE_SERVER_HOSTNAME = 'tinderbox123';
+var FAKE_SERVER_HOSTNAME = 'tinderbox123';
 
 /**
  * List of keys not to export via installInto; values do not matter, we just
  *  use true.
  */
-const DO_NOT_EXPORT = {
+var DO_NOT_EXPORT = {
   // magic globals
   MODULE_NAME: true, DO_NOT_EXPORT: true, installInto: true,
   // imported modules
@@ -64,7 +64,7 @@ const DO_NOT_EXPORT = {
   windowHelper: true,
 };
 
-const EXPORT_VIA_GETTER_SETTER = {
+var EXPORT_VIA_GETTER_SETTER = {
   // These should be getters and setters instead of direct property accesses so
   // that setting them reflects across scopes.
   mc: true,
@@ -1687,7 +1687,7 @@ var FolderListener = {
       aFolder, aEvent) {
     if (!this.watchingFor)
       return;
-    if (this.watchingFor.indexOf(aEvent.toString()) != -1) {
+    if (this.watchingFor.includes(aEvent.toString())) {
       this.watchingFor = null;
       this.sawEvents = true;
     }
@@ -2145,7 +2145,7 @@ function assert_messages_summarized(aController, aSelectedMessages) {
  * Assert that there is nothing selected and, assuming we are in a folder, that
  *  the folder summary is displayed.
  */
-let assert_nothing_selected = assert_selected_and_displayed;
+var assert_nothing_selected = assert_selected_and_displayed;
 
 /**
  * Assert that the given view index or message is visible in the thread pane.
@@ -2229,7 +2229,7 @@ function add_to_toolbar(aToolbarElement, aElementId) {
               ["adding", aElementId,
                "current set", aToolbarElement.currentSet]);
   let currentSet = aToolbarElement.currentSet.split(",");
-  if (currentSet.indexOf(aElementId) == -1) {
+  if (!currentSet.includes(aElementId)) {
     currentSet.unshift(aElementId);
     aToolbarElement.currentSet = currentSet.join(",");
   }
@@ -2249,7 +2249,7 @@ function remove_from_toolbar(aToolbarElement, aElementId) {
               ["removing", aElementId,
                "current set", aToolbarElement.currentSet]);
   let currentSet = aToolbarElement.currentSet.split(",");
-  if (currentSet.indexOf(aElementId) != -1) {
+  if (currentSet.includes(aElementId)) {
     currentSet.splice(currentSet.indexOf(aElementId), 1);
     aToolbarElement.currentSet = currentSet.join(",");
   }
@@ -2327,7 +2327,7 @@ function _get_currently_focused_thing() {
   let focusedElement = mc.window.document.commandDispatcher.focusedElement;
   let elementsToMatch = [mc.e(elem)
                          for each ([, elem] in Iterator(RECOGNIZED_ELEMENTS))];
-  while (focusedElement && elementsToMatch.indexOf(focusedElement) == -1)
+  while (focusedElement && !elementsToMatch.includes(focusedElement))
     focusedElement = focusedElement.parentNode;
 
   return focusedElement ? focusedElement.id : null;
@@ -2469,7 +2469,7 @@ function assert_folders_selected() {
   return [troller, desiredFolders];
 }
 
-let assert_folder_selected = assert_folders_selected;
+var assert_folder_selected = assert_folders_selected;
 
 /**
  * Assert that the given folder is displayed, but not necessarily selected.
@@ -2521,8 +2521,8 @@ function assert_folders_selected_and_displayed() {
   }
 }
 
-let assert_no_folders_selected = assert_folders_selected_and_displayed;
-let assert_folder_selected_and_displayed =
+var assert_no_folders_selected = assert_folders_selected_and_displayed;
+var assert_folder_selected_and_displayed =
     assert_folders_selected_and_displayed;
 
 /**
@@ -2762,9 +2762,9 @@ function throw_and_dump_view_state(aMessage, aController) {
  * Copy constants from mailWindowOverlay.js
  */
 
-const kClassicMailLayout = 0;
-const kWideMailLayout = 1;
-const kVerticalMailLayout = 2;
+var kClassicMailLayout = 0;
+var kWideMailLayout = 1;
+var kVerticalMailLayout = 2;
 
 /**
  * Assert that the current mail pane layout is shown

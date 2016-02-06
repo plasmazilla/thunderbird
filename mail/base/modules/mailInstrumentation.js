@@ -8,13 +8,13 @@
 
 /* :::::::: Constants and Helpers ::::::::::::::: */
 
-const EXPORTED_SYMBOLS = ["mailInstrumentationManager"];
+this.EXPORTED_SYMBOLS = ["mailInstrumentationManager"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cu = Components.utils;
 
-const nsIMFNService = Ci.nsIMsgFolderNotificationService;
+var nsIMFNService = Ci.nsIMsgFolderNotificationService;
 
 Cu.import("resource:///modules/errUtils.js");
 Cu.import("resource://gre/modules/Services.jsm");

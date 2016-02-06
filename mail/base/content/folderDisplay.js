@@ -22,7 +22,7 @@ var nsMsgMessageFlags = Components.interfaces.nsMsgMessageFlags;
  * We are not just a global list so that we can add brains about efficiently
  *  building lists, provide try-wrapper convenience, etc.
  */
-let FolderDisplayListenerManager = {
+var FolderDisplayListenerManager = {
   _listeners: [],
 
   /**
@@ -244,14 +244,14 @@ FolderDisplayWidget.prototype = {
    * @return the focused pane
    */
   get focusedPane() {
-    let panes = [document.getElementById(id) for each (id in [
+    let panes = [document.getElementById(id) for (id of [
       "threadTree", "folderTree", "messagepanebox"
     ])];
 
     let currentNode = top.document.activeElement;
 
     while (currentNode) {
-      if (panes.indexOf(currentNode) != -1)
+      if (panes.includes(currentNode))
         return currentNode;
 
       currentNode = currentNode.parentNode;
@@ -1538,7 +1538,7 @@ FolderDisplayWidget.prototype = {
       aNotificationFunc.call(this);
     }
     else {
-      if (this._notificationsPendingActivation.indexOf(aNotificationFunc) == -1)
+      if (!this._notificationsPendingActivation.includes(aNotificationFunc))
         this._notificationsPendingActivation.push(aNotificationFunc);
     }
   },
@@ -2044,9 +2044,7 @@ FolderDisplayWidget.prototype = {
    *  conceptually have all of the messages in that thread selected.
    */
   get selectedCount() {
-    if (!this.view.dbView)
-      return 0;
-    return this.view.dbView.numSelected;
+    return this.selectedMessages.length;
   },
 
   /**

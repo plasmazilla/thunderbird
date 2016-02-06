@@ -8,9 +8,9 @@
  *   https://github.com/ircv3/ircv3-specifications/blob/master/extensions/sasl-3.1
  */
 
-const EXPORTED_SYMBOLS = ["ircSASL", "capSASL"];
+this.EXPORTED_SYMBOLS = ["ircSASL", "capSASL"];
 
-const Cu = Components.utils;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/ircHandlers.jsm");
 Cu.import("resource:///modules/ircUtils.jsm");

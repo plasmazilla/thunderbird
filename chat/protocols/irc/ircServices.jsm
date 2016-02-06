@@ -16,9 +16,9 @@
  *  http://www.anope.org/docgen/1.8/
  */
 
-const EXPORTED_SYMBOLS = ["ircServices", "servicesBase"];
+this.EXPORTED_SYMBOLS = ["ircServices", "servicesBase"];
 
-const Cu = Components.utils;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 Cu.import("resource:///modules/ircHandlers.jsm");

@@ -21,15 +21,15 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 /* This is where functions related to the 3 pane window are kept */
 
 // from MailNewsTypes.h
-const nsMsgKey_None = 0xFFFFFFFF;
-const nsMsgViewIndex_None = 0xFFFFFFFF;
-const kMailCheckOncePrefName = "mail.startup.enabledMailCheckOnce";
+var nsMsgKey_None = 0xFFFFFFFF;
+var nsMsgViewIndex_None = 0xFFFFFFFF;
+var kMailCheckOncePrefName = "mail.startup.enabledMailCheckOnce";
 
-const kStandardPaneConfig = 0;
-const kWidePaneConfig = 1;
-const kVerticalPaneConfig = 2;
+var kStandardPaneConfig = 0;
+var kWidePaneConfig = 1;
+var kVerticalPaneConfig = 2;
 
-const kNumFolderViews = 4; // total number of folder views
+var kNumFolderViews = 4; // total number of folder views
 
 /** widget with id=messagepanebox, initialized by GetMessagePane() */
 var gMessagePane;
@@ -110,7 +110,7 @@ var folderListener = {
 /*
  * Listen for Lightweight Theme styling changes and update the theme accordingly.
  */
-let LightweightThemeListener = {
+var LightweightThemeListener = {
   _modifiedStyles: [],
 
   init: function () {
@@ -298,8 +298,7 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
     {
       messenger.setWindow(null, null);
       messenger.setWindow(window, msgWindow);
-      if (gDBView && GetNumSelectedMessages() == 1)
-        gDBView.reloadMessage();
+      ReloadMessage();
     }
 
     // The quick filter bar gets badly lied to due to standard XUL/XBL problems,
@@ -343,7 +342,7 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
   }
 }
 
-const MailPrefObserver = {
+var MailPrefObserver = {
   observe: function(subject, topic, prefName) {
     // verify that we're changing the mail pane config pref
     if (topic == "nsPref:changed")
@@ -491,7 +490,7 @@ function OnLoadMessenger()
   let tabmail = document.getElementById('tabmail');
   if (tabmail)
   {
-    // mailTabType is defined in mailWindowOverlay.js
+    // mailTabType is defined in mailTabs.js
     tabmail.registerTabType(mailTabType);
     // glodaFacetTab* in glodaFacetTab.js
     tabmail.registerTabType(glodaFacetTabType);
@@ -517,6 +516,7 @@ function OnLoadMessenger()
   // This also registers the contentTabType ("contentTab")
   specialTabs.openSpecialTabsOnStartup();
   preferencesTabType.initialize();
+  // accountProvisionerTabType is defined in accountProvisionerTab.js
   tabmail.registerTabType(accountProvisionerTabType);
 
   // verifyAccounts returns true if the callback won't be called
@@ -1709,7 +1709,7 @@ function InitPageMenu(menuPopup, event) {
     event.preventDefault();
 }
 
-let TabsInTitlebar = {
+var TabsInTitlebar = {
   init: function () {
 #ifdef CAN_DRAW_IN_TITLEBAR
     // Don't trust the initial value of the sizemode attribute; wait for the

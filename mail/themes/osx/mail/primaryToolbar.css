@@ -29,8 +29,7 @@
      is enough. */
   background-repeat: repeat-x, no-repeat;
   background-position: 0 1px, 0 0;
-  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, .4),
-              0 -1px 0 hsl(0, 0%, 60%) inset;
+  box-shadow: inset 0 1px 0 hsla(0, 0%, 100%, .4);
 }
 
 @media (min-resolution: 2dppx) {
@@ -49,6 +48,14 @@
 .mail-toolbox:not(:-moz-lwtheme):-moz-window-inactive,
 .contentTabToolbox:not(:-moz-lwtheme):-moz-window-inactive {
   background-color: -moz-mac-chrome-inactive;
+}
+
+.mail-toolbox::after,
+.contentTabToolbox::after {
+  content: "";
+  display: -moz-box;
+  height: 1px;
+  background-color: hsl(0, 0%, 60%);
 }
 
 .mail-bar3 {
@@ -304,104 +311,208 @@ toolbar[mode="icons"] .toolbarbutton-1 > menupopup {
   display: none;
 }
 
-#button-getmsg {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#getmsg");
+@media not all and (-moz-mac-yosemite-theme) {
+  #button-getmsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#getmsg");
+  }
+
+  #button-newmsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#newmsg");
+  }
+
+  #button-address {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#address");
+  }
+
+  #button-reply {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#reply");
+  }
+
+  #button-replyall {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#replyall");
+  }
+
+  #button-replylist {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#replylist");
+  }
+
+  #button-forward {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#forward");
+  }
+
+  .delete-button {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#delete");
+  }
+
+  .junk-button {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#junk");
+  }
+
+  #button-print {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#print");
+  }
+
+  #button-stop {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#stop");
+  }
+
+  #button-file {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#file");
+  }
+
+  #button-nextUnread {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#nextUnread");
+  }
+
+  #button-previousUnread {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#previousUnread");
+  }
+
+  #button-mark {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#mark");
+  }
+
+  #button-tag {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#tag");
+  }
+
+  #button-goback {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#goback");
+  }
+
+  #button-goforward {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#goforward");
+  }
+
+  #button-compact {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#compact");
+  }
+
+  #button-archive {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#archive");
+  }
+
+  #button-chat {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#chat");
+  }
+
+  #button-nextMsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#nextMsg");
+  }
+
+  #button-previousMsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#previousMsg");
+  }
+
+  #qfb-show-filter-bar {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#filter");
+  }
+
+  .button-appmenu {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#appButton");
+  }
 }
 
-#button-newmsg {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#newmsg");
-}
+@media (-moz-mac-yosemite-theme) {
+  #button-getmsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#getmsg-flat");
+  }
 
-#button-address {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#address");
-}
+  #button-newmsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#newmsg-flat");
+  }
 
-#button-reply {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#reply");
-}
+  #button-address {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#address-flat");
+  }
 
-#button-replyall {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#replyall");
-}
+  #button-reply {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#reply-flat");
+  }
 
-#button-replylist {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#replylist");
-}
+  #button-replyall {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#replyall-flat");
+  }
 
-#button-forward {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#forward");
-}
+  #button-replylist {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#replylist-flat");
+  }
 
-.delete-button {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#delete");
-}
+  #button-forward {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#forward-flat");
+  }
 
-.junk-button {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#junk");
-}
+  .delete-button {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#delete");
+  }
 
-#button-print {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#print");
-}
+  .junk-button {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#junk-flat");
+  }
 
-#button-stop {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#stop");
-}
+  #button-print {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#print-flat");
+  }
 
-#button-file {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#file");
-}
+  #button-stop {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#stop-flat");
+  }
 
-#button-nextUnread {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#nextUnread");
-}
+  #button-file {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#file-flat");
+  }
 
-#button-previousUnread {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#previousUnread");
-}
+  #button-nextUnread {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#nextUnread-flat");
+  }
 
-#button-mark {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#mark");
-}
+  #button-previousUnread {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#previousUnread-flat");
+  }
 
-#button-tag {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#tag");
-}
+  #button-mark {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#mark-flat");
+  }
 
-#button-goback {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#goback");
-}
+  #button-tag {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#tag-flat");
+  }
 
-#button-goforward {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#goforward");
-}
+  #button-goback {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#goback-flat");
+  }
 
-#button-compact {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#compact");
-}
+  #button-goforward {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#goforward-flat");
+  }
 
-#button-archive {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#archive");
-}
+  #button-compact {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#compact-flat");
+  }
 
-#button-chat {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#chat");
-}
+  #button-archive {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#archive-flat");
+  }
 
-#button-nextMsg {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#nextMsg");
-}
+  #button-chat {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#chat-flat");
+  }
 
-#button-previousMsg {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#previousMsg");
-}
+  #button-nextMsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#nextMsg-flat");
+  }
 
-#qfb-show-filter-bar {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#filter");
-}
+  #button-previousMsg {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#previousMsg-flat");
+  }
 
-.button-appmenu {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#appButton");
+  #qfb-show-filter-bar {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#filter-flat");
+  }
+
+  .button-appmenu {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#appButton-flat");
+  }
 }
 
 toolbar[brighttext] #button-getmsg {

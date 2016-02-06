@@ -659,27 +659,17 @@ nsresult nsMapiHook::PopulateCompFieldsWithConversion(lpnsMapiMessage aMessage,
 
 // this is used to populate the docs as attachments in the Comp fields for Send Documents
 nsresult nsMapiHook::PopulateCompFieldsForSendDocs(nsIMsgCompFields * aCompFields, ULONG aFlags,
-                            char16_t * aDelimChar, char16_t * aFilePaths)
+                                                   LPTSTR aDelimChar, LPTSTR aFilePaths)
 {
   nsAutoString strDelimChars ;
   nsString strFilePaths;
   nsresult rv = NS_OK ;
   bool bExist ;
 
-  if (aFlags & MAPI_UNICODE)
-  {
-    if (aDelimChar)
-      strDelimChars.Assign (aDelimChar);
-    if (aFilePaths)
-      strFilePaths.Assign (aFilePaths);
-  }
-  else
-  {
-    if (aDelimChar)
-      strDelimChars.Assign(aDelimChar);
-    if (aFilePaths)
-      strFilePaths.Assign ( aFilePaths);
-  }
+  if (aDelimChar)
+    strDelimChars.Assign(aDelimChar);
+  if (aFilePaths)
+    strFilePaths.Assign(aFilePaths);
 
   // check for comma in filename
   if (strDelimChars.FindChar(',') == kNotFound)  // if comma is not in the delimiter specified by user

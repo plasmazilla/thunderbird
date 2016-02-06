@@ -8,9 +8,9 @@
  *     http://www.alien.net.au/irc/ctcp.txt
  */
 
-const EXPORTED_SYMBOLS = ["ircCTCP", "ctcpBase"];
+this.EXPORTED_SYMBOLS = ["ircCTCP", "ctcpBase"];
 
-const Cu = Components.utils;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/imServices.jsm");
 Cu.import("resource:///modules/imXPCOMUtils.jsm");

@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-let EXPORTED_SYMBOLS = ["PluralStringFormatter", "makeFriendlyDateAgo"];
+var EXPORTED_SYMBOLS = ["PluralStringFormatter", "makeFriendlyDateAgo"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/PluralForm.jsm");
 Cu.import("resource:///modules/StringBundle.js");
@@ -30,7 +30,7 @@ PluralStringFormatter.prototype = {
 };
 
 
-const gTemplateUtilsStrings = new PluralStringFormatter(
+var gTemplateUtilsStrings = new PluralStringFormatter(
   "chrome://messenger/locale/templateUtils.properties"
 );
 
