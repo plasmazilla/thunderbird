@@ -184,7 +184,7 @@ Package: icedove-l10n-de
 Architecture: all
 Depends: ${misc:Depends}, icedove (>= 44.0~), icedove (<< 45)
 Homepage: https://wiki.mozilla.org/L10n:Teams:de
-Recommends: myspell-de-de | myspell-de-at | myspell-de-ch | hunspell-de-de | hunspell-de-at | hunspell-de-ch
+Recommends: hunspell-de-de | hunspell-de-at | hunspell-de-ch
 Description: German language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
