@@ -105,3 +105,5 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Empruvar il modus segirà">
 <!ENTITY aboutSupport.restartInSafeMode.label "Reaviar cun supplements deactivads…">
+
+<!ENTITY aboutSupport.experimentBranch "Branch">

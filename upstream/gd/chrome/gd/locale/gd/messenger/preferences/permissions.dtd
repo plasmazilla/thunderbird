@@ -3,7 +3,7 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY window.title                 "Eisgeachdan">
-<!ENTITY window.width                 "42em">
+<!ENTITY window.width                 "50em">
 
 <!ENTITY treehead.sitename.label      "Seòladh">
 <!ENTITY treehead.status.label        "Staid">
@@ -16,11 +16,13 @@
 <!ENTITY block.label                  "Cuir bacadh air">
 <!ENTITY block.accesskey              "b">
 <!ENTITY session.label                "Ceadaich fad an t-seisein">
-<!ENTITY session.accesskey            "s">
+<!ENTITY session.accesskey            "n">
 <!ENTITY allow.label                  "Ceadaich">
 <!ENTITY allow.accesskey              "a">
 <!ENTITY windowClose.key              "w">
 
-<!ENTITY button.close.label           "Dùin">
-<!ENTITY button.close.accesskey       "D">
+<!ENTITY button.cancel.label          "Sguir dheth">
+<!ENTITY button.cancel.accesskey      "S">
+<!ENTITY button.ok.label              "Sàbhail na h-atharraichean">
+<!ENTITY button.ok.accesskey          "S">
 

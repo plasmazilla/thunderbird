@@ -25,3 +25,6 @@
 <!ENTITY userName.label   "Потребителско име:">
 <!ENTITY connectionSecurity.label "Сигурност на връзката:">
 <!ENTITY authMethod.label   "Метод на удостоверяване: ">
+
+
+<!ENTITY serverDetails.label "Details of selected server:">

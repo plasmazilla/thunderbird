@@ -31,6 +31,7 @@
 <!ENTITY aboutSupport.experimentActive "Aktywny">
 <!ENTITY aboutSupport.experimentEndDate "Data zakończenia">
 <!ENTITY aboutSupport.experimentHomepage "Strona">
+<!ENTITY aboutSupport.experimentBranch "Wersja">
 
 <!ENTITY aboutSupport.appBasicsTitle "Informacje o aplikacji">
 <!ENTITY aboutSupport.appBasicsName "Nazwa">
@@ -55,6 +56,8 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsMemoryUse "Zużycie pamięci">
 <!ENTITY aboutSupport.appBasicsServiceWorkers "Zarejestrowane wątki usługowe">
 <!ENTITY aboutSupport.appBasicsMultiProcessSupport "Okna wieloprocesowe">
+
+<!ENTITY aboutSupport.appBasicsSafeMode "Tryb awaryjny">
 
 <!ENTITY aboutSupport.showDir.label "Otwórz katalog">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
@@ -97,6 +100,3 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Tryb awaryjny">
 <!ENTITY aboutSupport.restartInSafeMode.label "Uruchom ponownie z wyłączonymi dodatkami…">
-
-
-<!ENTITY aboutSupport.appBasicsSafeMode "Safe Mode">

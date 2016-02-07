@@ -25,3 +25,6 @@
 <!ENTITY userName.label   "Brukarnamn: ">
 <!ENTITY connectionSecurity.label "Tilkoplingstryggleik: ">
 <!ENTITY authMethod.label   "Autentiseringsmetode:">
+
+
+<!ENTITY serverDetails.label "Details of selected server:">
