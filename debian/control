@@ -6,8 +6,8 @@ Uploaders: Carsten Schoenert <c.schoenert@t-online.de>
 Build-Depends: debhelper (>= 7.0.50~)
 Build-Depends-Indep: unzip, zip, mozilla-devscripts
 Standards-Version: 3.9.6
-Vcs-Git: git://anonscm.debian.org/pkg-mozilla/icedove-l10n.git
-Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-mozilla/icedove-l10n.git;a=summary
+Vcs-Git: https://anonscm.debian.org/cgit/pkg-mozilla/icedove-l10n.git
+Vcs-Browser: https://anonscm.debian.org/cgit/pkg-mozilla/icedove-l10n.git
 Homepage: https://wiki.mozilla.org/L10n:Teams
 
 Package: icedove-l10n-all
