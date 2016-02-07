@@ -28,14 +28,11 @@
 <!ENTITY addToUserDictionaryButton.accessKey "D">
 <!ENTITY editUserDictionaryButton.label "Uredi ...">
 <!ENTITY editUserDictionaryButton.accessKey "U">
-<!ENTITY recheckButton.label "Ponovno preglej stran">
-<!ENTITY recheckButton.accessKey "P">
+<!ENTITY recheckButton2.label "Ponovno preveri besedilo">
+<!ENTITY recheckButton2.accessKey "P">
 <!ENTITY closeButton.label "Zapri">
 <!ENTITY closeButton.accessKey "Z">
 <!ENTITY sendButton.label "Pošlji">
 <!ENTITY sendButton.accessKey "P">
 <!ENTITY languagePopup.label "Jezik:">
 <!ENTITY languagePopup.accessKey "J">
-
-<!ENTITY recheckButton2.accessKey "T">
-<!ENTITY recheckButton2.label "Recheck Text">

@@ -25,3 +25,6 @@
 <!ENTITY userName.label   "Num d'utilisader: ">
 <!ENTITY connectionSecurity.label "Segirezza da la connexiun: ">
 <!ENTITY authMethod.label   "Metoda d'autentificaziun: ">
+
+
+<!ENTITY serverDetails.label "Details of selected server:">

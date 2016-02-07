@@ -25,3 +25,6 @@
 <!ENTITY userName.label   "Enw Defnyddiwr: ">
 <!ENTITY connectionSecurity.label "Diogelwch y Cysylltiad: ">
 <!ENTITY authMethod.label   "Dull dilysu: ">
+
+
+<!ENTITY serverDetails.label "Details of selected server:">

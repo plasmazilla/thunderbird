@@ -14,6 +14,7 @@
 <!ENTITY searchPrefs.label "Sykje:">
 <!ENTITY searchPrefs.accesskey "S">
 <!ENTITY focusSearch.key "s">
+<!ENTITY focusSearch2.key "f">
 
 <!-- Columns -->
 <!ENTITY prefColumn.label "Foarkarnamme">
@@ -47,5 +48,3 @@
 <!ENTITY integer.accesskey "I">
 <!ENTITY boolean.accesskey "B">
 <!ENTITY boolean.label "Boolean">
-
-<!ENTITY focusSearch2.key "f">

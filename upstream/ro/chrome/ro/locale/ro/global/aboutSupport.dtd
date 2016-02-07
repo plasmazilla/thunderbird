@@ -103,3 +103,5 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Încercați modul sigur">
 <!ENTITY aboutSupport.restartInSafeMode.label "Repornire cu suplimente dezactivate…">
+
+<!ENTITY aboutSupport.experimentBranch "Branch">

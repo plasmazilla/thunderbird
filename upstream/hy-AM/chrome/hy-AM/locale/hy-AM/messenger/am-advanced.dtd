@@ -25,3 +25,6 @@
 <!ENTITY userName.label   "Օգտվողի անունը.">
 <!ENTITY connectionSecurity.label "Միացման անվտանգությունը.">
 <!ENTITY authMethod.label   "Իսկորոշման եղանակ. ">
+
+
+<!ENTITY serverDetails.label "Details of selected server:">

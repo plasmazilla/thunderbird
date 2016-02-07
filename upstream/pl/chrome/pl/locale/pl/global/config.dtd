@@ -13,6 +13,7 @@
 <!ENTITY searchPrefs.label "Szukaj:" >
 <!ENTITY searchPrefs.accesskey "S" >
 <!ENTITY focusSearch.key "r">
+<!ENTITY focusSearch2.key "f">
 
 <!-- Columns -->
 <!ENTITY prefColumn.label "Nazwa" >
@@ -46,5 +47,3 @@
 <!ENTITY integer.accesskey "I" >
 <!ENTITY boolean.label "Wartość logiczna (Boolean)" >
 <!ENTITY boolean.accesskey "B" >
-
-<!ENTITY focusSearch2.key "f">

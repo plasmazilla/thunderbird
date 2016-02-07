@@ -24,3 +24,6 @@
 <!ENTITY userName.label                "Kasutajanimi: ">
 <!ENTITY connectionSecurity.label      "Ühenduse turvalisus: ">
 <!ENTITY authMethod.label              "Autentimise viis: ">
+
+
+<!ENTITY serverDetails.label "Details of selected server:">

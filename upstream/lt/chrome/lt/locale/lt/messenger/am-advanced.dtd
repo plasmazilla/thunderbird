@@ -25,3 +25,6 @@
 <!ENTITY userName.label   "Abonento vardas: ">
 <!ENTITY connectionSecurity.label "Saugusis ryšys: ">
 <!ENTITY authMethod.label   "Tapatumo tikrinimo metodas: ">
+
+
+<!ENTITY serverDetails.label "Details of selected server:">
