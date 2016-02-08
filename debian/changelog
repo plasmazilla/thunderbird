@@ -1,3 +1,19 @@
+icedove-l10n (1:44.0~b1-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [5c5abe7] Imported Upstream version 44.0~b1
+  * [20f9d69] rebuild patch queue from patch-queue branch
+  * [c0a50bd] adjust icedove depends >= 44.0~ and icedove << 45
+
+  [ Roland Rosenfeld ]
+  * [660bf7b] icedove-l10n-de: replace recommends for myspell-de-*
+    (Closes: #813830)
+
+  [ Carsten Schoenert ]
+  * [c927e38] debian/control: switch URI for the Vcs fields to https
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Mon, 08 Feb 2016 20:25:17 +0100
+
 icedove-l10n (1:43.0~b1-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
