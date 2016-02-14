@@ -1,3 +1,16 @@
+icedove (38.6.0-1) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * [195730d] Clarify relation between icedove and the calendar extensions
+    (Closes: #809017)
+
+  [ Christoph Goehre ]
+  * [988ce5b] Imported Upstream version 38.6.0
+  * [6763f6f] debian/source.filter: remove evil-licensed jshint.js
+    (Closes: #813053)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 14 Feb 2016 16:08:13 -0500
+
 icedove (38.5.0-1) unstable; urgency=medium
 
   [ Christoph Goehre ]
