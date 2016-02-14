@@ -1,3 +1,28 @@
+icedove (44.0~b1-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [a24f78b] Imported Upstream version 44.0~b1
+  * [7f52453] rebuild patch queue from patch-queue branch
+    removed patches:
+    - d-hacks/Add-unminified-jquery-and-jquery-ui-files.patch
+    - d-hacks/Allow-unsigned-addons-in-usr-lib-share-mozilla-extensions.patch
+    - d-hacks/creating-a-dummy-.deps-directory-to-get-make-happy.patch
+    added patches:
+    - p-arm64/FTBFS-arm64-Adding-configure-option-for-aarch64-platform.patch
+    - p-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-1-4.patch
+    - p-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-2-4.patch
+    - p-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-3-4.patch
+    - p-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-4-4.patch
+    modified patches:
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+  * [ecf1110] debian/watch: adjust to new CDN structure
+  * [dd5efe8] debian/control: increase Build-Depends on libsqlite3-dev
+  * [57165b5] debian/control: switch URI for the Vcs fields to https
+  * [c9ded96] debian/source.filter: adding more filters on testings js files
+  * [31ce42f] debian/copyright: update due upstream/import changes
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 13 Feb 2016 19:08:55 -0500
+
 icedove (43.0~b1-1) experimental; urgency=medium
 
   [ Christoph Goehre ]
