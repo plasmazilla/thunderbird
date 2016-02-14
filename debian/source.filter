@@ -59,6 +59,7 @@ mozilla/python/mock-1.0.0/html/_static/underscore.js
 mozilla/browser/components/loop/content/shared/libs/sdk-content/js/dynamic_config.min.js
 mozilla/browser/components/translation/cld2/cld-worker.js
 mozilla/dom/imptests/html/js/builtins/Math.maxmin.js
+mozilla/dom/system/gonk/tests/marionette/ril_jshint/jshint.js
 # don't filter out the following JS file, it's needed later while building
 #mozilla/testing/marionette/atoms/atoms.js
 mozilla/testing/marionette/client/marionette/runner/mixins/resources/htmlreport/jquery.js
