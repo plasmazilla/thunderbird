@@ -35,9 +35,3 @@ porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
 porting/ppc-fix-divide-page-size-in-jemalloc.patch
 debian-hacks/changing-the-default-search-engine.patch
 porting-mips/Fix-build-error-in-MIPS-SIMD-when-compiling-with-mfp.patch
-fixes/Bug-1178266-Link-against-libatomic-when-necessary.patch
-porting-arm64/FTBFS-arm64-Adding-configure-option-for-aarch64-platform.patch
-porting-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-1-4.patch
-porting-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-2-4.patch
-porting-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-3-4.patch
-porting-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-4-4.patch
