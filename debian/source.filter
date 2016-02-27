@@ -34,7 +34,6 @@ mozilla/devtools/client/shared/test
 #mozilla/dom/indexedDB/test/unit/test_filehandle_append_read_data.js
 #mozilla/dom/imptests/html/js/builtins/Math.maxmin.js
 #mozilla/dom/json/test/unit/test_decode_long_input.js
-
 mozilla/dom/html/reftests/toblob-todataurl/sample.js
 mozilla/dom/system/gonk/tests/marionette/ril_jshint/jshint.js
 mozilla/gfx/angle/src/libEGL/libEGL.rc
