@@ -19,10 +19,10 @@ License: MPL-2.0 or GPL-2 or LGPL-2.1
 Files: debian/*
 Copyright: 2003-2009, Alexander Sack <asac@debian.org>
            2008, Fabien Tassin <fta@sofaraway.org>
-           2013-2015, Carsten Schoenert <c.schoenert@t-online.de>
+           2013-2016, Carsten Schoenert <c.schoenert@t-online.de>
            2009-2013, Guido Günther <agx@sigxcpu.org>
-           2010-2015, Christoph Goehre <chris@sigxcpu.org>
-License: MPL-1.1 or GPL-2 or LGPL-2.1
+           2010-2016, Christoph Goehre <chris@sigxcpu.org>
+License: MPL-1.1 or MPL-2.0 or GPL-2 or LGPL-2.1
 
 Files: debian/logo/icedove_icon_plain.svg
        debian/logo/icedove_icon_profile_plain.svg
@@ -300,10 +300,6 @@ Copyright: 2011, Patrick Brunschwig <patrick@enigmail.net>
            2011, Jan Gerber <j@mailb.org>
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: mozilla/browser/components/loop/test/shared/vendor/sinon-1.16.1.js
-Copyright: 2010-2014, Christian Johansen, <christian@cjohansen.no>
-License: BSD-3
-
 Files: mozilla/browser/components/translation/cld2/*
        mozilla/browser/components/translation/test/unit/test_cld2.js
 Copyright: 2013-2014, Google Inc.
@@ -341,7 +337,6 @@ Copyright: 2000, International Business Machines (IBM)
 License: MPL-2.0
 
 Files: mozilla/dom/bluetooth/bluedroid/BluetoothServiceBluedroid.cpp
-       mozilla/dom/bluetooth/bluedroid/b2g_bdroid_buildcfg.h
        mozilla/dom/bluetooth/bluez/BluetoothDBusService.cpp
        mozilla/dom/bluetooth/bluez/BluetoothUnixSocketConnector.cpp
        mozilla/dom/camera/GonkCameraListener.h
@@ -473,11 +468,6 @@ Files: mozilla/dom/media/webaudio/blink/DenormalDisabler.h
        mozilla/dom/media/webaudio/blink/HRTFPanner.h
 Copyright: 2010-2011, Google Inc.
 License: BSD-2
-
-Files: mozilla/dom/media/webaudio/blink/DirectConvolver.cpp
-       mozilla/dom/media/webaudio/blink/DirectConvolver.h
-Copyright: 2012, Intel Inc.
-License: BSD-3-clause
 
 Files: mozilla/dom/media/webaudio/blink/IRC_Composite_C_R0195-incl.cpp
 Copyright: no-info-found
@@ -2449,8 +2439,6 @@ Copyright: 2005-2006, 2008-2013, Google Inc.
 License: BSD-3-clause
 
 Files: mozilla/mfbt/decimal/moz-decimal-utils.h
-       mozilla/mobile/android/base/sync/synchronizer/RecordsChannel.java
-       mozilla/mobile/android/base/util/ProxySelector.java
        mozilla/mobile/android/thirdparty/com/googlecode/eyesfree/braille/selfbraille/ISelfBrailleService.java
 Copyright: no-info-found
 License: MPL-2.0
@@ -2464,13 +2452,7 @@ Files: mozilla/mfbt/lz4.c
 Copyright: 2011-2014, Yann Collet
 License: BSD-2
 
-Files: mozilla/mobile/android/base/animation/Rotate3DAnimation.java
-       mozilla/mobile/android/base/background/preferences/*
-       mozilla/mobile/android/base/home/SimpleCursorLoader.java
-       mozilla/mobile/android/base/sqlite/MatrixBlobCursor.java
-       mozilla/mobile/android/base/widget/ActivityChooserModel.java
-       mozilla/mobile/android/base/widget/DateTimePicker.java
-       mozilla/mobile/android/stumbler/java/org/mozilla/mozstumbler/service/utils/PersistentIntentService.java
+Files: mozilla/mobile/android/stumbler/java/org/mozilla/mozstumbler/service/utils/PersistentIntentService.java
        mozilla/mobile/android/thirdparty/ch/boye/httpclientandroidlib/androidextra/Base64.java
        mozilla/mobile/android/thirdparty/com/nineoldandroids/*
        mozilla/mobile/android/thirdparty/com/nineoldandroids/view/ViewPropertyAnimator.java
@@ -2478,20 +2460,6 @@ Files: mozilla/mobile/android/base/animation/Rotate3DAnimation.java
        mozilla/mobile/android/thirdparty/com/nineoldandroids/view/ViewPropertyAnimatorPreHC.java
        mozilla/mobile/android/thirdparty/com/squareup/picasso/LruCache.java
 Copyright: 2005-2013, The Android Open Source Project
-License: Apache-2.0
-
-Files: mozilla/mobile/android/base/toolbar/ToolbarProgressView.java
-Copyright: 2005-2013, The Android Open Source Project
-License: Apache-2.0
-
-Files: mozilla/mobile/android/base/widget/ButtonToast.java
-       mozilla/mobile/android/base/widget/SwipeDismissListViewTouchListener.java
-Copyright: 2012, Roman Nurik
-License: Apache-2.0
-
-Files: mozilla/mobile/android/base/widget/TwoWayView.java
-Copyright: 2013, Lucas Rocha
-           2012, The Android Open Source Project
 License: Apache-2.0
 
 Files: mozilla/mobile/android/thirdparty/*
@@ -3206,7 +3174,6 @@ Files: mozilla/testing/mochitest/tests/SimpleTest/ChromePowers.js
        mozilla/toolkit/components/passwordmgr/test/browser/*
        mozilla/toolkit/components/places/tests/favicons/head_favicons.js
        mozilla/toolkit/components/places/tests/favicons/test_moz-anno_favicon_mime_type.js
-       mozilla/toolkit/components/url-classifier/tests/TestUrlClassifierUtils.cpp
        mozilla/toolkit/components/search/tests/xpcshell/test_645970.js
        mozilla/toolkit/components/search/tests/xpcshell/test_init_async_multiple.js
        mozilla/toolkit/components/search/tests/xpcshell/test_init_async_multiple_then_sync.js
@@ -3354,7 +3321,6 @@ License: MPL-2.0
 
 Files: mozilla/toolkit/identity/tests/unit/test_load_modules.js
        mozilla/toolkit/locales/compare-locales.pl
-       mozilla/toolkit/locales/en-US/chrome/global/devtools/*
        mozilla/toolkit/modules/tests/xpcshell/test_propertyListsUtils.js
        mozilla/toolkit/mozapps/extensions/test/browser/browser_CTP_plugins.js
        mozilla/toolkit/mozapps/extensions/test/browser/browser_bug562992.js
