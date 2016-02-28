@@ -158,11 +158,7 @@ override_dh_strip:
 	fi
 
 override_dh_shlibdeps:
-	dh_shlibdeps -a -l $(CURDIR)/debian/tmp/usr/lib/icedove -Xlibmozgnome -Xlibdbusservice
-	LD_LIBRARY_PATH=$(CURDIR)/debian/tmp/usr/lib/icedove dpkg-shlibdeps \
-		-Tdebian/icedove.substvars \
-		-dDepends \
-		-pgnome $(foreach lib,dbusservice mozgnome,debian/icedove/usr/lib/icedove/components/lib$(lib).so)
+	dh_shlibdeps -a -l $(CURDIR)/debian/tmp/usr/lib/icedove
 
 override_dh_builddeb:
 	# just build all packages if there is no 'UNRELEASED' within the changelog
