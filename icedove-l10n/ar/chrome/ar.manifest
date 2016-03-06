@@ -1,0 +1,28 @@
+locale alerts ar ar/locale/ar/alerts/
+locale autoconfig ar ar/locale/ar/autoconfig/
+locale branding ar ar/locale/ar/branding/
+locale chat ar ar/locale/ar/chat/
+locale communicator ar ar/locale/ar/communicator/
+locale cookie ar ar/locale/ar/cookie/
+locale devtools-shared ar ar/locale/ar/devtools/shared/
+locale editor ar ar/locale/ar/editor/
+locale formautofill ar ar/locale/ar/formautofill/
+locale global ar ar/locale/ar/global/
+locale global-platform ar ar/locale/ar/global-platform/
+locale global-region ar ar/locale/ar/global-region/
+locale messenger ar ar/locale/ar/messenger/
+locale messenger-mapi ar ar/locale/ar/messenger-mapi/
+locale messenger-newsblog ar ar/locale/ar/messenger-newsblog/
+locale messenger-region ar ar/locale/ar/messenger-region/
+locale messenger-smime ar ar/locale/ar/messenger-smime/
+locale mozapps ar ar/locale/ar/mozapps/
+locale mozldap ar ar/locale/ar/mozldap/
+locale necko ar ar/locale/ar/necko/
+locale passwordmgr ar ar/locale/ar/passwordmgr/
+locale pipnss ar ar/locale/ar/pipnss/
+locale pippki ar ar/locale/ar/pippki/
+locale places ar ar/locale/ar/places/
+locale pluginproblem ar ar/locale/ar/pluginproblem/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

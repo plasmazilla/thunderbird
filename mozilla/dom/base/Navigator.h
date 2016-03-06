@@ -292,6 +292,7 @@ public:
                               MozGetUserMediaDevicesSuccessCallback& aOnSuccess,
                               NavigatorUserMediaErrorCallback& aOnError,
                               uint64_t aInnerWindowID,
+                              const nsAString& aCallID,
                               ErrorResult& aRv);
 #endif // MOZ_MEDIA_NAVIGATOR
 
@@ -332,8 +333,6 @@ public:
 #ifdef MOZ_B2G
   static bool HasMobileIdSupport(JSContext* aCx, JSObject* aGlobal);
 #endif
-
-  static bool HasTVSupport(JSContext* aCx, JSObject* aGlobal);
 
   static bool HasPresentationSupport(JSContext* aCx, JSObject* aGlobal);
 

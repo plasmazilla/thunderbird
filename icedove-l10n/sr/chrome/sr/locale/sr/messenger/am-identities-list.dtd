@@ -1,0 +1,16 @@
+<!ENTITY identitiesListDesc.label "Подршка за вишеструке личности">
+<!ENTITY identitiesListAdd.label  "Додај…">
+<!ENTITY identitiesListAdd.accesskey  "Д">
+<!ENTITY identitiesListEdit.label "Уреди…">
+<!ENTITY identitiesListEdit.accesskey "У">
+<!ENTITY identitiesListDelete.label "Уклони">
+<!ENTITY identitiesListDelete.accesskey "У">
+
+
+<!ENTITY identitiesListClose.accesskey "C">
+<!ENTITY identitiesListClose.label "Close">
+<!ENTITY identitiesListDefault.accesskey "S">
+<!ENTITY identitiesListDefault.label "Set Default">
+
+
+<!ENTITY identitiesListManageDesc.label "Manage the identities for this account. The first identity is used by default.">

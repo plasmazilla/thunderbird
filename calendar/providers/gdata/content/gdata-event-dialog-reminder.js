@@ -19,8 +19,19 @@
     notification.setAttribute("type", "critical");
     notification.setAttribute("hideclose", "true");
 
-    function checkReminderRange(reminder) {
+    function calculateAlarmOffset(item, reminder) {
         let offset = cal.alarms.calculateAlarmOffset(item, reminder);
+        // bug 1196455: The offset calcuated for absolute alarms is flipped
+        if (Services.vc.compare(Services.appinfo.platformVersion, "43.0") < 0) {
+            if (reminder.related == reminder.ALARM_RELATED_ABSOLUTE) {
+                offset.isNegative = !offset.isNegative;
+            }
+        }
+        return offset;
+    }
+
+    function checkReminderRange(reminder) {
+        let offset = calculateAlarmOffset(item, reminder);
         let seconds = offset.inSeconds;
         return (seconds < 1 && seconds >= FOUR_WEEKS_BEFORE);
     }
@@ -51,6 +62,25 @@
         }
     }
 
+    /**
+     * Hides the "after the event starts" reminder relations, these are not
+     * supported by Google.
+     */
+    function hideReminderRelations() {
+        document.getElementById("reminder-after-start-menuitem").hidden = true;
+        document.getElementById("reminder-after-end-menuitem").hidden = true;
+    }
+
+    /**
+     * SMS Reminders are only supported for Google Apps for Work, Education,
+     * and Government. hide the menuitem if SMS reminders are not supported
+     */
+    function hideSMSReminders() {
+        if (!Preferences.get("calendar.google.enableSMSReminders", false)) {
+            document.getElementById("reminder-action-SMS").hidden = true;
+        }
+    }
+
     monkeyPatch(window, "updateReminder", function(protofunc, event) {
         let rv = protofunc.apply(this, Array.slice(arguments, 1));
         if (event.explicitOriginalTarget.localName == "listitem" ||
@@ -67,6 +97,8 @@
     monkeyPatch(window, "loadReminders", function(protofunc /*, ...args */) {
         let rv = protofunc.apply(this, Array.slice(arguments, 1));
         checkAllReminders();
+        hideReminderRelations();
+        hideSMSReminders();
         return rv;
     });
 })();

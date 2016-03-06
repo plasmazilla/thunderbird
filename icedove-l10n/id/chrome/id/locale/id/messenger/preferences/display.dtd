@@ -1,0 +1,81 @@
+<!ENTITY itemFormatting.label             "Format">
+<!ENTITY itemTags.label                   "Tag">
+
+<!ENTITY style.label                      "Gaya:">
+<!ENTITY style.accesskey                  "y">
+<!ENTITY regularStyle.label               "Reguler">
+<!ENTITY bold.label                       "Tebal">
+<!ENTITY italic.label                     "Miring">
+<!ENTITY boldItalic.label                 "Tebal Miring">
+<!ENTITY size.label                       "Ukuran:">
+<!ENTITY size.accesskey                   "U">
+<!ENTITY regularSize.label                "Reguler">
+<!ENTITY bigger.label                     "Lebih Besar">
+<!ENTITY smaller.label                    "Lebih kecil">
+<!ENTITY color.label                      "Warna:">
+<!ENTITY color.accesskey                  "W">
+<!ENTITY displayWidth.label               "Pesan Teks Polos">
+<!ENTITY displayText.label                "Saat menampilkan kutipan dalam pesan dalam format teks polos gunakan:">
+<!ENTITY colors.label                     "Warna">
+<!ENTITY overrideColors.label             "Saat menampilkan pesan gunakan warna berikut:">
+<!ENTITY textColor.label                  "Warna Teks:">
+<!ENTITY textColor.accesskey              "T">
+<!ENTITY backgroundColor.label            "Warna Latar Belakang:">
+<!ENTITY backgroundColor.accesskey        "W">
+
+<!-- LOCALIZATION NOTE : (emoticonsAndStructs.label) 'Emoticons' are also known as 'Smileys', e.g. :-)   -->
+<!ENTITY convertEmoticons.label        "Tampilkan emotikon dengan gambar">
+<!ENTITY convertEmoticons.accesskey    "d">
+
+<!-- labels -->
+<!ENTITY displayTagsText.label     "Tag dapat digunakan untuk mengelompokkan dan memprioritaskan pesan.">
+<!ENTITY addTagButton.label        "Tambah">
+<!ENTITY addTagButton.accesskey    "a">
+<!ENTITY editTagButton.label       "Ubah">
+<!ENTITY editTagButton.accesskey   "U">
+<!ENTITY removeTagButton.label     "Hapus">
+<!ENTITY removeTagButton.accesskey "H">
+
+<!-- Fonts -->
+<!ENTITY fontsAndColors.label    "Huruf">
+<!ENTITY defaultFont.label       "Huruf default:">
+<!ENTITY defaultFont.accesskey   "d">
+<!ENTITY defaultSize.label       "Ukuran:">
+<!ENTITY defaultSize.accesskey   "U">
+<!ENTITY fontOptions.accesskey   "C">
+<!ENTITY fontOptions.label       "Canggih…">
+
+<!ENTITY autoMarkAsRead.accesskey         "A">
+
+<!ENTITY autoMarkAsRead.label             "Automatically mark messages as read">
+<!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
+<!ENTITY closeMsgOnMoveOrDelete.label     "Close message window/tab on move or delete">
+<!ENTITY colorButton.accesskey   "C">
+<!ENTITY colorButton.label       "Colors…">
+<!ENTITY display.caption                  "Display">
+
+<!-- Fonts and Colors -->
+<!ENTITY fontsAndColors1.label   "Fonts &amp; Colors">
+<!ENTITY itemAdvanced.label               "Advanced">
+<!ENTITY markAsReadDelay.accesskey        "d">
+<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
+     "After displaying for [___] seconds",
+     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
+<!ENTITY markAsReadDelay.label            "After displaying for">
+<!ENTITY markAsReadNoDelay.accesskey      "o">
+<!ENTITY markAsReadNoDelay.label          "Immediately on display">
+<!ENTITY openMsgIn.label                  "Open messages in:">
+<!ENTITY openMsgInNewTab.accesskey        "t">
+<!ENTITY openMsgInNewTab.label            "A new tab">
+<!ENTITY quotedTextColor.accesskey        "o">
+<!ENTITY quotedTextColor.label            "Color:">
+
+<!-- Advanced -->
+<!ENTITY reading.caption                  "Reading">
+<!ENTITY reuseExpRadio0.accesskey         "n">
+<!ENTITY reuseExpRadio0.label             "A new message window">
+<!ENTITY reuseExpRadio1.accesskey         "e">
+<!ENTITY reuseExpRadio1.label             "An existing message window">
+<!ENTITY secondsLabel.label               "seconds">
+<!ENTITY showCondensedAddresses.accesskey "S">
+<!ENTITY showCondensedAddresses.label     "Show only display name for people in my address book">

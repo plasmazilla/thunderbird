@@ -1,0 +1,28 @@
+locale alerts uk uk/locale/uk/alerts/
+locale autoconfig uk uk/locale/uk/autoconfig/
+locale branding uk uk/locale/uk/branding/
+locale chat uk uk/locale/uk/chat/
+locale communicator uk uk/locale/uk/communicator/
+locale cookie uk uk/locale/uk/cookie/
+locale devtools-shared uk uk/locale/uk/devtools/shared/
+locale editor uk uk/locale/uk/editor/
+locale formautofill uk uk/locale/uk/formautofill/
+locale global uk uk/locale/uk/global/
+locale global-platform uk uk/locale/uk/global-platform/
+locale global-region uk uk/locale/uk/global-region/
+locale messenger uk uk/locale/uk/messenger/
+locale messenger-mapi uk uk/locale/uk/messenger-mapi/
+locale messenger-newsblog uk uk/locale/uk/messenger-newsblog/
+locale messenger-region uk uk/locale/uk/messenger-region/
+locale messenger-smime uk uk/locale/uk/messenger-smime/
+locale mozapps uk uk/locale/uk/mozapps/
+locale mozldap uk uk/locale/uk/mozldap/
+locale necko uk uk/locale/uk/necko/
+locale passwordmgr uk uk/locale/uk/passwordmgr/
+locale pipnss uk uk/locale/uk/pipnss/
+locale pippki uk uk/locale/uk/pippki/
+locale places uk uk/locale/uk/places/
+locale pluginproblem uk uk/locale/uk/pluginproblem/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

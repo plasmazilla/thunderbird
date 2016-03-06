@@ -1,0 +1,28 @@
+locale alerts es-ES es-ES/locale/es-ES/alerts/
+locale autoconfig es-ES es-ES/locale/es-ES/autoconfig/
+locale branding es-ES es-ES/locale/es-ES/branding/
+locale chat es-ES es-ES/locale/es-ES/chat/
+locale communicator es-ES es-ES/locale/es-ES/communicator/
+locale cookie es-ES es-ES/locale/es-ES/cookie/
+locale devtools-shared es-ES es-ES/locale/es-ES/devtools/shared/
+locale editor es-ES es-ES/locale/es-ES/editor/
+locale formautofill es-ES es-ES/locale/es-ES/formautofill/
+locale global es-ES es-ES/locale/es-ES/global/
+locale global-platform es-ES es-ES/locale/es-ES/global-platform/
+locale global-region es-ES es-ES/locale/es-ES/global-region/
+locale messenger es-ES es-ES/locale/es-ES/messenger/
+locale messenger-mapi es-ES es-ES/locale/es-ES/messenger-mapi/
+locale messenger-newsblog es-ES es-ES/locale/es-ES/messenger-newsblog/
+locale messenger-region es-ES es-ES/locale/es-ES/messenger-region/
+locale messenger-smime es-ES es-ES/locale/es-ES/messenger-smime/
+locale mozapps es-ES es-ES/locale/es-ES/mozapps/
+locale mozldap es-ES es-ES/locale/es-ES/mozldap/
+locale necko es-ES es-ES/locale/es-ES/necko/
+locale passwordmgr es-ES es-ES/locale/es-ES/passwordmgr/
+locale pipnss es-ES es-ES/locale/es-ES/pipnss/
+locale pippki es-ES es-ES/locale/es-ES/pippki/
+locale places es-ES es-ES/locale/es-ES/places/
+locale pluginproblem es-ES es-ES/locale/es-ES/pluginproblem/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

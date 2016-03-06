@@ -185,6 +185,12 @@ var gComposeRecyclingListener = {
     // We need to clear the identity popup menu in case the user will change them.
     // It will be rebuilt later in ComposeStartup
     ClearIdentityListPopup(document.getElementById("msgIdentityPopup"));
+    var identityElement = document.getElementById("msgIdentity");
+    identityElement.editable = false;
+    identityElement.setAttribute("type", "description");
+    var customizeMenuitem = document.getElementById("cmd_customizeFromAddress");
+    customizeMenuitem.removeAttribute("disabled");
+    customizeMenuitem.setAttribute("checked", "false");
 
     // Do not listen to changes to spell check dictionary.
     document.removeEventListener("spellcheck-changed", updateDocumentLanguage);
@@ -192,6 +198,9 @@ var gComposeRecyclingListener = {
     // Disconnect the observer, we'll attach a new one when recycling the
     // window.
     gLanguageObserver.disconnect();
+
+    // Stop observing dictionary removals.
+    Services.obs.removeObserver(dictionaryRemovalObserver, "spellcheck-dictionary-remove");
 
     // Stop gSpellChecker so personal dictionary is saved.
     // We need to do this before disabling the editor.
@@ -812,7 +821,7 @@ var attachmentBucketController = {
           return false;
 
         let bucket = document.getElementById("attachmentBucket");
-        for (let [,item] in Iterator(bucket.selectedItems)) {
+        for (let item of bucket.selectedItems) {
           if (item.uploading)
             return false;
         }
@@ -830,7 +839,7 @@ var attachmentBucketController = {
           return false;
 
         let bucket = document.getElementById("attachmentBucket");
-        for (let [,item] in Iterator(bucket.selectedItems)) {
+        for (let item of bucket.selectedItems) {
           if (item.uploading)
             return false;
         }
@@ -852,7 +861,7 @@ var attachmentBucketController = {
         }
 
         let bucket = document.getElementById("attachmentBucket");
-        for (let [,item] in Iterator(bucket.selectedItems)) {
+        for (let item of bucket.selectedItems) {
           if (item && item.uploading) {
             cmd.hidden = false;
             return true;
@@ -871,7 +880,7 @@ var attachmentBucketController = {
                                   .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
 
         let bucket = document.getElementById("attachmentBucket");
-        for (let [,item] in Iterator(bucket.selectedItems)) {
+        for (let item of bucket.selectedItems) {
           if (item && item.uploading) {
             let file = fileHandler.getFileFromURLSpec(item.attachment.url);
             item.cloudProvider.cancelFileUpload(file);
@@ -989,8 +998,8 @@ function updateComposeItems()
       goUpdateCommand("cmd_renderedHTMLEnabler");
       goUpdateCommand("cmd_fontColor");
       goUpdateCommand("cmd_backgroundColor");
-      goUpdateCommand("cmd_decreaseFont");
-      goUpdateCommand("cmd_increaseFont");
+      goUpdateCommand("cmd_decreaseFontStep");
+      goUpdateCommand("cmd_increaseFontStep");
       goUpdateCommand("cmd_bold");
       goUpdateCommand("cmd_italic");
       goUpdateCommand("cmd_underline");
@@ -1043,7 +1052,7 @@ function updateAllItems(aDisable)
   commandItemCollections.push(document.getElementsByTagName("toolbarbutton"));
   commandItemCollections.push(document.querySelectorAll('[command]'));
   commandItemCollections.push(document.querySelectorAll('[oncommand]'));
-  for each (let itemCollection in commandItemCollections) {
+  for (let itemCollection of commandItemCollections) {
     for (let item = 0; item < itemCollection.length; item++) {
       let commandItem = itemCollection[item];
       if (aDisable) {
@@ -1408,7 +1417,7 @@ function attachToCloud(aProvider)
 
     let files = [f for (f in fixIterator(fp.files,
                                          Components.interfaces.nsILocalFile))];
-    let attachments = [FileToAttachment(f) for each (f in files)];
+    let attachments = files.map(f => FileToAttachment(f));
 
     let i = 0;
     let items = AddAttachments(attachments, function(aItem) {
@@ -1446,7 +1455,7 @@ function convertListItemsToCloudAttachment(aItems, aProvider)
   let convertedAttachments = Components.classes["@mozilla.org/array;1"]
                                        .createInstance(Components.interfaces.nsIMutableArray);
 
-  for (let [,item] in Iterator(aItems)) {
+  for (let item of aItems) {
     let url = item.attachment.url;
 
     if (item.attachment.sendViaCloud) {
@@ -1488,7 +1497,7 @@ function convertListItemsToCloudAttachment(aItems, aProvider)
 function convertSelectedToCloudAttachment(aProvider)
 {
   let bucket = document.getElementById("attachmentBucket");
-  convertListItemsToCloudAttachment(bucket.selectedItems, aProvider);
+  convertListItemsToCloudAttachment([...bucket.selectedItems], aProvider);
 }
 
 /**
@@ -1501,7 +1510,7 @@ function convertToCloudAttachment(aAttachments, aProvider)
 {
   let bucket = document.getElementById("attachmentBucket");
   let items = [];
-  for (let [,attachment] in Iterator(aAttachments)) {
+  for (let attachment of aAttachments) {
     let item = bucket.findItemForAttachment(attachment);
     if (item)
       items.push(item);
@@ -1523,7 +1532,7 @@ function convertListItemsToRegularAttachment(aItems)
   let convertedAttachments = Components.classes["@mozilla.org/array;1"]
                                        .createInstance(Components.interfaces.nsIMutableArray);
 
-  for (let [,item] in Iterator(aItems)) {
+  for (let item of aItems) {
     if (!item.attachment.sendViaCloud || !item.cloudProvider)
       continue;
 
@@ -1565,7 +1574,7 @@ function convertListItemsToRegularAttachment(aItems)
 function convertSelectedToRegularAttachment()
 {
   let bucket = document.getElementById("attachmentBucket");
-  convertListItemsToRegularAttachment(bucket.selectedItems);
+  convertListItemsToRegularAttachment([...bucket.selectedItems]);
 }
 
 /**
@@ -2062,6 +2071,39 @@ function getValidSpellcheckerDictionary() {
   return dictList[0];
 }
 
+var dictionaryRemovalObserver =
+{
+  observe: function(aSubject, aTopic, aData) {
+    if (aTopic != "spellcheck-dictionary-remove") {
+      return;
+    }
+    let language = document.documentElement.getAttribute("lang");
+    let spellChecker = Components.classes["@mozilla.org/spellchecker/engine;1"]
+                                 .getService(mozISpellCheckingEngine);
+    let o1 = {};
+    let o2 = {};
+    spellChecker.getDictionaryList(o1, o2);
+    let dictList = o1.value;
+    let count    = o2.value;
+
+    if (count > 0 && dictList.includes(language)) {
+      // There still is a dictionary for the language of the document.
+      return;
+    }
+
+    // Set a valid language from the preference.
+    let prefValue = Services.prefs.getCharPref("spellchecker.dictionary");
+    if (count == 0 || dictList.includes(prefValue)) {
+      language = prefValue;
+    } else {
+      language = dictList[0];
+      // Fix the preference while we're here. We know it's invalid.
+      Services.prefs.setCharPref("spellchecker.dictionary", language);
+    }
+    document.documentElement.setAttribute("lang", language);
+  }
+}
+
 function ComposeStartup(recycled, aParams)
 {
   // Findbar overlay
@@ -2132,6 +2174,9 @@ function ComposeStartup(recycled, aParams)
     });
   });
   gLanguageObserver.observe(document.documentElement, { attributes: true });
+
+  // Observe dictionary removals.
+  Services.obs.addObserver(dictionaryRemovalObserver, "spellcheck-dictionary-remove", false);
 
   // Set document language to the preference as early as possible.
   let languageToSet = getValidSpellcheckerDictionary();
@@ -2228,6 +2273,15 @@ function ComposeStartup(recycled, aParams)
 
   identityList.selectedItem =
     identityList.getElementsByAttribute("identitykey", params.identity.key)[0];
+  if (params.composeFields.from)
+  {
+    let from = MailServices.headerParser.parseEncodedHeader(params.composeFields.from, null).join(", ");
+    if (from != identityList.value)
+    {
+      MakeFromFieldEditable(true);
+      identityList.value = from;
+    }
+  }
   LoadIdentity(true);
 
   // Get the <editor> element to startup an editor
@@ -2467,6 +2521,15 @@ function ComposeUnload()
   gAttachmentNotifier.shutdown();
   ToolbarIconColor.uninit();
 
+  // Stop observing dictionary removals.
+  if (Services.obs.enumerateObservers("spellcheck-dictionary-remove")
+                                     .hasMoreElements()) {
+    // Don't try to remove the observer when at shutdown the recycled window
+    // gets unloaded, its observer was already removed at recycle time.
+    Services.obs.removeObserver(dictionaryRemovalObserver,
+                                "spellcheck-dictionary-remove");
+  }
+
   if (gMsgCompose)
     gMsgCompose.UnregisterStateListener(stateListener);
   if (gAutoSaveTimeout)
@@ -2523,7 +2586,7 @@ function GenericSendMessage(msgType)
   Recipients2CompFields(msgCompFields);
   let addresses = MailServices.headerParser
                               .makeFromDisplayAddress(GetMsgIdentityElement().value);
-  msgCompFields.from = MailServices.headerParser.makeMimeHeader(addresses, 1);
+  msgCompFields.from = MailServices.headerParser.makeMimeHeader(addresses, addresses.length);
   var subject = GetMsgSubjectElement().value;
   msgCompFields.subject = subject;
   Attachments2CompFields(msgCompFields);
@@ -3239,8 +3302,17 @@ function ChangeLanguage(event)
     document.documentElement.setAttribute("lang", event.target.value);
 
     // now check the document over again with the new dictionary
-    if (gSpellChecker.enabled)
+    if (gSpellChecker.enabled) {
       gSpellChecker.mInlineSpellChecker.spellCheckRange(null);
+
+      // Also force a recheck of the subject. If for some reason the spell
+      // checker isn't ready yet, don't auto-create it, hence pass 'false'.
+      var inlineSpellChecker =
+        GetMsgSubjectElement().editor.getInlineSpellChecker(false);
+      if (inlineSpellChecker) {
+        inlineSpellChecker.spellCheckRange(null);
+      }
+    }
   }
   event.stopPropagation();
 }
@@ -3347,6 +3419,10 @@ function FillIdentityList(menulist)
       }
     }
   }
+
+  menulist.menupopup.appendChild(document.createElement("menuseparator"));
+  menulist.menupopup.appendChild(document.createElement("menuitem"))
+          .setAttribute("command", "cmd_customizeFromAddress");
 }
 
 function getCurrentAccountKey()
@@ -4170,8 +4246,44 @@ function LoadIdentity(startup)
             document.getElementById('addressCol2#1').highlightNonMatches = true;
 
           addRecipientsToIgnoreList(gCurrentIdentity.identityName);  // only do this if we aren't starting up....it gets done as part of startup already
+          // If the From field is editable, reset the address from the identity.
+          if (identityElement.editable)
+          {
+            identityElement.value = identityElement.selectedItem.value;
+            identityElement.inputField.placeholder = getComposeBundle().getFormattedString("msgIdentityPlaceholder", [identityElement.selectedItem.value]);
+          }
       }
     }
+}
+
+function MakeFromFieldEditable(ignoreWarning)
+{
+  if (!ignoreWarning && !getPref("mail.compose.warned_about_customize_from"))
+  {
+    var check = { value: false };
+    if (Services.prompt.confirmEx(window,
+          getComposeBundle().getString("customizeFromAddressTitle"),
+          getComposeBundle().getString("customizeFromAddressWarning"),
+          Services.prompt.BUTTON_POS_0 * Services.prompt.BUTTON_TITLE_OK +
+          Services.prompt.BUTTON_POS_1 * Services.prompt.BUTTON_TITLE_CANCEL +
+          Services.prompt.BUTTON_POS_1_DEFAULT,
+          null, null, null,
+          getComposeBundle().getString("customizeFromAddressIgnore"),
+          check) != 0)
+      return;
+    Services.prefs.setBoolPref("mail.compose.warned_about_customize_from", check.value);
+  }
+
+  var customizeMenuitem = document.getElementById("cmd_customizeFromAddress");
+  customizeMenuitem.setAttribute("disabled", "true");
+  customizeMenuitem.setAttribute("checked", "true");
+  var identityElement = document.getElementById("msgIdentity");
+  identityElement.removeAttribute("type");
+  identityElement.editable = true;
+  identityElement.focus();
+  identityElement.value = identityElement.selectedItem.value;
+  identityElement.select();
+  identityElement.inputField.placeholder = getComposeBundle().getFormattedString("msgIdentityPlaceholder", [identityElement.selectedItem.value]);
 }
 
 function setupAutocomplete()
@@ -4194,6 +4306,12 @@ function setupAutocomplete()
       // if we can't get this pref, then don't show the columns (which is
       // what the XUL defaults to)
   }
+}
+
+function fromKeyPress(event)
+{
+  if (event.keyCode == KeyEvent.DOM_VK_RETURN)
+    awSetFocus(1, awGetInputElement(1));
 }
 
 function subjectKeyPress(event)
@@ -4801,6 +4919,10 @@ function InitEditor()
   let eEditorMailMask = Components.interfaces.nsIPlaintextEditor.eEditorMailMask;
   editor.flags |= eEditorMailMask;
   GetMsgSubjectElement().editor.flags |= eEditorMailMask;
+
+  // Control insertion of line breaks.
+  editor.returnInParagraphCreatesNewParagraph =
+    Services.prefs.getBoolPref("editor.CR_creates_new_p");
 
   editor.QueryInterface(nsIEditorStyleSheets);
   // We use addOverrideStyleSheet rather than addStyleSheet so that we get

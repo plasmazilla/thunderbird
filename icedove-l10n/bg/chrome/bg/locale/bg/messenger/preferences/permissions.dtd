@@ -1,0 +1,36 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY window.title                 "Изключения">
+
+
+<!ENTITY treehead.sitename.label      "Сайт">
+<!ENTITY treehead.status.label        "Състояние">
+<!ENTITY removepermission.label       "Премахване">
+<!ENTITY removepermission.accesskey   "П">
+<!ENTITY removeallpermissions.label   "Премахване на всички">
+<!ENTITY removeallpermissions.accesskey "р">
+<!ENTITY address.label                "Адрес на уеб сайта:">
+<!ENTITY address.accesskey            "д">
+<!ENTITY block.label                  "Блокиране">
+<!ENTITY block.accesskey              "Б">
+
+
+<!ENTITY allow.label                  "Разрешаване">
+<!ENTITY allow.accesskey              "Р">
+<!ENTITY windowClose.key              "w">
+
+
+
+
+
+
+<!ENTITY button.cancel.accesskey      "C">
+
+<!ENTITY button.cancel.label          "Cancel">
+<!ENTITY button.ok.accesskey          "S">
+<!ENTITY button.ok.label              "Save Changes">
+<!ENTITY session.accesskey            "n">
+<!ENTITY session.label                "Allow for Session">
+<!ENTITY window.width                 "45em">

@@ -28,41 +28,6 @@
 
 /* ::::: primary toolbar buttons ::::: */
 
-.toolbarbutton-1 {
-  -moz-box-orient: vertical;
-  min-width: 0px;
-}
-
-toolbox[labelalign="end"] .toolbarbutton-1 {
-  -moz-box-orient: horizontal;
-}
-
-toolbox[labelalign="end"] .toolbarbutton-menubutton-button {
-  -moz-box-orient: horizontal;
-}
-
-toolbox[labelalign="end"] > toolbar[mode="full"] .toolbarbutton-1 .toolbarbutton-text {
-  -moz-padding-start: 2px;
-}
-
-toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
-  text-align: start;
-}
-
-.toolbarbutton-1[disabled=true] .toolbarbutton-icon,
-.toolbarbutton-1[disabled=true] .toolbarbutton-menu-dropmarker,
-.toolbarbutton-1[disabled=true] > .toolbarbutton-menubutton-dropmarker,
-.toolbarbutton-1[disabled=true] > .toolbarbutton-menubutton-button >
-.toolbarbutton-icon {
-  opacity: .4;
-}
-
-.toolbarbutton-menubutton-button > .toolbarbutton-icon,
-.toolbarbutton-1 .toolbarbutton-icon {
-  width: 18px;
-  height: 18px;
-}
-
 #button-send {
   list-style-image: url("chrome://messenger/skin/messengercompose/compose-toolbar.svg#send");
 }
@@ -172,12 +137,6 @@ toolbar[brighttext] #button-print {
 }
 
 /* ::::: attachment reminder ::::: */
-
-#attachmentNotificationBox > notification > .notification-inner {
-  border: none;
-  border-top: 1px solid ThreeDShadow;
-  border-bottom: 1px solid ThreeDShadow;
-}
 
 #attachmentNotificationBox > notification .messageImage {
   width: 22px;
@@ -400,33 +359,67 @@ treechildren::-moz-tree-image(subscribed-news) {
 }
 
 #identityLabel {
-  padding-top: 3px;
+  -moz-appearance: none;
+  margin-inline-end: 3px;
+  margin-top: 2px;
+  margin-bottom: 0;
+  padding: 3px 5px;
+  color: ButtonText;
+  background-color: transparent;
+  border: 1px solid transparent;
+  transition: background-color .25s ease-in;
+}
+
+#identityLabel:hover {
+  border-color: rgba(125, 125, 125, .4);
+  background-color: rgba(125, 125, 125, .4);
 }
 
 #msgIdentity {
   -moz-appearance: none;
+  -moz-box-align: center;
   margin-right: 5px;
   margin-bottom: 0;
   padding-top: 1px;
   padding-bottom: 1px;
-  -moz-padding-start: 2px;
-  -moz-padding-end: 30px;
+  padding-inline-start: 2px;
   background: transparent;
   height: 22px;
   line-height: 1;
   border: 2px solid transparent;
   -moz-border-bottom-colors: ThreeDShadow ThreeDHighlight;
-  background: url("chrome://global/skin/arrow/arrow-dn.gif") no-repeat;
-  background-position: 99%;
   transition: border .2s, background-color .2s;
 }
 
-#msgIdentity:hover {
+#msgIdentity:hover,
+#msgIdentity[focused="true"] {
   background-color: -moz-field;
   -moz-border-top-colors: ThreeDShadow ThreeDHighlight;
   -moz-border-right-colors: ThreeDShadow ThreeDHighlight;
   -moz-border-bottom-colors: ThreeDShadow ThreeDHighlight;
   -moz-border-left-colors: ThreeDShadow ThreeDHighlight;
+}
+
+#msgIdentity > .menulist-editable-box {
+  -moz-appearance: none;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-inline-start: 3px;
+  height: 1.4em;
+}
+
+#msgIdentity > .menulist-dropmarker {
+  -moz-appearance: none;
+  display: -moz-box;
+  padding: 6px;
+  border: none;
+  background: transparent;
+  list-style-image: url("chrome://global/skin/arrow/arrow-dn.gif");
+}
+
+#msgIdentity > .menulist-dropmarker > .dropmarker-icon {
+  width: 5px;
+  height: 3px;
 }
 
 /* ::::: format toolbar ::::: */
@@ -445,6 +438,13 @@ toolbarbutton.formatting-button {
 
 #FormatToolbar > toolbarbutton > .toolbarbutton-text {
   display: none;
+}
+
+#AbsoluteFontSizeButton {
+  -moz-image-region: rect(272px 16px 288px 0px);
+}
+#AbsoluteFontSizeButton[disabled="true"] {
+  -moz-image-region: rect(256px 16px 272px 0px);
 }
 
 #DecreaseFontSizeButton {

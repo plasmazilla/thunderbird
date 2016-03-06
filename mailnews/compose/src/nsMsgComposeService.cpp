@@ -49,6 +49,8 @@
 #include "nsLWBrkCIID.h"
 #include "mozilla/Services.h"
 #include "mimemoz2.h"
+#include "nsIArray.h"
+#include "nsArrayUtils.h"
 
 #ifdef MSGCOMP_TRACE_PERFORMANCE
 #include "mozilla/Logging.h"
@@ -517,7 +519,6 @@ nsMsgComposeService::OpenComposeWindow(const char *msgComposeWindowURL, nsIMsgDB
     if (type == nsIMsgCompType::Redirect)
       uriToOpen.Append("&redirect=true");
 
-    aMsgWindow->SetCharsetOverride(true);
     return LoadDraftOrTemplate(uriToOpen, type == nsIMsgCompType::ForwardInline || type == nsIMsgCompType::Draft ?
                                nsMimeOutput::nsMimeMessageDraftOrTemplate : nsMimeOutput::nsMimeMessageEditorTemplate,
                                identity, originalMsgURI, origMsgHdr, type == nsIMsgCompType::ForwardInline,
@@ -885,10 +886,10 @@ public:
 
   nsMsgTemplateReplyHelper();
 
-  nsCOMPtr <nsIMsgDBHdr> mHdrToReplyTo;
-  nsCOMPtr <nsIMsgDBHdr> mTemplateHdr;
-  nsCOMPtr <nsIMsgWindow> mMsgWindow;
-  nsCOMPtr <nsIMsgIncomingServer> mServer;
+  nsCOMPtr<nsIMsgDBHdr> mHdrToReplyTo;
+  nsCOMPtr<nsIMsgDBHdr> mTemplateHdr;
+  nsCOMPtr<nsIMsgWindow> mMsgWindow;
+  nsCOMPtr<nsIMsgIdentity> mIdentity;
   nsCString mTemplateBody;
   bool mInMsgBody;
   char mLastBlockChars[3];
@@ -920,7 +921,6 @@ NS_IMETHODIMP nsMsgTemplateReplyHelper::OnStartRunningUrl(nsIURI *aUrl)
 
 NS_IMETHODIMP nsMsgTemplateReplyHelper::OnStopRunningUrl(nsIURI *aUrl, nsresult aExitCode)
 {
-
   NS_ENSURE_SUCCESS(aExitCode, aExitCode);
   nsresult rv;
   nsCOMPtr<nsIDOMWindow> parentWindow;
@@ -932,18 +932,6 @@ NS_IMETHODIMP nsMsgTemplateReplyHelper::OnStopRunningUrl(nsIURI *aUrl, nsresult 
     parentWindow = do_GetInterface(docShell);
     NS_ENSURE_TRUE(parentWindow, NS_ERROR_FAILURE);
   }
-  if ( NS_FAILED(rv) ) return rv ;
-  // get the MsgIdentity for the above key using AccountManager
-  nsCOMPtr <nsIMsgAccountManager> accountManager = do_GetService (NS_MSGACCOUNTMANAGER_CONTRACTID) ;
-  if (NS_FAILED(rv) || (!accountManager) ) return rv ;
-
-  nsCOMPtr <nsIMsgAccount> account;
-  nsCOMPtr <nsIMsgIdentity> identity;
-
-  rv = accountManager->FindAccountForServer(mServer, getter_AddRefs(account));
-  NS_ENSURE_SUCCESS(rv, rv);
-  rv = account->GetDefaultIdentity(getter_AddRefs(identity));
-  NS_ENSURE_SUCCESS(rv, rv);
 
   // create the compose params object
   nsCOMPtr<nsIMsgComposeParams> pMsgComposeParams (do_CreateInstance(NS_MSGCOMPOSEPARAMS_CONTRACTID, &rv));
@@ -959,15 +947,20 @@ NS_IMETHODIMP nsMsgTemplateReplyHelper::OnStopRunningUrl(nsIURI *aUrl, nsresult 
   nsString body;
   nsString templateSubject, replySubject;
 
-  mTemplateHdr->GetMime2DecodedSubject(templateSubject);
   mHdrToReplyTo->GetMime2DecodedSubject(replySubject);
+  mTemplateHdr->GetMime2DecodedSubject(templateSubject);
+  nsString subject(NS_LITERAL_STRING("Auto: ")); // RFC 3834 3.1.5.
+  subject.Append(templateSubject);
   if (!replySubject.IsEmpty())
   {
-    templateSubject.Append(NS_LITERAL_STRING(" (was: "));
-    templateSubject.Append(replySubject);
-    templateSubject.Append(NS_LITERAL_STRING(")"));
+    subject.Append(NS_LITERAL_STRING(" (was: "));
+    subject.Append(replySubject);
+    subject.Append(NS_LITERAL_STRING(")"));
   }
-  compFields->SetSubject(templateSubject);
+
+  compFields->SetSubject(subject);
+  compFields->SetRawHeader("Auto-Submitted", NS_LITERAL_CSTRING("auto-replied"), nullptr);
+
   CopyASCIItoUTF16(mTemplateBody, body);
   compFields->SetBody(body);
 
@@ -976,12 +969,12 @@ NS_IMETHODIMP nsMsgTemplateReplyHelper::OnStopRunningUrl(nsIURI *aUrl, nsresult 
   mHdrToReplyTo->GetFolder(getter_AddRefs(folder));
   folder->GetUriForMsg(mHdrToReplyTo, msgUri);
   // populate the compose params
-   // we use type new instead of reply - we might need to add a reply with template type.
-  pMsgComposeParams->SetType(nsIMsgCompType::New);
+  pMsgComposeParams->SetType(nsIMsgCompType::ReplyWithTemplate);
   pMsgComposeParams->SetFormat(nsIMsgCompFormat::Default);
-  pMsgComposeParams->SetIdentity(identity);
+  pMsgComposeParams->SetIdentity(mIdentity);
   pMsgComposeParams->SetComposeFields(compFields);
   pMsgComposeParams->SetOriginalMsgURI(msgUri.get());
+
   // create the nsIMsgCompose object to send the object
   nsCOMPtr<nsIMsgCompose> pMsgCompose (do_CreateInstance(NS_MSGCOMPOSE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -993,7 +986,7 @@ NS_IMETHODIMP nsMsgTemplateReplyHelper::OnStopRunningUrl(nsIURI *aUrl, nsresult 
 
   Release();
 
-  return pMsgCompose->SendMsg(nsIMsgSend::nsMsgDeliverNow, identity, nullptr, nullptr, nullptr) ;
+  return pMsgCompose->SendMsg(nsIMsgSend::nsMsgDeliverNow, mIdentity, nullptr, nullptr, nullptr) ;
 }
 
 NS_IMETHODIMP
@@ -1073,7 +1066,6 @@ nsMsgTemplateReplyHelper::OnDataAvailable(nsIRequest* request,
       mInMsgBody = bodyOffset != 0;
       if (!mInMsgBody && readCount > 3) // still in msg hdrs
         strncpy(mLastBlockChars, readBuf + readCount - 3, 3);
-
     }
     mTemplateBody.Append(readBuf + bodyOffset);
   }
@@ -1084,13 +1076,51 @@ nsMsgTemplateReplyHelper::OnDataAvailable(nsIRequest* request,
 NS_IMETHODIMP nsMsgComposeService::ReplyWithTemplate(nsIMsgDBHdr *aMsgHdr, const char *templateUri,
                                              nsIMsgWindow *aMsgWindow, nsIMsgIncomingServer *aServer)
 {
-  // to reply with template, we need the message body of the template
+  // To reply with template, we need the message body of the template.
   // I think we're going to need to stream the template message to ourselves,
   // and construct the body, and call setBody on the compFields.
-  // We need the reply-to header of the msg we're replying to, so
-  // we're going to add that to the db if it's different from "from:"
-  // For imap, we could make adding a reply-to filter append
-  // reply-to to the custom headers...
+  nsresult rv;
+  nsCOMPtr <nsIMsgAccountManager> accountManager =
+    do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIMsgAccount> account;
+  rv = accountManager->FindAccountForServer(aServer, getter_AddRefs(account));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIArray> identities;
+  rv = account->GetIdentities(getter_AddRefs(identities));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsAutoCString recipients;
+  aMsgHdr->GetRecipients(getter_Copies(recipients));
+
+  nsAutoCString ccList;
+  aMsgHdr->GetCcList(getter_Copies(ccList));
+
+  // Go through the identities to see to whom this was addressed.
+  // In case we get no match, this is likely a list/bulk/bcc/spam mail and we
+  // shouldn't reply. RFC 3834 2.
+  nsCOMPtr<nsIMsgIdentity> identity; // identity to reply from
+  uint32_t count = 0;
+  identities->GetLength(&count);
+  for (uint32_t i = 0; i < count; i++)
+  {
+    nsCOMPtr<nsIMsgIdentity> anIdentity(do_QueryElementAt(identities, i, &rv));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    nsAutoCString identityEmail;
+    anIdentity->GetEmail(identityEmail);
+
+    if (recipients.Find(identityEmail, CaseInsensitiveCompare) != kNotFound ||
+        ccList.Find(identityEmail, CaseInsensitiveCompare) != kNotFound)
+    {
+      identity = anIdentity;
+      break;
+    }
+  }
+  if (!identity) // Found no match -> don't reply.
+    return NS_ERROR_ABORT;
 
   nsMsgTemplateReplyHelper *helper = new nsMsgTemplateReplyHelper;
   if (!helper)
@@ -1100,7 +1130,14 @@ NS_IMETHODIMP nsMsgComposeService::ReplyWithTemplate(nsIMsgDBHdr *aMsgHdr, const
 
   helper->mHdrToReplyTo = aMsgHdr;
   helper->mMsgWindow = aMsgWindow;
-  helper->mServer = aServer;
+  helper->mIdentity = identity;
+
+  nsAutoCString replyTo;
+  aMsgHdr->GetStringProperty("replyTo", getter_Copies(replyTo));
+  if (replyTo.IsEmpty())
+    aMsgHdr->GetAuthor(getter_Copies(replyTo));
+  if (replyTo.IsEmpty())
+    return NS_ERROR_FAILURE; // nowhere to send the reply
 
   nsCOMPtr <nsIMsgFolder> templateFolder;
   nsCOMPtr <nsIMsgDatabase> templateDB;
@@ -1110,7 +1147,7 @@ NS_IMETHODIMP nsMsgComposeService::ReplyWithTemplate(nsIMsgDBHdr *aMsgHdr, const
     return NS_ERROR_FAILURE;
 
   nsAutoCString folderUri(Substring(templateUri, query)); 
-  nsresult rv = GetExistingFolder(folderUri, getter_AddRefs(templateFolder));
+  rv = GetExistingFolder(folderUri, getter_AddRefs(templateFolder));
   NS_ENSURE_SUCCESS(rv, rv);
   rv = templateFolder->GetMsgDatabase(getter_AddRefs(templateDB));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1617,8 +1654,10 @@ nsMsgComposeService::RunMessageThroughMimeDraft(
 
   // Now, just plug the two together and get the hell out of the way!
   nsCOMPtr<nsIStreamListener> streamListener = do_QueryInterface(mimeConverter);
+  nsCOMPtr<nsIURI> dummyNull;
   return messageService->DisplayMessage(PromiseFlatCString(aMsgURI).get(), streamListener,
-                                        aMsgWindow, nullptr, mailCharset.get(), nullptr);;
+                                        aMsgWindow, nullptr, mailCharset.get(),
+                                        getter_AddRefs(dummyNull));
 }
 
 NS_IMETHODIMP

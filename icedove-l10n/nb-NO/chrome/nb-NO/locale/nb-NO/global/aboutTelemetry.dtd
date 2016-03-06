@@ -1,0 +1,158 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY aboutTelemetry.pageTitle "Telemetri-data">
+
+<!ENTITY aboutTelemetry.telemetryEnabled "
+  Telemetry er <span>påslått</span>.
+">
+
+<!ENTITY aboutTelemetry.telemetryDisabled "
+  Telemetry er <span>avslått</span>.
+">
+
+<!ENTITY aboutTelemetry.generalDataSection "
+  Generell data
+">
+
+<!ENTITY aboutTelemetry.slowSqlSection "
+  Trege SQL-uttrykk
+">
+
+<!ENTITY aboutTelemetry.chromeHangsSection "
+  Nettleserheng
+">
+
+<!ENTITY aboutTelemetry.threadHangStatsSection "
+  Trådheng
+">
+
+<!ENTITY aboutTelemetry.histogramsSection "
+  Histogrammer
+">
+
+<!ENTITY aboutTelemetry.keyedHistogramsSection "
+  Histogrammer etter nøkler
+">
+
+<!ENTITY aboutTelemetry.simpleMeasurementsSection "
+  Enkle målinger
+">
+
+<!ENTITY aboutTelemetry.addonDetailsSection "
+  Utvidelsesdetaljer
+">
+
+<!ENTITY aboutTelemetry.lateWritesSection "
+  Sen skriving
+">
+
+<!ENTITY aboutTelemetry.systemInfoSection "
+  Systeminfo
+">
+
+<!ENTITY aboutTelemetry.addonHistogramsSection "
+  Histogrammer samlet av utvidelser
+">
+
+<!ENTITY aboutTelemetry.toggle "
+  Trykk for å slå av/på seksjonen
+">
+
+<!ENTITY aboutTelemetry.emptySection "
+  (Ingen data samlet inn)
+">
+
+<!ENTITY aboutTelemetry.fullSqlWarning "
+  MERK: Treg SQL-feilsøking er påslått. Fullstendige SQL-uttrykk kan vises nedenfor, men de sendes ikke inn til Telemetry.
+">
+
+<!ENTITY aboutTelemetry.fetchSymbols "
+  Hent funksjonsnavn for heng-stakker
+">
+
+<!ENTITY aboutTelemetry.hideSymbols "
+  Vis rådata fra heng
+">
+
+<!ENTITY aboutTelemetry.filterText "
+  Filtrer (strenger eller /regexp/)
+">
+
+
+<!ENTITY aboutTelemetry.archivePingHeader "
+Ping
+">
+
+<!ENTITY aboutTelemetry.archiveWeekHeader "
+Week
+">
+
+<!ENTITY aboutTelemetry.changeDataChoices "
+  Change
+">
+
+<!ENTITY aboutTelemetry.choosePing "
+Choose ping:
+">
+
+<!ENTITY aboutTelemetry.environmentDataSection "
+  Environment Data
+">
+
+<!ENTITY aboutTelemetry.extendedRecordingDisabled "
+  Extended Telemetry recording is <span>disabled</span>.
+">
+
+<!ENTITY aboutTelemetry.extendedRecordingEnabled "
+  Extended Telemetry recording is <span>enabled</span>.
+">
+
+<!ENTITY aboutTelemetry.payloadChoiceHeader "
+  Payload
+">
+
+<!ENTITY aboutTelemetry.pingDataSource "
+Ping data source:
+">
+
+<!ENTITY aboutTelemetry.rawPingData "
+Raw ping data ...
+">
+
+<!ENTITY aboutTelemetry.sessionInfoSection "
+  Session Information
+">
+
+<!ENTITY aboutTelemetry.showArchivedPingData "
+Archived ping data
+">
+
+<!ENTITY aboutTelemetry.showCurrentPingData "
+Current ping data
+">
+
+<!ENTITY aboutTelemetry.showNewerPing "
+&lt;&lt; Newer ping
+">
+
+<!ENTITY aboutTelemetry.showOlderPing "
+Older ping &gt;&gt;
+">
+
+<!ENTITY aboutTelemetry.showSubsessionData "
+Show subsession data
+">
+
+<!ENTITY aboutTelemetry.telemetryLogSection "
+  Telemetry Log
+">
+
+<!ENTITY aboutTelemetry.uploadDisabled "
+  FHR data upload is <span>disabled</span>.
+">
+
+<!ENTITY aboutTelemetry.uploadEnabled "
+  FHR data upload is <span>enabled</span>.
+">

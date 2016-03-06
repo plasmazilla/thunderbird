@@ -299,6 +299,10 @@ function onLoad() {
 
     opener.setCursor("auto");
 
+    if (typeof ToolbarIconColor !== 'undefined') {
+        ToolbarIconColor.init();
+    }
+
     document.getElementById("item-title").focus();
     document.getElementById("item-title").select();
 
@@ -317,6 +321,9 @@ function onLoad() {
 }
 
 function onEventDialogUnload() {
+    if (typeof ToolbarIconColor !== 'undefined') {
+        ToolbarIconColor.uninit();
+    }
     Services.obs.removeObserver(eventDialogQuitObserver,
                                 "quit-application-requested");
     eventDialogCalendarObserver.cancel();
@@ -553,8 +560,10 @@ function loadDialog(item) {
     if (!cal.isEvent(item)) {
         setBooleanAttribute("options-freebusy-menu", "hidden", true);
         setBooleanAttribute("options-menuseparator2", "hidden", true);
-        setBooleanAttribute("button-freebusy", "hidden", true);
         setBooleanAttribute("status-freebusy", "hidden", true);
+        if (document.getElementById("button-freebusy")) {
+            setBooleanAttribute("button-freebusy", "hidden", true);
+        }
     }
     updateShowTimeAs();
 }
@@ -677,7 +686,7 @@ function loadDateTime(item) {
         if (hasEntryDate && hasDueDate) {
             duration = endTime.subtractDate(startTime);
         }
-        setElementValue("cmd_attendees", !(hasEntryDate && hasDueDate), "disabled");
+        setElementValue("cmd_attendees", true, "disabled");
         setBooleanAttribute("keepduration-button", "disabled", !(hasEntryDate && hasDueDate));
         gStartTime = startTime;
         gEndTime = endTime;
@@ -898,7 +907,6 @@ function updateDateCheckboxes(aDatePickerId, aCheckboxId, aDateTime) {
     } else {
         gItemDuration = null;
     }
-    setElementValue("cmd_attendees", !(hasEntryDate && hasDueDate), "disabled");
     setBooleanAttribute("keepduration-button", "disabled", !(hasEntryDate && hasDueDate));
     updateDateTime();
     updateTimezone();
@@ -2241,8 +2249,9 @@ function deleteAllAttachments() {
         let child;
         let documentLink = document.getElementById("attachment-link");
         while (documentLink.hasChildNodes()) {
-            child = documentLink.lastChild.remove();
+            child = documentLink.lastChild;
             child.attachment = null;
+            child.remove();
         }
         gAttachMap = {};
     }
@@ -2279,11 +2288,11 @@ function copyAttachment() {
 /**
  * Handler function to handle pressing keys in the attachment listbox.
  *
- * @param event     The DOM event caused by the key press.
+ * @param aEvent     The DOM event caused by the key press.
  */
-function attachmentLinkKeyPress(event) {
+function attachmentLinkKeyPress(aEvent) {
     const kKE = Components.interfaces.nsIDOMKeyEvent;
-    switch (event.keyCode) {
+    switch (aEvent.keyCode) {
         case kKE.DOM_VK_BACK_SPACE:
         case kKE.DOM_VK_DELETE:
             deleteAttachment();
@@ -2295,21 +2304,31 @@ function attachmentLinkKeyPress(event) {
 }
 
 /**
- * Handler function to take care of clicking on an attachment
+ * Handler function to take care of double clicking on an attachment
  *
- * @param event     The DOM event caused by the clicking.
+ * @param aEvent     The DOM event caused by the clicking.
  */
-function attachmentLinkClicked(event) {
-    event.currentTarget.focus();
+function attachmentDblClick(aEvent) {
+    // left double click on a list item
+    if (aEvent.originalTarget.localName == "listitem" && aEvent.button == 0) {
+        openAttachment();
+    }
+}
 
-    if (event.button != 0) {
+/**
+ * Handler function to take care of right clicking on an attachment or the attachment list
+ *
+ * @param aEvent     The DOM event caused by the clicking.
+ */
+function attachmentClick(aEvent) {
+    // we take only care about right clicks
+    if (aEvent.button != 2) {
         return;
     }
-
-    if (event.originalTarget.localName == "listboxbody") {
-        attachURL();
-    } else if (event.originalTarget.localName == "listitem" && event.detail == 2) {
-        openAttachment();
+    let attachmentPopup = document.getElementById("attachment-popup");
+    for (let node of attachmentPopup.childNodes) {
+        (aEvent.originalTarget.localName == "listitem" ||
+         node.id == "attachment-popup-attachPage") ? showElement(node) : hideElement(node);
     }
 }
 
@@ -2815,7 +2834,7 @@ function saveItem() {
         }
 
         let notifyCheckbox = document.getElementById("notify-attendees-checkbox");
-        if (notifyCheckbox.disabled || document.getElementById("event-grid-attendee-row-2").collapsed) {
+        if (notifyCheckbox.disabled) {
             item.deleteProperty("X-MOZ-SEND-INVITATIONS");
         } else {
             item.setProperty("X-MOZ-SEND-INVITATIONS", notifyCheckbox.checked ? "TRUE" : "FALSE");
@@ -3428,17 +3447,6 @@ function updateTimezone() {
 function updateAttachment() {
     var hasAttachments = capSupported("attachments");
     setElementValue("cmd_attach_url", !hasAttachments && "true", "disabled");
-
-    var documentRow = document.getElementById("event-grid-attachment-row");
-    var attSeparator = document.getElementById("event-grid-attachment-separator");
-    if (!hasAttachments) {
-        documentRow.setAttribute("collapsed", "true");
-        attSeparator.setAttribute("collapsed", "true");
-    } else {
-        var documentLink = document.getElementById("attachment-link");
-        setElementValue(documentRow, documentLink.getRowCount() < 1 && "true", "collapsed");
-        setElementValue(attSeparator, documentLink.getRowCount() < 1 && "true", "collapsed");
-    }
 }
 
 /**
@@ -3462,40 +3470,46 @@ function toggleLink() {
  * This function updates dialog controls related to attendees.
  */
 function updateAttendees() {
-    let attendeeRow = document.getElementById("event-grid-attendee-row");
-    let attendeeRow2 = document.getElementById("event-grid-attendee-row-2");
-    if (window.attendees && window.attendees.length > 0) {
-        attendeeRow.removeAttribute('collapsed');
-        if (isEvent(window.calendarItem)) { // sending email invitations currently only supported for events
-            attendeeRow2.removeAttribute('collapsed');
-        } else {
-            attendeeRow2.setAttribute('collapsed', 'true');
-        }
-
-        let attendeeNames = [];
-        let attendeeTooltip = [];
-        let pushAttendees = function (aAttendee) {
-            let name = aAttendee.commonName || "";
-            if (name.startsWith('"') && name.endsWith('"')) {
-                name.slice(1, -1);
-            }
-            let email = cal.removeMailTo(aAttendee.id || "");
-            if (email.length) {
-                attendeeNames.push(name.length ? name : email);
-                attendeeTooltip.push(name.length ? name + '<' + email + '>' : email);
-            }
-        }
-        window.attendees.forEach(pushAttendees);
-
-        let attendeeList = document.getElementById("attendee-list");
-        let callback = function func() {
-            attendeeList.setAttribute('value', attendeeNames.join('; '));
-            attendeeList.setAttribute('tooltiptext', attendeeTooltip.join('\n'));
-        };
-        setTimeout(callback, 1);
+    // sending email invitations currently only supported for events
+    let attendeeTab = document.getElementById("event-grid-tab-attendees");
+    let attendeePanel = document.getElementById("event-grid-tabpanel-attendees");
+    if (!isEvent(window.calendarItem)) {
+        attendeeTab.setAttribute("collapsed", "true");
+        attendeePanel.setAttribute("collapsed", "true");
     } else {
-        attendeeRow.setAttribute('collapsed', 'true');
-        attendeeRow2.setAttribute('collapsed', 'true');
+        attendeeTab.removeAttribute("collapsed");
+        attendeePanel.removeAttribute("collapsed");
+
+        if (window.organizer && window.organizer.id) {
+            document.getElementById("item-organizer-row").removeAttribute("collapsed");
+            let cell = document.querySelector(".item-organizer-cell");
+            let icon = cell.querySelector("img:nth-of-type(1)");
+            let text = cell.querySelector("label:nth-of-type(1)");
+
+            let role = organizer.role || "REQ-PARTICIPANT";
+            let ut = organizer.userType || "INDIVIDUAL";
+            let ps = organizer.participationStatus || "NEEDS-ACTION";
+
+            let orgName = (organizer.commonName && organizer.commonName.length)
+                          ? organizer.commonName : organizer.toString();
+            let utString = cal.calGetString("calendar", "dialog.tooltip.attendeeUserType2." + ut,
+                                            [organizer.toString()]);
+            let roleString = cal.calGetString("calendar", "dialog.tooltip.attendeeRole2." + role,
+                                              [utString]);
+            let psString = cal.calGetString("calendar", "dialog.tooltip.attendeePartStat2." + ps,
+                                            [orgName]);
+            let tt = cal.calGetString("calendar", "dialog.tooltip.attendee.combined",
+                                      [roleString, psString]);
+
+            text.setAttribute("value", orgName);
+            cell.setAttribute("tooltiptext", tt);
+            icon.setAttribute("partstat", ps);
+            icon.setAttribute("usertype", ut);
+            icon.setAttribute("role", role);
+        } else {
+            setBooleanAttribute("item-organizer-row", "collapsed", true);
+        }
+        setupAttendees();
     }
 }
 
@@ -3572,66 +3586,84 @@ function isAttendeeUndecided(aAttendee) {
 }
 
 /**
+ * Event handler for dblclick on attendee items.
+ *
+ * @param aEvent         The popupshowing event
+ */
+function attendeeDblClick(aEvent) {
+    // left mouse button
+    if (aEvent.button == 0) {
+        editAttendees();
+    }
+    return;
+}
+
+/**
  * Event handler to set up the attendee-popup. This builds the popup menuitems.
  *
- * @param event         The popupshowing event
+ * @param aEvent         The popupshowing event
  */
-function showAttendeePopup(event) {
-    // Don't do anything for right/middle-clicks
-    if (event.button != 0) {
+function attendeeClick(aEvent) {
+    // we need to handle right clicks only to display the context menu
+    if (aEvent.button != 2) {
         return;
     }
 
-    var responsiveAttendees = 0;
-
-    // anonymous helper function to
-    // initialize a dynamically created menuitem
-    function setup_node(aNode, aAttendee) {
-        // Count attendees that have done something.
-        if (!isAttendeeUndecided(aAttendee)) {
-            responsiveAttendees++;
+    if (window.attendees.length == 0) {
+        // we just need the option to open the attendee dialog in this case
+        let popup = document.getElementById("attendee-popup");
+        let invite = document.getElementById("attendee-popup-invite-menuitem");
+        for (let node of popup.childNodes) {
+            (node == invite) ? showElement(node) : hideElement(node);
+        }
+    } else {
+        if (window.attendees.length > 1) {
+            let removeall = document.getElementById("attendee-popup-removeallattendees-menuitem");
+            showElement(removeall);
+        }
+        // setup attendee specific menu items if appropriate otherwise hide respective  menu items
+        let mailto = document.getElementById("attendee-popup-emailattendee-menuitem");
+        let remove = document.getElementById("attendee-popup-removeattendee-menuitem");
+        let separator = document.getElementById("attendee-popup-second-separator");
+        let attId = aEvent.target.parentNode.getAttribute("attendeeid");
+        let attendee = window.attendees.find(aAtt => aAtt.id == attId);
+        if (attendee) {
+            [mailto, remove, separator].forEach(showElement);
+            mailto.setAttribute("label", attendee.toString());
+            mailto.attendee = attendee;
+            remove.attendee = attendee;
+        } else {
+            [mailto, remove, separator].forEach(hideElement);
         }
 
-        aNode.setAttribute("label", aAttendee.toString());
-        aNode.setAttribute("status", aAttendee.participationStatus);
-        aNode.attendee = aAttendee;
+        if (window.attendees.some(isAttendeeUndecided)) {
+            document.getElementById("cmd_email_undecided")
+                    .removeAttribute("disabled");
+        } else {
+            document.getElementById("cmd_email_undecided")
+                    .setAttribute("disabled", "true");
+        }
     }
+}
 
-    // Setup the first menuitem, this one serves as the template for further
-    // menuitems.
-    var attendees = window.attendees;
-    var popup = document.getElementById("attendee-popup");
-    var separator = document.getElementById("attendee-popup-separator");
-    var template = separator.nextSibling;
-
-    setup_node(template, attendees[0]);
-
-    // Remove all remaining menu items after the separator and the template menu
-    // item.
-    while (template.nextSibling) {
-        template.nextSibling.remove();
+/**
+ * Removes the selected attendee from the window
+ * @param aAttendee
+ */
+function removeAttendee(aAttendee) {
+    if (aAttendee) {
+        window.attendees = window.attendees.filter(aAtt => aAtt != aAttendee);
+        updateAttendees();
     }
+}
 
-    // Add the rest of the attendees.
-    for (var i = 1; i < attendees.length; i++) {
-        var attendee = attendees[i];
-        var newNode = template.cloneNode(true);
-        setup_node(newNode, attendee);
-        popup.appendChild(newNode);
-    }
-
-    // Set up the unanswered attendees item.
-    if (responsiveAttendees == attendees.length) {
-        document.getElementById("cmd_email_undecided")
-                .setAttribute("disabled", "true");
-    } else {
-        document.getElementById("cmd_email_undecided")
-                .removeAttribute("disabled");
-    }
-
-    // Show the popup.
-    var attendeeList = document.getElementById("attendee-list");
-    popup.openPopup(attendeeList, "after_start", 0, 0, true);
+/**
+ * Removes all attendees from the window
+ */
+function removeAllAttendees() {
+    window.attendees = [];
+    window.organizer = null;
+    updateAttendees();
 }
 
 /**

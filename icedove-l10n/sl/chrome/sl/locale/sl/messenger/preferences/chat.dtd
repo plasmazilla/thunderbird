@@ -1,0 +1,42 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY  startupAction.label         "Ko se &brandShortName; zažene:">
+<!ENTITY  startupAction.accesskey     "K">
+<!ENTITY  startupOffline.label        "pusti moje račune za klepet nepovezane">
+<!ENTITY  startupConnectAuto.label    "samodejno poveži moje račune za klepet">
+
+<!-- LOCALIZATION NOTE: reportIdleAfter.label is displayed first, then
+there's a field where the user can enter a number, and itemTime is
+displayed at the end of the line. The translations of the
+reportIdleAfter.label and idleTime parts don't have to mean the exact
+same thing as in English; please try instead to translate the whole
+sentence. -->
+<!ENTITY  reportIdleAfter.label         "Naj moji stiki vedo, da sem odsoten po">
+<!ENTITY  reportIdleAfter.accesskey     "N">
+<!ENTITY  idleTime                      "minutah nedejavnosti">
+
+<!ENTITY  andSetStatusToAway.label      "in mojo odsotnost objavi s sporočilom stanja:">
+<!ENTITY  andSetStatusToAway.accesskey  "o">
+
+<!ENTITY  sendTyping.label              "Med pogovori pošlji obvestila o tipkanju">
+<!ENTITY  sendTyping.accesskey          "M">
+
+<!ENTITY  chatNotifications.label             "Kadar prispejo sporočila namenjena meni:">
+<!ENTITY  desktopChatNotifications.label      "prikaži obvestilo:">
+<!ENTITY  desktopChatNotifications.accesskey  "a">
+<!ENTITY  completeNotification.label          "s pošiljateljevim imenom in predogledom sporočila">
+<!ENTITY  buddyInfoOnly.label                 "samo s pošiljateljevim imenom">
+<!ENTITY  dummyNotification.label             "brez podatkov">
+<!ENTITY  chatSound.accesskey                 "r">
+<!ENTITY  chatSound.label                     "predvajaj zvok">
+<!ENTITY  play.label                          "Predvajaj">
+<!ENTITY  play.accesskey                      "e">
+<!ENTITY  systemSound.label                   "Privzeti sistemski zvok za novo pošto">
+<!ENTITY  systemSound.accesskey               "v">
+<!ENTITY  customsound.label                   "Uporabi naslednjo zvočno datoteko">
+<!ENTITY  customsound.accesskey               "U">
+<!ENTITY  browse.label                        "Brskaj ...">
+<!ENTITY  browse.accesskey                    "B">
+

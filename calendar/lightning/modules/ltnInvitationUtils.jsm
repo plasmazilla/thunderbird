@@ -7,6 +7,7 @@ Components.utils.import("resource://calendar/modules/calXMLUtils.jsm");
 Components.utils.import("resource://calendar/modules/calRecurrenceUtils.jsm");
 Components.utils.import("resource://gre/modules/Preferences.jsm");
 Components.utils.import("resource://calendar/modules/ltnUtils.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
 
 this.EXPORTED_SYMBOLS = ["ltn"]; // even though it's defined in ltnUtils.jsm, import needs this
 ltn.invitation = {
@@ -196,13 +197,40 @@ ltn.invitation = {
         doc.getElementById("imipHtml-attendees-row").hidden = (attendees.length < 1);
         doc.getElementById("imipHtml-organizer-row").hidden = !aEvent.organizer;
 
-        let setupAttendee = function (attendee) {
+        let setupAttendee = function (aAttendee) {
             let row = attendeeTemplate.cloneNode(true);
             row.removeAttribute("id");
             row.removeAttribute("hidden");
-            row.getElementsByClassName("status-icon")[0].setAttribute("status",
-                                                                      attendee.participationStatus);
-            row.getElementsByClassName("attendee-name")[0].textContent = attendee.toString();
+
+            // resolve delegatees/delegators to display also the CN
+            let del = cal.resolveDelegation(aAttendee, attendees);
+            if (del.delegators != "") {
+                del.delegators = " " + ltn.getString("lightning", "imipHtml.attendeeDelegatedFrom",
+                                                     [del.delegators]);
+            }
+
+            // display itip icon
+            let role = aAttendee.role || "REQ-PARTICIPANT";
+            let ps = aAttendee.participationStatus || "NEEDS-ACTION";
+            let ut = aAttendee.userType || "INDIVIDUAL";
+            let itipIcon = row.getElementsByClassName("itip-icon")[0];
+            itipIcon.setAttribute("role", role);
+            itipIcon.setAttribute("usertype", ut);
+            itipIcon.setAttribute("partstat", ps);
+            let attName = (aAttendee.commonName && aAttendee.commonName.length)
+                          ? aAttendee.commonName : aAttendee.toString();
+            let utString = ltn.getString("lightning", "imipHtml.attendeeUserType2." + ut,
+                                         [aAttendee.toString()]);
+            let roleString = ltn.getString("lightning", "imipHtml.attendeeRole2." + role,
+                                           [utString]);
+            let psString = ltn.getString("lightning", "imipHtml.attendeePartStat2." + ps,
+                                         [attName, del.delegatees]);
+            let itipTooltip = ltn.getString("lightning", "imipHtml.attendee.combined",
+                                            [roleString, psString]);
+            row.setAttribute("title", itipTooltip);
+            // display attendee
+            row.getElementsByClassName("attendee-name")[0].textContent = aAttendee.toString() +
+                                                                         del.delegators;
             return row;
         };
 
@@ -319,21 +347,29 @@ ltn.invitation = {
                                 _content2Child(attendees[att], 'added', att);
                             }
                         }
-                        // decorate removed attendees
                         for (let att of Object.keys(oldAttendees)) {
                             // if att is the user his/herself, who accepted an invitation he/she was
-                            // not invited to, we must exclude him/her here
-                            if (!(att in attendees) && !att.includes(excludeAddress)) {
+                            // not invited to, we exclude him/her from decoration
+                            let notExcluded = (excludeAddress == "" ||
+                                               !att.includes(excludeAddress));
+                            // decorate removed attendees
+                            if (!(att in attendees) && notExcluded) {
                                 _content2Child(oldAttendees[att], 'removed', att);
                                 content.appendChild(oldAttendees[att].parentNode.cloneNode(true));
                             }
-                        }
-                        // highlight partstat changes (excluding the user)
-                        for (let att of Object.keys(oldAttendees)) {
-                            if ((att in attendees) && !att.includes(excludeAddress)) {
-                                let oldPS = oldAttendees[att].parentNode.childNodes[1].childNodes[0];
-                                let newPS = attendees[att].parentNode.childNodes[1].childNodes[0];
-                                if (oldPS.attributes[1].value != newPS.attributes[1].value) {
+                            // highlight partstat, role or usertype changes
+                            else if ((att in attendees) && notExcluded) {
+                                let oldAtts = oldAttendees[att].parentNode
+                                                               .getElementsByClassName("itip-icon")[0]
+                                                               .attributes;
+                                let newAtts = attendees[att].parentNode
+                                                            .getElementsByClassName("itip-icon")[0]
+                                                            .attributes;
+                                let hasChanged = function (name) {
+                                    return oldAtts.getNamedItem(name).value !=
+                                           newAtts.getNamedItem(name).value;
+                                };
+                                if (["role", "partstat", "usertype"].some(hasChanged)) {
                                     _content2Child(attendees[att], 'modified', att);
                                 }
                             }
@@ -349,5 +385,105 @@ ltn.invitation = {
         ['summary', 'location', 'when', 'canceledOccurrences',
          'modifiedOccurrences', 'organizer', 'attendee'].forEach(_compareElement);
         return cal.xml.serializeDOM(doc);
+    },
+
+    /**
+     * Returns the header section for an invitation email.
+     * @param   {String}         aMessageId  the message id to use for that email
+     * @param   {nsIMsgIdentity} aIdentity   the identity to use for that email
+     * @returns {String}                     the source code of the header section of the email
+     */
+    getHeaderSection: function (aMessageId, aIdentity, aToList, aSubject) {
+        let from = !aIdentity.fullName.length ? aIdentity.email :
+                                                cal.validateRecipientList(aIdentity.fullName +
+                                                                          " <" + aIdentity.email + ">");
+        let header = ("MIME-version: 1.0\r\n" +
+                      (aIdentity.replyTo ? "Return-path: " +
+                                           ltn.invitation.encodeMimeHeader(aIdentity.replyTo, true) +
+                                           "\r\n" : "") +
+                      "From: " + ltn.invitation.encodeMimeHeader(from, true) + "\r\n" +
+                      (aIdentity.organization ? "Organization: " +
+                                                ltn.invitation.encodeMimeHeader(aIdentity.organization) +
+                                                "\r\n" : "") +
+                      "Message-ID: " + aMessageId + "\r\n" +
+                      "To: " + ltn.invitation.encodeMimeHeader(aToList, true) + "\r\n" +
+                      "Date: " + ltn.invitation.getRfc5322FormattedDate() + "\r\n" +
+                      "Subject: " + ltn.invitation
+                                       .encodeMimeHeader(aSubject.replace(/(\n|\r\n)/, "|")) + "\r\n");
+        let validRecipients;
+        if (aIdentity.doCc) {
+            validRecipients = cal.validateRecipientList(aIdentity.doCcList);
+            if (validRecipients != "") {
+                header += ("Cc: " + ltn.invitation.encodeMimeHeader(validRecipients, true) + "\r\n");
+            }
+        }
+        if (aIdentity.doBcc) {
+            validRecipients = cal.validateRecipientList(aIdentity.doBccList);
+            if (validRecipients != "") {
+                header += ("Bcc: " + ltn.invitation.encodeMimeHeader(validRecipients, true) + "\r\n");
+            }
+        }
+        return header;
+    },
+
+    /**
+     * Returns a datetime string according to section 3.3 of RfC5322
+     * @param  {Date}   [optional] Js Date object to format; if not provided current DateTime is used
+     * @return {String}            Datetime string with a modified tz-offset notation compared to
+     *                             Date.toString() like "Fri, 20 Nov 2015 09:45:36 +0100"
+     */
+    getRfc5322FormattedDate: function (aDate = null) {
+        let date = aDate || new Date();
+        let str = date.toString()
+                      .replace(/^(\w{3}) (\w{3}) (\d{2}) (\d{4}) ([0-9:]{8}) GMT([+-])(\d{4}).*$/,
+                               "$1, $3 $2 $4 $5 $6$7");
+        // according to section 3.3 of RfC5322, +0000 should be used for defined timezones using
+        // UTC time, while -0000 should indicate a floating time instead
+        let tz = cal.calendarDefaultTimezone();
+        if(tz && tz.isFloating) {
+            str.replace(/\+0000$/, "-0000");
+        }
+        return str;
+    },
+
+    /**
+     * Converts a given unicode text to utf-8 and normalizes line-breaks to \r\n
+     * @param  {String} aText   a unicode encoded string
+     * @return {String}         the converted uft-8 encoded string
+     */
+    encodeUTF8: function (aText) {
+        return ltn.invitation.convertFromUnicode("UTF-8", aText).replace(/(\r\n)|\n/g, "\r\n");
+    },
+
+    /**
+     * Converts a given unicode text
+     * @param  {String} aCharset   target character set
+     * @param  {String} aSrc       unicode text to convert
+     * @return {String}            the converted string
+     */
+    convertFromUnicode: function (aCharset, aSrc) {
+        let unicodeConverter = Components.classes["@mozilla.org/intl/scriptableunicodeconverter"]
+                                         .createInstance(Components.interfaces.nsIScriptableUnicodeConverter);
+        unicodeConverter.charset = aCharset;
+        return unicodeConverter.ConvertFromUnicode(aSrc);
+    },
+
+    /**
+     * Converts a header to a mime encoded header
+     * @param  {String}  aHeader   a header to encode
+     * @param  {boolean} aIsEmail  if enabled, only the CN but not the email address gets
+     *                             converted - default value is false
+     * @return {String}            the encoded string
+     */
+    encodeMimeHeader: function (aHeader, aIsEmail = false) {
+        let fieldNameLen = (aHeader.indexOf(": ") + 2);
+        return MailServices.mimeConverter
+                           .encodeMimePartIIStr_UTF8(aHeader,
+                                                     aIsEmail,
+                                                     "UTF-8",
+                                                     fieldNameLen,
+                                                     Components.interfaces
+                                                               .nsIMimeConverter
+                                                               .MIME_ENCODED_WORD_SIZE);
     }
 };

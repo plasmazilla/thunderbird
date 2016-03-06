@@ -1,0 +1,42 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY  startupAction.label         "Kur niset &brandShortName;-i:">
+<!ENTITY  startupAction.accesskey     "K">
+<!ENTITY  startupOffline.label        "Mbaji jashtë linje llogaritë e mia të fjalosjeve">
+<!ENTITY  startupConnectAuto.label    "Bëje vetvetiu lidhjen e llogarive të mia të fjalosjeve">
+
+<!-- LOCALIZATION NOTE: reportIdleAfter.label is displayed first, then
+there's a field where the user can enter a number, and itemTime is
+displayed at the end of the line. The translations of the
+reportIdleAfter.label and idleTime parts don't have to mean the exact
+same thing as in English; please try instead to translate the whole
+sentence. -->
+<!ENTITY  reportIdleAfter.label         "Kontakteve të mia lejoju të më shohin si të plogësht pas">
+<!ENTITY  reportIdleAfter.accesskey     "K">
+<!ENTITY  idleTime                      "minutash pa veprimtari">
+
+<!ENTITY  andSetStatusToAway.label      "dhe gjendjen time kaloje si i Larguar, dhe me këtë mesazh gjendjeje:">
+<!ENTITY  andSetStatusToAway.accesskey  "d">
+
+<!ENTITY  sendTyping.label              "Dërgo gjatë bisedave njoftime lidhur me shtypje në tastierë">
+<!ENTITY  sendTyping.accesskey          "ë">
+
+<!ENTITY  chatNotifications.label             "Kur mbërrijnë mesazhe drejtuar jush:">
+<!ENTITY  desktopChatNotifications.label      "Shfaq një njoftim:">
+<!ENTITY  desktopChatNotifications.accesskey  "n">
+<!ENTITY  completeNotification.label          "me emrin e dërguesit dhe një paraparje të mesazhit">
+<!ENTITY  buddyInfoOnly.label                 "vetëm me emrin e dërguesit">
+<!ENTITY  dummyNotification.label             "pa ndonjë të dhënë">
+<!ENTITY  chatSound.accesskey                 "d">
+<!ENTITY  chatSound.label                     "Luaj një tingull">
+<!ENTITY  play.label                          "Luaje">
+<!ENTITY  play.accesskey                      "L">
+<!ENTITY  systemSound.label                   "Parazgjedhje tingulli sistemi për postë të re">
+<!ENTITY  systemSound.accesskey               "P">
+<!ENTITY  customsound.label                   "Përdor kartelën vijuese për tingull">
+<!ENTITY  customsound.accesskey               "P">
+<!ENTITY  browse.label                        "Shfletoni…">
+<!ENTITY  browse.accesskey                    "S">
+

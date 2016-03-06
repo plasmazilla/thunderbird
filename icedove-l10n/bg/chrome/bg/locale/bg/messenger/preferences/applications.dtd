@@ -1,0 +1,38 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY  typeColumn.label            "Вид съдържание">
+<!ENTITY  typeColumn.accesskey        "В">
+
+<!ENTITY  actionColumn2.label         "Действие">
+<!ENTITY  actionColumn2.accesskey     "Д">
+
+<!ENTITY  focusSearch1.key            "f">
+<!ENTITY  focusSearch2.key            "k">
+
+<!ENTITY  filter.placeholder          "Търсене">
+
+<!ENTITY saveTo.label                 "Запис на файловете в">
+<!ENTITY saveTo.accesskey             "З">
+<!ENTITY alwaysAsk.label              "Винаги се запитва къде да се записват файловете ">
+<!ENTITY alwaysAsk.accesskey          "В">
+<!ENTITY chooseFolderWin.label        "Избор…">
+<!ENTITY chooseFolderWin.accesskey    "И">
+<!ENTITY chooseFolderMac.label        "Избор…">
+<!ENTITY chooseFolderMac.accesskey    "И">
+
+<!ENTITY attachments.incoming.label   "Входящи">
+<!ENTITY attachments.outgoing.label   "Изходящи">
+
+<!ENTITY addCloudFileAccount.label        "Добавяне">
+<!ENTITY addCloudFileAccount.accesskey    "Д">
+<!ENTITY addCloudFileAccount.description  "Добавяне на нова услуга за съхранене към Filelink">
+<!ENTITY removeCloudFileAccount.label     "Премахване">
+<!ENTITY removeCloudFileAccount.accesskey "П">
+<!ENTITY authRequired.description         "Нужно е вашето удостоверяване, за да виждате настройките на тази услуга за съхраняване.">
+<!ENTITY authRequired.button.label        "Удостоверяване">
+<!ENTITY authRequired.button.accesskey    "У">
+
+<!ENTITY enableCloudFileAccountOffer.label "Предлагане за споделяне на файлове, когато са по-големи от">
+<!ENTITY enableCloudFileAccountOffer.mb "MB">

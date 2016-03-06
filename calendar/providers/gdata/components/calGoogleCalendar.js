@@ -276,7 +276,11 @@ calGoogleCalendar.prototype = {
             case "capabilities.alarms.maxCount":
                 return 5;
             case "capabilities.alarms.actionValues":
-                return ["DISPLAY", "EMAIL", "SMS"];
+                let actionValues = ["DISPLAY", "EMAIL"];
+                if (Preferences.get("calendar.google.enableSMSReminders", false)) {
+                    actionValues.push("SMS");
+                }
+                return actionValues;
             case "capabilities.tasks.supported":
                 return !!this.mTasklistName;
             case "capabilities.events.supported":
@@ -399,10 +403,8 @@ calGoogleCalendar.prototype = {
             // All we need to do now is parse the item and complete the
             // operation. The cache layer will take care of adding the item
             // to the storage.
-            let defaultTimezone = cal.calendarDefaultTimezone();
             let metaData = Object.create(null);
-            let item = JSONToItem(data, this, defaultTimezone,
-                                  this.defaultReminders || [],
+            let item = JSONToItem(data, this, this.defaultReminders || [],
                                   null, metaData);
 
             // Make sure to update the etag and id
@@ -489,9 +491,8 @@ calGoogleCalendar.prototype = {
             // All we need to do now is parse the item and complete the
             // operation. The cache layer will take care of adding the item
             // to the storage cache.
-            let defaultTimezone = cal.calendarDefaultTimezone();
             let metaData = Object.create(null);
-            let item = JSONToItem(data, this, defaultTimezone,
+            let item = JSONToItem(data, this,
                                   this.defaultReminders || [],
                                   aNewItem.clone(), metaData);
 
@@ -723,7 +724,6 @@ calGoogleCalendar.prototype = {
         eventsRequest.calendar = this;
         eventsRequest.type = eventsRequest.GET;
         eventsRequest.uri = this.createEventsURI("events");
-        eventsRequest.addQueryParameter("timeZone", cal.calendarDefaultTimezone().tzid);
         eventsRequest.addQueryParameter("maxResults", maxResults);
         let syncToken = this.getProperty("syncToken.events");
         if (syncToken) {
@@ -737,7 +737,7 @@ calGoogleCalendar.prototype = {
                 return saver.parseItemStream(aData);
             }.bind(this), function(aData) {
                 // On last request...
-                return saver.processRemainingExceptions().then(function() {
+                return saver.complete().then(function() {
                     if (aData.nextSyncToken) {
                         cal.LOG("[calGoogleCalendar] New sync token for " +
                                 this.name + "(events) is now: " + aData.nextSyncToken);
@@ -761,15 +761,20 @@ calGoogleCalendar.prototype = {
         }
         if (tasksRequest.uri && this.checkThrottle("tasks")) {
             let saver = new ItemSaver(this);
+            let lastUpdated = null;
             tasksPromise = this.session.asyncPaginatedRequest(tasksRequest, function(aData) {
                 // On the first request...
-                cal.LOG("[calGoogleCalendar] Last sync date for " + this.name +
-                        "(tasks) is now: " + tasksRequest.requestDate.toString());
-                let lastUpdated = tasksRequest.requestDate.icalString;
-                this.setProperty("lastUpdated.tasks", lastUpdated);
+                lastUpdated = tasksRequest.requestDate.icalString;
             }.bind(this), function(aData) {
                 // On each request...
                 return saver.parseItemStream(aData);
+            }.bind(this), function(aData) {
+                // On last request...
+                return saver.complete().then(function() {
+                    cal.LOG("[calGoogleCalendar] Last sync date for " + this.name +
+                            "(tasks) is now: " + tasksRequest.requestDate.toString());
+                    this.setProperty("lastUpdated.tasks", lastUpdated);
+                }.bind(this));
             }.bind(this));
         }
 

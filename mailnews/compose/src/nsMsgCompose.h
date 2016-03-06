@@ -45,7 +45,7 @@ class nsMsgCompose : public nsIMsgCompose, public nsSupportsWeakReference
   /* nsIMsgSendListener interface */
   NS_DECL_NSIMSGSENDLISTENER
 
-private:
+protected:
 	virtual ~nsMsgCompose();
 
  // Deal with quoting issues...
@@ -76,8 +76,7 @@ private:
   void InsertDivWrappedTextAtSelection(const nsAString &aText,
                                        const nsAString &classStr);
 
- private:
-  nsresult _SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *identity, const char *accountKey);
+ protected:
   nsresult CreateMessage(const char * originalMsgURI, MSG_ComposeType type, nsIMsgCompFields* compFields);
   void CleanUpRecipients(nsString& recipients);
   nsresult GetABDirectories(const nsACString& aDirUri,
@@ -132,7 +131,8 @@ private:
   nsTObserverArray<nsCOMPtr<nsIMsgSendListener> > mExternalSendListeners;
     
   bool                                      mInsertingQuotedContent;
-    
+  MSG_DeliverMode                           mDeliverMode;  // nsIMsgCompDeliverMode long.
+
   friend class QuotingOutputStreamListener;
 	friend class nsMsgComposeSendListener;
 };
@@ -159,8 +159,11 @@ public:
     NS_DECL_NSISTREAMLISTENER
     NS_DECL_NSIMSGQUOTINGOUTPUTSTREAMLISTENER
 
-    NS_IMETHOD  SetComposeObj(nsIMsgCompose *obj);
-	  NS_IMETHOD  ConvertToPlainText(bool formatflowed = false);
+    NS_IMETHOD SetComposeObj(nsIMsgCompose *obj);
+    NS_IMETHOD ConvertToPlainText(bool formatflowed,
+                                  bool delsp,
+                                  bool formatted,
+                                  bool disallowBreaks);
     NS_IMETHOD InsertToCompose(nsIEditor *aEditor, bool aHTMLEditor);
     NS_IMETHOD AppendToMsgBody(const nsCString &inStr);
 

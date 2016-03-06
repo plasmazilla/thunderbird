@@ -18,19 +18,8 @@
 /* give the toolbox a min-height of 42px for Australis theme */
 .mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
 .mail-toolbox[mode="full"][labelalign="end"] > toolbar:only-of-type {
-  margin-top: 6px;
-  margin-bottom: 5px;
-}
-
-/* Instead of box-shadow, we use actual borders on Yosemite,
- * so we need to reduce the margin by 2px to make the height 42px.
- */
-@media (-moz-mac-yosemite-theme) {
-  .mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
-  .mail-toolbox[mode="full"][labelalign="end"] > toolbar:only-of-type {
-    margin-top: 5px;
-    margin-bottom: 4px;
-  }
+  margin-top: 5px;
+  margin-bottom: 4px;
 }
 
 /* ::::::::: Global override :::::::::: */
@@ -50,11 +39,6 @@ treechildren::-moz-tree-twisty {
 
 #messengerBox:-moz-lwtheme {
   text-shadow: none;
-}
-
-#folderPaneBox {
-  -moz-border-end: 1px solid #BDBDBD;
-  -moz-margin-end: -3px !important;
 }
 
 #folderTree {
@@ -132,10 +116,11 @@ treecolpicker {
   background-color: #e1e1e1;
 }
 
-/* ::::: message column icons ::::: */
-
-treecol[hideheader="true"] {
+treechildren::-moz-tree-cell-text(imapdeleted) {
+  text-decoration: line-through;
 }
+
+/* ::::: message column icons ::::: */
 
 /* ..... thread column ..... */
 
@@ -262,25 +247,15 @@ treechildren::-moz-tree-image(flaggedCol, flagged, focus, selected) {
 /* "unknown" now looks like "not junk".  see bug #182386 */
 treechildren::-moz-tree-image(junkStatusCol) {
   list-style-image: url("chrome://messenger/skin/icons/threadpane-col.png");
-  -moz-image-region: rect(0px 48px 16px 32px);
-  -moz-margin-start: 1px;
+  -moz-image-region: rect(0 96px 16px 80px);
+  margin-inline-start: 1px;
 }
 
 treechildren::-moz-tree-image(junkStatusCol, notjunk) {
-  -moz-image-region: rect(0px 48px 16px 32px);
-}
-
-treechildren::-moz-tree-image(junkStatusCol, focus, selected),
-treechildren::-moz-tree-image(junkStatusCol, notjunk, focus, selected) {
-  -moz-image-region: rect(16px 48px 32px 32px);
+  -moz-image-region: rect(0 96px 16px 80px);
 }
 
 treechildren::-moz-tree-image(junkStatusCol, junk) {
-  -moz-image-region: rect(0px 96px 16px 80px);
-  -moz-margin-start: 0px;
-}
-
-treechildren::-moz-tree-image(junkStatusCol, junk, focus, selected) {
   -moz-image-region: rect(16px 96px 32px 80px);
 }
 
@@ -446,23 +421,14 @@ treechildren::-moz-tree-image(threadCol, ignoreSubthread) {
 
   treechildren::-moz-tree-image(junkStatusCol) {
     list-style-image: url("chrome://messenger/skin/icons/threadpane-col@2x.png");
-    -moz-image-region: rect(0px 96px 32px 64px);
+    -moz-image-region: rect(0 192px 32px 160px);
   }
 
   treechildren::-moz-tree-image(junkStatusCol, notjunk) {
-    -moz-image-region: rect(0px 96px 32px 64px);
-  }
-
-  treechildren::-moz-tree-image(junkStatusCol, focus, selected),
-  treechildren::-moz-tree-image(junkStatusCol, notjunk, focus, selected) {
-    -moz-image-region: rect(32px 96px 64px 64px);
+    -moz-image-region: rect(0 192px 32px 160px);
   }
 
   treechildren::-moz-tree-image(junkStatusCol, junk) {
-    -moz-image-region: rect(0px 192px 32px 160px);
-  }
-
-  treechildren::-moz-tree-image(junkStatusCol, junk, focus, selected) {
     -moz-image-region: rect(32px 192px 64px 160px);
   }
 
@@ -612,10 +578,37 @@ splitter {
   -moz-border-end: 0;
 }
 
-#folderpane_splitter {
+#folderpane_splitter,
+#threadpane-splitter:not([orient="vertical"]) {
   background-image: none;
-  width: 3px;
-  min-width: 3px;
+  /* splitter grip area */
+  width: 5px;
+  min-width: 5px;
+  /* because of the negative margin needed to make the splitter visible */
+  position: relative;
+  z-index: 10;
+  transition: border-width .3s ease-in;
+}
+
+#folderpane_splitter {
+  border-inline-start: 1px solid #bdbdbd;
+  /* make only the splitter border visible */
+  margin-inline-end: -4px;
+}
+
+#folderpane_splitter[state="collapsed"]:hover {
+  border-inline-start: 4px solid highlight;
+}
+
+#threadpane-splitter:not([orient="vertical"]) {
+  border-inline-start-style: none;
+  border-inline-end: 1px solid #bdbdbd;
+  /* make only the splitter border visible */
+  margin-inline-start: -4px;
+}
+
+#threadpane-splitter[state="collapsed"]:not([orient="vertical"]):hover {
+  border-inline-end: 4px solid highlight;
 }
 
 /* ..... status bar adjustments ..... */

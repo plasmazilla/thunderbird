@@ -447,7 +447,7 @@ Extractor.prototype = {
 
                     if (this.isValidDay(day)) {
                         for (let i = 0; i < 12; i++) {
-                            let ms = this.months[i].unescape().split("|");
+                            let ms = this.unescape(this.months[i]).split("|");
                             if (ms.includes(month.toLowerCase())) {
                                 let date = {year: this.now.getFullYear(), month: i + 1, day: day};
                                 if (this.isPastDate(date, this.now)) {
@@ -1065,7 +1065,7 @@ Extractor.prototype = {
                 let pattern = vals[val];
                 let cnt = 1;
                 for (let replaceable in replaceables) {
-                    pattern = pattern.split("%" + cnt + "$S").join(replaceables[cnt - 1]);
+                    pattern = pattern.split("#" + cnt).join(replaceables[cnt - 1]);
                     cnt++;
                 }
                 patterns.push(pattern);
@@ -1088,7 +1088,7 @@ Extractor.prototype = {
 
     getPositionsFor: function getPositionsFor(s, name, count) {
         let positions = new Array();
-        let re = /\%(\d)\$S/g;
+        let re = /#(\d)/g;
         let match;
         let i = 0;
         while ((match = re.exec(s))) {
@@ -1100,7 +1100,7 @@ Extractor.prototype = {
         for (i = 1; i <= count; i++) {
             if (positions[i] === undefined) {
                 Components.utils.reportError("[calExtract] Faulty extraction pattern " + name +
-                                             ", missing parameter %" + i + "$S");
+                                             ", missing parameter #" + i);
             }
         }
         return positions;
@@ -1110,7 +1110,7 @@ Extractor.prototype = {
         // remove whitespace around | if present
         let value = pattern.replace(/\s*\|\s*/g, "|");
         // allow matching for patterns with missing or excessive whitespace
-        return value.sanitize().replace(/\s+/g, "\\s*");
+        return this.sanitize(value).replace(/\s+/g, "\\s*");
     },
 
     checkForFaultyPatterns: function checkForFaultyPatterns(pattern, name) {
@@ -1272,15 +1272,13 @@ Extractor.prototype = {
             guess.relation = "notadatetime";
         }
         this.collected.push(guess);
+    },
+
+    sanitize: function(str) {
+        return str.replace(/[-[\]{}()*+?.,\\^$]/g, "\\$&");
+    },
+
+    unescape: function(str) {
+        return str.replace(/\\([\.])/g, "$1");
     }
 };
-
-String.prototype.sanitize = function() {
-    return this.replace(/[-[\]{}()*+?.,\\^#]/g, "\\$&")
-               .replace(/([^\d])([$])/g, "$1\\$2");
-}
-
-String.prototype.unescape = function() {
-    let res = this.replace(/\\([\.])/g, "$1");
-    return res;
-}

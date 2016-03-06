@@ -168,7 +168,7 @@ var XMPPMUCConversationPrototype = {
   // True while we are rejoining a room previously parted by the user.
   _rejoined: false,
 
-  get topic() this._topic,
+  get topic() { return this._topic; },
   set topic(aTopic) {
     // XEP-0045 (8.1): Modifying the room subject.
     let subject = Stanza.node("subject", null, null, aTopic.trim());
@@ -180,7 +180,7 @@ var XMPPMUCConversationPrototype = {
       itemNotFound: notAuthorized
     }, this));
   },
-  get topicSettable() true,
+  get topicSettable() { return true; },
 
   /* Called when the user enters a chat message */
   sendMsg: function (aMsg) {
@@ -1274,15 +1274,22 @@ var XMPPAccountPrototype = {
     let tooltipInfo = [];
     let jid = this._parseJID(aJid);
     let muc = this._mucs.get(jid.node + "@" + jid.domain);
+    let participant;
     if (muc) {
-      let participant = muc._participants.get(jid.resource);
+      participant = muc._participants.get(jid.resource);
       if (participant) {
         if (participant.accountJid)
           userName = participant.accountJid;
         if (!muc.left) {
           let statusType = participant.statusType;
           let statusText = participant.statusText;
-          tooltipInfo.push(new TooltipInfo(statusType, statusText, true));
+          tooltipInfo.push(new TooltipInfo(statusType, statusText,
+                                           Ci.prplITooltipInfo.status));
+
+          if (participant.buddyIconFilename) {
+            tooltipInfo.push(new TooltipInfo(null, participant.buddyIconFilename,
+                                             Ci.prplITooltipInfo.icon));
+          }
         }
       }
     }
@@ -1315,9 +1322,32 @@ var XMPPAccountPrototype = {
         if (vCardInfo.hasOwnProperty(field))
           tooltipInfo.push(new TooltipInfo(_("tooltip." + field), vCardInfo[field]));
       }
+      if (vCardInfo.photo) {
+        let dataURI = this._getPhotoURI(vCardInfo.photo);
+
+        // Store the photo URI for this participant.
+        if (participant)
+          participant.buddyIconFilename = dataURI;
+
+        tooltipInfo.push(new TooltipInfo(null, dataURI, Ci.prplITooltipInfo.icon));
+      }
       Services.obs.notifyObservers(new nsSimpleEnumerator(tooltipInfo),
                                    "user-info-received", aJid);
     });
+  },
+
+  // Parses the photo node of a received vCard if exists and returns string of
+  // data URI, otherwise returns null.
+  _getPhotoURI: function(aPhotoNode) {
+    if (!aPhotoNode)
+      return null;
+
+    let type = aPhotoNode.getElement(["TYPE"]);
+    let value = aPhotoNode.getElement(["BINVAL"]);
+    if (!type || !value)
+      return null;
+
+    return "data:" + type.innerText + ";base64," + value.innerText;
   },
 
   // Parses the vCard into the properties of the returned object.
@@ -1693,6 +1723,7 @@ var XMPPAccountPrototype = {
   onMessageStanza: function(aStanza) {
     let from = aStanza.attributes["from"];
     let norm = this.normalize(from);
+    let isMuc = this._mucs.has(norm);
 
     let type = aStanza.attributes["type"];
     let x = aStanza.getElement(["x"]);
@@ -1713,7 +1744,11 @@ var XMPPAccountPrototype = {
     }
 
     let subject = aStanza.getElement(["subject"]);
-    if (subject) {
+    // Ignore subject when !isMuc. We're being permissive about subject changes
+    // in the comment below, so we need to be careful about where that makes
+    // sense. Psi+'s OTR plugin includes a subject and body in its message
+    // stanzas.
+    if (subject && isMuc) {
       // XEP-0045 (7.2.16): Check for a subject element in the stanza and update
       // the topic if it exists.
       // We are breaking the spec because only a message that contains a
@@ -1738,8 +1773,8 @@ var XMPPAccountPrototype = {
       if (date && isNaN(date))
         date = undefined;
       if (type == "groupchat" ||
-          (type == "error" && this._mucs.has(norm) && !this._conv.has(from))) {
-        if (!this._mucs.has(norm)) {
+          (type == "error" && isMuc && !this._conv.has(from))) {
+        if (!isMuc) {
           this.WARN("Received a groupchat message for unknown MUC " + norm);
           return;
         }
@@ -1815,7 +1850,7 @@ var XMPPAccountPrototype = {
         typingState = Ci.prplIConvIM.TYPED;
     }
     let convName = norm;
-    if (this._mucs.has(norm))
+    if (isMuc)
       convName = from;
     let conv = this._conv.get(convName);
     if (!conv)
@@ -1889,7 +1924,9 @@ var XMPPAccountPrototype = {
 
   // XEP-0029 (Section 2) and RFC 6122 (Section 2): The node and domain are
   // lowercase, while resources are case sensitive and can contain spaces.
-  normalizeFullJid: function(aJID) this._parseJID(aJID.trim()).jid,
+  normalizeFullJid: function(aJID) {
+    return this._parseJID(aJID.trim()).jid;
+  },
 
   // Standard normalization for XMPP removes the resource part of jids.
   normalize: function(aJID) {

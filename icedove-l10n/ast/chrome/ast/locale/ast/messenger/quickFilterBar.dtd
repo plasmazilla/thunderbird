@@ -1,0 +1,60 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY quickFilterBar.qfbShowFilterBar.label "Filtráu rápidu">
+<!ENTITY quickFilterBar.toggleBarVisibility.menu.label "Barra de filtráu rápidu">
+<!ENTITY quickFilterBar.toggleBarVisibility.menu.accesskey "B">
+<!ENTITY quickFilterBar.toggleBarVisibility.button.tooltip "Amosar/anubrir la barra de filtráu rápidu">
+<!ENTITY quickFilterBar.sticky.tooltip "Caltener filtros aplicaos al cambiar de carpetes">
+<!ENTITY quickFilterBar.barLabel.label "Filtru rápidu:">
+<!ENTITY quickFilterBar.unread.label "Non lleíos">
+<!ENTITY quickFilterBar.unread.tooltip "Amosar namái los mensaxes ensin lleer">
+<!ENTITY quickFilterBar.starred.label "Con estrella">
+<!ENTITY quickFilterBar.starred.tooltip "Amosar namái los mensaxes con estrella">
+<!ENTITY quickFilterBar.inaddrbook.label "Contautu">
+<!ENTITY quickFilterBar.inaddrbook.tooltip "Amosar namái los mensaxes de persones na llibreta de direiciones">
+<!ENTITY quickFilterBar.tags.label "Etiquetes">
+<!ENTITY quickFilterBar.tags.tooltip "Amosar namái los mensaxes con etiquetes nellos">
+<!ENTITY quickFilterBar.attachment.label "Axuntu">
+<!ENTITY quickFilterBar.attachment.tooltip "Amosar namái los mensaxes con axuntos">
+<!ENTITY quickFilterBar.resultsLabel.some.formatString "#1 mensaxe;#1 mensaxes">
+<!ENTITY quickFilterBar.resultsLabel.none "Nun hai resultaos">
+<!ENTITY quickFilterBar.resultsLabel.minWidth "100">
+<!ENTITY quickFilterBar.textbox.emptyText.base "Filtrar estos mensaxes… #1">
+<!ENTITY quickFilterBar.show.key2 "k">
+<!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.nonmac "&lt;Ctrl+Mayús+K&gt;">
+<!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.mac "&lt;⇧⌘K&gt;">
+<!ENTITY quickFilterBar.textbox.idealWidth "320">
+<!ENTITY quickFilterBar.textbox.minWidth "280">
+<!ENTITY quickFilterBar.textFilter.explanation.label "Filtrar mensaxes por:">
+<!ENTITY quickFilterBar.textFilter.sender.label "Remitente">
+<!ENTITY quickFilterBar.textFilter.recipients.label "Destinatarios">
+<!ENTITY quickFilterBar.textFilter.subject.label "Asuntu">
+<!ENTITY quickFilterBar.textFilter.body.label "Cuerpu">
+<!ENTITY quickFilterBar.glodaUpsell.continueSearch "Continuar esta gueta per toles carpetes">
+<!ENTITY quickFilterBar.glodaUpsell.pressEnterAndCurrent "Calca 'Enter' de nueves pa siguir cola gueta de: #1">
+<!ENTITY quickFilterBar.booleanModeAny.tooltip "Al menos tien de concasar una de les etiquetes esbillaes">
+<!ENTITY quickFilterBar.booleanModeAny.label "Cualquiera d'elles">
+<!ENTITY quickFilterBar.booleanModeAll.tooltip "Toles etiquetes esbillaes tienen de concasar">
+<!ENTITY quickFilterBar.booleanModeAll.label "Toes elles">
+<!ENTITY quickFilterBar.booleanMode.tooltip "Mou de filtráu d'etiquetes">
+
+
+<!-- LOCALIZATION NOTE (quickFilterBar.textbox.emptyText.base1):
+     This is the base of the empty text for the text search box.  We replace
+     #1 with the contents of the appropriate
+     quickFilterBar.textbox.emptyText.keyLabel.* value for the platform.
+     The goal is to convey to the user that typing in the box will filter
+     the messages and that there is a hotkey they can press to get to the
+     box faster.
+     -->
+<!ENTITY quickFilterBar.textbox.emptyText.base1
+         "Filter these messages #1">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.toggleBarVisibility.appmenu.label):
+     The label to display for the "App Menu... Preferences..." menu item that
+     controls whether the quick filter bar is visible.
+     -->
+<!ENTITY quickFilterBar.toggleBarVisibility.appmenu.label
+         "Quick Filter Bar">

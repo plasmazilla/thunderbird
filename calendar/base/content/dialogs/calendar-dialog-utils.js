@@ -32,6 +32,7 @@ function dispose() {
 function setDialogId(aDialog, aNewId) {
     aDialog.setAttribute("originalId", aDialog.getAttribute("id"));
     aDialog.setAttribute("id", aNewId);
+    applyPersitedProperties(aDialog);
 }
 
 /**
@@ -46,6 +47,30 @@ function resetDialogId(aDialog) {
         aDialog.setAttribute("id", id);
     }
     aDialog.removeAttribute("originalId");
+}
+
+/**
+ * Apply the persisted properties from xulstore.json on a dialog based on the current dialog id.
+ * This needs to be invoked after changing a dialog id while loading to apply the values for the
+ * new dialog id.
+ *
+ * @param aDialog               The Dialog to apply the property values for
+ */
+function applyPersitedProperties(aDialog) {
+    let xulStore = Components.classes["@mozilla.org/xul/xulstore;1"]
+                             .getService(Components.interfaces.nsIXULStore);
+    // first we need to detect which properties are persisted
+    let persistedProps = aDialog.getAttribute("persist") || "";
+    if (persistedProps == "") {
+        return;
+    }
+    let propNames = persistedProps.split(" ");
+    // now let's apply persisted values if applicable
+    for (let propName of propNames) {
+        if (xulStore.hasValue(aDialog.baseURI, aDialog.id, propName)) {
+            aDialog.setAttribute(propName, xulStore.getValue(aDialog.baseURI, aDialog.id, propName));
+        }
+    }
 }
 
 /**
@@ -505,4 +530,141 @@ function updateLink() {
           setElementValue("url-link", itemUrlString, "href");
         }, 0);
     }
+}
+
+/*
+ * setup attendees in event and summary dialog
+ */
+function setupAttendees() {
+
+    let attBox = document.getElementById("item-attendees-box");
+    let attBoxRows = attBox.getElementsByClassName("item-attendees-row");
+    if (window.attendees && window.attendees.length > 0) {
+
+        // cloning of the template nodes
+        let selector = "#item-attendees-box-template .item-attendees-row";
+        let clonedRow = document.querySelector(selector).cloneNode(false);
+        selector = "#item-attendees-box-template .item-attendees-row box:nth-of-type(1)";
+        let clonedCell = document.querySelector(selector).cloneNode(true);
+        selector = "#item-attendees-box-template .item-attendees-row box:nth-of-type(2)";
+        let clonedSpacer = document.querySelector(selector).cloneNode(false);
+
+        // determining of attendee box setup
+        let inRow = window.attendeesInRow || -1;
+        if (inRow == -1) {
+            inRow = determineAttendeesInRow();
+            window.attendeesInRow = inRow;
+        } else {
+            while(attBoxRows.length > 0) {
+                attBox.removeChild(attBoxRows[0]);
+            }
+        }
+
+        // set up of the required nodes
+        let maxRows = Math.ceil(window.attendees.length / inRow);
+        let inLastRow = window.attendees.length - ((maxRows - 1) * inRow);
+        let attCount = 0;
+        while (attBox.getElementsByClassName("item-attendees-row").length < maxRows) {
+            let newRow = clonedRow.cloneNode(false);
+            let row = attBox.appendChild(newRow);
+            row.removeAttribute("hidden");
+            let rowCount = attBox.getElementsByClassName("item-attendees-row").length;
+            let reqAtt = rowCount == maxRows ? inLastRow : inRow;
+            // we add as many attendee cells as required
+            while (row.childNodes.length < reqAtt) {
+                let newCell = clonedCell.cloneNode(true);
+                let cell = row.appendChild(newCell);
+                let icon = cell.getElementsByTagName("img")[0];
+                let text = cell.getElementsByTagName("label")[0];
+                let attendee = window.attendees[attCount];
+
+                let label = (attendee.commonName && attendee.commonName.length)
+                            ? attendee.commonName : attendee.toString();
+                let ut = attendee.userType || "INDIVIDUAL";
+                let role = attendee.role || "REQ-PARTICIPANT";
+                let ps = attendee.participationStatus || "NEEDS-ACTION";
+
+                icon.setAttribute("partstat", ps);
+                icon.setAttribute("usertype", ut);
+                icon.setAttribute("role", role);
+                cell.setAttribute("attendeeid", attendee.id);
+                cell.removeAttribute("hidden");
+
+                let utString = cal.calGetString("calendar", "dialog.tooltip.attendeeUserType2." + ut,
+                                                [attendee.toString()]);
+                let roleString = cal.calGetString("calendar", "dialog.tooltip.attendeeRole2." + role,
+                                                  [utString]);
+                let psString = cal.calGetString("calendar", "dialog.tooltip.attendeePartStat2." + ps,
+                                                [label]);
+                let tooltip = cal.calGetString("calendar", "dialog.tooltip.attendee.combined",
+                                               [roleString, psString]);
+
+                let del = cal.resolveDelegation(attendee, window.attendees);
+                if (del.delegators != "") {
+                    del.delegators = cal.calGetString("dialog.attendee.append.delegatedFrom",
+                                                      del.delegators);
+                    label += " " + del.delegators;
+                    tooltip += " " + del.delegators;
+                }
+                if (del.delegatees != "") {
+                    del.delegatees = cal.calGetString("dialog.attendee.append.delegatedTo",
+                                                      del.delegatees);
+                    tooltip += " " + del.delegators;
+                }
+
+                text.setAttribute("value", label);
+                cell.setAttribute("tooltiptext", tooltip);
+                attCount++;
+            }
+            // we fill the row with placeholders if required
+            if (attBox.getElementsByClassName("item-attendees-row").length > 1 && inRow > 1) {
+                while (row.childNodes.length < inRow) {
+                    let newSpacer = clonedSpacer.cloneNode(true);
+                    newSpacer.removeAttribute("hidden");
+                    row.appendChild(newSpacer);
+                }
+            }
+        }
+
+        // determining of the max width of an attendee label - this needs to
+        // be done only once and is obsolete in case of resizing
+        if (!window.maxLabelWidth) {
+            let maxWidth = 0;
+            for (let cell of attBox.getElementsByClassName("item-attendees-cell")) {
+                cell = cell.cloneNode(true);
+                cell.removeAttribute("flex");
+                cell.getElementsByTagName("label")[0].removeAttribute("flex");
+                maxWidth = cell.clientWidth > maxWidth ? cell.clientWidth : maxWidth;
+            }
+            window.maxLabelWidth = maxWidth;
+        }
+    } else {
+        while(attBoxRows.length > 0) {
+            attBox.removeChild(attBoxRows[0]);
+        }
+    }
+}
+
+/**
+ * Re-arranges the attendees on dialog resizing in event and summary dialog
+ */
+function rearrangeAttendees() {
+    if (window.attendees && window.attendees.length > 0 && window.attendeesInRow) {
+        let inRow = determineAttendeesInRow();
+        if (inRow != window.attendeesInRow) {
+            window.attendeesInRow = inRow;
+            setupAttendees();
+        }
+    }
+}
+
+/**
+ * Calculates the number of columns to distribute attendees for event and summary dialog
+ */
+function determineAttendeesInRow() {
+    // as default value a reasonable high value is appropriate
+    // it will be recalculated anyway.
+    let minWidth = window.maxLabelWidth || 200;
+    let inRow = Math.floor(document.width / minWidth);
+    return inRow > 1 ? inRow : 1;
 }

@@ -51,7 +51,7 @@ struct MediaTrackConstraints;
 struct MediaTrackConstraintSet;
 } // namespace dom
 
-extern PRLogModuleInfo* GetMediaManagerLog();
+extern LogModule* GetMediaManagerLog();
 #define MM_LOG(msg) MOZ_LOG(GetMediaManagerLog(), mozilla::LogLevel::Debug, msg)
 
 class MediaDevice : public nsIMediaDevice
@@ -134,7 +134,7 @@ public:
 
   ~GetUserMediaCallbackMediaStreamListener()
   {
-    unused << mMediaThread;
+    Unused << mMediaThread;
     // It's OK to release mStream on any thread; they have thread-safe
     // refcounts.
   }
@@ -458,7 +458,8 @@ public:
                                const dom::MediaStreamConstraints& aConstraints,
                                nsIGetUserMediaDevicesSuccessCallback* onSuccess,
                                nsIDOMGetUserMediaErrorCallback* onError,
-                               uint64_t aInnerWindowID = 0);
+                               uint64_t aInnerWindowID = 0,
+                               const nsAString& aCallID = nsString());
 
   nsresult EnumerateDevices(nsPIDOMWindow* aWindow,
                             nsIGetUserMediaDevicesSuccessCallback* aOnSuccess,

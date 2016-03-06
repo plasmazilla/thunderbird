@@ -19,7 +19,7 @@ TEST_DIRS += ['../test']
 XPI_NAME = 'lightning'
 export('XPI_NAME')
 
-DIST_FILES += [
+FINAL_TARGET_PP_FILES += [
     'app.ini',
     'install.rdf',
 ]
@@ -36,7 +36,7 @@ elif CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
 else:
     DEFINES['THEME'] = 'linux'
 
-JS_PREFERENCE_FILES += [
+JS_PREFERENCE_PP_FILES += [
     'content/lightning.js',
 ]
 

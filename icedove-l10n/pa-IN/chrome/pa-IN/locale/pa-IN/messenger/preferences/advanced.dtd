@@ -1,0 +1,165 @@
+<!ENTITY itemGeneral.label       "ਆਮ">
+<!ENTITY itemDisplay.label       "ਪੜ੍ਹਨ ਤੇ ਵੇਖਣ">
+<!ENTITY itemUpdate.label        "ਅੱਪਡੇਟ">
+<!ENTITY itemNetworking.label    "ਨੈੱਟਵਰਕ ਤੇ ਡਿਸਕ ਥਾਂ">
+<!ENTITY itemCertificates.label  "ਸਰਟੀਫਿਕੇਟ">
+
+<!-- General Settings -->
+
+<!ENTITY submitTelemetry.label         "ਕਾਰਗੁਜ਼ਾਰੀ ਡਾਟਾ ਭੇਜੋ">
+<!ENTITY submitTelemetry.accesskey     "P">
+<!ENTITY telemetryInfoLink.label       "ਟੈਲੀਮੈਟਰੀ ਬਾਰੀ ਹੋਰ ਜਾਣਕਾਰੀ">
+<!ENTITY enableGlodaSearch.label       "ਗਲੋਬਲ ਖੋਜ ਅਤੇ ਇੰਡੈਕਸਰ ਚਾਲੂ">
+<!ENTITY enableGlodaSearch.accesskey   "E">
+<!ENTITY systemIntegration.label       "ਸਿਸਟਮ ਸਬੰਧ">
+
+<!ENTITY alwaysCheckDefault.label      "ਹਮੇਸ਼ਾਂ ਸ਼ੁਰੂ ਕਰਨ ਸਮੇਂ ਚੈੱਕ ਕਰੋ ਕਿ ਕੀ &brandShortName; ਡਿਫਾਲਟ ਮੇਲ ਕਲਾਇਟ ਹੈ">
+<!ENTITY alwaysCheckDefault.accesskey  "A">
+<!ENTITY searchIntegration.label       "ਖੋਜ ਸੁਨੇਹਿਆਂ ਲਈ &searchIntegration.engineName; ਸ਼ਾਮਲ ਕਰੋ">
+<!ENTITY searchIntegration.accesskey   "S">
+<!ENTITY checkNow.label                "ਹੁਣੇ ਚੈੱਕ ਕਰੋ">
+<!ENTITY checkNow.accesskey            "N">
+
+<!ENTITY showCondensedAddresses.label  "ਜਿਹੜੇ ਲੋਕ ਮੇਰੀ ਐਡਰੈੱਸ ਬੁੱਕ ਵਿੱਚ ਹੋਣ, ਕੇਵਲ ਉਨ੍ਹਾਂ ਲਈ ਹੀ ਨਾਂ ਵੇਖਾਓ">
+<!ENTITY showCondensedAddresses.accesskey "p">
+
+<!ENTITY autoMarkAsRead.label          "ਆਟੋਮੈਟਿਕ ਹੀ ਸੁਨੇਹਾ ਪੜ੍ਹਿਆ ਬਣਾਓ">
+<!ENTITY autoMarkAsRead.accesskey      "A">
+<!ENTITY markAsReadNoDelay.label       "ਵੇਖਾਉਣ ਉਪਰੰਤ ਤੁਰੰਤ ਹੀ">
+<!ENTITY markAsReadNoDelay.accesskey   "d">
+<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
+     "After displaying for [___] seconds",
+     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
+<!ENTITY markAsReadDelay.label         "ਇੰਨ੍ਹਾ ਚਿਰ ਵੇਖਾਉਣ ਬਾਅਦ">
+<!ENTITY markAsReadDelay.accesskey     "e">
+<!ENTITY secondsLabel.label            "ਸਕਿੰਟ">
+<!ENTITY openMsgIn.label               "ਸੁਨੇਹੇ ਖੋਲ੍ਹੋ:">
+<!ENTITY openMsgInNewTab.label         "ਨਵੀਂ ਟੈਬ">
+<!ENTITY openMsgInNewTab.accesskey     "t">
+<!ENTITY reuseExpRadio0.label          "ਨਵੀਂ ਸੁਨੇਹਾ ਵਿੰਡੋ ਵਿੱਚ">
+<!ENTITY reuseExpRadio0.accesskey      "n">
+<!ENTITY reuseExpRadio1.label          "ਮੌਜੂਦਾ ਸੁਨੇਹਾ ਵਿੰਡੋ ਵਿੱਚ">
+<!ENTITY reuseExpRadio1.accesskey      "e">
+<!ENTITY closeMsgOnMoveOrDelete.label  "ਹਿਲਾਉਣ ਜਾਂ ਹਟਾਉਣ ਨਾਲ ਸੁਨੇਹਾ ਵਿੰਡੋ/ਟੈਬ ਬੰਦ ਕਰੋ">
+<!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
+
+<!ENTITY configEditDesc.label          "ਤਕਨੀਕੀ ਸੰਰਚਨਾ">
+<!ENTITY configEdit.label              "ਸੰਰਚਨਾ ਐਡੀਟਰ…">
+<!ENTITY configEdit.accesskey          "C">
+<!ENTITY returnReceiptsInfo.label      "ਦੱਸੋ ਕਿ&brandShortName; ਵਾਪਸੀ ਰਸੀਦਾਂ ਨੂੰ ਕਿਵੇਂ ਹੈਂਡਲ ਕਰੇ">
+<!ENTITY showReturnReceipts.label      "ਵਾਪਸੀ ਰਸੀਦ…">
+<!ENTITY showReturnReceipts.accesskey  "R">
+
+<!-- Display and Reading Settings -->
+<!ENTITY reading.caption                "ਪੜ੍ਹਨ">
+<!ENTITY display.caption                "ਵੇਖਣ">
+
+<!-- Update -->
+<!ENTITY autoCheck.label                "ਆਟੋਮੈਟਿਕ ਅੱਪਡੇਟ ਲਈ ਚੈੱਕ ਕਰੋ:">
+<!ENTITY enableAppUpdate.label          "&brandShortName;">
+<!ENTITY enableAppUpdate.accesskey      "h">
+<!ENTITY enableAddonsUpdate.label       "ਇੰਸਟਾਲ ਹੋਈਆਂ ਐਡ-ਆਨ">
+<!ENTITY enableAddonsUpdate.accesskey   "A">
+<!ENTITY whenUpdatesFound.label         "ਜਦੋਂ &brandShortName; ਲਈ ਅੱਪਡੇਟ ਮਿਲਣ,">
+<!ENTITY modeAskMe.label                "ਮੈਨੂੰ ਪੁੱਛੋ ਕਿ ਕੀ ਕਰਨਾ ਹੈ">
+<!ENTITY modeAskMe.accesskey            "m">
+<!ENTITY modeAutomatic.label            "ਆਟੋਮੈਟਿਕ ਅੱਪਡੇਟ ਡਾਊਨਲੋਡ ਕਰਕੇ ਇੰਸਟਾਲ ਕਰੋ">
+<!ENTITY modeAutomatic.accesskey        "d">
+<!ENTITY modeAutoAddonWarn.label        "ਮੈਨੂੰ ਚੇਤਾਵਨੀ ਦਿਓ, ਜਦੋਂ ਇਹ ਮੇਰੀ ਕੋਈ ਵੀ ਐਡ-ਆਨ ਬੰਦ ਕਰੇ">
+<!ENTITY modeAutoAddonWarn.accesskey    "W">
+<!ENTITY showUpdates.label              "ਅੱਪਡੇਟ ਅਤੀਤ ਵੇਖੋ">
+<!ENTITY showUpdates.accesskey          "y">
+
+<!-- Networking and Disk Space -->
+<!ENTITY showSettings.label            "ਸੈਟਿੰਗ…">
+<!ENTITY showSettings.accesskey        "S">
+<!ENTITY proxiesConfigure.label        "&brandShortName; ਦੀ ਇੰਟਰਨੈੱਟ ਨਾਲ ਜੁੜਨ ਦੀ ਸੰਰਚਨਾ ਕਰੋ">
+<!ENTITY connectionsInfo.caption       "ਕੁਨੈਕਸ਼ਨ">
+<!ENTITY offlineInfo.caption           "ਆਫਲਾਈਨ">
+<!ENTITY offlineInfo.label             "ਆਫਲਾਈਨ ਸੈਟਿੰਗ ਸੰਰਚਨਾ">
+<!ENTITY showOffline.label             "ਆਫਲਾਈਨ…">
+<!ENTITY showOffline.accesskey         "O">
+
+<!ENTITY Diskspace "ਡਿਸਕ ਥਾਂ">
+<!ENTITY offlineCompact.label "ਜਦੋਂ ਫੋਲਡਰ ਸੰਭਾਲੇ ਜਾਣ ਤਾਂ ਇਨ੍ਹਾਂ ਨੂੰ ਸੁੰਘੜੋ">
+<!ENTITY offlineCompact.accesskey "v">
+<!ENTITY mb.label "MB">
+
+
+<!-- LOCALIZATION NOTE:
+  The entities useCacheBefore.label and useCacheAfter.label appear on a single
+  line in preferences as follows:
+
+  &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
+-->
+<!ENTITY useCacheBefore.label            "ਕੈਸ ਲਈ">
+<!ENTITY useCacheBefore.accesskey        "U">
+<!ENTITY useCacheAfter.label             "MB ਥਾਂ ਦੀ ਵਰਤੋਂ ਕਰੋ">
+<!ENTITY clearCacheNow.label             "ਹੁਣੇ ਸਾਫ਼ ਕਰੋ">
+<!ENTITY clearCacheNow.accesskey         "C">
+
+<!-- Certificates -->
+<!ENTITY certSelection.description       "ਜਦੋਂ ਇੱਕ ਸਰਵਰ ਮੇਰੇ ਨਿੱਜੀ ਸਰਟੀਫਿਕੇਟ ਦੀ ਮੰਗ ਕਰੇ:">
+<!ENTITY certs.auto                      "ਇੱਕ ਆਟੋਮੈਟਿਕ ਚੁਣੋ">
+<!ENTITY certs.auto.accesskey            "m">
+<!ENTITY certs.ask                       "ਮੈਨੂੰ ਹਰ ਵਾਰ ਪੁੱਛੋ">
+<!ENTITY certs.ask.accesskey             "A">
+
+<!ENTITY viewCertificates.label         "ਸਰਟੀਫਿਕੇਟ ਵੇਖੋ">
+<!ENTITY viewCertificates.accesskey     "C">
+<!ENTITY viewCRLs.label                 "ਮਨਸੂਖ ਲਿਸਟ">
+<!ENTITY viewCRLs.accesskey             "R">
+<!ENTITY validation.label               "ਵੈਧਤਾ">
+<!ENTITY validation.accesskey           "V">
+<!ENTITY viewSecurityDevices.label      "ਸੁਰੱਖਿਆ ਜੰਤਰ">
+<!ENTITY viewSecurityDevices.accesskey  "S">
+
+<!ENTITY allowHWAccel.accesskey        "h">
+<!ENTITY allowHWAccel.label            "Use hardware acceleration when available">
+<!ENTITY checkDefaultsNow.accesskey    "N">
+<!ENTITY checkDefaultsNow.label        "Check Now…">
+<!ENTITY crashReporterDesc.label         "&brandShortName; submits crash reports to help &vendorShortName; make your e-mail client more stable and secure">
+<!ENTITY crashReporterLearnMore.label    "Learn More">
+
+<!ENTITY crashReporterSection.label      "Crash Reporter">
+<!ENTITY dataChoicesTab.label    "Data Choices">
+<!ENTITY enableCrashReporter.accesskey   "C">
+<!ENTITY enableCrashReporter.label       "Enable Crash Reporter">
+<!ENTITY enableOCSP.accesskey            "Q">
+<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
+<!ENTITY enableTelemetry.accesskey       "T">
+<!ENTITY enableTelemetry.label           "Enable Telemetry">
+<!ENTITY maildirStore.label            "File per message (maildir)">
+<!ENTITY mboxStore2.label              "File per folder (mbox)">
+<!ENTITY offlineCompactFolders.accesskey "a">
+<!ENTITY offlineCompactFolders.label     "Compact all folders when it will save over">
+<!ENTITY offlineCompactFoldersMB.label   "MB in total">
+
+<!ENTITY scrolling.label               "Scrolling">
+<!ENTITY storeType.accesskey           "T">
+<!ENTITY storeType.label               "Message Store Type for new accounts:">
+<!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">
+<!ENTITY telemetryLearnMore.label        "Learn More">
+
+<!-- Data Choices -->
+<!ENTITY telemetrySection.label          "Telemetry">
+
+<!-- Update -->
+<!ENTITY updateApp.label                 "&brandShortName; updates:">
+<!ENTITY updateAuto.accesskey            "A">
+<!ENTITY updateAuto.label                "Automatically install updates (recommended: improved security)">
+<!ENTITY updateAutoAddonWarn.accesskey   "W">
+<!ENTITY updateAutoAddonWarn.label       "Warn me if this will disable any of my add-ons">
+<!ENTITY updateCheck.accesskey           "C">
+<!ENTITY updateCheck.label               "Check for updates, but let me choose whether to install them">
+<!ENTITY updateHistory.accesskey         "p">
+<!ENTITY updateHistory.label             "Show Update History">
+<!ENTITY updateManual.accesskey          "N">
+<!ENTITY updateManual.label              "Never check for updates (not recommended: security risk)">
+<!ENTITY useAutoScroll.accesskey       "U">
+<!ENTITY useAutoScroll.label           "Use autoscrolling">
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">
+<!ENTITY useSmoothScrolling.accesskey  "m">
+<!ENTITY useSmoothScrolling.label      "Use smooth scrolling">

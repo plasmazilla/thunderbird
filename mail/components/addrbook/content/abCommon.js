@@ -22,7 +22,9 @@ var kDefaultAscending = "ascending";
 var kDefaultDescending = "descending";
 // kDefaultYear will be used in birthday calculations when no year is given;
 // this is a leap year so that Feb 29th works.
-var kDefaultYear = 2000;
+const kDefaultYear = nearestLeap(new Date().getFullYear());
+const kMaxYear = 9999;
+const kMinYear = 1;
 var kAllDirectoryRoot = "moz-abdirectory://";
 var kLdapUrlPrefix = "moz-abldapdirectory://";
 var kPersonalAddressbookURI = "moz-abmdbdirectory://abook.mab";
@@ -444,9 +446,14 @@ function GetAddressesForCards(cards)
 
 function SelectFirstAddressBook()
 {
-  gDirTree.view.selection.select(0);
-
-  ChangeDirectoryByURI(GetSelectedDirectory());
+  if (gDirTree.view.selection.currentIndex != 0) {
+    gDirTree.view.selection.select(0);
+    // If gPreviousDirTreeIndex == 0 then DirPaneSelectionChange() and
+    // ChangeDirectoryByURI() have already been run
+    // (e.g. by the onselect event on the tree) so skip the call.
+    if (gPreviousDirTreeIndex != 0)
+      ChangeDirectoryByURI(GetSelectedDirectory());
+  }
   gAbResultsTree.focus();
 }
 
@@ -483,7 +490,7 @@ function DirPaneSelectionChange()
 {
   let uri = GetSelectedDirectory();
   // clear out the search box when changing folders...
-  onAbClearSearch();
+  onAbClearSearch(false);
   if (gDirTree && gDirTree.view.selection && gDirTree.view.selection.count == 1) {
     gPreviousDirTreeIndex = gDirTree.currentIndex;
     ChangeDirectoryByURI(uri);
@@ -501,7 +508,8 @@ function ChangeDirectoryByURI(uri = kPersonalAddressbookURI)
 {
   SetAbView(uri);
 
-  // Actively de-selecting if there are any pre-existing selections.
+  // Actively de-selecting if there are any pre-existing selections
+  // in the results list.
   if (gAbView && gAbView.getCardFromRow(0))
     gAbView.selection.clearSelection();
   else
@@ -642,13 +650,22 @@ function GetSelectedDirectory()
   }
 }
 
-function onAbClearSearch()
+/**
+ * Clears the contents of the search input field,
+ * possibly causing refresh of results.
+ *
+ * @param aRefresh  Set to false if the refresh isn't needed,
+ *                  e.g. window/AB is going away so user will not see anything.
+ */
+function onAbClearSearch(aRefresh = true)
 {
-  var searchInput = document.getElementById("peopleSearchInput");
-  if (searchInput)
-    searchInput.value = "";
+  let searchInput = document.getElementById("peopleSearchInput");
+  if (!searchInput || !searchInput.value)
+    return;
 
-  onEnterInSearchBar();
+  searchInput.value = "";
+  if (aRefresh)
+    onEnterInSearchBar();
 }
 
 // sets focus into the quick search box
@@ -783,5 +800,17 @@ function makePhotoFile(aDir, aExtension) {
  * This ensures that month/day calculations still work.
  */
 function saneBirthYear(aYear) {
-  return aYear && aYear < 10000 && aYear > 0 ? aYear : kDefaultYear;
+  return aYear && (aYear <= kMaxYear) && (aYear >= kMinYear) ? aYear : kDefaultYear;
+}
+
+/**
+ * Returns the nearest leap year before aYear.
+ */
+function nearestLeap(aYear) {
+  for (let year = aYear; year > 0; year--) {
+    if (new Date(year, 1, 29).getMonth() == 1)
+      return year;
+  }
+
+  return 2000;
 }
