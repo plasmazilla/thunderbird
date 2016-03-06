@@ -33,7 +33,6 @@ add_task(function* zone_test() {
     while (zones.hasMore()) {
         foundZone = true;
         resolveZone(zones.getNext());
-        zones.getNext();
     }
 
     ok(foundZone, "There is at least one timezone");
@@ -52,7 +51,6 @@ add_task(function alias_test() {
     while (aliases.hasMore()) {
         foundAlias = true;
         resolveAlias(aliases.getNext());
-        aliases.getNext();
     }
 
     ok(foundAlias, "There is at least one alias");

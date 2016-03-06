@@ -931,7 +931,8 @@ NS_IMETHODIMP nsMsgLocalMailFolder::Rename(const nsAString& aNewName, nsIMsgWind
         newFolder->RenameSubFolders(msgWindow, this);
 
       // Discover the subfolders inside this folder (this is recursive)
-      newFolder->GetSubFolders(nullptr);
+      nsCOMPtr<nsISimpleEnumerator> dummy;
+      newFolder->GetSubFolders(getter_AddRefs(dummy));
 
       // the newFolder should have the same flags
       newFolder->SetFlags(mFlags);
@@ -2795,11 +2796,12 @@ nsresult nsMsgLocalMailFolder::CopyMessagesTo(nsIArray *messages, nsTArray<nsMsg
     nsCOMPtr <nsIMsgLocalMailFolder> srcLocalFolder = do_QueryInterface(srcFolder);
     if (srcLocalFolder)
       StartMessage();
+    nsCOMPtr<nsIURI> dummyNull;
     rv = mCopyState->m_messageService->CopyMessages(keyArray.Length(),
                                                     keyArray.Elements(),
                                                     srcFolder, streamListener,
                                                     isMove, nullptr, aMsgWindow,
-                                                    nullptr);
+                                                    getter_AddRefs(dummyNull));
   }
   return rv;
 }
@@ -2840,7 +2842,9 @@ nsresult nsMsgLocalMailFolder::CopyMessageTo(nsISupports *message,
   {
     nsCOMPtr<nsIStreamListener> streamListener(do_QueryInterface(copyStreamListener, &rv));
     NS_ENSURE_SUCCESS(rv, NS_ERROR_NO_INTERFACE);
-    rv = mCopyState->m_messageService->CopyMessage(uri.get(), streamListener, isMove, nullptr, aMsgWindow, nullptr);
+    nsCOMPtr<nsIURI> dummyNull;
+    rv = mCopyState->m_messageService->CopyMessage(uri.get(), streamListener, isMove, nullptr, aMsgWindow,
+                                                   getter_AddRefs(dummyNull));
   }
   return rv;
 }
@@ -3080,24 +3084,24 @@ NS_IMETHODIMP nsMsgLocalMailFolder::NotifyDelete()
 // this method will go away.
 // sometimes this gets called when we don't have the server yet, so
 // that's why we're not calling GetServer()
-void
-nsMsgLocalMailFolder::GetIncomingServerType(nsCString& aServerType)
+NS_IMETHODIMP
+nsMsgLocalMailFolder::GetIncomingServerType(nsACString& aServerType)
 {
   nsresult rv;
   if (mType.IsEmpty())
   {
     nsCOMPtr<nsIURL> url = do_CreateInstance(NS_STANDARDURL_CONTRACTID, &rv);
     if (NS_FAILED(rv))
-      return;
+      return rv;
 
     rv = url->SetSpec(mURI);
     if (NS_FAILED(rv))
-      return;
+      return rv;
 
     nsCOMPtr<nsIMsgAccountManager> accountManager =
              do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
     if (NS_FAILED(rv))
-      return;
+      return rv;
 
     nsCOMPtr<nsIMsgIncomingServer> server;
     // try "none" first
@@ -3133,6 +3137,7 @@ nsMsgLocalMailFolder::GetIncomingServerType(nsCString& aServerType)
     }
   }
   aServerType = mType;
+  return NS_OK;
 }
 
 nsresult nsMsgLocalMailFolder::CreateBaseMessageURI(const nsACString& aURI)

@@ -449,9 +449,9 @@ auto GeckoAppShell::HandleGeckoMessageWrapper(mozilla::jni::Object::Param a0) ->
 constexpr char GeckoAppShell::HandleUncaughtException_t::name[];
 constexpr char GeckoAppShell::HandleUncaughtException_t::signature[];
 
-auto GeckoAppShell::HandleUncaughtException(mozilla::jni::Object::Param a0, mozilla::jni::Throwable::Param a1) -> void
+auto GeckoAppShell::HandleUncaughtException(mozilla::jni::Throwable::Param a0) -> mozilla::jni::String::LocalRef
 {
-    return mozilla::jni::Method<HandleUncaughtException_t>::Call(nullptr, nullptr, a0, a1);
+    return mozilla::jni::Method<HandleUncaughtException_t>::Call(nullptr, nullptr, a0);
 }
 
 constexpr char GeckoAppShell::HideProgressDialog_t::name[];
@@ -755,28 +755,14 @@ auto GeckoEditable::NotifyIMEContext(int32_t a0, mozilla::jni::String::Param a1,
     return mozilla::jni::Method<NotifyIMEContext_t>::Call(this, nullptr, a0, a1, a2, a3);
 }
 
-constexpr char GeckoEditable::OnDestroy_t::name[];
-constexpr char GeckoEditable::OnDestroy_t::signature[];
-
-auto GeckoEditable::OnDestroy() const -> void
-{
-    return mozilla::jni::Method<OnDestroy_t>::Call(this, nullptr);
-}
-
 constexpr char GeckoEditable::OnImeAcknowledgeFocus_t::name[];
 constexpr char GeckoEditable::OnImeAcknowledgeFocus_t::signature[];
 
 constexpr char GeckoEditable::OnImeAddCompositionRange_t::name[];
 constexpr char GeckoEditable::OnImeAddCompositionRange_t::signature[];
 
-constexpr char GeckoEditable::OnImeRemoveComposition_t::name[];
-constexpr char GeckoEditable::OnImeRemoveComposition_t::signature[];
-
 constexpr char GeckoEditable::OnImeReplaceText_t::name[];
 constexpr char GeckoEditable::OnImeReplaceText_t::signature[];
-
-constexpr char GeckoEditable::OnImeSetSelection_t::name[];
-constexpr char GeckoEditable::OnImeSetSelection_t::signature[];
 
 constexpr char GeckoEditable::OnImeSynchronize_t::name[];
 constexpr char GeckoEditable::OnImeSynchronize_t::signature[];
@@ -1122,20 +1108,20 @@ constexpr char PrefsHelper::GetPrefsById_t::signature[];
 constexpr char PrefsHelper::RemovePrefsObserver_t::name[];
 constexpr char PrefsHelper::RemovePrefsObserver_t::signature[];
 
-constexpr char RestrictedProfiles::name[];
+constexpr char Restrictions::name[];
 
-constexpr char RestrictedProfiles::IsAllowed_t::name[];
-constexpr char RestrictedProfiles::IsAllowed_t::signature[];
+constexpr char Restrictions::IsAllowed_t::name[];
+constexpr char Restrictions::IsAllowed_t::signature[];
 
-auto RestrictedProfiles::IsAllowed(int32_t a0, mozilla::jni::String::Param a1) -> bool
+auto Restrictions::IsAllowed(int32_t a0, mozilla::jni::String::Param a1) -> bool
 {
     return mozilla::jni::Method<IsAllowed_t>::Call(nullptr, nullptr, a0, a1);
 }
 
-constexpr char RestrictedProfiles::IsUserRestricted_t::name[];
-constexpr char RestrictedProfiles::IsUserRestricted_t::signature[];
+constexpr char Restrictions::IsUserRestricted_t::name[];
+constexpr char Restrictions::IsUserRestricted_t::signature[];
 
-auto RestrictedProfiles::IsUserRestricted() -> bool
+auto Restrictions::IsUserRestricted() -> bool
 {
     return mozilla::jni::Method<IsUserRestricted_t>::Call(nullptr, nullptr);
 }

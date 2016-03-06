@@ -55,7 +55,7 @@ public:
 
   nsParseMailMessageState();
 
-  void                  Init(uint32_t fileposition);
+  void                  Init(uint64_t fileposition);
   virtual nsresult      ParseFolderLine(const char *line, uint32_t lineLength);
   virtual nsresult      StartNewEnvelope(const char *line, uint32_t lineLength);
   nsresult              ParseHeaders();
@@ -73,6 +73,7 @@ public:
   int64_t              m_position;
   uint64_t              m_envelope_pos;
   uint64_t              m_headerstartpos;
+  nsMsgKey              m_new_key;    // DB key for the new header.
 
   nsByteArray           m_headers;
 
@@ -175,8 +176,8 @@ protected:
   nsByteArray     m_inputStream;
   int32_t         m_obuffer_size;
   char            *m_obuffer;
-  uint32_t        m_graph_progress_total;
-  uint32_t        m_graph_progress_received;
+  uint64_t        m_graph_progress_total;
+  uint64_t        m_graph_progress_received;
   bool            m_parsingDone;
   PRTime          m_startTime;
 private:
@@ -217,7 +218,7 @@ public:
                                uint32_t length, nsIMsgFolder *destFolder);
 
   virtual void ApplyFilters(bool *pMoved, nsIMsgWindow *msgWindow,
-                             uint32_t msgOffset);
+                            uint64_t msgOffset);
   nsresult    ApplyForwardAndReplyFilter(nsIMsgWindow *msgWindow);
   virtual void OnNewMessage(nsIMsgWindow *msgWindow) override;
 

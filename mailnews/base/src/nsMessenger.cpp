@@ -438,7 +438,9 @@ nsMessenger::OpenURL(const nsACString& aURL)
 
   if (NS_SUCCEEDED(rv) && messageService)
   {
-    messageService->DisplayMessage(PromiseFlatCString(aURL).get(), mDocShell, mMsgWindow, nullptr, nullptr, nullptr);
+    nsCOMPtr<nsIURI> dummyNull;
+    messageService->DisplayMessage(PromiseFlatCString(aURL).get(), mDocShell,
+        mMsgWindow, nullptr, nullptr, getter_AddRefs(dummyNull));
     AddMsgUrlToNavigateHistory(aURL);
     mLastDisplayURI = aURL; // remember the last uri we displayed....
     return NS_OK;
@@ -712,10 +714,16 @@ nsresult nsMessenger::SaveAttachment(nsIFile *aFile,
                                                       getter_AddRefs(convertedListener));
       }
 #endif
+      nsCOMPtr<nsIURI> dummyNull;
       if (fetchService)
-        rv = fetchService->FetchMimePart(URL, fullMessageUri.get(), convertedListener, mMsgWindow, saveListener, nullptr);
+        rv = fetchService->FetchMimePart(URL, fullMessageUri.get(),
+                                         convertedListener, mMsgWindow,
+                                         saveListener, getter_AddRefs(dummyNull));
       else
-        rv = messageService->DisplayMessage(fullMessageUri.get(), convertedListener, mMsgWindow, nullptr, nullptr, nullptr);
+        rv = messageService->DisplayMessage(fullMessageUri.get(),
+                                            convertedListener, mMsgWindow,
+                                            nullptr, nullptr,
+                                            getter_AddRefs(dummyNull));
     } // if we got a message service
   } // if we created a url
 
@@ -1055,8 +1063,9 @@ nsMessenger::SaveAs(const nsACString& aURI, bool aAsFile,
 
     if (saveAsFileType == EML_FILE_TYPE)
     {
+      nsCOMPtr<nsIURI> dummyNull;
       rv = messageService->SaveMessageToDisk(PromiseFlatCString(aURI).get(), saveAsFile, false,
-        urlListener, nullptr,
+        urlListener, getter_AddRefs(dummyNull),
         true, mMsgWindow);
     }
     else
@@ -1120,8 +1129,9 @@ nsMessenger::SaveAs(const nsACString& aURI, bool aAsFile,
       if (NS_FAILED(rv))
         goto done;
 
+      nsCOMPtr<nsIURI> dummyNull;
       rv = messageService->DisplayMessage(urlString.get(), convertedListener, mMsgWindow,
-        nullptr, nullptr, nullptr);
+        nullptr, nullptr, getter_AddRefs(dummyNull));
     }
   }
   else
@@ -1160,9 +1170,10 @@ nsMessenger::SaveAs(const nsACString& aURI, bool aAsFile,
     if (NS_FAILED(rv))
       goto done;
 
+    nsCOMPtr<nsIURI> dummyNull;
     rv = messageService->SaveMessageToDisk(PromiseFlatCString(aURI).get(), tmpFile,
       needDummyHeader,
-      urlListener, nullptr,
+      urlListener, getter_AddRefs(dummyNull),
       canonicalLineEnding, mMsgWindow);
   }
 
@@ -1398,9 +1409,10 @@ nsMessenger::SaveMessages(uint32_t aCount,
     }
 
     // Ok, now save the message.
+    nsCOMPtr<nsIURI> dummyNull;
     rv = messageService->SaveMessageToDisk(aMessageUriArray[i],
                                            saveToFile, false,
-                                           urlListener, nullptr,
+                                           urlListener, getter_AddRefs(dummyNull),
                                            true, mMsgWindow);
     if (NS_FAILED(rv)) {
       NS_IF_RELEASE(saveListener);
@@ -1594,8 +1606,9 @@ NS_IMETHODIMP nsMessenger::SetDocumentCharset(const nsACString& aCharacterSet)
 
     if (NS_SUCCEEDED(rv) && messageService)
     {
+      nsCOMPtr<nsIURI> dummyNull;
       messageService->DisplayMessage(mLastDisplayURI.get(), mDocShell, mMsgWindow, nullptr,
-                                     PromiseFlatCString(aCharacterSet).get(), nullptr);
+                                     PromiseFlatCString(aCharacterSet).get(), getter_AddRefs(dummyNull));
     }
   }
 
@@ -1832,34 +1845,26 @@ nsSaveMsgListener::OnStopRequest(nsIRequest* request, nsISupports* aSupport,
   
   // rhp: If we are doing the charset conversion magic, this is different
   // processing, otherwise, its just business as usual.
-  //
-  if ( (m_doCharsetConversion) && (m_outputStream) )
+  // If we need text/plain, then we need to convert the HTML and then convert
+  // to the systems charset.
+  if (m_doCharsetConversion && m_outputStream)
   {
-    char        *conBuf = nullptr;
-    uint32_t    conLength = 0;
-    
-    // If we need text/plain, then we need to convert the HTML and then convert
-    // to the systems charset
-    //
-    if (m_outputFormat == ePlainText)
+    // For HTML, code is emitted immediately in OnDataAvailable.
+    MOZ_ASSERT(m_outputFormat == ePlainText,
+      "For HTML, m_doCharsetConversion shouldn't be set");
+    NS_ConvertUTF8toUTF16 utf16Buffer(m_msgBuffer);
+    ConvertBufToPlainText(utf16Buffer, false, false, false, false);
+
+    nsCString outCString;
+    rv = nsMsgI18NConvertFromUnicode(nsMsgI18NFileSystemCharset(),
+      utf16Buffer, outCString, false, true);
+    if (NS_SUCCEEDED(rv))
     {
-      NS_ConvertUTF8toUTF16 utf16Buffer(m_msgBuffer);
-      ConvertBufToPlainText(utf16Buffer, false, false);
-      rv = nsMsgI18NSaveAsCharset(TEXT_PLAIN, nsMsgI18NFileSystemCharset(),
-                                  utf16Buffer.get(), &conBuf);
-      if ( NS_SUCCEEDED(rv) && (conBuf) )
-        conLength = strlen(conBuf);
-    }
-    
-    if ( (NS_SUCCEEDED(rv)) && (conBuf) )
-    {
-      uint32_t      writeCount;
-      rv = m_outputStream->Write(conBuf, conLength, &writeCount);
-      if (conLength != writeCount)
+      uint32_t writeCount;
+      rv = m_outputStream->Write(outCString.get(), outCString.Length(), &writeCount);
+      if (outCString.Length() != writeCount)
         rv = NS_ERROR_FAILURE;
     }
-    
-    NS_Free(conBuf);
   }
  
   if (m_outputStream)

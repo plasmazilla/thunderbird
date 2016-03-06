@@ -1,0 +1,64 @@
+<!ENTITY aboutDialog.title "Пра &brandFullName;">
+<!ENTITY update.checkForUpdatesButton.label "Праверка існавання абнаўленняў">
+<!ENTITY update.checkForUpdatesButton.accesskey "і">
+<!ENTITY update.updateButton.label "Перазапусціць для абнаўлення">
+<!ENTITY update.updateButton.accesskey "з">
+<!ENTITY update.applyButtonBillboard.label "Ужыць абнаўленне…">
+<!ENTITY update.applyButtonBillboard.accesskey "ж">
+<!ENTITY community.start2 "&brandShortName; распрацаваны ">
+<!ENTITY community.mozillaLink "&vendorShortName;">
+<!ENTITY community.middle2 ", ">
+<!ENTITY community.creditsLink "сусветным згуртаваннем">
+<!ENTITY community.end2 ", якое працуе разам, каб зрабіць Інтэрнэт лепшым. Мы верым, што Інтэрнэт павінны быць адкрытым, прылюдным і даступным кожнаму без любых абмежаванняў.">
+<!ENTITY contribute.start "Цікава?">
+<!ENTITY contribute.getInvolvedLink "Уцягвайцеся!">
+<!ENTITY contribute.end "">
+<!ENTITY bottomLinks.license "Звесткі пра ліцэнзію">
+<!ENTITY bottomLinks.rights "Правы канчатковага карыстальніка">
+<!ENTITY bottomLinks.privacy "Палітыка адасаблення">
+<!ENTITY update.checkingForUpdates "Праверка існавання абнаўленняў…">
+<!ENTITY update.noUpdatesFound "&brandShortName; абноўлены">
+<!ENTITY update.adminDisabled "Абнаўленні забаронены вашым сістэмным спраўнікам">
+<!ENTITY update.failed.start "Няўдача абнаўлення.">
+<!ENTITY update.failed.linkText "Сцягванне апошняй версіі">
+<!ENTITY update.failed.end "">
+<!ENTITY update.manual.start "Сцязгнуць ">
+<!ENTITY update.manual.linkText "апошнюю версію">
+<!ENTITY update.manual.end "">
+<!ENTITY update.unsupported.start "Вы не можаце працягнуць абнаўленне на гэтай сістэме.">
+<!ENTITY update.unsupported.linkText "Падрабязней">
+<!ENTITY update.unsupported.end "">
+<!ENTITY update.downloading.start "Сцягванне абнаўлення — ">
+<!ENTITY update.downloading.end "">
+<!ENTITY update.applying "Ужыванне абнаўлення…">
+<!ENTITY channel.description.start "Зараз вы на ">
+<!ENTITY channel.description.end " канал абнаўленняў.">
+<!ENTITY cmdCloseMac.commandKey "w">
+
+<!ENTITY community.end3             " working together to keep the Web open, public and accessible to all.">
+<!-- LOCALIZATION NOTE (community.exp.creditslink): This is a link title that links to about:credits. -->
+<!ENTITY community.exp.creditsLink  "global community">
+<!ENTITY community.exp.end          " working together to keep the Web open, public and accessible to all.">
+<!ENTITY community.exp.middle       " is a ">
+<!-- LOCALIZATION NOTE (community.exp.mozillaLink): This is a link title that links to http://www.mozilla.org/. -->
+<!ENTITY community.exp.mozillaLink  "&vendorShortName;">
+
+<!-- LOCALIZATION NOTE (community.exp.*) This paragraph is shown in "experimental" builds, i.e. Nightly and Aurora builds, instead of the other "community.*" strings below. -->
+<!ENTITY community.exp.start        "">
+<!-- LOCALIZATION NOTE (helpus.donateLink): This is a link title that links to the thunderbird donation page -->
+<!ENTITY helpus.donateLink          "Make a donation">
+<!ENTITY helpus.end                 "">
+<!-- LOCALIZATION NOTE (helpus.getInvolvedLink): This is a link title that links to http://www.mozilla.org/contribute/. -->
+<!ENTITY helpus.getInvolvedLink     "get involved!">
+<!ENTITY helpus.middle              " or ">
+
+<!ENTITY helpus.start               "Want to help? ">
+<!-- LOCALIZATION NOTE (update.otherInstanceHandlingUpdates): try to make the localized text short -->
+<!ENTITY update.otherInstanceHandlingUpdates "&brandShortName; is being updated by another instance">
+<!ENTITY update.updateButton.label2               "Restart &brandShortName; to Update">
+<!-- LOCALIZATION NOTE (warningDesc.telemetryDesc): This is a notification that Nightly/Aurora builds automatically send Telemetry data back to Mozilla. It is only shown in those versions. "It" refers to brandShortName. -->
+<!ENTITY warningDesc.telemetryDesc  "It automatically sends information about performance, hardware, usage and customizations back to &vendorShortName; to help make &brandShortName; better.">
+
+
+<!-- LOCALIZATION NOTE (warningDesc.version): This is a warning about the experimental nature of Nightly and Aurora builds. It is only shown in those versions. -->
+<!ENTITY warningDesc.version        "&brandShortName; is experimental and may be unstable.">

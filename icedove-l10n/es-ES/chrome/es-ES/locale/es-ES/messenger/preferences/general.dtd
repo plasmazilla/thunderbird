@@ -1,0 +1,34 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY messengerStartPage.label "Página de inicio de &brandShortName;">
+<!ENTITY enableStartPage.label "Al iniciarse &brandShortName;, mostrar la página de inicio en el área de mensajes">
+<!ENTITY enableStartPage.accesskey "i">
+<!ENTITY location.label "Dirección:">
+<!ENTITY location1.accesskey "D">
+<!ENTITY useDefault.label "Restablecer predeterminado">
+<!ENTITY useDefault.accesskey "R">
+<!ENTITY changeDockIconOptions.label "Cambiar preferencias del icono de la aplicación">
+<!ENTITY dockOptions.label "Opciones del icono de la aplicación…">
+<!ENTITY dockOptions.accesskey "c">
+<!ENTITY newMessagesArrive.label "Cuando lleguen mensajes nuevos:">
+<!ENTITY playSound.label "Reproducir un sonido">
+<!ENTITY playSound1.accesskey "o">
+<!ENTITY showAnimatedAlert.label "Mostrar una alerta">
+<!ENTITY showAnimatedAlert.accesskey "M">
+<!ENTITY customizeMailAlert.label "Personalizar…">
+<!ENTITY customizeMailAlert.accesskey "P">
+<!ENTITY showTrayIcon.label "Mostrar un icono en la bandeja">
+<!ENTITY showTrayIcon.accesskey "a">
+<!ENTITY play.label "Reproducir">
+<!ENTITY play.accesskey "r">
+<!ENTITY systemsound.label "Sonido por defecto del sistema para nuevo correo">
+<!ENTITY systemsoundMac.label "Sonido de alerta del sistema">
+<!ENTITY systemsoundMac.accesskey "m">
+<!ENTITY systemsound.accesskey "n">
+<!ENTITY customsound.label "Usar el siguiente archivo de sonido">
+<!ENTITY customsound.accesskey "U">
+<!ENTITY browse.label "Examinar…">
+<!ENTITY browse.accesskey "E">
+<!ENTITY defaultSearchEngine.label "Buscador predeterminado">

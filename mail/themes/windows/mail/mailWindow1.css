@@ -27,7 +27,7 @@
   .mail-toolbox[iconsize="large"][mode="full"][labelalign="end"] >
   toolbar:only-of-type {
     margin-top: 2px;
-    margin-bottom: 2px;
+    margin-bottom: 3px;
   }
 }
 
@@ -44,8 +44,8 @@
 @media (-moz-os-version: windows-win10) {
   .mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
   .mail-toolbox[mode="full"][labelalign="end"] > toolbar:only-of-type {
-    margin-top: 5px;
-    margin-bottom: 5px;
+    margin-top: 6px;
+    margin-bottom: 6px;
   }
 }
 
@@ -187,14 +187,27 @@ treechildren::-moz-tree-image(flaggedCol) {
 
 /* ..... junkStatus column ..... */
 
+@media (-moz-os-version: windows-xp) {
+  treechildren::-moz-tree-image(junkStatusCol) {
+    list-style-image: url("chrome://messenger/skin/icons/folder-XP.png");
+  }
+}
+
+@media not all and (-moz-os-version: windows-xp) {
+  treechildren::-moz-tree-image(junkStatusCol) {
+    margin-inline-start: -3px;
+    list-style-image: url("chrome://messenger/skin/icons/folder.png");
+  }
+}
+
 .junkStatusHeader {
   list-style-image: url("chrome://messenger/skin/icons/junk-col.svg");
 }
 
 /* "unknown" now looks like "not junk".  see bug #182386 */
 treechildren::-moz-tree-image(junkStatusCol) {
-  list-style-image: url("chrome://messenger/skin/icons/readmail.png");
-  -moz-padding-start: 0px;
+  -moz-image-region: rect(16px 128px 32px 112px);
+  padding-inline-start: 0;
 }
 
 treechildren::-moz-tree-image(junkStatusCol, junk) {
@@ -202,8 +215,7 @@ treechildren::-moz-tree-image(junkStatusCol, junk) {
 }
 
 treechildren::-moz-tree-image(junkStatusCol, notjunk) {
-  list-style-image: url("chrome://messenger/skin/icons/readmail.png");
-  -moz-padding-start: 0px;
+  -moz-image-region: rect(16px 128px 32px 112px);
 }
 
 /* ..... correspondent column ..... */
@@ -284,24 +296,27 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 /* ..... folder pane adjustments ..... */
 
 #folderpane-title {
-  -moz-padding-start: 12px;
-  -moz-padding-end: 8px;
+  padding-inline-start: 12px;
+  padding-inline-end: 8px;
 }
 
 @media (-moz-os-version: windows-xp) {
   .folderview-cycler {
-    -moz-padding-end: 0px;
+    padding-inline-end: 0;
   }
 }
 
-.folderview-cycler[dir="prev"],
-.folderview-cycler[dir="next"]:-moz-locale-dir(rtl) {
-  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow-left.png");
+.folderview-cycler {
+  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow.svg#normal");
 }
 
-.folderview-cycler[dir="next"],
-.folderview-cycler[dir="prev"]:-moz-locale-dir(rtl) {
-  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow-right.png");
+.folderview-cycler:-moz-lwtheme-brighttext {
+  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow.svg#inverted");
+}
+
+.folderview-cycler[dir="prev"]:-moz-locale-dir(ltr) > .toolbarbutton-icon,
+.folderview-cycler[dir="next"]:-moz-locale-dir(rtl) > .toolbarbutton-icon {
+  transform: scaleX(-1);
 }
 
 /* ..... splitter adjustments ..... */
@@ -375,10 +390,6 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 
   #threadTree treechildren::-moz-tree-row(dummy, odd) {
     background-image: none;
-  }
-
-  treechildren::-moz-tree-image(junkStatusCol, junk) {
-    list-style-image: url("chrome://messenger/skin/icons/folder-XP.png");
   }
 
   .tabmail-tab[type="message"] {
@@ -760,34 +771,33 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
   #folderpane_splitter,
   #threadpane-splitter:not([orient="vertical"]) {
     border: none;
-    border-left: 1px solid #A9B7C9;
     min-width: 0;
     width: 5px;
     background-color: transparent;
     margin-top: 0;
-    -moz-margin-end: -4px;
     position: relative;
     z-index: 10;
     transition: border-width .3s ease-in;
   }
 
-  /* Until Bug 621351 is fixed we need border-right and border-left in
-   * combination with -moz-locale-dir instead of -moz-border-end and
-   * -moz-border-start for transition
-   */
-
-  #folderpane_splitter:-moz-locale-dir(rtl),
-  #threadpane-splitter:not([orient="vertical"]):-moz-locale-dir(rtl) {
-    border-right: 1px solid #A9B7C9;
-    border-left: none;
+  #folderpane_splitter {
+    border-inline-start: 1px solid #a9b7c9;
+    /* make only the splitter border visible */
+    margin-inline-end: -4px;
   }
 
-  #folderpane_splitter[state="collapsed"]:hover:-moz-locale-dir(ltr) {
-    border-left: 4px solid highlight;
+  #folderpane_splitter[state="collapsed"]:hover {
+    border-inline-start: 4px solid highlight;
   }
 
-  #folderpane_splitter[state="collapsed"]:hover:-moz-locale-dir(rtl) {
-    border-right: 4px solid highlight;
+  #threadpane-splitter:not([orient="vertical"]) {
+    border-inline-end: 1px solid #a9b7c9;
+    /* make only the splitter border visible */
+    margin-inline-start: -4px;
+  }
+
+  #threadpane-splitter[state="collapsed"]:not([orient="vertical"]):hover {
+    border-inline-end: 4px solid highlight;
   }
 
   #mailContent[layout="wide"] #folderpane_splitter {
@@ -832,8 +842,8 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
   }
 
   .folderview-cycler {
-    -moz-padding-start: 5px;
-    -moz-padding-end: 5px;
+    padding-inline-start: 5px;
+    padding-inline-end: 5px;
   }
 
   .treecol-image image {
@@ -852,14 +862,6 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 
   treechildren::-moz-tree-image(attachmentCol, attach) {
     -moz-margin-start: 0px;
-  }
-
-  treechildren::-moz-tree-image(junkStatusCol) {
-    -moz-margin-start: -3px;
-  }
-
-  treechildren::-moz-tree-image(junkStatusCol, junk) {
-    list-style-image: url("chrome://messenger/skin/icons/folder.png");
   }
 
   .tabmail-tab[type="message"] {
@@ -889,14 +891,33 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 
     menulist {
       -moz-appearance: none;
+      min-height: 24px;
+      color: inherit;
       margin: 1px 4px;
       padding: 1px 5px !important;
       border: 1px solid;
+      background: var(--toolbarbutton-hover-background);
+      border-color: var(--toolbarbutton-hover-bordercolor);
+      box-shadow: var(--toolbarbutton-hover-boxshadow);
+      transition-property: background-color, border-color, box-shadow;
+      transition-duration: 150ms;
+    }
+
+    menulist:not([disabled="true"]):not([open="true"]):hover {
+      background: var(--toolbarbutton-active-background);
+      border-color: var(--toolbarbutton-active-bordercolor);
+    }
+
+    menulist[open="true"] {
+      background: var(--toolbarbutton-active-background);
+      border-color: var(--toolbarbutton-active-bordercolor);
+      box-shadow: var(--toolbarbutton-active-boxshadow);
     }
 
     menulist[disabled="true"] {
       opacity: .6;
     }
+
     #folderPaneHeader {
       -moz-appearance: none;
       background-color: #f8f8f8;
@@ -956,73 +977,16 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 @media (-moz-windows-default-theme) and (-moz-os-version: windows-vista),
        (-moz-windows-default-theme) and (-moz-os-version: windows-win7) {
   menulist {
-    color: inherit;
     border-radius: 2px;
-    background-image: linear-gradient(hsla(0, 0%, 100%, .6),
-                      hsla(0, 0%, 100%, .1));
-    background-color: hsla(210, 32%, 93%, .2);
-    border-color: hsla(210, 54%, 20%, .15) hsla(210, 54%, 20%, .2)
-                  hsla(210, 54%, 20%, .25);
-    box-shadow: 0 1px hsla(0, 0%, 100%, .3) inset,
-                0 1px hsla(210, 54%, 20%, .03),
-                0 0 2px hsla(210, 54%, 20%, .1);
-    transition-property: background-color, border-color, box-shadow;
-    transition-duration: 150ms;
-  }
-
-  menulist:not([disabled="true"]):not([open="true"]):hover {
-    color: -moz-DialogText;
-    border-color: hsla(210, 54%, 20%, .3) hsla(210, 54%, 20%, .35)
-                  hsla(210, 54%, 20%, .4);
-    background-color: hsla(210, 48%, 96%, .75);
-    box-shadow: 0 0 1px hsla(210, 54%, 20%, .03),
-                0 0 2px hsla(210, 54%, 20%, .1);
   }
 
   menulist[open="true"] {
-    background-image: linear-gradient(hsla(0, 0%, 100%, .6),
-                      hsla(0, 0%, 100%, .1));
-    background-color: hsla(210, 54%, 20%, .15);
-    border-color: hsla(210, 54%, 20%, .3) hsla(210, 54%, 20%, .35)
-                  hsla(210, 54%, 20%, .4);
-    box-shadow: 0 1px 1px hsla(210, 54%, 20%, .1) inset,
-                0 0 1px hsla(210, 54%, 20%, .2) inset,
-                0 1px 0 hsla(210, 54%, 20%, 0),
-                0 0 2px hsla(210, 54%, 20%, 0);
     text-shadow: none;
     transition: none;
   }
 
   #status-bar {
     background-color: hsl(210, 75%, 92%);
-  }
-}
-
-@media (-moz-windows-default-theme) and (-moz-os-version: windows-win8),
-       (-moz-windows-default-theme) and (-moz-os-version: windows-win10) {
-  menulist {
-    color: inherit;
-    background-color: hsla(210, 4%, 10%, .08);
-    border-color: hsla(210, 4%, 10%, .1);
-    transition-property: background-color, border-color;
-    transition-duration: 150ms;
-  }
-
-  menulist:not([disabled="true"]):not([open="true"]):hover {
-    color: -moz-DialogText;
-    background-color: hsla(210, 4%, 10%, .1);
-    border-color: hsla(210, 4%, 10%, .2);
-  }
-
-  menulist[open="true"] {
-    background-color: hsla(210, 4%, 10%, .12);
-    border-color: hsla(210, 4%, 10%, .2);
-    box-shadow: 0 1px 1px hsla(210, 4%, 10%, .1) inset,
-                0 0 1px hsla(210, 4%, 10%, .2) inset,
-                0 1px 0 hsla(210, 4%, 10%, 0),
-                0 0 2px hsla(210, 4%, 10%, 0);
-    text-shadow: none;
-    transition: none;
   }
 }
 

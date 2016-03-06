@@ -113,7 +113,7 @@ var FolderNotificationHelper = {
     let folders = aFolders ? aFolders.concat() : [];
     if (aNotherFolder && !folders.includes(aNotherFolder))
       folders.push(aNotherFolder);
-    for each (let [, folder] in Iterator(folders)) {
+    for (let folder of folders) {
       let wrappers = this._interestedWrappers[folder.URI];
       if (wrappers == null)
         wrappers = this._interestedWrappers[folder.URI] = [];
@@ -158,7 +158,7 @@ var FolderNotificationHelper = {
       this._curiousWrappers.splice(this._curiousWrappers.indexOf(aViewWrapper), 1);
       return;
     }
-    for each (let [, folder] in Iterator(aFolders)) {
+    for (let folder of aFolders) {
       this._removeWrapperFromListener(
         this._interestedWrappers, folder, aViewWrapper);
       this._removeWrapperFromListener(
@@ -172,12 +172,12 @@ var FolderNotificationHelper = {
    *     person/code.
    */
   haveListeners: function FolderNotificationHelper_haveListeners() {
-    for each (let [folderURI, wrappers] in
-              Iterator(this._pendingFolderUriToViewWrapperLists)) {
+    for (let folderURI in this._pendingFolderUriToViewWrapperLists) {
+      let wrappers = this._pendingFolderUriToViewWrapperLists[folderURI];
       return true;
     }
-    for each (let [folderURI, wrappers] in
-              Iterator(this._interestedWrappers)) {
+    for (let folderURI in this._interestedWrappers) {
+      let wrappers = this._interestedWrappers[folderURI];
       return true;
     }
     return this._curiousWrappers.length != 0;
@@ -189,11 +189,11 @@ var FolderNotificationHelper = {
     let wrappers = this._interestedWrappers[aFolder.URI];
     if (wrappers) {
       // clone the list to avoid confusing mutation by listeners
-      for each (let [, wrapper] in Iterator(wrappers.concat())) {
+      for (let wrapper of wrappers.concat()) {
         wrapper[aHandlerName](aFolder);
       }
     }
-    for each (let wrapper in this._curiousWrappers)
+    for (let wrapper of this._curiousWrappers)
       wrapper[aHandlerName](aFolder);
   },
 
@@ -204,7 +204,7 @@ var FolderNotificationHelper = {
       let folderURI = aFolder.URI;
       let widgets = this._pendingFolderUriToViewWrapperLists[folderURI];
       if (widgets) {
-        for each (let [, widget] in Iterator(widgets)) {
+        for (let widget of widgets) {
           // we are friends, this is an explicit relationship.
           // (we don't use a generic callback mechanism because the 'this' stuff
           //  gets ugly and no one else should be hooking in at this level.)
@@ -262,7 +262,7 @@ var FolderNotificationHelper = {
     let wrappers = this._interestedWrappers[newURI];
     if (wrappers) {
       // clone the list to avoid confusing mutation by listeners
-      for each (let [, wrapper] in Iterator(wrappers.concat())) {
+      for (let wrapper of wrappers.concat()) {
         wrapper._folderMoved(aOldFolder, aNewFolder);
       }
     }
@@ -290,7 +290,7 @@ var FolderNotificationHelper = {
     let wrappers = this._interestedWrappers[aFolder.URI];
     if (wrappers) {
       // clone the list to avoid confusing mutation by listeners
-      for each (let [, wrapper] in Iterator(wrappers.concat())) {
+      for (let wrapper of wrappers.concat()) {
         wrapper._folderDeleted(aFolder);
       }
       // if the folder is deleted, it's not going to ever do anything again
@@ -584,11 +584,7 @@ DBViewWrapper.prototype = {
    *  against the displayedFolder attribute.
    */
   isUnderlyingFolder: function DBViewWrapper_isUnderlyingFolder(aFolder) {
-    for each (let [i,underlyingFolder] in Iterator(this._underlyingFolders)) {
-      if (aFolder == underlyingFolder)
-        return true;
-    }
-    return false;
+    return this._underlyingFolders.some(underlyingFolder => aFolder == underlyingFolder);
   },
 
   /**
@@ -715,7 +711,7 @@ DBViewWrapper.prototype = {
                                                  this);
     if (this._underlyingFolders) {
       // (potentially) zero out the underlying msgDatabase references
-      for each (let [, folder] in Iterator(this._underlyingFolders))
+      for (let folder of this._underlyingFolders)
         this._releaseFolderDatabase(folder);
     }
 
@@ -951,8 +947,7 @@ DBViewWrapper.prototype = {
       let virtFolder = VirtualFolderHelper.wrapVirtualFolder(aFolder);
       // Filter out the server roots; they only exist for UI reasons.
       this._underlyingFolders =
-        [folder for each ([, folder] in Iterator(virtFolder.searchFolders))
-                if (!folder.isServer)];
+        virtFolder.searchFolders.filter(folder => !folder.isServer);
       this._underlyingData = (this._underlyingFolders.length > 1) ?
                              this.kUnderlyingMultipleFolder :
                              this.kUnderlyingRealFolder;
@@ -1160,7 +1155,7 @@ DBViewWrapper.prototype = {
       this.displayedFolder = aNewFolder;
 
     // indexOf doesn't work for this (reliably)
-    for each (let [i,underlyingFolder] in Iterator(this._underlyingFolders)) {
+    for (let [i, underlyingFolder] of this._underlyingFolders.entries()) {
       if (aOldFolder == underlyingFolder) {
         this._underlyingFolders[i] = aNewFolder;
         break;
@@ -1196,7 +1191,7 @@ DBViewWrapper.prototype = {
     }
 
     // indexOf doesn't work for this (reliably)
-    for each (let [i,underlyingFolder] in Iterator(this._underlyingFolders)) {
+    for (let [i, underlyingFolder] of this._underlyingFolders.entries()) {
       if (aFolder == underlyingFolder) {
         this._underlyingFolders.splice(i,1);
         break;
@@ -1298,6 +1293,9 @@ DBViewWrapper.prototype = {
    *  the view gets (re)built.  If we have a view, depending on what's happening
    *  we may re-create the view or just set the bits.  The rules/reasons are:
    * - XFVF views can handle the flag changes, just set the flags.
+   * - XFVF threaded/unthreaded change must re-sort, the backend forgot.
+   * - Single-folder virtual folders (quicksearch) can handle viewFlag changes,
+   *    to/from grouped included, so set it.
    * - Single-folder threaded/unthreaded can handle a change to/from unthreaded/
    *    threaded, so set it.
    * - Single-folder can _not_ handle a change between grouped and not-grouped,
@@ -1305,26 +1303,50 @@ DBViewWrapper.prototype = {
    *    kUnreadOnly or kShowIgnored.
    */
   set _viewFlags(aViewFlags) {
-    if (this._viewUpdateDepth || !this.dbView)
+    // For viewFlag changes, do not make a random selection if there is not
+    // actually anything selected; some views do this (looking at xfvf).
+    if (this.dbView.selection && this.dbView.selection.count == 0)
+      this.dbView.selection.currentIndex = -1;
+
+    if (this._viewUpdateDepth || !this.dbView) {
       this.__viewFlags = aViewFlags;
-    else {
-      let oldFlags = this.dbView.viewFlags;
-      let changedFlags = oldFlags ^ aViewFlags;
-      if ((this.isVirtual && this.isMultiFolder) ||
-          (this.isSingleFolder &&
-           !(changedFlags & (nsMsgViewFlagsType.kGroupBySort |
-                             nsMsgViewFlagsType.kUnreadOnly |
-                             nsMsgViewFlagsType.kShowIgnored)))) {
-        this.dbView.viewFlags = aViewFlags;
+      return;
+    }
+
+    let setViewFlags = true;
+    let reSort = false;
+    let oldFlags = this.dbView.viewFlags;
+    let changedFlags = oldFlags ^ aViewFlags;
+
+    if (this.isVirtual) {
+      if (this.isMultiFolder &&
+          (changedFlags & nsMsgViewFlagsType.kThreadedDisplay &&
+           !(changedFlags & nsMsgViewFlagsType.kGroupBySort)))
+        reSort = true;
+      if (this.isSingleFolder)
         // ugh, and the single folder case needs us to re-apply his sort...
-        if (this.isSingleFolder)
-          this.dbView.sort(this.dbView.sortType, this.dbView.sortOrder);
-        this.listener.onSortChanged();
+        reSort = true;
+    }
+    else {
+      // The regular single folder case.
+      if (changedFlags & (nsMsgViewFlagsType.kGroupBySort |
+                          nsMsgViewFlagsType.kUnreadOnly |
+                          nsMsgViewFlagsType.kShowIgnored)) {
+        setViewFlags = false;
       }
-      else {
-        this.__viewFlags = aViewFlags;
-        this._applyViewChanges();
-      }
+      // ugh, and the single folder case needs us to re-apply his sort...
+      reSort = true;
+    }
+
+    if (setViewFlags) {
+      this.dbView.viewFlags = aViewFlags;
+      if (reSort)
+        this.dbView.sort(this.dbView.sortType, this.dbView.sortOrder);
+      this.listener.onSortChanged();
+    }
+    else {
+      this.__viewFlags = aViewFlags;
+      this._applyViewChanges();
     }
   },
 
@@ -1507,9 +1529,16 @@ DBViewWrapper.prototype = {
    *  on the underlying db view!  If you do not, make sure to fight us every
    *   step of the way, because we will keep clobbering your manually applied
    *   sort.
+   * For secondary and multiple custom column support, a byCustom aSortType and
+   *  aSecondaryType must be the column name string.
    */
   sort: function DBViewWrapper_sort(aSortType, aSortOrder,
                                     aSecondaryType, aSecondaryOrder) {
+    // For sort changes, do not make a random selection if there is not
+    // actually anything selected; some views do this (looking at xfvf).
+    if (this.dbView.selection && this.dbView.selection.count == 0)
+      this.dbView.selection.currentIndex = -1;
+
     this._sort = [[aSortType, aSortOrder]];
     if (aSecondaryType != null && aSecondaryOrder != null)
       this._sort.push([aSecondaryType, aSecondaryOrder]);
@@ -1519,7 +1548,9 @@ DBViewWrapper.prototype = {
     if ((this._viewUpdateDepth == 0) && this.dbView) {
       for (let iSort = this._sort.length - 1; iSort >=0; iSort--) {
         // apply them in the reverse order
-        let [sortType, sortOrder] = this._sort[iSort];
+        let [sortType, sortOrder, sortCustomCol] = this._getSortDetails(iSort);
+        if (sortCustomCol)
+          this.dbView.curCustomColumn = sortCustomCol;
         this.dbView.sort(sortType, sortOrder);
       }
       // (only generate the event since we're not in a update batch)
@@ -1553,19 +1584,32 @@ DBViewWrapper.prototype = {
    * Because we are lazy, we actually just poke the view's sort method and save
    *  the apparent secondary sort.  This also allows perfect compliance with the
    *  way this used to be implemented!
+   * For secondary and multiple custom column support, a byCustom aSortType must
+   *  be the column name string.
    */
   magicSort: function DBViewWrapper_magicSort(aSortType, aSortOrder) {
     if (this.dbView) {
+      // For sort changes, do not make a random selection if there is not
+      // actually anything selected; some views do this (looking at xfvf).
+      if (this.dbView.selection && this.dbView.selection.count == 0)
+        this.dbView.selection.currentIndex = -1;
+
       // so, the thing we just set obviously will be there
       this._sort = [[aSortType, aSortOrder]];
       // (make sure it is valid...)
       this._ensureValidSort();
+      // get sort details, handle custom column as string sortType
+      let [sortType, sortOrder, sortCustomCol] = this._getSortDetails(0);
+      if (sortCustomCol)
+        this.dbView.curCustomColumn = sortCustomCol;
       // apply the sort to see what happens secondary-wise
-      this.dbView.sort(this._sort[0][0], this._sort[0][1]);
+      this.dbView.sort(sortType, sortOrder);
       // there is only a secondary sort if it's not none and not the same.
       if (this.dbView.secondarySortType != nsMsgViewSortType.byNone &&
-          this.dbView.secondarySortType != this._sort[0][0])
-        this._sort.push([this.dbView.secondarySortType,
+          (this.dbView.secondarySortType != sortType ||
+           (this.dbView.secondarySortType == nsMsgViewSortType.byCustom &&
+            this.dbView.secondaryCustomColumn != sortCustomCol)))
+        this._sort.push([this.dbView.secondaryCustomColumn || this.dbView.secondarySortType,
                          this.dbView.secondarySortOrder]);
       // only tell our listener if we're not in a view update batch
       if (this._viewUpdateDepth == 0)
@@ -1586,7 +1630,7 @@ DBViewWrapper.prototype = {
         nsMsgViewFlagsType.kGroupBySort) {
       // We cannot be sorting by thread, id, none, or size.  If we are, switch
       //  to sorting by date.
-      for each (let [, sortPair] in Iterator(this._sort)) {
+      for (let sortPair of this._sort) {
         let sortType = sortPair[0];
         if (sortType == nsMsgViewSortType.byThread ||
             sortType == nsMsgViewSortType.byId ||
@@ -1616,10 +1660,12 @@ DBViewWrapper.prototype = {
   set showGroupedBySort(aShowGroupBySort) {
     if (this.showGroupedBySort != aShowGroupBySort) {
       if (aShowGroupBySort) {
-        // do not apply the flag change until we have made the sort safe
+        // For virtual single folders, the kExpandAll flag must be set.
+        // Do not apply the flag change until we have made the sort safe.
         let viewFlags = this._viewFlags |
                         nsMsgViewFlagsType.kGroupBySort |
-                         nsMsgViewFlagsType.kThreadedDisplay;
+                        nsMsgViewFlagsType.kExpandAll |
+                        nsMsgViewFlagsType.kThreadedDisplay;
         this._ensureValidSort(viewFlags);
         this._viewFlags = viewFlags;
       }

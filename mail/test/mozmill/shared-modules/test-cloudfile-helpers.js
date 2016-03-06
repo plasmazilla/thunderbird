@@ -17,7 +17,7 @@ var Cr = Components.results;
 var kMockContractIDPrefix = "@mozilla.org/mail/mockCloudFile;1?id=";
 
 var kDefaults = {
-  iconClass: "chrome://messenger/skin/icons/dropbox.png",
+  iconClass: "chrome://messenger/skin/icons/box-logo.png",
   accountKey: null,
   settingsURL: "",
   managementURL: "",
@@ -69,8 +69,7 @@ function getFile(aFilename, aRoot) {
  *                          __file__);
  */
 function collectFiles(aFiles, aFileRoot) {
-  return [getFile(filename, aFileRoot)
-          for each (filename in aFiles)]
+  return aFiles.map(filename => getFile(filename, aFileRoot));
 }
 
 function MockCloudfileAccount() {

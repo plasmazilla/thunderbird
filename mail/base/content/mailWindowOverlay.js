@@ -249,7 +249,7 @@ function view_init()
                             "bodyFeedGlobalSummary",
                             "bodyFeedPerFolderPref"];
   let checked = FeedMessageHandler.onSelectPref;
-  for each (let [index, id] in Iterator(viewRssMenuItemIds)) {
+  for (let [index, id] of viewRssMenuItemIds.entries()) {
     document.getElementById(id)
             .setAttribute("checked", index == checked);
   }
@@ -268,10 +268,10 @@ function view_init()
 
   // Disable the charset item if there's nothing to enable
   document.getElementById("charsetMenu")
-          .setAttribute("disabled", !msgWindow.mailCharacterSet);
+          .setAttribute("disabled", !gMessageDisplay.displayedMessage);
   let appmenuCharset = document.getElementById("appmenu_charsetMenu");
   if (appmenuCharset)
-    appmenuCharset.setAttribute("disabled", !msgWindow.mailCharacterSet);
+    appmenuCharset.setAttribute("disabled", !gMessageDisplay.displayedMessage);
 }
 
 function InitViewLayoutStyleMenu(event)
@@ -325,13 +325,7 @@ function InitViewSortByMenu()
   setSortByMenuItemCheckState("sortByCorrespondentMenuitem", (sortType == nsMsgViewSortType.byCorrespondent));
 
   var sortOrder = gFolderDisplay.view.primarySortOrder;
-  var sortTypeSupportsGrouping = (sortType == nsMsgViewSortType.byAuthor ||
-      sortType == nsMsgViewSortType.byDate || sortType == nsMsgViewSortType.byReceived ||
-      sortType == nsMsgViewSortType.byPriority ||
-      sortType == nsMsgViewSortType.bySubject || sortType == nsMsgViewSortType.byTags ||
-      sortType == nsMsgViewSortType.byRecipient || sortType == nsMsgViewSortType.byAccount ||
-      sortType == nsMsgViewSortType.byStatus || sortType == nsMsgViewSortType.byFlagged ||
-      sortType == nsMsgViewSortType.byAttachments || sortType == nsMsgViewSortType.byCorrespondent);
+  var sortTypeSupportsGrouping = isSortTypeValidForGrouping(sortType);
 
   setSortByMenuItemCheckState("sortAscending", (sortOrder == nsMsgViewSortOrder.ascending));
   setSortByMenuItemCheckState("sortDescending", (sortOrder == nsMsgViewSortOrder.descending));
@@ -370,18 +364,7 @@ function InitAppViewSortByMenu()
   setSortByMenuItemCheckState("appmenu_sortByAttachmentsMenuitem", (sortType == nsMsgViewSortType.byAttachments));
 
   let sortOrder = gFolderDisplay.view.primarySortOrder;
-  let sortTypeSupportsGrouping = (sortType == nsMsgViewSortType.byAuthor ||
-                                  sortType == nsMsgViewSortType.byDate ||
-                                  sortType == nsMsgViewSortType.byReceived ||
-                                  sortType == nsMsgViewSortType.byPriority ||
-                                  sortType == nsMsgViewSortType.bySubject ||
-                                  sortType == nsMsgViewSortType.byTags ||
-                                  sortType == nsMsgViewSortType.byRecipient ||
-                                  sortType == nsMsgViewSortType.byAccount ||
-                                  sortType == nsMsgViewSortType.byStatus ||
-                                  sortType == nsMsgViewSortType.byFlagged ||
-                                  sortType == nsMsgViewSortType.byAttachments ||
-                                  sortType == nsMsgViewSortType.byCorrespondent);
+  let sortTypeSupportsGrouping = isSortTypeValidForGrouping(sortType);
 
   setSortByMenuItemCheckState("appmenu_sortAscending", (sortOrder == nsMsgViewSortOrder.ascending));
   setSortByMenuItemCheckState("appmenu_sortDescending", (sortOrder == nsMsgViewSortOrder.descending));
@@ -398,6 +381,24 @@ function InitAppViewSortByMenu()
 
   groupBySortOrderMenuItem.setAttribute("disabled", !sortTypeSupportsGrouping);
   groupBySortOrderMenuItem.setAttribute("checked", grouped);
+}
+
+function isSortTypeValidForGrouping(sortType)
+{
+  return Boolean(sortType == nsMsgViewSortType.byAccount ||
+                 sortType == nsMsgViewSortType.byAttachments ||
+                 sortType == nsMsgViewSortType.byAuthor ||
+                 sortType == nsMsgViewSortType.byCorrespondent ||
+                 sortType == nsMsgViewSortType.byDate ||
+                 sortType == nsMsgViewSortType.byFlagged ||
+                 sortType == nsMsgViewSortType.byLocation ||
+                 sortType == nsMsgViewSortType.byPriority ||
+                 sortType == nsMsgViewSortType.byReceived ||
+                 sortType == nsMsgViewSortType.byRecipient ||
+                 sortType == nsMsgViewSortType.byStatus ||
+                 sortType == nsMsgViewSortType.bySubject ||
+                 sortType == nsMsgViewSortType.byTags ||
+                 sortType == nsMsgViewSortType.byCustom);
 }
 
 function InitViewMessagesMenu()
@@ -764,7 +765,7 @@ function SetGetMsgButtonTooltip()
   var listSeparator = bundle.getString("getMsgButtonTooltip.listSeparator");
 
   // Push the usernames through a Set() to remove duplicates.
-  var names = new Set([v.server.prettyName for each (v in folders)]);
+  var names = new Set(folders.map(v => v.server.prettyName));
   var tooltipNames = Array.from(names).join(listSeparator);
   msgButton.tooltipText = bundle.getFormattedString("getMsgButtonTooltip",
                                                     [ tooltipNames ]);
@@ -3164,13 +3165,16 @@ function onRemoteContentOptionsShowing(aEvent) {
   let addresses = {};
   MailServices.headerParser.parseHeadersWithArray(
     gMessageDisplay.displayedMessage.author, addresses, {}, {});
-  let authorEmailAddress = addresses.value[0];
-  let authorEmailAddressURI = Services.io.newURI(
-    "chrome://messenger/content/?email=" + authorEmailAddress, null, null);
-  let mailPrincipal = Services.scriptSecurityManager
-    .createCodebasePrincipal(authorEmailAddressURI, {});
-  // Put author email first in the menu.
-  origins.splice(0, 0, mailPrincipal.origin);
+  let adrCount = addresses.value[0] ? 1 : 0;
+  // If there is an author's email, put it also in the menu.
+  if (adrCount > 0) {
+    let authorEmailAddress = addresses.value[0];
+    let authorEmailAddressURI = Services.io.newURI(
+      "chrome://messenger/content/?email=" + authorEmailAddress, null, null);
+    let mailPrincipal = Services.scriptSecurityManager
+      .createCodebasePrincipal(authorEmailAddressURI, {});
+    origins.push(mailPrincipal.origin);
+  }
 
   let messengerBundle = document.getElementById("bundle_messenger");
 
@@ -3181,26 +3185,58 @@ function onRemoteContentOptionsShowing(aEvent) {
       childNodes[i].remove();
   }
 
+
+  let urlSepar = document.getElementById("remoteContentAllMenuSeparator");
+
   // ... and in with the new.
   for (let origin of origins) {
     let menuitem = document.createElement("menuitem");
     menuitem.setAttribute("label",
-      messengerBundle.getFormattedString("remoteAllow",
+      messengerBundle.getFormattedString("remoteAllowResource",
         [origin.replace("chrome://messenger/content/?email=", "")]));
     menuitem.setAttribute("value", origin);
     menuitem.setAttribute("class", "allow-remote-uri");
     menuitem.setAttribute("oncommand", "allowRemoteContentForURI(this.value);");
-    aEvent.target.appendChild(menuitem);
+    if (origin.startsWith("chrome://messenger/content/?email="))
+      aEvent.target.appendChild(menuitem);
+    else
+      aEvent.target.insertBefore(menuitem, urlSepar);
   }
+
+  let URLcount = origins.length - adrCount;
+  let allowAllItem = document.getElementById("remoteContentOptionAllowAll");
+  let allURLLabel = messengerBundle.getString("remoteAllowAll");
+  allowAllItem.label = PluralForm.get(URLcount, allURLLabel).replace("#1", URLcount);
+
+  allowAllItem.collapsed = (URLcount < 2);
+  document.getElementById("remoteContentOriginsMenuSeparator").collapsed =
+    urlSepar.collapsed = allowAllItem.collapsed && (adrCount == 0);
 }
 
 /**
  * Add privileges to display remote content for the given uri.
+ *
  * @param aUriSpec |String| uri for the site to add permissions for.
+ * @param aReload  Reload the message display after allowing the URI.
  */
-function allowRemoteContentForURI(aUriSpec) {
+function allowRemoteContentForURI(aUriSpec, aReload = true) {
   let uri = Services.io.newURI(aUriSpec, null, null);
   Services.perms.add(uri, "image", Services.perms.ALLOW_ACTION);
+  if (aReload)
+    ReloadMessage();
+}
+
+/**
+ * Add privileges to display remote content for the given uri.
+ *
+ * @param aListNode  The menulist element containing the URIs to allow.
+ */
+function allowRemoteContentForAll(aListNode) {
+  let uriNodes = aListNode.querySelectorAll(".allow-remote-uri");
+  for (let uriNode of uriNodes) {
+    if (!uriNode.value.startsWith("chrome://messenger/content/?email="))
+      allowRemoteContentForURI(uriNode.value, false);
+  }
   ReloadMessage();
 }
 

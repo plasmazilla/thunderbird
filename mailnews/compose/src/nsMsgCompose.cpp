@@ -78,6 +78,7 @@
 #include "mozilla/mailnews/MimeHeaderParser.h"
 #include "nsISelection.h"
 #include "nsJSEnvironment.h"
+#include "nsIObserverService.h"
 
 using namespace mozilla::mailnews;
 
@@ -679,7 +680,7 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
     if (!aBuf.IsEmpty() && mailEditor)
     {
       // This leaves the caret at the right place to insert a bottom signature.
-      if (aHTMLEditor && !mCiteReference.IsEmpty())
+      if (aHTMLEditor)
         mailEditor->InsertAsCitedQuotation(aBuf,
                                            mCiteReference,
                                            true,
@@ -1038,8 +1039,9 @@ NS_IMETHODIMP nsMsgCompose::RemoveMsgSendListener( nsIMsgSendListener *aMsgSendL
   return mExternalSendListeners.RemoveElement(aMsgSendListener) ? NS_OK : NS_ERROR_FAILURE;
 }
 
-nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *identity,
-                                const char *accountKey)
+NS_IMETHODIMP
+nsMsgCompose::SendMsgToServer(MSG_DeliverMode deliverMode, nsIMsgIdentity *identity,
+                              const char *accountKey)
 {
   nsresult rv = NS_OK;
 
@@ -1069,7 +1071,41 @@ nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *ide
     }
 
     m_compFields->SetOrganization(organization);
-    mMsgSend = do_CreateInstance(NS_MSGSEND_CONTRACTID);
+
+    // We need an nsIMsgSend instance to send the message. Allow extensions
+    // to override the default SMTP sender by observing mail-set-sender.
+    mMsgSend = nullptr;
+    mDeliverMode = deliverMode;  // save for possible access by observer.
+
+    // Allow extensions to specify an outgoing server.
+    nsCOMPtr<nsIObserverService> observerService =
+      mozilla::services::GetObserverService();
+    NS_ENSURE_STATE(observerService);
+
+    // Assemble a string with sending parameters.
+    nsAutoString sendParms;
+
+    // First parameter: account key. This may be null.
+    sendParms.AppendASCII(accountKey && *accountKey ? accountKey : "");
+    sendParms.AppendLiteral(",");
+
+    // Second parameter: deliverMode.
+    sendParms.AppendInt(deliverMode);
+    sendParms.AppendLiteral(",");
+
+    // Third parameter: identity (as identity key).
+    nsAutoCString identityKey;
+    identity->GetKey(identityKey);
+    sendParms.AppendASCII(identityKey.get());
+
+    observerService->NotifyObservers(
+      NS_ISUPPORTS_CAST(nsIMsgCompose*, this),
+      "mail-set-sender",
+      sendParms.get());
+
+    if (!mMsgSend)
+      mMsgSend = do_CreateInstance(NS_MSGSEND_CONTRACTID);
+
     if (mMsgSend)
     {
       nsCString bodyString(m_compFields->GetBody());
@@ -1157,11 +1193,25 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
     m_compFields->SetBody((const char *)nullptr);
 
     const char *charset = m_compFields->GetCharacterSet();
-    uint32_t flags = nsIDocumentEncoder::OutputFormatted |
-                     nsIDocumentEncoder::OutputCRLineBreak |
+
+    uint32_t flags = nsIDocumentEncoder::OutputCRLineBreak |
                      nsIDocumentEncoder::OutputLFLineBreak;
-    if (UseFormatFlowed(charset))
+
+    if (m_composeHTML) {
+      flags |= nsIDocumentEncoder::OutputFormatted |
+               nsIDocumentEncoder::OutputDisallowLineBreaking;
+    } else {
+      bool flowed, delsp, formatted, disallowBreaks;
+      GetSerialiserFlags(charset, &flowed, &delsp, &formatted, &disallowBreaks);
+      if (flowed)
         flags |= nsIDocumentEncoder::OutputFormatFlowed;
+      if (delsp)
+        flags |= nsIDocumentEncoder::OutputFormatDelSp;
+      if (formatted)
+        flags |= nsIDocumentEncoder::OutputFormatted;
+      if (disallowBreaks)
+        flags |= nsIDocumentEncoder::OutputDisallowLineBreaking;
+    }
     rv = m_editor->OutputToString(contentType, flags, msgBody);
     NS_ENSURE_SUCCESS(rv, rv);
   }
@@ -1173,13 +1223,10 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
   {
     // Convert body to mail charset
     nsCString outCString;
-    nsCString fallbackCharset;
-    bool isAsciiOnly;
-    // Check if the body text is covered by the current charset.
-    rv = nsMsgI18NSaveAsCharset(NS_ConvertUTF16toUTF8(contentType).get(),
-                                m_compFields->GetCharacterSet(),
-                                msgBody.get(), getter_Copies(outCString),
-                                getter_Copies(fallbackCharset), &isAsciiOnly);
+    rv = nsMsgI18NConvertFromUnicode(m_compFields->GetCharacterSet(),
+      msgBody, outCString, false, true);
+    bool isAsciiOnly = NS_IsAscii(outCString.get()) &&
+      !nsMsgI18Nstateful_charset(m_compFields->GetCharacterSet());
     if (m_compFields->GetForceMsgEncoding())
       isAsciiOnly = false;
     if (NS_SUCCEEDED(rv) && !outCString.IsEmpty())
@@ -1187,7 +1234,7 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
       // If the body contains characters outside the repertoire of the current
       // charset, just convert to UTF-8 and be done with it
       // unless disable_fallback_to_utf8 is set for this charset.
-      if (NS_ERROR_UENC_NOMAPPING == rv && m_editor)
+      if (NS_ERROR_UENC_NOMAPPING == rv)
       {
         bool needToCheckCharset;
         m_compFields->GetNeedToCheckCharset(&needToCheckCharset);
@@ -1209,20 +1256,14 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
           }
         }
       }
-      else if (!fallbackCharset.IsEmpty())
-      {
-        // re-label to the fallback charset
-        m_compFields->SetCharacterSet(fallbackCharset.get());
-        SetDocumentCharset(fallbackCharset.get());
-      }
       m_compFields->SetBodyIsAsciiOnly(isAsciiOnly);
       m_compFields->SetBody(outCString.get());
     }
     else
     {
-      m_compFields->SetBody(NS_LossyConvertUTF16toASCII(msgBody).get());
-      m_compFields->SetCharacterSet("US-ASCII");
-      SetDocumentCharset("US-ASCII");
+      m_compFields->SetBody(NS_ConvertUTF16toUTF8(msgBody).get());
+      m_compFields->SetCharacterSet("UTF-8");
+      SetDocumentCharset("UTF-8");
     }
   }
 
@@ -1315,7 +1356,7 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
   // Save the identity being sent for later use.
   m_identity = identity;
 
-  rv = _SendMsg(deliverMode, identity, accountKey);
+  rv = SendMsgToServer(deliverMode, identity, accountKey);
   if (NS_FAILED(rv))
   {
     nsCOMPtr<nsIMsgSendReport> sendReport;
@@ -1560,6 +1601,12 @@ NS_IMETHODIMP nsMsgCompose::InitEditor(nsIEditor* aEditor, nsIDOMWindow* aConten
     NotifyStateListeners(nsIMsgComposeNotificationType::ComposeBodyReady, NS_OK);
     return rv;
   }
+}
+
+NS_IMETHODIMP nsMsgCompose::GetBodyRaw(nsACString& aBodyRaw)
+{
+  aBodyRaw.Assign((char *)m_compFields->GetBody());
+  return NS_OK;
 }
 
 nsresult nsMsgCompose::GetBodyModified(bool * modified)
@@ -2110,6 +2157,12 @@ NS_IMETHODIMP nsMsgCompose::GetMessageSend(nsIMsgSend **_retval)
   return NS_OK;
 }
 
+NS_IMETHODIMP nsMsgCompose::SetMessageSend(nsIMsgSend* aMsgSend)
+{
+  mMsgSend = aMsgSend;
+  return NS_OK;
+}
+
 NS_IMETHODIMP nsMsgCompose::ClearMessageSend()
 {
   mMsgSend = nullptr;
@@ -2315,11 +2368,20 @@ QuotingOutputStreamListener::QuotingOutputStreamListener(const char * originalMs
  * disturbing the plain text.
  */
 nsresult
-QuotingOutputStreamListener::ConvertToPlainText(bool formatflowed /* = false */)
+QuotingOutputStreamListener::ConvertToPlainText(bool formatflowed,
+                                                bool delsp,
+                                                bool formatted,
+                                                bool disallowBreaks)
 {
-  nsresult rv = ConvertBufToPlainText(mMsgBody, formatflowed, true);
+  nsresult rv = ConvertBufToPlainText(mMsgBody, formatflowed,
+                                                delsp,
+                                                formatted,
+                                                disallowBreaks);
   NS_ENSURE_SUCCESS (rv, rv);
-  return ConvertBufToPlainText(mSignature, formatflowed, true);
+  return ConvertBufToPlainText(mSignature, formatflowed,
+                                           delsp,
+                                           formatted,
+                                           disallowBreaks);
 }
 
 NS_IMETHODIMP QuotingOutputStreamListener::OnStartRequest(nsIRequest *request, nsISupports * /* ctxt */)
@@ -2795,11 +2857,19 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
   compose->GetComposeHTML(&composeHTML);
   if (!composeHTML)
   {
-    // Downsampling. The charset should only consist of ascii.
+    // Downsampling.
 
-    bool formatflowed =
-      UseFormatFlowed(NS_LossyConvertUTF16toASCII(aCharset).get());
-    ConvertToPlainText(formatflowed);
+    // In plain text quotes we always allow line breaking to not end up with
+    // long lines. The quote is inserted into a span with style
+    // "white-space: pre;" which isn't be wrapped.
+    // Note that the body of the plain text message is wrapped since it uses
+    // "white-space: pre-wrap; width: 72ch;".
+    // Look at it in the DOM Inspector to see it.
+    //
+    // Also, delsp makes no sense in this context. Equally flowing (that means adding
+    // adding a space at the end) makes no sense in a quote, since the quote
+    // will never be re-assembled to a long line. All we need is formatted output.
+    ConvertToPlainText(false, false, true, false);
   }
 
   compose->ProcessSignature(mIdentity, true, &mSignature);
@@ -3965,7 +4035,7 @@ nsMsgCompose::ConvertHTMLToText(nsIFile *aSigFile, nsString &aSigData)
   nsresult rv = LoadDataFromFile(aSigFile, origBuf);
   NS_ENSURE_SUCCESS (rv, rv);
 
-  ConvertBufToPlainText(origBuf, false, true);
+  ConvertBufToPlainText(origBuf, false, false, true, true);
   aSigData = origBuf;
   return NS_OK;
 }
@@ -4253,7 +4323,7 @@ nsMsgCompose::ProcessSignature(nsIMsgIdentity *identity, bool aQuoted, nsString 
     if (!m_composeHTML)
     {
       if (htmlSig)
-        ConvertBufToPlainText(prefSigText, false, true);
+        ConvertBufToPlainText(prefSigText, false, false, true, true);
       sigData.Append(prefSigText);
     }
     else
@@ -4403,7 +4473,7 @@ nsMsgCompose::BuildBodyMessageAndSignature()
   // by removing the end of line char(s).
   int32_t wrapping_enabled = 0;
   GetWrapLength(&wrapping_enabled);
-  if (!m_composeHTML && !addSignature && wrapping_enabled)
+  if (!m_composeHTML && wrapping_enabled)
   {
     bool quote = false;
     for (uint32_t i = 0; i < body.Length(); i ++)
@@ -4877,34 +4947,64 @@ nsMsgCompose::ExpandMailingLists()
   return NS_OK;
 }
 
+/**
+ * This function implements the decision logic for delivery format 'Auto-Detect',
+ * including optional 'Auto-Downgrade' behaviour for HTML messages considered
+ * convertible (silent, "lossless" conversion to plain text).
+ * @param aConvertible  the result of analysing message body convertibility:
+ *                      nsIMsgCompConvertible::Plain | Yes | Altering | No
+ * @return              nsIMsgCompSendFormat::AskUser | PlainText | HTML | Both
+ */
 NS_IMETHODIMP
 nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
 {
   NS_ENSURE_ARG_POINTER(result);
+  nsresult rv;
+
+  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // *** Message-centric Auto-Downgrade ***
+  // If the message has practically no HTML formatting,
+  // AND if user accepts auto-downgrading (send options pref),
+  // bypass auto-detection of recipients' preferences and just
+  // send the message as plain text (silent, "lossless" conversion);
+  // which will also avoid asking for newsgroups for this typical scenario.
+  bool autoDowngrade = true;
+  rv = prefBranch->GetBoolPref("mailnews.sendformat.auto_downgrade", &autoDowngrade);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (autoDowngrade && (aConvertible == nsIMsgCompConvertible::Plain))
+  {
+    *result = nsIMsgCompSendFormat::PlainText;
+    return NS_OK;
+  }
+
+  // *** Newsgroups ***
+  // Right now, we don't have logic for newsgroups for intelligent send
+  // preferences. Therefore, bail out early and save us a lot of work if there
+  // are newsgroups.
 
   nsAutoString newsgroups;
   m_compFields->GetNewsgroups(newsgroups);
 
-  // Right now, we don't have logic for newsgroups for intelligent send
-  // preferences. Therefore, bail out early and save us a lot of work if there
-  // are newsgroups.
   if (!newsgroups.IsEmpty())
   {
     *result = nsIMsgCompSendFormat::AskUser;
     return NS_OK;
   }
 
+  // *** Recipient-Centric Auto-Detect ***
+
   RecipientsArray recipientsList;
-  nsresult rv = LookupAddressBook(recipientsList);
+  rv = LookupAddressBook(recipientsList);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // Finally return the list of non HTML recipient if requested and/or rebuilt
+  // Finally return the list of non-HTML recipients if requested and/or rebuilt
   // the recipient field. Also, check for domain preference when preferFormat
-  // is unknown
+  // is unknown.
   nsString plaintextDomains;
   nsString htmlDomains;
 
-  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
   if (prefBranch)
   {
     NS_GetUnicharPreferenceWithDefault(prefBranch, "mailnews.plaintext_domains",
@@ -4913,9 +5013,14 @@ nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
                                        EmptyString(), htmlDomains);
   }
 
-  // If allHtml is true, then everyone has specifically requested to receive
-  // HTML according to the address book.
+  // allHTML and allPlain are summary recipient scopes of format preference
+  // according to address book and send options for recipient-centric Auto-Detect,
+  // used by Auto-Detect to determine the appropriate message delivery format.
+
+  // allHtml: All recipients prefer HTML.
   bool allHtml = true;
+
+  // allPlain: All recipients prefer Plain Text.
   bool allPlain = true;
 
   // Exit the loop early if allHtml and allPlain both decay to false to save us
@@ -4950,6 +5055,8 @@ nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
           preferFormat = nsIAbPreferMailFormat::html;
       }
 
+      // Determine the delivery format preference of this recipient and adjust
+      // the summary recipient scopes of the message accordingly.
       switch (preferFormat)
       {
       case nsIAbPreferMailFormat::html:
@@ -4968,32 +5075,38 @@ nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
     }
   }
 
-  // If everyone supports HTML, then return HTML.
+  // Here's the final part of recipient-centric Auto-Detect logic where we set
+  // the actual send format (aka delivery format) after analysing recipients'
+  // format preferences above.
+
+  // If all recipients prefer HTML, then return HTML.
   if (allHtml)
   {
     *result = nsIMsgCompSendFormat::HTML;
     return NS_OK;
   }
 
-  // If we can guarantee that converting to plaintext is not lossy, send the
-  // email as plaintext. Also send it if everyone prefers plaintext.
-  if (aConvertible == nsIMsgCompConvertible::Plain || allPlain)
+  // If all recipients prefer plaintext, silently strip *all* HTML formatting,
+  // regardless of (non-)convertibility, and send the message as plaintext.
+  // **ToDo: UX-error-prevention, UX-wysiwyg: warn against dataloss potential.**
+  if (allPlain)
   {
     *result = nsIMsgCompSendFormat::PlainText;
     return NS_OK;
   }
 
   // Otherwise, check the preference to see what action we should default to.
-  nsCOMPtr<nsIPrefBranch> prefService(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
-
+  // This pref covers all recipient scopes involving prefers-plain (except allplain)
+  // and prefers-unknown. So we are mixing format conflict resolution options for
+  // prefers-plain with default format setting for prefers-unknown; not ideal.
   int32_t action = nsIMsgCompSendFormat::AskUser;
-  rv = prefService->GetIntPref("mail.default_html_action", &action);
+  rv = prefBranch->GetIntPref("mail.default_html_action", &action);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // If the action is a known action, return that value. Otherwise, ask the
-  // user. Note that the preference defaults to 0, which is not a valid value
-  // for the enum.
+  // If the action is a known send format, return the value to send in that format.
+  // Otherwise, ask the user.
+  // Note that the preference may default to 0 (Ask), which is not a valid value
+  // for the following enum.
   if (action == nsIMsgCompSendFormat::PlainText ||
       action == nsIMsgCompSendFormat::HTML ||
       action == nsIMsgCompSendFormat::Both)
@@ -5406,6 +5519,13 @@ NS_IMETHODIMP nsMsgCompose::CheckCharsetConversion(nsIMsgIdentity *identity, cha
   if (fallbackCharset)
     *fallbackCharset = nullptr;
   *_retval = true;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgCompose::GetDeliverMode(MSG_DeliverMode* aDeliverMode)
+{
+  NS_ENSURE_ARG_POINTER(aDeliverMode);
+  *aDeliverMode = mDeliverMode;
   return NS_OK;
 }
 

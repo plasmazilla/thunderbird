@@ -7,11 +7,6 @@ var Cc = Components.classes;
 var Ci = Components.interfaces;
 var Cu = Components.utils;
 
-// Maximum error in file modification times. Some file systems don't store
-// modification times exactly. As long as we are closer than this then it
-// still passes.
-const MAX_TIME_DIFFERENCE = 3000;
-
 // install.rdf size, icon.png, icon64.png size
 const ADDON1_SIZE = 705 + 16 + 16;
 
@@ -197,8 +192,9 @@ function check_test_1() {
 
 // Tests that an install from a url downloads.
 function run_test_2(aAddon) {
+  let { id, version } = aAddon;
   restartManager();
-  do_check_not_in_crash_annotation(aAddon.id, aAddon.version);
+  do_check_not_in_crash_annotation(id, version);
 
   let url = "http://localhost:4444/addons/test_install2_1.xpi";
   AddonManager.getInstallForURL(url, function(install) {

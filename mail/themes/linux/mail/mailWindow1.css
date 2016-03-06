@@ -18,20 +18,8 @@
 /* give the toolbox a min-height of 42px for Australis theme */
 .mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
 .mail-toolbox[mode="full"][labelalign="end"] > toolbar:only-of-type {
-  margin-top: 5px;
-  margin-bottom: 6px;
-}
-
-.mail-toolbox[iconsize="large"]:not([mode="full"]) > toolbar:only-of-type,
-.mail-toolbox[iconsize="large"][mode="full"][labelalign="end"] >
-toolbar:only-of-type {
-  margin-top: 3px;
-  margin-bottom: 3px;
-}
-
-.mail-toolbox[mode="text"]:not([mode="full"]) > toolbar:only-of-type {
-  margin-top: 5px;
-  margin-bottom: 4px;
+  margin-top: 7px;
+  margin-bottom: 7px;
 }
 
 #viewPickerLabel:not(:-moz-lwtheme) {
@@ -172,17 +160,16 @@ treechildren::-moz-tree-image(flaggedCol, flagged) {
 /* "unknown" now looks like "not junk".  see bug #182386 */
 treechildren::-moz-tree-image(junkStatusCol) {
   list-style-image: url("chrome://messenger/skin/icons/message-list.png");
-  -moz-image-region: rect(0px 16px 16px 0px); /* message-read.png */
-  -moz-padding-start: 0px;
+  -moz-image-region: rect(48px 16px 64px 0);
+  padding-inline-start: 0;
 }
 
 treechildren::-moz-tree-image(junkStatusCol, junk) {
-  -moz-image-region: rect(32px 16px 48px 0px); /* message-junk.png */
+  -moz-image-region: rect(32px 16px 48px 0);
 }
 
 treechildren::-moz-tree-image(junkStatusCol, notjunk) {
-  -moz-image-region: rect(0px 16px 16px 0px); /* message-read.png */
-  -moz-padding-start: 0px;
+  -moz-image-region: rect(48px 16px 64px 0);
 }
 
 /* ..... correspondent column ..... */
@@ -212,7 +199,7 @@ treechildren::-moz-tree-image(correspondentCol, outgoing) {
 treechildren::-moz-tree-image(subjectCol) {
   -moz-margin-end: 2px;
   list-style-image: url("chrome://messenger/skin/icons/message-list.png");
-  -moz-image-region: rect(48px 16px 64px 0px); /* message-blank.png */
+  -moz-image-region: rect(176px 16px 192px 0);
 }
 
 treechildren::-moz-tree-image(subjectCol, forwarded) {
@@ -243,22 +230,25 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 /* ..... folder pane adjustments ..... */
 
 #folderpane-title {
-  -moz-padding-start: 12px;
-  -moz-padding-end: 8px;
+  padding-inline-start: 12px;
+  padding-inline-end: 8px;
 }
 
 .folderview-cycler {
-  -moz-padding-end: 0px !important;
+  padding-inline-end: 0 !important;
 }
 
-.folderview-cycler[dir="prev"],
-.folderview-cycler[dir="next"]:-moz-locale-dir(rtl) {
-  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow-left.png");
+.folderview-cycler {
+  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow.svg#normal");
 }
 
-.folderview-cycler[dir="next"],
-.folderview-cycler[dir="prev"]:-moz-locale-dir(rtl) {
-  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow-right.png");
+.folderview-cycler:-moz-lwtheme-brighttext {
+  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow.svg#inverted");
+}
+
+.folderview-cycler[dir="prev"]:-moz-locale-dir(ltr) > .toolbarbutton-icon,
+.folderview-cycler[dir="next"]:-moz-locale-dir(rtl) > .toolbarbutton-icon {
+  transform: scaleX(-1);
 }
 
 /* ..... splitter adjustments ..... */
@@ -266,42 +256,33 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 #folderpane_splitter,
 #threadpane-splitter:not([orient="vertical"]) {
   -moz-appearance: none;
-  border-left: 1px solid ThreeDShadow;
   /* splitter grip area */
   width: 5px;
   margin-top: 0;
-  /* make only the splitter border visible */
-  -moz-margin-end: -5px;
   /* because of the negative margin needed to make the splitter visible */
   position: relative;
   z-index: 10;
   transition: border-width .3s ease-in;
 }
 
+#folderpane_splitter {
+  border-inline-start: 1px solid ThreeDShadow;
+  /* make only the splitter border visible */
+  margin-inline-end: -5px;
+}
+
+#folderpane_splitter[state="collapsed"]:hover {
+  border-inline-start: 4px solid highlight;
+}
+
 #threadpane-splitter:not([orient="vertical"]) {
-  -moz-margin-start: -5px;
-  -moz-margin-end: 0;
+  border-inline-end: 1px solid ThreeDShadow;
+  /* make only the splitter border visible */
+  margin-inline-start: -5px;
 }
 
-/* Until Bug 621351 is fixed we need border-right and border-left in
- * combination with -moz-locale-dir instead of -moz-border-end and
- * -moz-border-start for transition
- */
-
-#folderpane_splitter:-moz-locale-dir(rtl),
-#threadpane-splitter:not([orient="vertical"]):-moz-locale-dir(ltr) {
-  border-right: 1px solid ThreeDShadow;
-  border-left: none;
-}
-
-#folderpane_splitter[state="collapsed"]:hover:-moz-locale-dir(ltr),
-#threadpane-splitter[state="collapsed"]:not([orient="vertical"]):hover:-moz-locale-dir(rtl) {
-  border-left: 4px solid highlight;
-}
-
-#folderpane_splitter[state="collapsed"]:hover:-moz-locale-dir(rtl),
-#threadpane-splitter[state="collapsed"]:not([orient="vertical"]):hover:-moz-locale-dir(ltr) {
-  border-right: 4px solid highlight;
+#threadpane-splitter[state="collapsed"]:not([orient="vertical"]):hover {
+  border-inline-end: 4px solid highlight;
 }
 
 #threadpane-splitter,

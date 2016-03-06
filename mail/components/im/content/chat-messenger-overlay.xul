@@ -154,6 +154,7 @@
                        flex="1"
                        class="chromeclass-toolbar-additional">
             <textbox id="IMSearchInput"
+                     class="searchBox"
                      flex="1"
                      type="glodacomplete"
                      searchbutton="true"
@@ -164,7 +165,7 @@
                      timeout="200"
                      maxlength="192"
                      placeholder=""
-                     emptytextbase="&search.label.base;"
+                     emptytextbase="&search.label.base1;"
                      keyLabelNonMac="&search.keyLabel.nonmac;"
                      keyLabelMac="&search.keyLabel.mac;"
                      >
@@ -189,7 +190,7 @@
         <toolbarset id="customChatToolbars" context="chat-toolbar-context-menu"/>
       </toolbox>
 
-      <notificationbox id="chatTabPanel" flex="1">
+      <notificationbox id="chatTabPanel" flex="1" notificationside="top">
         <hbox flex="1">
           <vbox id="listPaneBox" minwidth="125" width="200" persist="width">
             <richlistbox id="contactlistbox"

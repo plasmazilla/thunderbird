@@ -33,6 +33,8 @@
 #include "mozilla/Services.h"
 #include "nsIMIMEInfo.h"
 #include "nsIMsgHeaderParser.h"
+#include "nsIRandomGenerator.h"
+#include "nsID.h"
 
 NS_IMPL_ISUPPORTS(nsMsgCompUtils, nsIMsgCompUtils)
 
@@ -515,8 +517,19 @@ nsresult mime_generate_headers(nsIMsgCompFields *fields,
 static void
 GenerateGlobalRandomBytes(unsigned char *buf, int32_t len)
 {
-  static bool      firstTime = true;
-
+  // Attempt to generate bytes from system entropy-based RNG.
+  nsCOMPtr<nsIRandomGenerator> randomGenerator(do_GetService("@mozilla.org/security/random-generator;1"));
+  MOZ_ASSERT(randomGenerator, "nsIRandomGenerator service not retrievable");
+  uint8_t *tempBuffer;
+  nsresult rv = randomGenerator->GenerateRandomBytes(len, &tempBuffer);
+  if (NS_SUCCEEDED(rv))
+  {
+    memcpy(buf, tempBuffer, len);
+    free(tempBuffer);
+    return;
+  }
+  // nsIRandomGenerator failed -- fall back to low entropy PRNG.
+  static bool firstTime = true;
   if (firstTime)
   {
     // Seed the random-number generator with current time so that
@@ -526,7 +539,7 @@ GenerateGlobalRandomBytes(unsigned char *buf, int32_t len)
   }
 
   for( int32_t i = 0; i < len; i++ )
-    buf[i] = rand() % 10;
+    buf[i] = rand() % 256;
 }
 
 char
@@ -672,8 +685,12 @@ mime_generate_attachment_headers (const char *type,
     // Add format=flowed as in RFC 2646 if we are using that
     if(type && !PL_strcasecmp(type, "text/plain"))
     {
-      if(UseFormatFlowed(bodyCharset))
+      bool flowed, delsp, formatted, disallowBreaks;
+      GetSerialiserFlags(bodyCharset, &flowed, &delsp, &formatted, &disallowBreaks);
+      if(flowed)
         buf.Append("; format=flowed");
+      if (delsp)
+        buf.Append("; delsp=yes");
       // else
       // {
       // Don't add a markup. Could use
@@ -895,9 +912,6 @@ static bool isValidHost( const char* host )
 char *
 msg_generate_message_id (nsIMsgIdentity *identity)
 {
-  uint32_t now = (uint32_t)(PR_Now() / PR_USEC_PER_SEC);
-
-  uint32_t salt = 0;
   const char *host = 0;
 
   nsCString forcedFQDN;
@@ -926,9 +940,15 @@ msg_generate_message_id (nsIMsgIdentity *identity)
      valid message ID, so bail, and let NNTP and SMTP generate them. */
     return 0;
 
-  GenerateGlobalRandomBytes((unsigned char *) &salt, sizeof(salt));
-  return PR_smprintf("<%lX.%lX@%s>",
-           (unsigned long) now, (unsigned long) salt, host);
+  // Generate 128-bit UUID for the local part. We use the high-entropy
+  // GenerateGlobalRandomBytes to make tracking more difficult.
+  nsID uuid;
+  GenerateGlobalRandomBytes((unsigned char*) &uuid, sizeof(nsID));
+  char uuidString[NSID_LENGTH];
+  uuid.ToProvidedString(uuidString);
+  // Drop first and last characters (curly braces).
+  uuidString[NSID_LENGTH - 2] = 0;
+  return PR_smprintf("<%s@%s>", uuidString + 1, host);
 }
 
 
@@ -1422,10 +1442,16 @@ msg_pick_real_name (nsMsgAttachmentHandler *attachment, const char16_t *proposed
         nsCString filename;
         nsCString extension;
         mimeInfo->GetPrimaryExtension(extension);
-        unsigned char filePrefix[10];
-        GenerateGlobalRandomBytes(filePrefix, 8);
+        unsigned char filePrefixBytes[8];
+        GenerateGlobalRandomBytes(filePrefixBytes, 8);
+        // Create a filename prefix with 16 lowercase letters,
+        // representing 8 bytes.
         for (int32_t i = 0; i < 8; i++)
-          filename.Append(filePrefix[i] + 'a');
+        {
+          // A pair of letters, each any of (a-p).
+          filename.Append((filePrefixBytes[i] & 0xF) + 'a');
+          filename.Append((filePrefixBytes[i] >> 4) + 'a');
+        }
         filename.Append('.');
         filename.Append(extension);
         attachment->m_realName = filename;
@@ -1739,42 +1765,31 @@ GetFolderURIFromUserPrefs(nsMsgDeliverMode aMode, nsIMsgIdentity* identity, nsCS
 
 /**
  * Check if we should use format=flowed (RFC 2646) for a mail.
- *
- * We will use format=flowed unless prefs tells us not to do
- * or if a charset which are known to have problems with
- * format=flowed is specified. (See bug 26734 in Bugzilla)
+ * We will use format=flowed unless the preference tells us not to do so.
+ * In this function we set all the serialiser flags.
+ * 'formatted' is always 'true'.
  */
-bool UseFormatFlowed(const char *charset)
+void GetSerialiserFlags(const char* charset, bool* flowed, bool* delsp, bool* formatted, bool* disallowBreaks)
 {
-  // Add format=flowed as in RFC 2646 unless asked to not do that.
-  bool sendFlowed = true;
-  bool disableForCertainCharsets = true;
+  *flowed = false;
+  *delsp = false;
+  *formatted = true;
+  *disallowBreaks = true;
+
+  // Set format=flowed as in RFC 2646 according to the preference.
   nsresult rv;
-
   nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
-  if (NS_FAILED(rv))
-    return false;
+  if (NS_SUCCEEDED(rv)) {
+    prefs->GetBoolPref("mailnews.send_plaintext_flowed", flowed);
+  }
 
-  rv = prefs->GetBoolPref("mailnews.send_plaintext_flowed", &sendFlowed);
-  if (NS_SUCCEEDED(rv) && !sendFlowed)
-    return false;
-
-  // If we shouldn't care about charset, then we are finished
-  // checking and can go on using format=flowed
-  if(!charset)
-    return true;
-  rv = prefs->GetBoolPref("mailnews.disable_format_flowed_for_cjk",
-                          &disableForCertainCharsets);
-  if (NS_SUCCEEDED(rv) && !disableForCertainCharsets)
-    return true;
-
-  // Just the check for charset left.
-
-  // This is a raw check and might include charsets which could
-  // use format=flowed and might exclude charsets which couldn't
-  // use format=flowed.
-  //
-  // The problem is the SPACE format=flowed inserts at the end of
-  // the line. Not all charsets like that.
-  return !(PL_strcasecmp(charset, "UTF-8") && nsMsgI18Nmultibyte_charset(charset));
+  // We could test statefulCharset(charset) here, but since ISO-2022-JP is the
+  // only one left we support, we might as well check for it directly.
+  if (PL_strcasecmp(charset, "ISO-2022-JP") == 0) {
+    // Make sure we honour RFC 1468. For encoding in ISO-2022-JP we need to
+    // send short lines to allow 7bit transfer encoding.
+    *disallowBreaks = false;
+    if (*flowed)
+      *delsp = true;
+  }
 }

@@ -64,9 +64,6 @@
 
 [xpcom]
 @RESPATH@/dependentlibs.list
-#ifdef GKMEDIAS_SHARED_LIBRARY
-@BINPATH@/@DLL_PREFIX@gkmedias@DLL_SUFFIX@
-#endif
 #ifdef MOZ_SHARED_MOZGLUE
 @BINPATH@/@DLL_PREFIX@mozglue@DLL_SUFFIX@
 #endif
@@ -571,10 +568,14 @@
 ; classic theme
 @RESPATH@/chrome/classic@JAREXT@
 @RESPATH@/chrome/classic.manifest
+#ifdef MOZ_OMNIJAR
+@RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}.xpi
+#else
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/chrome.manifest
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/icon.png
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/install.rdf
 @RESPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/preview.png
+#endif
 
 ; modern theme
 #ifdef MOZ_OMNIJAR
@@ -646,9 +647,6 @@
 ; [Default Preferences]
 ; All the browser/general pref files must be part of base to prevent migration bugs
 @RESPATH@/@PREF_DIR@/browser-prefs.js
-#ifdef LIBXUL_SDK
-@RESPATH@/@PREF_DIR@/channel-prefs.js
-#endif
 #ifdef MOZ_SERVICES_SYNC
 @RESPATH@/@PREF_DIR@/services-sync.js
 #endif
@@ -656,10 +654,8 @@
 @RESPATH@/greprefs.js
 @RESPATH@/defaults/autoconfig/prefcalls.js
 @RESPATH@/defaults/permissions
-#ifndef LIBXUL_SDK
 ; Warning: changing the path to channel-prefs.js can cause bugs. (Bug 756325)
 @RESPATH@/defaults/pref/channel-prefs.js
-#endif
 
 ; [Layout Engine Resources]
 ; Layout debug extension.

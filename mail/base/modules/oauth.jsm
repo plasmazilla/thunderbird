@@ -139,7 +139,7 @@ OAuth.prototype = {
       hmac.init(hmac.SHA1,
                 keyFactory.keyFromString(Ci.nsIKeyObject.HMAC, signatureKey));
       // No UTF-8 encoding, special chars are already escaped.
-      let bytes = [b.charCodeAt() for each (b in signatureBase)];
+      let bytes = Array.from(signatureBase).map(b => b.charCodeAt(0));
       hmac.update(bytes, bytes.length);
       signature = encodeURIComponent(hmac.finish(true));
     }
@@ -301,7 +301,7 @@ OAuth.prototype = {
   cleanUp: function() {
     this.finishAuthorizationRequest();
     if (this._pendingRequests.length != 0) {
-      for each (let request in this._pendingRequests)
+      for (let request of this._pendingRequests)
         request.abort();
       delete this._pendingRequests;
     }

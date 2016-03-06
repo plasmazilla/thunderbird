@@ -4,7 +4,7 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
-<?xml-stylesheet href="chrome://calendar/skin/calendar-creation-wizard.css" type="text/css"?>
+<?xml-stylesheet href="chrome://calendar-common/skin/calendar-creation-wizard.css" type="text/css"?>
 
 <!DOCTYPE dialog [
     <!ENTITY % dtd1 SYSTEM "chrome://calendar/locale/calendarCreation.dtd" > %dtd1;
@@ -61,7 +61,7 @@
                     <!--  Due to bug 128066, dropping urls here doesn't trigger
                           events. To work around, we use the dragexit handler,
                           which is triggered. Unfortunately, the more logical
-                          choice of dragdrop doesn't work here either.-->
+                          choice of drag'n'drop doesn't work here either.-->
                     <textbox id="calendar-uri"
                              required="true"
                              type="search"

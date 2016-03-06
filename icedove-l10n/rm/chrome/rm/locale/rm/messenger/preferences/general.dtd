@@ -1,0 +1,39 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY messengerStartPage.label         "Pagina da partenza da &brandShortName;">
+<!ENTITY enableStartPage.label            "Mussar la pagina da partenza sche &brandShortName; vegn avià">
+<!ENTITY enableStartPage.accesskey        "P">
+<!ENTITY location.label                   "Adressa:">
+<!ENTITY location1.accesskey               "A">
+<!ENTITY useDefault.label                 "Restaurar il standard">
+<!ENTITY useDefault.accesskey             "R">
+
+<!ENTITY changeDockIconOptions.label      "Midar las preferenzas per l'icona da l'applicaziun">
+<!ENTITY dockOptions.label                "Preferenzas per l'icona da l'applicaziun…">
+<!ENTITY dockOptions.accesskey            "n">
+
+<!ENTITY newMessagesArrive.label          "Sche in nov messadi arriva:">
+<!ENTITY playSound.label                  "Far ir in tun">
+<!ENTITY playSound1.accesskey              "F">
+<!ENTITY showAnimatedAlert.label          "Mussar in avis">
+<!ENTITY showAnimatedAlert.accesskey      "S">
+<!ENTITY customizeMailAlert.label         "Modifitgar…">
+<!ENTITY customizeMailAlert.accesskey     "M">
+
+<!ENTITY showTrayIcon.label               "Mussar ina icona en il tray">
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY play.label                       "Fa ir">
+<!ENTITY play.accesskey                   "i">
+<!ENTITY systemsound.label                "Tun predefinì dal sistem per in nov messadi">
+<!ENTITY systemsoundMac.label             "Tun dad avertiment dal sistem">
+<!ENTITY systemsoundMac.accesskey         "T">
+<!ENTITY systemsound.accesskey            "T">
+<!ENTITY customsound.label                "Utilisar la suandanta datoteca da tun">
+<!ENTITY customsound.accesskey            "U">
+<!ENTITY browse.label                     "Tschertgar en…">
+<!ENTITY browse.accesskey                 "e">
+
+<!ENTITY defaultSearchEngine.label        "Maschina da tschertgar da standard">

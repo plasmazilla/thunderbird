@@ -3481,7 +3481,8 @@ NS_IMETHODIMP
 nsMsgDBFolder::GetChildNamed(const nsAString& aName, nsIMsgFolder **aChild)
 {
   NS_ENSURE_ARG_POINTER(aChild);
-  GetSubFolders(nullptr); // initialize mSubFolders
+  nsCOMPtr<nsISimpleEnumerator> dummy;
+  GetSubFolders(getter_AddRefs(dummy)); // initialize mSubFolders
   *aChild = nullptr;
   int32_t count = mSubFolders.Count();
 
@@ -4410,7 +4411,8 @@ NS_IMETHODIMP nsMsgDBFolder::GetFolderWithFlags(uint32_t aFlags, nsIMsgFolder** 
     return NS_OK;
   }
 
-  GetSubFolders(nullptr); // initialize mSubFolders
+  nsCOMPtr<nsISimpleEnumerator> dummy;
+  GetSubFolders(getter_AddRefs(dummy)); // initialize mSubFolders
 
   int32_t count = mSubFolders.Count();
   *aResult = nullptr;
@@ -4439,7 +4441,8 @@ NS_IMETHODIMP nsMsgDBFolder::ListFoldersWithFlags(uint32_t aFlags, nsIMutableArr
   if ((mFlags & aFlags) == aFlags)
     aFolders->AppendElement(static_cast<nsRDFResource*>(this), false);
 
-  GetSubFolders(nullptr); // initialize mSubFolders
+  nsCOMPtr<nsISimpleEnumerator> dummy;
+  GetSubFolders(getter_AddRefs(dummy)); // initialize mSubFolders
 
   int32_t count = mSubFolders.Count();
   for (int32_t i = 0; i < count; ++i)
@@ -5137,7 +5140,8 @@ NS_IMETHODIMP nsMsgDBFolder::ListDescendants(nsIMutableArray *aDescendants)
 {
   NS_ENSURE_ARG_POINTER(aDescendants);
 
-  GetSubFolders(nullptr); // initialize mSubFolders
+  nsCOMPtr<nsISimpleEnumerator> dummy;
+  GetSubFolders(getter_AddRefs(dummy)); // initialize mSubFolders
   uint32_t count = mSubFolders.Count();
   for (uint32_t i = 0; i < count; i++)
   {
@@ -5935,6 +5939,14 @@ NS_IMETHODIMP nsMsgDBFolder::AndProcessingFlags(nsMsgKey aKey, uint32_t mask)
     if (!(mProcessingFlag[i].bit & mask) && mProcessingFlag[i].keys)
       mProcessingFlag[i].keys->Remove(aKey);
   return NS_OK;
+}
+
+// Each implementation must provide an override of this, connecting the folder
+// type to the corresponding incoming server type.
+NS_IMETHODIMP nsMsgDBFolder::GetIncomingServerType(nsACString& aIncomingServerType)
+{
+  NS_ASSERTION(false, "subclasses need to override this");
+  return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 void nsMsgDBFolder::ClearProcessingFlags()

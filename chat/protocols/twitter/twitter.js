@@ -21,10 +21,23 @@ XPCOMUtils.defineLazyGetter(this, "_lang", () =>
 );
 initLogModule("twitter", this);
 
-function ChatBuddy(aName) {
+function ChatBuddy(aName, aAccount) {
   this._name = aName;
+  this._account = aAccount;
 }
-ChatBuddy.prototype = GenericConvChatBuddyPrototype;
+ChatBuddy.prototype = {
+  __proto__: GenericConvChatBuddyPrototype,
+  get buddyIconFilename() {
+    let userInfo = this._account._userInfo.get(this.name);
+    if (userInfo)
+      return userInfo.profile_image_url;
+    return undefined;
+  },
+  set buddyIconFilename(aName) {
+    // Prevent accidental removal of the getter.
+    throw("Don't set chatBuddy.buddyIconFilename directly for Twitter.");
+  }
+}
 
 function Tweet(aTweet, aWho, aMessage, aObject)
 {
@@ -300,6 +313,7 @@ Conversation.prototype = {
           start: um.indices[0],
           end: um.indices[1],
           str: "@" + um.screen_name,
+          text: '@<span class="ib-person">' + um.screen_name + "</span>",
           title: um.name,
           href: "https://twitter.com/" + um.screen_name})));
       }
@@ -337,7 +351,9 @@ Conversation.prototype = {
     flags._iconURL = aTweet.user.profile_image_url;
     if (aTweet.delayed)
       flags.delayed = true;
-    if (text.includes("@" + this.nick))
+    if (aTweet.entities && aTweet.entities.user_mentions &&
+        Array.isArray(aTweet.entities.user_mentions) &&
+        aTweet.entities.user_mentions.some(mention => mention.screen_name == this.nick))
       flags.containsNick = true;
 
     (new Tweet(aTweet, name, text, flags)).conversation = this;
@@ -346,7 +362,7 @@ Conversation.prototype = {
     if (this._participants.has(aNick))
       return;
 
-    let chatBuddy = new ChatBuddy(aNick);
+    let chatBuddy = new ChatBuddy(aNick, this._account);
     this._participants.set(aNick, chatBuddy);
     this.notifyObservers(new nsSimpleEnumerator([chatBuddy]),
                          "chat-buddy-add");
@@ -1058,6 +1074,8 @@ Account.prototype = {
         tooltipInfo.push(new TooltipInfo(_("tooltip." + field), value));
       }
     }
+    tooltipInfo.push(new TooltipInfo(null, userInfo.profile_image_url,
+                                     Ci.prplITooltipInfo.icon));
 
     Services.obs.notifyObservers(new nsSimpleEnumerator(tooltipInfo),
                                  "user-info-received", aBuddyName);

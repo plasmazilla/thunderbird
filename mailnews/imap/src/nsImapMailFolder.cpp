@@ -581,8 +581,9 @@ NS_IMETHODIMP nsImapMailFolder::GetSubFolders(nsISimpleEnumerator **aResult)
     }
 
     int32_t count = mSubFolders.Count();
+    nsCOMPtr<nsISimpleEnumerator> dummy;
     for (int32_t i = 0; i < count; i++)
-      mSubFolders[i]->GetSubFolders(nullptr);
+      mSubFolders[i]->GetSubFolders(getter_AddRefs(dummy));
 
     UpdateSummaryTotals(false);
     if (NS_FAILED(rv)) return rv;
@@ -3000,7 +3001,7 @@ nsresult nsImapMailFolder::ParseAdoptedHeaderLine(const char *aMessageLine, nsMs
   // but they never contain partial lines
   const char *str = aMessageLine;
   m_curMsgUid = aMsgKey;
-  m_msgParser->SetEnvelopePos(m_curMsgUid);
+  m_msgParser->SetNewKey(m_curMsgUid);
   // m_envelope_pos, for local folders,
   // is the msg key. Setting this will set the msg key for the new header.
 
@@ -6335,14 +6336,6 @@ bool nsMsgIMAPFolderACL::SetFolderRightsForUser(const nsACString& userName, cons
   return true;
 }
 
-static PLDHashOperator fillArrayWithKeys(const nsACString& key,
-        const nsCString data, void* userArg)
-{
-  nsTArray<nsCString>* array = static_cast<nsTArray<nsCString>*>(userArg);
-  array->AppendElement(key);
-  return PL_DHASH_NEXT;
-}
-
 NS_IMETHODIMP nsImapMailFolder::GetOtherUsersWithAccess(
         nsIUTF8StringEnumerator** aResult)
 {
@@ -6391,8 +6384,9 @@ AdoptUTF8StringEnumerator::GetNext(nsACString& aResult)
 nsresult nsMsgIMAPFolderACL::GetOtherUsers(nsIUTF8StringEnumerator** aResult)
 {
   nsTArray<nsCString>* resultArray = new nsTArray<nsCString>;
-  // Note: make cast in fillArrayWithKeys() match
-  m_rightsHash.EnumerateRead(fillArrayWithKeys, resultArray);
+  for (auto iter = m_rightsHash.Iter(); !iter.Done(); iter.Next()) {
+    resultArray->AppendElement(iter.Key());
+  }
 
   // enumerator will free resultArray
   *aResult = new AdoptUTF8StringEnumerator(resultArray);
@@ -8218,8 +8212,10 @@ nsImapMailFolder::CopyStreamMessage(nsIMsgDBHdr* message,
           statusFeedback->ShowProgress(percent);
       }
     }
+    nsCOMPtr<nsIURI> dummyNull;
     rv = m_copyState->m_msgService->CopyMessage(uri.get(), streamListener,
-                                                isMove && !m_copyState->m_isCrossServerOp, nullptr, aMsgWindow, nullptr);
+                                                isMove && !m_copyState->m_isCrossServerOp, nullptr, aMsgWindow,
+                                                getter_AddRefs(dummyNull));
     if (NS_FAILED(rv))
       MOZ_LOG(IMAP, mozilla::LogLevel::Info, ("CopyMessage failed: uri %s\n", uri.get()));
   } 
@@ -8389,8 +8385,7 @@ nsImapMailFolder::CopyFileToOfflineStore(nsIFile *srcFile, nsMsgKey msgKey)
     //   not the temp file.
     fakeHdr->GetMessageOffset(&offset);
   }
-  // This will fail for > 4GB mbox folders, see bug 793865
-  msgParser->SetEnvelopePos((uint32_t) offset);
+  msgParser->SetEnvelopePos(offset);
 
   rv = NS_NewLocalFileInputStream(getter_AddRefs(inputStream), srcFile);
   if (NS_SUCCEEDED(rv) && inputStream)
@@ -9818,6 +9813,12 @@ NS_IMETHODIMP nsImapMailFolder::GetOfflineFileStream(nsMsgKey msgKey, int64_t *o
     hdr->GetMessageKey(&newMsgKey);
     return offlineFolder->GetOfflineFileStream(newMsgKey, offset, size, aFileStream);
   }
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsImapMailFolder::GetIncomingServerType(nsACString& serverType)
+{
+  serverType.AssignLiteral("imap");
   return NS_OK;
 }
 
