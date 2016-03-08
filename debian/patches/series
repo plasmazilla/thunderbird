@@ -1,3 +1,6 @@
+icedove-l10n/rebrand-all-language-packs.patch
+icedove-l10n/sl-change-Edit-Uredi-to-CTRL-E.patch
+icedove-l10n/disable-extension-update-extension-is-managed-by-apt.patch
 icedove/fix-installdir.patch
 debian-hacks/Icedove-branding.patch
 debian-hacks/Move-profile.patch
