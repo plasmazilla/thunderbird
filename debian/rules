@@ -13,6 +13,9 @@ BRANDING_DIR_ICEDOVE := mail/branding/icedove
 ICEDOVE_VERSION=$(shell tail -1 mail/config/version.txt)
 DEB_AUTO_UPDATE_AUTOCONF=2.13
 
+# build directory used for building the icedove-l10n files
+ICEDOVE_L10N_BUILDDIR=debian/icedove-l10n-build
+
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
 
@@ -44,6 +47,11 @@ export MOZILLA_OFFICIAL=1
 
 %:
 	dh $@
+
+override_dh_auto_clean:
+	# needed for icedove-l10n
+	dh_auto_clean
+	rm -rf $(ICEDOVE_L10N_BUILDDIR)
 
 override_dh_auto_configure:
 	# update config.sub and config.guess
@@ -81,9 +89,25 @@ override_dh_auto_configure:
 override_dh_auto_build:
 	# building the stuff
 	make -f client.mk build
+	# build icedove-l10n
+	mkdir $(ICEDOVE_L10N_BUILDDIR)
+	cd $(CURDIR)/icedove-l10n; \
+	for XPI in *; do \
+		LOCALE=`basename $${XPI}`; \
+		xpi-pack $${LOCALE} ../$(ICEDOVE_L10N_BUILDDIR)/$${LOCALE}.xpi; \
+	done
 
 override_dh_auto_install:
 	make -f client.mk install DESTDIR=$(CURDIR)/debian/tmp
+	# install icedove-l10n
+	cd $(CURDIR)/icedove-l10n; \
+	for DIRECTORY in *; do \
+		LOCALE=`echo $${DIRECTORY} | tr [:upper:] [:lower:]`; \
+		ID=`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`; \
+		install -D -m 644 ../$(ICEDOVE_L10N_BUILDDIR)/$${DIRECTORY}.xpi $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}.xpi; \
+		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions; \
+		ln -s /usr/share/icedove/extensions/$${ID}.xpi $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}.xpi; \
+	done
 
 override_dh_install:
 	dh_install
