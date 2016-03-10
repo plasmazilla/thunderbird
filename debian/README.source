@@ -11,3 +11,18 @@ to repackage the tarball
 Alternatively uscan should do the right thing:
 
     git-import-orig --uscan
+
+== Creating a new upstream source tarball icedove-l10n ==
+
+By using multiple upstream tarballs we needed to create a file
+
+  icedove_[xx].orig-icedove-l10n.tar.xz
+
+The helper script
+
+  debian/create-icedove-l10n-tarball.sh
+
+should be used to create the *.tar.xz file. To download the l10n related
+files call the helper script with the needed arguments. Call the script
+without arguments to get a output of the usage for the script.
+You need to run the script on top of the Icedove Git repository.
