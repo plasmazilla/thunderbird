@@ -825,6 +825,7 @@
      to get to the box faster.  If the global indexer is disabled, the search
      box will be collapsed and the user will never see this message.
      -->
+<!ENTITY search.label.base1 "Ieškoti #1">
 <!-- LOCALIZATION NOTE (search.keyLabel.nonmac):
      The description of the key-binding to get into the global search box on
      windows and linux (which use the control key).  We use the key defined in
@@ -853,8 +854,8 @@
 <!ENTITY SendMessageTo.accesskey "R">
 <!ENTITY CopyEmailAddress.label "Kopijuoti el. pašto adresą">
 <!ENTITY CopyEmailAddress.accesskey "K">
-
-
+<!ENTITY CopyNameAndEmailAddress.label "Kopijuoti vardą ir el. pašto adresą">
+<!ENTITY CopyNameAndEmailAddress.accesskey "v">
 <!ENTITY CopyNewsgroupName.label "Kopijuoti naujienų grupės pavadinimą">
 <!ENTITY CopyNewsgroupName.accesskey "o">
 <!ENTITY CopyNewsgroupURL.label "Kopijuoti naujienų grupės adresą">
@@ -912,16 +913,3 @@
 <!-- Mac OS X Dock Icon pop-up menu -->
 
 <!ENTITY dockOptions.label              "Programos piktogramos nuostatos…">
-
-<!ENTITY CopyNameAndEmailAddress.accesskey "N">
-<!ENTITY CopyNameAndEmailAddress.label "Copy Name and Email Address">
-<!-- LOCALIZATION NOTE (search.label.base1):
-     This is the base of the empty text for the global search box.  We replace
-     #1 with the contents of the appropriate search.keyLabel.* value for the
-     platform.
-     The goal is to convey to the user that typing in the box will allow them
-     to search for messages globally and that there is a hotkey they can press
-     to get to the box faster.  If the global indexer is disabled, the search
-     box will be collapsed and the user will never see this message.
-     -->
-<!ENTITY search.label.base1 "Search #1">

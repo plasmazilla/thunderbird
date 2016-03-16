@@ -215,6 +215,7 @@
 <!ENTITY addressButton.tooltip "Kontakte-Sidebar ein-/ausblenden">
 <!ENTITY attachButton.tooltip "Datei-Anhang zu dieser Nachricht anfügen">
 <!ENTITY spellingButton.tooltip "Rechtschreibung der Auswahl oder der gesamten Nachricht prüfen">
+<!ENTITY statusLanguageText.tooltip "Sprache für Rechtschreibprüfung">
 <!ENTITY saveButton.tooltip "Diese Nachricht speichern">
 <!ENTITY cutButton.tooltip              "Ausschneiden">
 <!ENTITY copyButton.tooltip             "Kopieren">
@@ -305,9 +306,6 @@
 <!-- Title for the address picker panel -->
 <!ENTITY addressesSidebarTitle.label "Kontakte">
 
-
-<!ENTITY customizeFromAddress.accesskey "A">
-
 <!-- Identity popup customize menuitem -->
-<!ENTITY customizeFromAddress.label "Customize From Address…">
-<!ENTITY statusLanguageText.tooltip "Spell checking language">
+<!ENTITY customizeFromAddress.label "Benutzerdefinierte Absenderadresse…">
+<!ENTITY customizeFromAddress.accesskey "A">

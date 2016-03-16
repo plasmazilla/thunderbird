@@ -4,16 +4,72 @@
 
 <!ENTITY aboutTelemetry.pageTitle "Telemetriedaten">
 
-<!ENTITY aboutTelemetry.telemetryEnabled "
-  Telemetrie ist <span>aktiviert</span>.
+<!ENTITY aboutTelemetry.changeDataChoices "
+  Ändern
 ">
 
-<!ENTITY aboutTelemetry.telemetryDisabled "
-  Telemetrie ist <span>deaktiviert</span>.
+<!ENTITY aboutTelemetry.uploadEnabled "
+  Daten des Firefox-Statusberichts werden <span>hochgeladen</span>.
+">
+
+<!ENTITY aboutTelemetry.uploadDisabled "
+  Daten des Firefox-Statusberichts werden <span>nicht hochgeladen</span>.
+">
+
+<!ENTITY aboutTelemetry.extendedRecordingEnabled "
+  Ausführliche Telemetrie-Aufzeichnung ist <span>aktiviert</span>.
+">
+
+<!ENTITY aboutTelemetry.extendedRecordingDisabled "
+  Ausführliche Telemetrie-Aufzeichnung ist <span>deaktiviert</span>.
+">
+
+<!ENTITY aboutTelemetry.pingDataSource "
+Datensatz auswählen:
+">
+
+<!ENTITY aboutTelemetry.showCurrentPingData "
+Datensatz in Aufzeichnung
+">
+
+<!ENTITY aboutTelemetry.showArchivedPingData "
+Archivierte Datensätze
+">
+
+<!ENTITY aboutTelemetry.showSubsessionData "
+Untersitzungsdaten anzeigen
+">
+
+<!ENTITY aboutTelemetry.choosePing "
+Datensatz auswählen:
+">
+
+<!ENTITY aboutTelemetry.showNewerPing "
+&lt;&lt; Neuerer Datensatz
+">
+
+<!ENTITY aboutTelemetry.showOlderPing "
+Älterer Datensatz &gt;&gt;
+">
+
+<!ENTITY aboutTelemetry.rawPingData "
+Unformatierte Daten des Datensatzes…
+">
+
+<!ENTITY aboutTelemetry.archiveWeekHeader "
+Woche
+">
+
+<!ENTITY aboutTelemetry.archivePingHeader "
+Datensatz
 ">
 
 <!ENTITY aboutTelemetry.generalDataSection "
   Allgemeine Daten
+">
+
+<!ENTITY aboutTelemetry.environmentDataSection "
+  Umgebungsdaten
 ">
 
 <!ENTITY aboutTelemetry.telemetryLogSection "
@@ -52,8 +108,8 @@
   Späte Schreibvorgänge
 ">
 
-<!ENTITY aboutTelemetry.systemInfoSection "
-  Systeminformationen
+<!ENTITY aboutTelemetry.sessionInfoSection "
+  Sitzungsinformationen
 ">
 
 <!ENTITY aboutTelemetry.addonHistogramsSection "
@@ -84,75 +140,6 @@
   Filter (Zeichenketten oder /Reguläre Ausdrücke/):
 ">
 
-
-<!ENTITY aboutTelemetry.archivePingHeader "
-Ping
-">
-
-<!ENTITY aboutTelemetry.archiveWeekHeader "
-Week
-">
-
-<!ENTITY aboutTelemetry.changeDataChoices "
-  Change
-">
-
-<!ENTITY aboutTelemetry.choosePing "
-Choose ping:
-">
-
-<!ENTITY aboutTelemetry.environmentDataSection "
-  Environment Data
-">
-
-<!ENTITY aboutTelemetry.extendedRecordingDisabled "
-  Extended Telemetry recording is <span>disabled</span>.
-">
-
-<!ENTITY aboutTelemetry.extendedRecordingEnabled "
-  Extended Telemetry recording is <span>enabled</span>.
-">
-
 <!ENTITY aboutTelemetry.payloadChoiceHeader "
-  Payload
-">
-
-<!ENTITY aboutTelemetry.pingDataSource "
-Ping data source:
-">
-
-<!ENTITY aboutTelemetry.rawPingData "
-Raw ping data ...
-">
-
-<!ENTITY aboutTelemetry.sessionInfoSection "
-  Session Information
-">
-
-<!ENTITY aboutTelemetry.showArchivedPingData "
-Archived ping data
-">
-
-<!ENTITY aboutTelemetry.showCurrentPingData "
-Current ping data
-">
-
-<!ENTITY aboutTelemetry.showNewerPing "
-&lt;&lt; Newer ping
-">
-
-<!ENTITY aboutTelemetry.showOlderPing "
-Older ping &gt;&gt;
-">
-
-<!ENTITY aboutTelemetry.showSubsessionData "
-Show subsession data
-">
-
-<!ENTITY aboutTelemetry.uploadDisabled "
-  FHR data upload is <span>disabled</span>.
-">
-
-<!ENTITY aboutTelemetry.uploadEnabled "
-  FHR data upload is <span>enabled</span>.
+  Datenpaket
 ">

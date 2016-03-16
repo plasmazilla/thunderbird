@@ -26,6 +26,40 @@
   counter-reset: smallicons;
 }
 
+/** Stock icons for the menu items. */
+#fontFaceMenu {
+  -moz-binding: url("chrome://global/content/bindings/menu.xml#menu-iconic");
+  list-style-image: url("moz-icon://stock/gtk-select-font?size=menu");
+}
+
+#increaseIndent {
+  list-style-image: url("moz-icon://stock/gtk-indent?size=menu");
+}
+
+#decreaseIndent {
+  list-style-image: url("moz-icon://stock/gtk-unindent?size=menu");
+}
+
+#menu_styleBold {
+  list-style-image: url("moz-icon://stock/gtk-bold?size=menu");
+}
+
+#menu_styleItalic {
+  list-style-image: url("moz-icon://stock/gtk-italic?size=menu");
+}
+
+#menu_styleUnderline {
+  list-style-image: url("moz-icon://stock/gtk-underline?size=menu");
+}
+
+#menu_styleUnderline {
+  list-style-image: url("moz-icon://stock/gtk-underline?size=menu");
+}
+
+#menu_styleStrikeThru {
+  list-style-image: url("moz-icon://stock/gtk-strikethrough?size=menu");
+}
+
 /* ::::: primary toolbar buttons ::::: */
 
 #button-send {
@@ -117,8 +151,52 @@ toolbar[brighttext] #button-print {
   list-style-image: url("chrome://messenger/skin/messengercompose/compose-toolbar.svg#print-inverted");
 }
 
-#priority-button:not(:-moz-lwtheme) > label {
-  color: MenuText;
+/* ::::: menulists on toolbar ::::: */
+
+menulist {
+  -moz-appearance: none;
+  min-height: 24px;
+  color: inherit;
+  margin: 1px 4px;
+  padding: 1px 6px;
+  border: 1px solid;
+  background: var(--toolbarbutton-hover-background);
+  border-color: var(--toolbarbutton-hover-bordercolor);
+  box-shadow: var(--toolbarbutton-hover-boxshadow);
+  transition: background-color 150ms;
+}
+
+menulist:not([disabled="true"]):not([open="true"]):hover {
+  background: var(--toolbarbutton-active-background);
+  border-color: var(--toolbarbutton-active-bordercolor);
+}
+
+menulist[open="true"] {
+  background: var(--toolbarbutton-active-background);
+  border-color: var(--toolbarbutton-active-bordercolor);
+  box-shadow: var(--toolbarbutton-active-boxshadow);
+}
+
+menulist[disabled="true"] {
+  opacity: .6;
+}
+
+.menulist-dropmarker {
+  -moz-appearance: none;
+  display:-moz-box;
+  list-style-image: none;
+}
+
+menulist > .menulist-dropmarker > .dropmarker-icon {
+  width: 9px;
+  max-height: 7px;
+  margin: 7px 5px;
+  margin-inline-end: 0;
+  background-image: url("chrome://messenger/skin/icons/toolbarbutton-arrow.png");
+}
+
+toolbar[brighttext] menulist > .menulist-dropmarker > .dropmarker-icon {
+  background-image: url("chrome://messenger/skin/icons/toolbarbutton-arrow-inverted.png");
 }
 
 /* ::::: special toolbar colors ::::: */
@@ -139,10 +217,9 @@ toolbar[brighttext] #button-print {
 /* ::::: attachment reminder ::::: */
 
 #attachmentNotificationBox > notification .messageImage {
-  width: 22px;
-  height: 22px;
-  background-image: url(chrome://messenger/skin/messengercompose/compose-toolbar.png);
-  background-position: left -66px;
+  width: 18px;
+  height: 18px;
+  background-image: url(chrome://messenger/skin/messengercompose/compose-toolbar.svg#attach);
 }
 
 #attachmentReminderText {
