@@ -1,3 +1,14 @@
+icedove (38.7.0-1) unstable; urgency=medium
+
+  [ Christoph Goehre ]
+  * [cb9c003] Imported Upstream version 38.7.0
+  * [7273cb9] bump up standards version to 3.9.7 (no changes needed)
+
+  [ Carsten Schoenert ]
+  * [0341a8c] debian/control: switch URI for the Vcs fields to https
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 16 Mar 2016 13:22:57 +0100
+
 icedove (38.6.0-1) unstable; urgency=medium
 
   [ Guido Günther ]
