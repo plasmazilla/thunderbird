@@ -266,8 +266,5 @@
 <!ENTITY spellAddDictionaries.label "Aggiungi dizionari…">
 <!ENTITY spellAddDictionaries.accesskey "A">
 <!ENTITY addressesSidebarTitle.label "Contatti">
-
-<!ENTITY customizeFromAddress.accesskey "A">
-
-<!-- Identity popup customize menuitem -->
-<!ENTITY customizeFromAddress.label "Customize From Address…">
+<!ENTITY customizeFromAddress.label "Personalizza il campo Da…">
+<!ENTITY customizeFromAddress.accesskey "D">

@@ -307,8 +307,5 @@
 <!ENTITY addressesSidebarTitle.label "Adresatai">
 <!-- Identity popup customize menuitem -->
 
-
+<!ENTITY customizeFromAddress.label "Pasirinkti siuntėjo adresą…">
 <!ENTITY customizeFromAddress.accesskey "A">
-
-<!-- Identity popup customize menuitem -->
-<!ENTITY customizeFromAddress.label "Customize From Address…">

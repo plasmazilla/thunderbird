@@ -23,8 +23,8 @@
 <!ENTITY biffStart.label "Tikrinti paštą kas">
 <!ENTITY biffStart.accesskey "T">
 <!ENTITY biffEnd.label "min.">
-
-
+<!ENTITY useIdleNotifications.label "Leisti serveriui siųsti informacinius pranešimus apie naujų laiškų gavimą.">
+<!ENTITY useIdleNotifications.accesskey "w">
 <!ENTITY connectionSecurity.label "Saugusis ryšys:">
 <!ENTITY connectionSecurity.accesskey "S">
 <!ENTITY connectionSecurityType-0.label "nenaudoti">
@@ -90,6 +90,3 @@
 <!ENTITY storeType.accesskey "b">
 <!ENTITY mboxStore2.label "Atskiras failas kiekvienam aplankui („mbox“)">
 <!ENTITY maildirStore.label "Atskiras failas kiekvienam laiškui („Maildir“)">
-
-<!ENTITY useIdleNotifications.accesskey "w">
-<!ENTITY useIdleNotifications.label "Allow immediate server notifications when new messages arrive">

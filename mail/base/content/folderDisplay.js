@@ -1381,6 +1381,9 @@ FolderDisplayWidget.prototype = {
     //  our notification when the message load is initiated, rather than when
     //  the message completes loading.
     this._nextViewIndexAfterDelete = null;
+
+    // If we're displaying a different message, reset the override.
+    msgWindow.charsetOverride = false;
   },
 
   /**

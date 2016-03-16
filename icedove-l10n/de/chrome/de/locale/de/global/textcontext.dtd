@@ -27,12 +27,11 @@
 
 <!ENTITY searchTextBox.clear.label "Leeren">
 
-<!ENTITY fillLoginMenu.accesskey      "F">
-
-<!ENTITY fillLoginMenu.label          "Fill Login">
-<!ENTITY fillPasswordMenu.accesskey   "F">
-<!ENTITY fillPasswordMenu.label       "Fill Password">
-<!ENTITY fillUsernameMenu.accesskey   "F">
-<!ENTITY fillUsernameMenu.label       "Fill Username">
-<!ENTITY noLoginSuggestions.label     "(No Login Suggestions)">
-<!ENTITY viewSavedLogins.label        "View Saved Logins">
+<!ENTITY fillLoginMenu.label          "Zugangsdaten einfügen">
+<!ENTITY fillLoginMenu.accesskey      "Z">
+<!ENTITY fillPasswordMenu.label       "Passwort einfügen">
+<!ENTITY fillPasswordMenu.accesskey   "P">
+<!ENTITY fillUsernameMenu.label       "Benutzernamen einfügen">
+<!ENTITY fillUsernameMenu.accesskey   "B">
+<!ENTITY noLoginSuggestions.label     "(Keine Anmeldevorschläge)">
+<!ENTITY viewSavedLogins.label        "Gespeicherte Zugangsdaten ansehen">

@@ -527,7 +527,6 @@ nsMsgCompose::InsertDivWrappedTextAtSelection(const nsAString &aText,
 
   nsCOMPtr<nsIDOMElement> divElem;
   nsCOMPtr<nsIHTMLEditor> htmlEditor(do_QueryInterface(m_editor));
-  nsCOMPtr<nsIPlaintextEditor> textEditor(do_QueryInterface(m_editor));
 
   nsresult rv = htmlEditor->CreateElementWithDefaults(NS_LITERAL_STRING("div"),
                                                       getter_AddRefs(divElem));
@@ -4426,12 +4425,12 @@ nsMsgCompose::BuildBodyMessageAndSignature()
 
   /* Some time we want to add a signature and sometime we wont. Let's figure that now...*/
   bool addSignature;
-  bool addDashes = false;
+  bool isQuoted = false;
   switch (mType)
   {
     case nsIMsgCompType::ForwardInline :
       addSignature = true;
-      addDashes = true;
+      isQuoted = true;
       break;
     case nsIMsgCompType::New :
     case nsIMsgCompType::MailToUrl :    /* same as New */
@@ -4459,7 +4458,7 @@ nsMsgCompose::BuildBodyMessageAndSignature()
 
   nsAutoString tSignature;
   if (addSignature)
-    ProcessSignature(m_identity, addDashes, &tSignature);
+    ProcessSignature(m_identity, isQuoted, &tSignature);
 
   // if type is new, but we have body, this is probably a mapi send, so we need to
   // replace '\n' with <br> so that the line breaks won't be lost by html.
@@ -5123,7 +5122,7 @@ nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
 /* Decides which tags trigger which convertible mode, i.e. here is the logic
    for BodyConvertible */
 // Helper function. Parameters are not checked.
-nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
+nsresult nsMsgCompose::TagConvertible(nsIDOMElement *node,  int32_t *_retval)
 {
     nsresult rv;
 
@@ -5140,14 +5139,42 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
       return rv;
 
     nsCOMPtr<nsIDOMNode> pItem;
-    if      (
-              nodeType == nsIDOMNode::TEXT_NODE ||
+
+    // style attribute on any element can change layout in any way, so that is not convertible.
+    nsAutoString attribValue;
+    if (NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("style"), attribValue)) &&
+        !attribValue.IsEmpty())
+    {
+      *_retval = nsIMsgCompConvertible::No;
+      return NS_OK;
+    }
+    // moz-txt classes are used internally by the editor, those can be discarded.
+    // But any other ones are unconvertible. Style can be attached to them or any
+    // other context (e.g. in microformats).
+    if (NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("class"), attribValue)) &&
+        !attribValue.IsEmpty() &&
+        !StringBeginsWith(attribValue, NS_LITERAL_STRING("moz-txt"), nsCaseInsensitiveStringComparator()) &&
+        !StringBeginsWith(attribValue, NS_LITERAL_STRING("moz-cite"), nsCaseInsensitiveStringComparator()))
+    {
+      *_retval = nsIMsgCompConvertible::No;
+      return NS_OK;
+    }
+    // ID attributes can contain attached style/context or be target of links
+    // so we should preserve them.
+    if (NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("id"), attribValue)) &&
+        !attribValue.IsEmpty())
+    {
+      *_retval = nsIMsgCompConvertible::No;
+      return NS_OK;
+    }
+    if      ( // some "simple" elements without "style" attribute
               element.LowerCaseEqualsLiteral("br") ||
               element.LowerCaseEqualsLiteral("p") ||
               element.LowerCaseEqualsLiteral("pre") ||
               element.LowerCaseEqualsLiteral("tt") ||
               element.LowerCaseEqualsLiteral("html") ||
               element.LowerCaseEqualsLiteral("head") ||
+              element.LowerCaseEqualsLiteral("meta") ||
               element.LowerCaseEqualsLiteral("title")
             )
     {
@@ -5194,46 +5221,38 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
     {
       *_retval = nsIMsgCompConvertible::Plain;
 
-      nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(node);
-      if (domElement)
-      {
         bool hasAttribute;
         nsAutoString color;
-        if (NS_SUCCEEDED(domElement->HasAttribute(NS_LITERAL_STRING("background"), &hasAttribute))
+        if (NS_SUCCEEDED(node->HasAttribute(NS_LITERAL_STRING("background"), &hasAttribute))
             && hasAttribute)  // There is a background image
           *_retval = nsIMsgCompConvertible::No;
-        else if (NS_SUCCEEDED(domElement->HasAttribute(NS_LITERAL_STRING("text"), &hasAttribute)) &&
+        else if (NS_SUCCEEDED(node->HasAttribute(NS_LITERAL_STRING("text"), &hasAttribute)) &&
                  hasAttribute &&
-                 NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("text"), color)) &&
+                 NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("text"), color)) &&
                  !color.EqualsLiteral("#000000")) {
           *_retval = nsIMsgCompConvertible::Altering;
         }
-        else if (NS_SUCCEEDED(domElement->HasAttribute(NS_LITERAL_STRING("bgcolor"), &hasAttribute)) &&
+        else if (NS_SUCCEEDED(node->HasAttribute(NS_LITERAL_STRING("bgcolor"), &hasAttribute)) &&
                  hasAttribute &&
-                 NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("bgcolor"), color)) &&
+                 NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("bgcolor"), color)) &&
                  !color.LowerCaseEqualsLiteral("#ffffff")) {
           *_retval = nsIMsgCompConvertible::Altering;
         }
-        else if (NS_SUCCEEDED(domElement->HasAttribute(NS_LITERAL_STRING("dir"), &hasAttribute))
+        else if (NS_SUCCEEDED(node->HasAttribute(NS_LITERAL_STRING("dir"), &hasAttribute))
             && hasAttribute)  // dir=rtl attributes should not downconvert
           *_retval = nsIMsgCompConvertible::No;
 
         //ignore special color setting for link, vlink and alink at this point.
-      }
-
     }
     else if (element.LowerCaseEqualsLiteral("blockquote"))
     {
       // Skip <blockquote type="cite">
       *_retval = nsIMsgCompConvertible::Yes;
 
-      nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(node);
-      if (domElement)
+      if (NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("type"), attribValue)) &&
+          attribValue.LowerCaseEqualsLiteral("cite"))
       {
-        nsString typeValue;
-        if (NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("type"), typeValue)) &&
-            typeValue.LowerCaseEqualsLiteral("cite"))
-          *_retval = nsIMsgCompConvertible::Plain;
+        *_retval = nsIMsgCompConvertible::Plain;
       }
     }
     else if (
@@ -5244,17 +5263,6 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
     {
       /* Do some special checks for these tags. They are inside this |else if|
          for performance reasons */
-      nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(node);
-      if (domElement)
-      {
-        nsString classValue;
-        if (NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("class"), classValue)) &&
-            StringBeginsWith(classValue, NS_LITERAL_STRING("moz-txt"), nsCaseInsensitiveStringComparator()))
-        {
-          *_retval = nsIMsgCompConvertible::Plain;
-          return rv;  // Inconsistent :-(
-        }
-      }
 
       // Maybe, it's an <a> element inserted by another recognizer (e.g. 4.x')
       if (element.LowerCaseEqualsLiteral("a"))
@@ -5263,12 +5271,9 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
            (as inserted by recognizers) */
         *_retval = nsIMsgCompConvertible::Altering;
 
-        nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(node);
-        if (domElement)
-        {
-          nsString hrefValue;
+          nsAutoString hrefValue;
           bool hasChild;
-          if (NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("href"), hrefValue)) &&
+          if (NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("href"), hrefValue)) &&
               NS_SUCCEEDED(node->HasChildNodes(&hasChild)) && hasChild)
           {
             nsCOMPtr<nsIDOMNodeList> children;
@@ -5283,7 +5288,6 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
                 *_retval = nsIMsgCompConvertible::Plain;
             }
           }
-        }
       }
 
       // Lastly, test, if it is just a "simple" <div> or <span>
@@ -5292,24 +5296,14 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
                 element.LowerCaseEqualsLiteral("span")
               )
       {
-        /* skip only if no style attribute */
         *_retval = nsIMsgCompConvertible::Plain;
-
-        nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(node);
-        if (domElement)
-        {
-          nsAutoString styleValue;
-          if (NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("style"), styleValue)) &&
-              !styleValue.IsEmpty())
-            *_retval = nsIMsgCompConvertible::No;
-        }
       }
     }
 
     return rv;
 }
 
-nsresult nsMsgCompose::_BodyConvertible(nsIDOMNode *node, int32_t *_retval)
+nsresult nsMsgCompose::_NodeTreeConvertible(nsIDOMElement *node, int32_t *_retval)
 {
     NS_ENSURE_TRUE(node && _retval, NS_ERROR_NULL_POINTER);
 
@@ -5337,10 +5331,16 @@ nsresult nsMsgCompose::_BodyConvertible(nsIDOMNode *node, int32_t *_retval)
           if (NS_SUCCEEDED(children->Item(i, getter_AddRefs(pItem)))
               && pItem)
           {
-            int32_t curresult;
-            rv = _BodyConvertible(pItem, &curresult);
-            if (NS_SUCCEEDED(rv) && curresult > result)
-              result = curresult;
+            // We assume all nodes that are not elements are convertible,
+            // so only test elements.
+            nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(pItem);
+            if (domElement) {
+              int32_t curresult;
+              rv = _NodeTreeConvertible(domElement, &curresult);
+
+              if (NS_SUCCEEDED(rv) && curresult > result)
+                result = curresult;
+            }
           }
         }
       }
@@ -5350,25 +5350,24 @@ nsresult nsMsgCompose::_BodyConvertible(nsIDOMNode *node, int32_t *_retval)
     return rv;
 }
 
-nsresult nsMsgCompose::BodyConvertible(int32_t *_retval)
+NS_IMETHODIMP
+nsMsgCompose::BodyConvertible(int32_t *_retval)
 {
-    NS_ENSURE_TRUE(_retval, NS_ERROR_NULL_POINTER);
+    NS_ENSURE_ARG_POINTER(_retval);
+    NS_ENSURE_STATE(m_editor);
 
-    nsresult rv;
-
-    if (!m_editor)
-      return NS_ERROR_FAILURE;
-
-    nsCOMPtr<nsIDOMElement> rootElement;
-    rv = m_editor->GetRootElement(getter_AddRefs(rootElement));
-    if (NS_FAILED(rv) || nullptr == rootElement)
+    nsCOMPtr<nsIDOMDocument> rootDocument;
+    nsresult rv = m_editor->GetDocument(getter_AddRefs(rootDocument));
+    if (NS_FAILED(rv) || !rootDocument)
       return rv;
 
-    nsCOMPtr<nsIDOMNode> node = do_QueryInterface(rootElement);
-    if (nullptr == node)
-      return NS_ERROR_FAILURE;
+    // get the top level element, which contains <html>
+    nsCOMPtr<nsIDOMElement> rootElement;
+    rv = rootDocument->GetDocumentElement(getter_AddRefs(rootElement));
+    if (NS_FAILED(rv) || !rootElement)
+      return rv;
 
-    return _BodyConvertible(node, _retval);
+    return _NodeTreeConvertible(rootElement, _retval);
 }
 
 NS_IMETHODIMP
@@ -5377,6 +5376,114 @@ nsMsgCompose::GetIdentity(nsIMsgIdentity **aIdentity)
   NS_ENSURE_ARG_POINTER(aIdentity);
   NS_IF_ADDREF(*aIdentity = m_identity);
   return NS_OK;
+}
+
+/**
+ * Position above the quote, that is either <blockquote> or
+ * <div class="moz-cite-prefix"> or <div class="moz-forward-container">
+ * in an inline-forwarded message.
+ */
+nsresult
+nsMsgCompose::MoveToAboveQuote(void)
+{
+  nsCOMPtr<nsIDOMElement> rootElement;
+  nsresult rv = m_editor->GetRootElement(getter_AddRefs(rootElement));
+  if (NS_FAILED(rv) || !rootElement) {
+    return rv;
+  }
+
+  nsCOMPtr<nsIDOMNode> node;
+  nsAutoString attributeName;
+  nsAutoString attributeValue;
+  nsAutoString tagLocalName;
+  attributeName.AssignLiteral("class");
+
+  rv = rootElement->GetFirstChild(getter_AddRefs(node));
+  while (NS_SUCCEEDED(rv) && node) {
+    nsCOMPtr<nsIDOMElement> element = do_QueryInterface(node);
+    if (element) {
+      // First check for <blockquote>. This will most likely not trigger
+      // since well-behaved quotes are preceded by a cite prefix.
+      node->GetLocalName(tagLocalName);
+      if (tagLocalName.EqualsLiteral("blockquote")) {
+        break;
+      }
+
+      // Get the class value.
+      element->GetAttribute(attributeName, attributeValue);
+
+      // Now check for the cite prefix, so an element with
+      // class="moz-cite-prefix".
+      if (attributeValue.Find("moz-cite-prefix", true) != kNotFound) {
+        break;
+      }
+
+      // Next check for forwarded content.
+      // The forwarded part is inside an element with
+      // class="moz-forward-container".
+      if (attributeValue.Find("moz-forward-container", true) != kNotFound) {
+        break;
+      }
+    }
+
+    rv = node->GetNextSibling(getter_AddRefs(node));
+    if (NS_FAILED(rv) || !node) {
+      // No further siblings found, so we didn't find what we were looking for.
+      rv = NS_OK;
+      node = nullptr;
+      break;
+    }
+  }
+
+  // Now position. If no quote was found, we position to the very front.
+  int32_t offset = 0;
+  if (node) {
+    rv = GetChildOffset(node, rootElement, offset);
+    if (NS_FAILED(rv)) {
+      return rv;
+    }
+  }
+  nsCOMPtr<nsISelection> selection;
+  m_editor->GetSelection(getter_AddRefs(selection));
+  if (selection)
+    rv = selection->Collapse(rootElement, offset);
+
+  return rv;
+}
+
+/**
+ * M-C's nsEditor::EndOfDocument() will position to the end of the document
+ * but it will position into a container. We really need to position
+ * after the last container so we don't accidentally position into a
+ * <blockquote>. That's why we use our own function.
+ */
+nsresult
+nsMsgCompose::MoveToEndOfDocument(void)
+{
+  int32_t offset;
+  nsCOMPtr<nsIDOMElement> rootElement;
+  nsCOMPtr<nsIDOMNode> lastNode;
+  nsresult rv = m_editor->GetRootElement(getter_AddRefs(rootElement));
+  if (NS_FAILED(rv) || !rootElement) {
+    return rv;
+  }
+
+  rv = rootElement->GetLastChild(getter_AddRefs(lastNode));
+  if (NS_FAILED(rv) || !lastNode) {
+    return rv;
+  }
+
+  rv = GetChildOffset(lastNode, rootElement, offset);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  nsCOMPtr<nsISelection> selection;
+  m_editor->GetSelection(getter_AddRefs(selection));
+  if (selection)
+    rv = selection->Collapse(rootElement, offset + 1);
+
+  return rv;
 }
 
 NS_IMETHODIMP
@@ -5393,7 +5500,7 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
 
   nsCOMPtr<nsIDOMElement> rootElement;
   rv = m_editor->GetRootElement(getter_AddRefs(rootElement));
-  if (NS_FAILED(rv) || nullptr == rootElement)
+  if (NS_FAILED(rv) || !rootElement)
     return rv;
 
   //First look for the current signature, if we have one
@@ -5403,7 +5510,7 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
   nsAutoString tagLocalName;
 
   rv = rootElement->GetLastChild(getter_AddRefs(lastNode));
-  if (NS_SUCCEEDED(rv) && nullptr != lastNode)
+  if (NS_SUCCEEDED(rv) && lastNode)
   {
     node = lastNode;
     // In html, the signature is inside an element with
@@ -5441,7 +5548,7 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
         return rv;
       }
 
-      //Also, remove the <br> right before the signature.
+      // Also, remove the <br> right before the signature.
       if (tempNode)
       {
         tempNode->GetLocalName(tagLocalName);
@@ -5459,21 +5566,21 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
   nsAutoString aSignature;
 
   // No delimiter needed if not a compose window
-  bool noDelimiter;
+  bool isQuoted;
   switch (mType)
   {
     case nsIMsgCompType::New :
     case nsIMsgCompType::NewsPost :
     case nsIMsgCompType::MailToUrl :
     case nsIMsgCompType::ForwardAsAttachment :
-      noDelimiter = false;
+      isQuoted = false;
       break;
     default :
-      noDelimiter = true;
+      isQuoted = true;
       break;
   }
 
-  ProcessSignature(aIdentity, noDelimiter, &aSignature);
+  ProcessSignature(aIdentity, isQuoted, &aSignature);
 
   if (!aSignature.IsEmpty())
   {
@@ -5485,23 +5592,23 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
     aIdentity->GetReplyOnTop(&reply_on_top);
     aIdentity->GetSigBottom(&sig_bottom);
     bool sigOnTop = (reply_on_top == 1 && !sig_bottom);
-    if (sigOnTop && noDelimiter)
-      m_editor->BeginningOfDocument();
-    else
-      m_editor->EndOfDocument();
-
-    nsCOMPtr<nsIHTMLEditor> htmlEditor (do_QueryInterface(m_editor));
-    nsCOMPtr<nsIPlaintextEditor> textEditor (do_QueryInterface(m_editor));
-
-    if (m_composeHTML)
-      rv = htmlEditor->InsertHTML(aSignature);
-    else {
-      rv = textEditor->InsertLineBreak();
-      InsertDivWrappedTextAtSelection(aSignature, NS_LITERAL_STRING("moz-signature"));
+    if (sigOnTop && isQuoted) {
+      rv = MoveToAboveQuote();
+    } else {
+      // Note: New messages aren't quoted so we always move to the end.
+      rv = MoveToEndOfDocument();
     }
 
-    if (sigOnTop && noDelimiter)
-      m_editor->EndOfDocument();
+    if (NS_SUCCEEDED(rv)) {
+      if (m_composeHTML) {
+        nsCOMPtr<nsIHTMLEditor> htmlEditor (do_QueryInterface(m_editor));
+        rv = htmlEditor->InsertHTML(aSignature);
+      } else {
+        nsCOMPtr<nsIPlaintextEditor> textEditor (do_QueryInterface(m_editor));
+        rv = textEditor->InsertLineBreak();
+        InsertDivWrappedTextAtSelection(aSignature, NS_LITERAL_STRING("moz-signature"));
+      }
+    }
     m_editor->EndTransaction();
   }
 

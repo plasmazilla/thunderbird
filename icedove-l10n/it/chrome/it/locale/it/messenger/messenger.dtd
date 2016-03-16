@@ -701,7 +701,7 @@
 <!ENTITY contextUnmute.label "Attiva audio">
 <!ENTITY contextUnmute.accesskey "A">
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY search.label.base "Ricerca… #1">
+<!ENTITY search.label.base1 "Cerca #1">
 <!ENTITY search.keyLabel.nonmac "&lt;Ctrl+K&gt;">
 <!ENTITY search.keyLabel.mac "&lt;⌘K&gt;">
 <!ENTITY AddToAddressBook.label "Aggiungi in rubrica…">
@@ -718,6 +718,8 @@
 <!ENTITY SendMessageTo.accesskey "S">
 <!ENTITY CopyEmailAddress.label "Copia indirizzo email">
 <!ENTITY CopyEmailAddress.accesskey "C">
+<!ENTITY CopyNameAndEmailAddress.label "Copia nome e indirizzo di posta">
+<!ENTITY CopyNameAndEmailAddress.accesskey "N">
 <!ENTITY CopyNewsgroupName.label "Copia nome del gruppo di discussione">
 <!ENTITY CopyNewsgroupName.accesskey "C">
 <!ENTITY CopyNewsgroupURL.label "Copia URL del gruppo di discussione">
@@ -763,16 +765,3 @@
 <!ENTITY hideOtherAppsCmdMac.modifiers "accel,alt">
 <!ENTITY showAllAppsCmdMac.label "Mostra tutto">
 <!ENTITY dockOptions.label "Opzioni icona applicazione…">
-
-<!ENTITY CopyNameAndEmailAddress.accesskey "N">
-<!ENTITY CopyNameAndEmailAddress.label "Copy Name and Email Address">
-<!-- LOCALIZATION NOTE (search.label.base1):
-     This is the base of the empty text for the global search box.  We replace
-     #1 with the contents of the appropriate search.keyLabel.* value for the
-     platform.
-     The goal is to convey to the user that typing in the box will allow them
-     to search for messages globally and that there is a hotkey they can press
-     to get to the box faster.  If the global indexer is disabled, the search
-     box will be collapsed and the user will never see this message.
-     -->
-<!ENTITY search.label.base1 "Search #1">

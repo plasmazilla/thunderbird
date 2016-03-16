@@ -32,7 +32,7 @@ This is likely the same like id.heading in crashes.dtd. -->
 <!ENTITY aboutSupport.experimentActive "Aktiv">
 <!ENTITY aboutSupport.experimentEndDate "Enddatum">
 <!ENTITY aboutSupport.experimentHomepage "Homepage">
-
+<!ENTITY aboutSupport.experimentBranch "Zweig">
 
 <!ENTITY aboutSupport.appBasicsTitle "Allgemeine Informationen">
 <!ENTITY aboutSupport.appBasicsName "Name">
@@ -60,6 +60,8 @@ Windows/Mac use the term "Folder" instead of "Directory" -->
 <!ENTITY aboutSupport.appBasicsServiceWorkers "Angemeldete Service-Worker">
 
 <!ENTITY aboutSupport.appBasicsMultiProcessSupport "Fenster mit mehreren Prozessen">
+
+<!ENTITY aboutSupport.appBasicsSafeMode "Abgesicherter Modus">
 
 <!ENTITY aboutSupport.showDir.label "Ordner öffnen">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
@@ -103,7 +105,3 @@ variant of aboutSupport.showDir.label. -->
 
 <!ENTITY aboutSupport.safeModeTitle "Abgesicherten Modus probieren">
 <!ENTITY aboutSupport.restartInSafeMode.label "Mit deaktivierten Add-ons neu starten…">
-
-
-<!ENTITY aboutSupport.appBasicsSafeMode "Safe Mode">
-<!ENTITY aboutSupport.experimentBranch "Branch">

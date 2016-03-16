@@ -4,8 +4,8 @@
 
 <!ENTITY dialog.title                 "Siuntimo parinktys">
 <!ENTITY sendMail.title               "Siunčiamo teksto tipai">
-
-
+<!ENTITY autoDowngrade.label          "Jei įmanomą, siųsti laiškus grynuoju tekstu">
+<!ENTITY autoDowngrade.accesskey      "t">
 <!ENTITY sendMaildesc.label           "Išsiunčiant laiškus raiškiuoju tekstu (HTML) gali paaiškėti, kad esama adresatų, neįtrauktų į gavėjų, galinčių priimti tokį tekstą, sąrašą. Tuomet:">
 <!ENTITY askMe.label                  "įspėti">
 <!ENTITY askMe.accesskey              "s">
@@ -35,6 +35,3 @@
 <!ENTITY add.htmldomain               "Srities, priimančios HTML teksto laiškus, vardas:">
 <!ENTITY add.plaintexttitle           "Grynojo teksto srities vardo įtraukimas">
 <!ENTITY add.plaintextdomain          "Srities, priimančios grynojo teksto laiškus, vardas:">
-
-<!ENTITY autoDowngrade.accesskey      "t">
-<!ENTITY autoDowngrade.label          "Send messages as plain text if possible">
