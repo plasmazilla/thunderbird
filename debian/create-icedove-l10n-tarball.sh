@@ -310,7 +310,7 @@ TARBALL=$(readlink -f ${TARBALL})
 cd ${CURDIR_FULL}
 debug "moving ${TARBALL} to ${CURDIR_FULL}/../"
 mv ${TARBALL} ../
-TARBALL_FINAL=$(readlink -f ../${SRCPKG}_${VERSION}.orig-${SRCPKG}-l10n.tar.xz})
+TARBALL_FINAL=$(readlink -f ../${SRCPKG}_${VERSION}.orig-${SRCPKG}-l10n.tar.xz)
 echo
 echo "Tarball created in:"
 echo "  -> ${TARBALL_FINAL} <- (containing ${LANG_COUNT} languages)"
