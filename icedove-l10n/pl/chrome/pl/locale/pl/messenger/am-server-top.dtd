@@ -16,6 +16,8 @@
 <!ENTITY biffStart.label "Sprawdzaj, czy nadeszły nowe wiadomości co">
 <!ENTITY biffStart.accesskey "S">
 <!ENTITY biffEnd.label "minut">
+<!ENTITY useIdleNotifications.label "Zezwalaj na natychmiastowe powiadomienia serwera po odebraniu nowej wiadomości">
+<!ENTITY useIdleNotifications.accesskey "Z">
 <!ENTITY connectionSecurity.label "Bezpieczeństwo połączenia:">
 <!ENTITY connectionSecurity.accesskey "B">
 <!ENTITY connectionSecurityType-0.label "Bez szyfrowania">
@@ -75,6 +77,3 @@
 <!ENTITY storeType.accesskey "S">
 <!ENTITY mboxStore2.label "plik na folder (mbox)">
 <!ENTITY maildirStore.label "plik na wiadomość (maildir)">
-
-<!ENTITY useIdleNotifications.accesskey "w">
-<!ENTITY useIdleNotifications.label "Allow immediate server notifications when new messages arrive">

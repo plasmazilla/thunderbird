@@ -636,7 +636,7 @@ OnSharedPreferenceChangeListener
 
                 SnackbarHelper.showSnackbar(GeckoPreferences.this,
                         getString(stringRes),
-                        Snackbar.LENGTH_SHORT);
+                        Snackbar.LENGTH_LONG);
             }
         } catch (Exception e) {
             Log.e(LOGTAG, "Exception handling message \"" + event + "\":", e);
@@ -821,6 +821,12 @@ OnSharedPreferenceChangeListener
                 } else if (PREFS_TAB_QUEUE.equals(key)) {
                     // Only show tab queue pref on nightly builds with the tab queue build flag.
                     if (!TabQueueHelper.TAB_QUEUE_ENABLED) {
+                        preferences.removePreference(pref);
+                        i--;
+                        continue;
+                    }
+                } else if (PREFS_ZOOMED_VIEW_ENABLED.equals(key)) {
+                    if (!AppConstants.NIGHTLY_BUILD) {
                         preferences.removePreference(pref);
                         i--;
                         continue;

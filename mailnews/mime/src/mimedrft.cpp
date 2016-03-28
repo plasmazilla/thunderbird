@@ -667,7 +667,7 @@ mime_insert_all_headers(char            **body,
   MimeGetForwardHeaderDelimiter(replyHeader);
   if (htmlEdit)
   {
-    NS_MsgSACopy(&(newBody), "<HTML><BODY><BR><BR>");
+    NS_MsgSACopy(&(newBody), MIME_FORWARD_HTML_PREFIX);
     NS_MsgSACat(&newBody, replyHeader.get());
     NS_MsgSACat(&newBody, MIME_HEADER_TABLE);
   }
@@ -811,7 +811,7 @@ mime_insert_normal_headers(char             **body,
   MimeGetForwardHeaderDelimiter(replyHeader);
   if (htmlEdit)
   {
-    NS_MsgSACopy(&(newBody), "<HTML><BODY><BR><BR>");
+    NS_MsgSACopy(&(newBody), MIME_FORWARD_HTML_PREFIX);
     NS_MsgSACat(&newBody, replyHeader.get());
     NS_MsgSACat(&newBody, MIME_HEADER_TABLE);
   }
@@ -977,7 +977,7 @@ mime_insert_micro_headers(char            **body,
   MimeGetForwardHeaderDelimiter(replyHeader);
   if (htmlEdit)
   {
-    NS_MsgSACopy(&(newBody), "<HTML><BODY><BR><BR>");
+    NS_MsgSACopy(&(newBody), MIME_FORWARD_HTML_PREFIX);
     NS_MsgSACat(&newBody, replyHeader.get());
     NS_MsgSACat(&newBody, MIME_HEADER_TABLE);
   }
@@ -1448,7 +1448,6 @@ mime_parse_stream_complete (nsMIMESession *stream)
       //
       if (mdd->format_out == nsMimeOutput::nsMimeMessageEditorTemplate)
       {
-        fields->SetDraftId(mdd->url_name);
         MSG_ComposeType msgComposeType = PL_strstr(mdd->url_name,
                                                    "&redirect=true") ?
                                          nsIMsgCompType::Redirect :
@@ -1661,7 +1660,7 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
     if (mdd->curAttachment)
       mdd->curAttachment->m_type.Adopt(MimeHeaders_get(headers,
                                                        HEADER_CONTENT_TYPE,
-                                                       true, false));
+                                                       false, true));
     return 0;
   }
   else

@@ -139,8 +139,8 @@ because displayed names don't have the comma in between. -->
 <!ENTITY newmsgButton.accesskey                         "П">
 <!ENTITY newIM.label                                    "Бързо съобщение">
 <!ENTITY newIM.accesskey                                "Б">
-
-
+<!ENTITY printButton.label                              "Печат…">
+<!ENTITY printButton.accesskey                          "ч">
 <!ENTITY deleteButton2.label                            "Изтриване">
 <!ENTITY deleteButton2.accesskey                        "з">
 <!-- Address Book Toolbar Tooltips -->
@@ -222,6 +222,3 @@ because displayed names don't have the comma in between. -->
 <!ENTITY minimizeWindow.key                             "m">
 <!ENTITY bringAllToFront.label                          "Извежда всичко на преден план">
 <!ENTITY zoomWindow.label                               "Лупа">
-
-<!ENTITY printButton.accesskey                          "r">
-<!ENTITY printButton.label                              "Print…">

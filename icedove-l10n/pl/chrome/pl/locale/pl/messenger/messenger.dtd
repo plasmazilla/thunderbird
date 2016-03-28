@@ -3,7 +3,7 @@
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 
 <!ENTITY titledefault.label "&brandFullName;">
-<!ENTITY titleSeparator.label " - ">
+<!ENTITY titleSeparator.label " – ">
 
 <!-- Tab context menu -->
 <!ENTITY closeTabCmd2.label "Zamknij kartę">
@@ -691,7 +691,7 @@
 <!ENTITY junkStatusColumn2.tooltip "Sortowanie według statusu niechcianej poczty">
 <!ENTITY unreadColumn2.tooltip "Liczba wszystkich nieprzeczytanych wiadomości w wątku">
 <!ENTITY totalColumn2.tooltip "Liczba wszystkich wiadomości w wątku">
-<!ENTITY readColumn2.tooltip "Sortowanie według ilości przeczytanych wiadomości">
+<!ENTITY readColumn2.tooltip "Sortowanie według liczby przeczytanych wiadomości">
 <!ENTITY receivedColumn2.tooltip "Sortowanie według daty otrzymania">
 <!ENTITY starredColumn2.tooltip "Sortowanie według oznaczenia gwiazdką">
 <!ENTITY locationColumn2.tooltip "Sortowanie według adresu">
@@ -761,12 +761,12 @@
 
 <!-- Quick Search Bar -->
 <!ENTITY quickSearchCmd.key "k">
-<!ENTITY search.label.base "Szukaj… #1">
+<!ENTITY search.label.base1 "Szukaj #1">
 <!ENTITY search.keyLabel.nonmac "&lt;Ctrl+K&gt;">
 <!ENTITY search.keyLabel.mac "&lt;&#x2318;K&gt;">
 
 <!-- Message Header Context Menu -->
-<!ENTITY AddToAddressBook.label "Dodaj adres do książki adresowej">
+<!ENTITY AddToAddressBook.label "Dodaj do książki adresowej…">
 <!ENTITY AddToAddressBook.accesskey "k">
 <!ENTITY AddDirectlyToAddressBook.label "Dodaj do książki adresowej">
 <!ENTITY AddDirectlyToAddressBook.accesskey "D">
@@ -780,6 +780,8 @@
 <!ENTITY SendMessageTo.accesskey "W">
 <!ENTITY CopyEmailAddress.label "Kopiuj adres e-mail">
 <!ENTITY CopyEmailAddress.accesskey "K">
+<!ENTITY CopyNameAndEmailAddress.label "Kopiuj nazwę i adres e-mail">
+<!ENTITY CopyNameAndEmailAddress.accesskey "o">
 <!ENTITY CopyNewsgroupName.label "Kopiuj nazwę grupy dyskusyjnej">
 <!ENTITY CopyNewsgroupName.accesskey "n">
 <!ENTITY CopyNewsgroupURL.label "Kopiuj adres grupy dyskusyjnej">
@@ -836,16 +838,3 @@
 <!ENTITY showAllAppsCmdMac.label "Wyświetl wszystkie">
 
 <!ENTITY dockOptions.label "Opcje ikony aplikacji…">
-
-<!ENTITY CopyNameAndEmailAddress.accesskey "N">
-<!ENTITY CopyNameAndEmailAddress.label "Copy Name and Email Address">
-<!-- LOCALIZATION NOTE (search.label.base1):
-     This is the base of the empty text for the global search box.  We replace
-     #1 with the contents of the appropriate search.keyLabel.* value for the
-     platform.
-     The goal is to convey to the user that typing in the box will allow them
-     to search for messages globally and that there is a hotkey they can press
-     to get to the box faster.  If the global indexer is disabled, the search
-     box will be collapsed and the user will never see this message.
-     -->
-<!ENTITY search.label.base1 "Search #1">
