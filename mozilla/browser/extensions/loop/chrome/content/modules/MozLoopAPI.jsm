@@ -132,6 +132,7 @@ var gOriginalPageListeners = null;
 var gSocialProviders = null;
 var gStringBundle = null;
 var gStubbedMessageHandlers = null;
+var gOriginalPanelHeight = null;
 const kBatchMessage = "Batch";
 const kMaxLoopCount = 10;
 const kMessageName = "Loop:Message";
@@ -163,10 +164,9 @@ const kMessageHandlers = {
       reply(cloneableError(err));
       return;
     }
-
-    let autoStart = MozLoopService.getLoopPref("remote.autostart");
-    if (!autoStart && browser.getAttribute("remote") == "true") {
-      // Tab sharing might not be supported yet for e10s-enabled browsers.
+    if (browser.getAttribute("remote") == "true") {
+      // Tab sharing is not supported yet for e10s-enabled browsers. This will
+      // be fixed in bug 1137634.
       let err = new Error("Tab sharing is not supported for e10s-enabled browsers");
       MozLoopService.log.error(err);
       reply(cloneableError(err));
@@ -366,9 +366,11 @@ const kMessageHandlers = {
   GetAllConstants: function(message, reply) {
     reply({
       LOOP_SESSION_TYPE: LOOP_SESSION_TYPE,
+      ROOM_CONTEXT_ADD: ROOM_CONTEXT_ADD,
       ROOM_CREATE: ROOM_CREATE,
       ROOM_DELETE: ROOM_DELETE,
       SHARING_ROOM_URL: SHARING_ROOM_URL,
+      SHARING_STATE_CHANGE: SHARING_STATE_CHANGE,
       TWO_WAY_MEDIA_CONN_LENGTH: TWO_WAY_MEDIA_CONN_LENGTH
     });
   },
@@ -707,7 +709,7 @@ const kMessageHandlers = {
    *                           message handler. The result will be sent back to
    *                           the senders' channel.
    */
-  IsMultiProcessActive: function(message, reply) {
+  IsMultiProcessEnabled: function(message, reply) {
     let win = Services.wm.getMostRecentWindow("navigator:browser");
     let browser = win && win.gBrowser.selectedBrowser;
     reply(!!(browser && browser.getAttribute("remote") == "true"));
@@ -790,6 +792,22 @@ const kMessageHandlers = {
     var src = message.data[0];
     MozLoopService.openGettingStartedTour(src);
     reply();
+  },
+
+  /**
+   * Retrieves the Getting Started tour url.
+   *
+   * @param {Object}   message Message meant for the handler function, containing
+   *                           the following parameters in its `data` property:
+   *                           [aSrc, aAdditionalParams]
+   * @param {Function} reply   Callback function, invoked with the result of this
+   *                           message handler. The result will be sent back to
+   *                           the senders' channel.
+   */
+  GettingStartedURL: function(message, reply) {
+    let aSrc = message.data[0] || null;
+    let aAdditionalParams = message.data[1] || {};
+    reply(MozLoopService.getTourURL(aSrc, aAdditionalParams).href);
   },
 
   /**
@@ -923,6 +941,29 @@ const kMessageHandlers = {
   SetLoopPref: function(message, reply) {
     let [prefName, value, prefType] = message.data;
     MozLoopService.setLoopPref(prefName, value, prefType);
+    reply();
+  },
+
+  /**
+   * Set panel height
+   *
+   * @param {Object}   message Message meant for the handler function, containing
+   *                           the following parameters in its `data` property:
+   *                           [
+   *                             {Number} height The pixel height value.
+   *                           ]
+   * @param {Function} reply   Callback function, invoked with the result of this
+   *                           message handler. The result will be sent back to
+   *                           the senders' channel.
+   */
+  SetPanelHeight: function(message, reply) {
+    let [height] = message.data;
+    let win = Services.wm.getMostRecentWindow("navigator:browser");
+    let node = win.LoopUI.browser;
+    if (!gOriginalPanelHeight) {
+      gOriginalPanelHeight = parseInt(win.getComputedStyle(node, null).height, 10);
+    }
+    node.style.height = (height || gOriginalPanelHeight) + "px";
     reply();
   },
 

@@ -4,8 +4,8 @@
 
 <!ENTITY dialog.title                 "Настройки за изпращане">
 <!ENTITY sendMail.title               "Текстов формат">
-
-
+<!ENTITY autoDowngrade.label          "Ако е възможно, писмата да се изпращат като обикновен текст">
+<!ENTITY autoDowngrade.accesskey      "т">
 <!ENTITY sendMaildesc.label           "Когато изпращате писмо в HTML формат и един и повече получатели не могат да получават HTML:">
 <!ENTITY askMe.label                  "Запитване какво действие да се предприеме">
 <!ENTITY askMe.accesskey              "З">
@@ -35,6 +35,3 @@
 <!ENTITY add.htmldomain               "Име на домейн за HTML:">
 <!ENTITY add.plaintexttitle           "Добавяне име на домейн">
 <!ENTITY add.plaintextdomain          "Име на домейн за обикновен текст:">
-
-<!ENTITY autoDowngrade.accesskey      "t">
-<!ENTITY autoDowngrade.label          "Send messages as plain text if possible">

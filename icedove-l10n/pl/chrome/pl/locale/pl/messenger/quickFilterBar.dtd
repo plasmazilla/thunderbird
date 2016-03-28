@@ -17,15 +17,15 @@
 <!ENTITY quickFilterBar.inaddrbook.label "Od znajomych">
 <!ENTITY quickFilterBar.inaddrbook.tooltip "Wyświetl wiadomości pochodzące wyłącznie od kontaktów z książki adresowej">
 <!ENTITY quickFilterBar.tags.label "Z etykietą">
-<!ENTITY quickFilterBar.tags.tooltip "Wyświetl wyłącznie wiadomości posiadające etykiety">
+<!ENTITY quickFilterBar.tags.tooltip "Wyświetl wyłącznie wiadomości z etykietami">
 <!ENTITY quickFilterBar.attachment.label "Z załącznikiem">
-<!ENTITY quickFilterBar.attachment.tooltip "Wyświetl wyłącznie wiadomości posiadające załączniki">
+<!ENTITY quickFilterBar.attachment.tooltip "Wyświetl wyłącznie wiadomości z załącznikami">
 
 <!ENTITY quickFilterBar.resultsLabel.some.formatString "Znaleziono #1 wiadomość;Znaleziono #1 wiadomości;Znaleziono #1 wiadomości">
 <!ENTITY quickFilterBar.resultsLabel.none "Nie znaleziono wiadomości">
 <!ENTITY quickFilterBar.resultsLabel.minWidth "175">
 
-<!ENTITY quickFilterBar.textbox.emptyText.base "Filtrowanie wiadomości… #1">
+<!ENTITY quickFilterBar.textbox.emptyText.base1 "Filtrowanie wiadomości #1">
 <!ENTITY quickFilterBar.show.key2 "k">
 <!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.nonmac "&lt;Ctrl+Shift+K&gt;">
 <!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.mac "&lt;&#x21E7;&#x2318;K&gt;">
@@ -48,15 +48,3 @@
 <!ENTITY quickFilterBar.glodaUpsell.continueSearch "Kontynuuj wyszukiwanie w pozostałych folderach">
 
 <!ENTITY quickFilterBar.glodaUpsell.pressEnterAndCurrent "Aby kontynuować wyszukiwanie dla: „#1” należy ponownie wcisnąć Enter">
-
-
-<!-- LOCALIZATION NOTE (quickFilterBar.textbox.emptyText.base1):
-     This is the base of the empty text for the text search box.  We replace
-     #1 with the contents of the appropriate
-     quickFilterBar.textbox.emptyText.keyLabel.* value for the platform.
-     The goal is to convey to the user that typing in the box will filter
-     the messages and that there is a hotkey they can press to get to the
-     box faster.
-     -->
-<!ENTITY quickFilterBar.textbox.emptyText.base1
-         "Filter these messages #1">

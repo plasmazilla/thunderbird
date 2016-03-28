@@ -23,6 +23,8 @@
 <!ENTITY biffStart.label                  "Uusi kirju kontrollitakse iga">
 <!ENTITY biffStart.accesskey              "s">
 <!ENTITY biffEnd.label                    "minuti järel">
+<!ENTITY useIdleNotifications.label       "Uute kirjade saabumisest teavitatakse kohe">
+<!ENTITY useIdleNotifications.accesskey   "b">
 <!ENTITY connectionSecurity.label         "Ühenduse turvalisus:">
 <!ENTITY connectionSecurity.accesskey     "h">
 <!ENTITY connectionSecurityType-0.label   "Puudub">
@@ -88,6 +90,3 @@
 <!ENTITY storeType.accesskey              "K">
 <!ENTITY mboxStore2.label                 "üks fail kausta kohta (mbox)">
 <!ENTITY maildirStore.label               "iga kiri eraldi failina (maildir)">
-
-<!ENTITY useIdleNotifications.accesskey "w">
-<!ENTITY useIdleNotifications.label "Allow immediate server notifications when new messages arrive">

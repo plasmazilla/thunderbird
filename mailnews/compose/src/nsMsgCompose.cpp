@@ -76,6 +76,7 @@
 #include "nsCRT.h"
 #include "mozilla/Services.h"
 #include "mozilla/mailnews/MimeHeaderParser.h"
+#include "nsStreamConverter.h"
 #include "nsISelection.h"
 #include "nsJSEnvironment.h"
 #include "nsIObserverService.h"
@@ -718,7 +719,23 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
     if (aHTMLEditor && htmlEditor)
     {
       mInsertingQuotedContent = true;
-      htmlEditor->RebuildDocumentFromSource(aBuf);
+      if (isForwarded && Substring(aBuf, 0, sizeof(MIME_FORWARD_HTML_PREFIX)-1)
+                         .EqualsLiteral(MIME_FORWARD_HTML_PREFIX)) {
+        // We assign the opening tag inside "<HTML><BODY><BR><BR>" before the
+        // two <br> elements.
+        // This is a bit hacky but we know that the MIME code prepares the
+        // forwarded content like this:
+        // <HTML><BODY><BR><BR> + forwarded header + header table.
+        // Note: We only do this when we prepare the message to be forwarded,
+        // a re-opened saved draft of a forwarded message does not repeat this.
+        nsString newBody(aBuf);
+        nsString divTag;
+        divTag.AssignLiteral("<div class=\"moz-forward-container\">");
+        newBody.Insert(divTag, sizeof(MIME_FORWARD_HTML_PREFIX)-1-8);
+        htmlEditor->RebuildDocumentFromSource(newBody);
+      } else {
+        htmlEditor->RebuildDocumentFromSource(aBuf);
+      }
       mInsertingQuotedContent = false;
 
       // when forwarding a message as inline, tag any embedded objects
@@ -729,10 +746,15 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
 
       if (!aSignature.IsEmpty())
       {
-        if (isForwarded && sigOnTop)
-          m_editor->BeginningOfDocument();
-        else
-          m_editor->EndOfDocument();
+        if (isForwarded && sigOnTop) {
+          // Use our own function, nsEditor::BeginningOfDocument() would position
+          // into the <div class="moz-forward-container"> we've just created.
+          MoveToBeginningOfDocument();
+        } else {
+          // Use our own function, nsEditor::EndOfDocument() would position
+          // into the <div class="moz-forward-container"> we've just created.
+          MoveToEndOfDocument();
+        }
         htmlEditor->InsertHTML(aSignature);
         if (isForwarded && sigOnTop)
           m_editor->EndOfDocument();
@@ -742,21 +764,90 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
     }
     else if (htmlEditor)
     {
+      bool sigOnTopInserted = false;
       if (isForwarded && sigOnTop && !aSignature.IsEmpty())
       {
         textEditor->InsertLineBreak();
         InsertDivWrappedTextAtSelection(aSignature,
                                         NS_LITERAL_STRING("moz-signature"));
         m_editor->EndOfDocument();
+        sigOnTopInserted = true;
       }
 
       if (!aBuf.IsEmpty())
       {
-        if (mailEditor)
-          mailEditor->InsertTextWithQuotations(aBuf);
-        else
-          textEditor->InsertText(aBuf);
-        m_editor->EndOfDocument();
+        nsresult rv;
+        nsCOMPtr<nsIDOMElement> divElem;
+        nsCOMPtr<nsIDOMNode> extraBr;
+
+        if (isForwarded) {
+          // Special treatment for forwarded messages: Part 1.
+          // Create a <div> of the required class.
+          rv = htmlEditor->CreateElementWithDefaults(NS_LITERAL_STRING("div"),
+                                                     getter_AddRefs(divElem));
+          NS_ENSURE_SUCCESS(rv, rv);
+
+          nsAutoString attributeName;
+          nsAutoString attributeValue;
+          attributeName.AssignLiteral("class");
+          attributeValue.AssignLiteral("moz-forward-container");
+          divElem->SetAttribute(attributeName, attributeValue);
+
+          // We can't insert an empty <div>, so fill it with something.
+          nsCOMPtr<nsIDOMElement> brElem;
+          rv = htmlEditor->CreateElementWithDefaults(NS_LITERAL_STRING("br"),
+                                                     getter_AddRefs(brElem));
+          NS_ENSURE_SUCCESS(rv, rv);
+          rv = divElem->AppendChild(brElem, getter_AddRefs(extraBr));
+          NS_ENSURE_SUCCESS(rv, rv);
+
+          // Insert the non-empty <div> into the DOM.
+          rv = htmlEditor->InsertElementAtSelection(divElem, false);
+          NS_ENSURE_SUCCESS(rv, rv);
+
+          // Position into the div, so out content goes there.
+          nsCOMPtr<nsISelection> selection;
+          m_editor->GetSelection(getter_AddRefs(selection));
+          rv = selection->Collapse(divElem, 0);
+          NS_ENSURE_SUCCESS(rv, rv);
+        }
+
+        if (mailEditor) {
+          rv = mailEditor->InsertTextWithQuotations(aBuf);
+        } else {
+          // Will we ever get here?
+          rv = textEditor->InsertText(aBuf);
+        }
+        NS_ENSURE_SUCCESS(rv, rv);
+
+        if (isForwarded) {
+          // Special treatment for forwarded messages: Part 2.
+          if (sigOnTopInserted) {
+            // Sadly the M-C editor inserts a <br> between the <div> for the signature
+            // and this <div>, so remove the <br> we don't want.
+            nsCOMPtr<nsIDOMNode> brBeforeDiv;
+            nsAutoString tagLocalName;
+            rv = divElem->GetPreviousSibling(getter_AddRefs(brBeforeDiv));
+            if (NS_SUCCEEDED(rv) && brBeforeDiv) {
+              brBeforeDiv->GetLocalName(tagLocalName);
+              if (tagLocalName.EqualsLiteral("br")) {
+                rv = m_editor->DeleteNode(brBeforeDiv);
+                NS_ENSURE_SUCCESS(rv, rv);
+              }
+            }
+          }
+
+          // Clean up the <br> we inserted.
+          rv = m_editor->DeleteNode(extraBr);
+          NS_ENSURE_SUCCESS(rv, rv);
+        }
+
+        // Use our own function instead of nsEditor::EndOfDocument() because
+        // we don't want to position at the end of the div we've just created.
+        // It's OK to use, even if we're not forwarding and didn't create a
+        // <div>.
+        rv = MoveToEndOfDocument();
+        NS_ENSURE_SUCCESS(rv, rv);
       }
 
       if ((!isForwarded || !sigOnTop) && !aSignature.IsEmpty()) {
@@ -1825,8 +1916,10 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
   nsCOMPtr<nsIPrefBranch> prefs (do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // If we are forwarding inline, mime did already setup the compose fields therefore we should stop now
-  if (type == nsIMsgCompType::ForwardInline )
+  // If we are forwarding inline or replying with template, mime did already
+  // setup the compose fields therefore we should stop now.
+  if (type == nsIMsgCompType::ForwardInline ||
+      type == nsIMsgCompType::ReplyWithTemplate)
   {
     bool replyInDefault = false;
     prefs->GetBoolPref("mailnews.reply_in_default_charset",
@@ -1854,14 +1947,32 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
       msgHdr->GetMessageId(getter_Copies(messageId));
 
       nsAutoCString reference;
-      reference.Append(NS_LITERAL_CSTRING("<"));
+      // When forwarding we only use the original message for "References:" -
+      // recipients don't have the other messages anyway.
+      // For reply with template we want to preserve all the references.
+      if (type == nsIMsgCompType::ReplyWithTemplate)
+      {
+        uint16_t numReferences = 0;
+        msgHdr->GetNumReferences(&numReferences);
+        for (int32_t i = 0; i < numReferences; i++)
+        {
+          nsAutoCString ref;
+          msgHdr->GetStringReference(i, ref);
+          if (!ref.IsEmpty())
+          {
+            reference.AppendLiteral("<");
+            reference.Append(ref);
+            reference.AppendLiteral("> ");
+          }
+        }
+        reference.Trim(" ", false, true);
+      }
+      msgHdr->GetMessageId(getter_Copies(messageId));
+      reference.AppendLiteral("<");
       reference.Append(messageId);
-      reference.Append(NS_LITERAL_CSTRING(">"));
-      // We're forwarding, which means we're composing a message that has no
-      // references yet, so we can set the value safely
+      reference.AppendLiteral(">");
       m_compFields->SetReferences(reference.get());
     }
-
     return NS_OK;
   }
 
@@ -1924,11 +2035,6 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
         if (NS_FAILED(rv)) return rv;
       }
 
-      // save the charset of a message being replied to because
-      // we need to use it when decoding RFC-2047-encoded author name
-      // with |charsetOverride|.
-      nsAutoCString originCharset(charset);
-
       bool replyInDefault = false;
       prefs->GetBoolPref("mailnews.reply_in_default_charset",
                           &replyInDefault);
@@ -1940,6 +2046,13 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
                                                     EmptyString(), str);
         if (!str.IsEmpty())
           LossyCopyUTF16toASCII(str, charset);
+      }
+
+      // ReplyWithTemplate needs to always use the charset of the template,
+      // nothing else. That is passed in through the compFields.
+      if (type == nsIMsgCompType::ReplyWithTemplate) {
+         rv = compFields->GetCharacterSet(getter_Copies(charset));
+         NS_ENSURE_SUCCESS(rv,rv);
       }
 
       // No matter what, we should block x-windows-949 (our internal name)
@@ -5447,6 +5560,28 @@ nsMsgCompose::MoveToAboveQuote(void)
   m_editor->GetSelection(getter_AddRefs(selection));
   if (selection)
     rv = selection->Collapse(rootElement, offset);
+
+  return rv;
+}
+
+/**
+ * nsEditor::BeginningOfDocument() will position to the beginning of the document
+ * before the first editable element. It will position into a container.
+ * We need to be at the very front.
+ */
+nsresult
+nsMsgCompose::MoveToBeginningOfDocument(void)
+{
+  nsCOMPtr<nsIDOMElement> rootElement;
+  nsresult rv = m_editor->GetRootElement(getter_AddRefs(rootElement));
+  if (NS_FAILED(rv) || !rootElement) {
+    return rv;
+  }
+
+  nsCOMPtr<nsISelection> selection;
+  m_editor->GetSelection(getter_AddRefs(selection));
+  if (selection)
+    rv = selection->Collapse(rootElement, 0);
 
   return rv;
 }

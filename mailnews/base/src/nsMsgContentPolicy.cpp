@@ -535,12 +535,24 @@ nsMsgContentPolicy::ShouldAcceptContentForPotentialMsg(nsIURI *aOriginatorLocati
   rv = msgUrl->GetUri(getter_Copies(resourceURI));
   NS_ENSURE_SUCCESS_VOID(rv);
 
-  nsCOMPtr<nsIMsgDBHdr> msgHdr;
-  rv = GetMsgDBHdrFromURI(resourceURI.get(), getter_AddRefs(msgHdr));
-  NS_ENSURE_SUCCESS_VOID(rv);
-
   nsCOMPtr<nsIMsgMailNewsUrl> mailnewsUrl(do_QueryInterface(aOriginatorLocation, &rv));
   NS_ENSURE_SUCCESS_VOID(rv);
+
+  nsCOMPtr<nsIMsgDBHdr> msgHdr;
+  rv = GetMsgDBHdrFromURI(resourceURI.get(), getter_AddRefs(msgHdr));
+  if (NS_FAILED(rv))
+  {
+    // Maybe we can get a dummy header.
+    nsCOMPtr<nsIMsgWindow> msgWindow;
+    rv = mailnewsUrl->GetMsgWindow(getter_AddRefs(msgWindow));
+    if (msgWindow)
+    {
+      nsCOMPtr<nsIMsgHeaderSink> msgHdrSink;
+      rv = msgWindow->GetMsgHeaderSink(getter_AddRefs(msgHdrSink));
+      if (msgHdrSink)
+        rv = msgHdrSink->GetDummyMsgHeader(getter_AddRefs(msgHdr));
+    }
+  }
 
   // Get a decision on whether or not to allow remote content for this message
   // header.
@@ -612,16 +624,28 @@ void nsMsgContentPolicy::ComposeShouldLoad(nsIMsgCompose *aMsgCompose,
       bool insertingQuotedContent = true;
       aMsgCompose->GetInsertingQuotedContent(&insertingQuotedContent);
       nsCOMPtr<nsIDOMHTMLImageElement> imageElement(do_QueryInterface(aRequestingContext));
-      if (!insertingQuotedContent && imageElement)
+      if (imageElement)
       {
-        nsCOMPtr<nsIDOMElement> element(do_QueryInterface(imageElement));
-        if (element)
+        if (!insertingQuotedContent)
         {
-          bool doNotSendAttrib;
-          if (NS_SUCCEEDED(element->HasAttribute(NS_LITERAL_STRING("moz-do-not-send"), &doNotSendAttrib)) &&
-              !doNotSendAttrib)
-            *aDecision = nsIContentPolicy::ACCEPT;
+          nsCOMPtr<nsIDOMElement> element(do_QueryInterface(imageElement));
+          if (element)
+          {
+            bool doNotSendAttrib;
+            if (NS_SUCCEEDED(element->HasAttribute(NS_LITERAL_STRING("moz-do-not-send"), &doNotSendAttrib)) &&
+                !doNotSendAttrib)
+            {
+              *aDecision = nsIContentPolicy::ACCEPT;
+              return;
+            }
+          }
         }
+
+        // Test whitelist.
+        uint32_t permission;
+        mPermissionManager->TestPermission(aContentLocation, "image", &permission);
+        if (permission == nsIPermissionManager::ALLOW_ACTION)
+          *aDecision = nsIContentPolicy::ACCEPT;
       }
     }
   }
