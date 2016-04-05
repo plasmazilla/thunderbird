@@ -14,7 +14,9 @@ if test "$OS_ARCH" = "WINNT"; then
     if test "$MOZ_UPDATE_CHANNEL" = "nightly" -o \
             "$MOZ_UPDATE_CHANNEL" = "aurora" -o \
             "$MOZ_UPDATE_CHANNEL" = "beta" -o \
-            "$MOZ_UPDATE_CHANNEL" = "release"; then
+            "$MOZ_UPDATE_CHANNEL" = "beta-dev" -o \
+            "$MOZ_UPDATE_CHANNEL" = "release" -o \
+            "$MOZ_UPDATE_CHANNEL" = "release-dev"; then
       if ! test "$MOZ_DEBUG"; then
         MOZ_STUB_INSTALLER=1
       fi
@@ -51,7 +53,7 @@ MOZ_APP_ID={ec8030f7-c20a-464f-9b0e-13a3a9e97384}
 # of values.
 ACCEPTED_MAR_CHANNEL_IDS=firefox-mozilla-esr
 # The MAR_CHANNEL_ID must not contain the following 3 characters: ",\t "
-MAR_CHANNEL_ID=firefox-mozilla-release
+MAR_CHANNEL_ID=firefox-mozilla-esr
 MOZ_PROFILE_MIGRATOR=1
 MOZ_APP_STATIC_INI=1
 MOZ_WEBAPP_RUNTIME=1
