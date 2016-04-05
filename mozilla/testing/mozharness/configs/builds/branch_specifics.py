@@ -200,6 +200,7 @@ config = {
     # When build promotion goes live the mozconfig changes are probably better
     # expressed once in files like configs/builds/releng_base_windows_32_builds.py
     'date': {
+        'update_channel': 'beta-dev',
         'enable_release_promotion': 1,
         'platform_overrides': {
             'linux': {
@@ -292,6 +293,70 @@ config = {
     # 'graphics': {}
     # 'holly': {},
     'jamun': {
+        'update_channel': 'release-dev',
+        'enable_release_promotion': 1,
+        'platform_overrides': {
+            'linux': {
+                'src_mozconfig': 'browser/config/mozconfigs/linux32/release',
+            },
+            'linux-debug': {
+                'update_channel': 'default',
+            },
+            'linux64': {
+                'src_mozconfig': 'browser/config/mozconfigs/linux64/release',
+            },
+            'linux64-debug': {
+                'update_channel': 'default',
+            },
+            'linux64-asan-debug': {
+                'update_channel': 'default',
+            },
+            'linux64-asan': {
+                'update_channel': 'default',
+            },
+            'linux64-cc': {
+                'update_channel': 'default',
+            },
+            'linux64-st-an-debug': {
+                'update_channel': 'default',
+            },
+            'linux64-st-an': {
+                'update_channel': 'default',
+            },
+            'linux64-tsan': {
+                'update_channel': 'default',
+            },
+            'macosx64': {
+                'src_mozconfig': 'browser/config/mozconfigs/macosx-universal/release',
+            },
+            'macosx64-debug': {
+                'update_channel': 'default',
+            },
+            'macosx64-st-an': {
+                'update_channel': 'default',
+            },
+            'macosx64-mulet': {
+                'update_channel': 'default',
+            },
+            'macosx64-st-an-debug': {
+                'update_channel': 'default',
+            },
+            'win32': {
+                'src_mozconfig': 'browser/config/mozconfigs/win32/release',
+            },
+            'win32-debug': {
+                'update_channel': 'default',
+            },
+            'win32-mulet': {
+                'update_channel': 'default',
+            },
+            'win64': {
+                'src_mozconfig': 'browser/config/mozconfigs/win64/release',
+            },
+            'win64-debug': {
+                'update_channel': 'default',
+            },
+        },
         'stage_server': 'upload.ffxbld.productdelivery.prod.mozaws.net',
     },
     'larch': {
