@@ -1,3 +1,51 @@
+icedove (1:45.0~b4-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [3bf50c7] Imported Upstream version 45.0~b4
+  * [11744a7] debian/source.filter: fixup for previous change
+  * [0bd3753] debian/gbp.conf: adding default filter out pattern
+  * [a9f6cfa] rebuild patch queue from patch-queue branch
+    removed patches (fixed upstream):
+    - fixes/Bug-1178266-Link-against-libatomic-when-necessary.patch
+    - p-arm64/FTBFS-arm64-Adding-configure-option-for-aarch64-platform.patch
+    - p-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-1-4.patch
+    - p-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-2-4.patch
+    - p-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-3-4.patch
+    - p-mips/FTBFS-mips-adoptions-to-get-build-on-mips-el-working-4-4.patch
+    modified patches:
+    - p-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
+  * [9dcb46e] debian/control: increase B-D on libnspr-dev
+  * [b31fba5] debian/control: increase Standards-Version to 3.9.7
+  * [623250d] Icedove Branding: adopt usptream changes to branding
+  * [2fa9b24] debian/copyright: update copyright information
+  * [c5dd11d] debian/copyright: include the license text for MPL-1.0
+  * [3a90ecd] debian/copyright: include the license text for MPL-1.1
+  * [7291650] debian/copyright: include the license text for MPL-2.0
+  * [0ebdd3f] debian/copyright: include the license text for libpng
+  * [9ee79fa] d/icedove.install: remove no longer existing parts
+  * [880c9e9] debian/rules: remove obsolet dpkg-shlibdeps call
+  * [e4fb8a2] adding helper script create-icedove-l10n-tarball.sh
+  * [8826951] debian/README.source: adding hint for creating l10n tarball
+  * [08f9071] debian/control: adding the current icedove-l10n-* packages
+    (Closes: #680488)
+  * [d839f37] debian/rules: adding icedove.l10n install to targets
+  * [5b0df21] debian/gbp.conf: use a Tuple for selecting multiple files
+  * [e32519f] debian/control: increase B-D on libnss-dev
+  * [2200691] debian/control: increase B-D on libnspr4-dev
+  * [0f5660e] debian/control: increase increase B-D on libnss3-dev
+  * [5fd8af8] mozconfig.default: adding new configure option
+  * [e288c6e] debian/control: adding a B-D on libpng-dev
+
+  [ Christoph Goehre ]
+  * [f8c7ca5] debian/control: make depends between icedove-l10n and icedove
+    dynamic
+  * [ac760d7] debian/control: add section localization to all l10n packages
+  * [72ef6c7] debian/NEWS: rename to icedove.NEWS to ship only in icedove core
+    package
+  * add epoch in version number to update l10n packages smoothly
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 09 Apr 2016 18:56:59 -0400
+
 icedove (44.0~b1-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
