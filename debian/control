@@ -36,12 +36,14 @@ Build-Depends: autoconf2.13,
 	libxft-dev,
 	libxt-dev,
 	mesa-common-dev,
+	mozilla-devscripts,
 	python-minimal (>= 2.6.6-13~),
 	python-ply,
 	python2.7,
+	unzip,
 	yasm (>= 1.1),
+	zip,
 	zlib1g-dev
-Build-Depends-Indep: unzip, zip, mozilla-devscripts
 Vcs-Git: https://anonscm.debian.org/cgit/pkg-mozilla/icedove.git
 Vcs-Browser: https://anonscm.debian.org/cgit/pkg-mozilla/icedove.git
 Homepage: http://www.mozilla.org/thunderbird/
