@@ -1,3 +1,10 @@
+icedove (1:45.0~b4-2) experimental; urgency=medium
+
+  * [fa7bc47] debian/control: fix FTBFS by moving Build-Depends-Indep to
+    Build-Depends
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 10 Apr 2016 15:24:39 -0400
+
 icedove (1:45.0~b4-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
