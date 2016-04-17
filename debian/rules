@@ -49,6 +49,9 @@ export DEB_BUILD_OPTIONS
 %:
 	dh $@
 
+build:
+	dh $@
+
 override_dh_auto_clean:
 	dh_auto_clean --builddirectory=obj-icedove
 
@@ -179,3 +182,5 @@ override_dh_builddeb:
 		dh_builddeb -pcalendar-google-provider ;\
 		sed -i '/icedove-dbg/d' debian/files ;\
 	fi
+
+.PHONY: build
