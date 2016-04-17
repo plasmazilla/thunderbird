@@ -21,7 +21,7 @@ include /usr/share/dpkg/buildflags.mk
 
 # special CFLAGS for various platforms
 ifeq ($(DEB_BUILD_ARCH),armel)
-       CFLAGS += -D__ARM_PCS
+	CFLAGS += -D__ARM_PCS
 endif
 
 # special LDFLAGS for various platforms
