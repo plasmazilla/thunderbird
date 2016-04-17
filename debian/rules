@@ -45,6 +45,9 @@ export MOZILLA_OFFICIAL=1
 %:
 	dh $@
 
+override_dh_auto_clean:
+	dh_auto_clean --builddirectory=obj-icedove
+
 override_dh_auto_configure:
 	# update config.sub and config.guess
 	dh_autotools-dev_updateconfig
