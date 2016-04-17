@@ -15,6 +15,7 @@ DEB_AUTO_UPDATE_AUTOCONF=2.13
 
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
+include /usr/share/dpkg/architecture.mk
 
 # special CFLAGS for various platforms
 ifeq ($(DEB_BUILD_ARCH),armel)
@@ -41,6 +42,9 @@ LDFLAGS += -Wl,--stats
 export MOZ_BUILD_DATE := $(shell TZ=UTC date -d "$(shell dpkg-parsechangelog -S Date)" +%Y%m%d%H%M%S)
 export MOZCONFIG=$(shell pwd)/mozconfig.icedove
 export MOZILLA_OFFICIAL=1
+export DEB_BUILD_GNU_TYPE
+export DEB_HOST_GNU_TYPE
+export DEB_BUILD_OPTIONS
 
 %:
 	dh $@
