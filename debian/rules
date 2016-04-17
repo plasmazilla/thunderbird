@@ -49,8 +49,8 @@ export MOZILLA_OFFICIAL=1
 	dh $@
 
 override_dh_auto_clean:
+	dh_auto_clean --builddirectory=obj-icedove
 	# needed for icedove-l10n
-	dh_auto_clean
 	rm -rf $(ICEDOVE_L10N_BUILDDIR)
 
 override_dh_auto_configure:
