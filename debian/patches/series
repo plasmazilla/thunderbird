@@ -38,3 +38,4 @@ porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
 porting/ppc-fix-divide-page-size-in-jemalloc.patch
 debian-hacks/changing-the-default-search-engine.patch
 porting-mips/Fix-build-error-in-MIPS-SIMD-when-compiling-with-mfp.patch
+porting-kfreebsd-hurd/adding-missed-HURD-adoptions.patch

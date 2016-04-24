@@ -1,0 +1,239 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sun, 24 Apr 2016 20:49:46 +0200
+Subject: adding missed HURD adoptions
+
+Based on https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2016-April/027634.html
+---
+ mozilla/configure                                        |  2 +-
+ mozilla/ipc/chromium/src/base/file_util_posix.cc         |  2 +-
+ mozilla/ipc/chromium/src/base/platform_thread.h          |  2 +-
+ mozilla/ipc/chromium/src/base/platform_thread_posix.cc   |  2 +-
+ mozilla/ipc/chromium/src/base/port.h                     |  2 +-
+ mozilla/ipc/chromium/src/base/process_util.h             |  2 +-
+ mozilla/ipc/chromium/src/base/process_util_posix.cc      |  6 +++++-
+ mozilla/media/webrtc/signaling/signaling.gyp             | 16 ++++++++++++++++
+ mozilla/media/webrtc/signaling/src/sdp/sipcc/cpr_types.h |  2 +-
+ mozilla/media/webrtc/trunk/build/build_config.h          |  6 +++++-
+ .../testing/gtest/include/gtest/internal/gtest-port.h    |  6 ++++--
+ mozilla/security/sandbox/chromium/build/build_config.h   |  4 +++-
+ 12 files changed, 40 insertions(+), 12 deletions(-)
+
+diff --git a/mozilla/configure b/mozilla/configure
+index c725e55..fde5151 100755
+--- a/mozilla/configure
++++ b/mozilla/configure
+@@ -30331,7 +30331,7 @@ if test -n "$USE_ICU"; then
+                     MOZ_ICU_DBG_SUFFIX=d
+                 fi
+                 ;;
+-            Darwin|Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|SunOS|Android)
++            Darwin|Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|SunOS|Android|GNU)
+                 ICU_LIB_NAMES="icui18n icuuc icudata"
+                 ;;
+             *)
+diff --git a/mozilla/ipc/chromium/src/base/file_util_posix.cc b/mozilla/ipc/chromium/src/base/file_util_posix.cc
+index b716a5d..fbb4e58 100644
+--- a/mozilla/ipc/chromium/src/base/file_util_posix.cc
++++ b/mozilla/ipc/chromium/src/base/file_util_posix.cc
+@@ -277,7 +277,7 @@ bool GetTempDir(FilePath* path) {
+ }
+ 
+ bool GetShmemTempDir(FilePath* path) {
+-#if defined(OS_LINUX) && !defined(ANDROID)
++#if (defined(OS_LINUX) && !defined(ANDROID)) || defined(OS_HURD)
+   *path = FilePath("/dev/shm");
+   return true;
+ #else
+diff --git a/mozilla/ipc/chromium/src/base/platform_thread.h b/mozilla/ipc/chromium/src/base/platform_thread.h
+index ed09afd..a6aca8f 100644
+--- a/mozilla/ipc/chromium/src/base/platform_thread.h
++++ b/mozilla/ipc/chromium/src/base/platform_thread.h
+@@ -22,7 +22,7 @@ typedef void* PlatformThreadHandle;  // HANDLE
+ #elif defined(OS_POSIX)
+ #include <pthread.h>
+ typedef pthread_t PlatformThreadHandle;
+-#if defined(OS_LINUX) || defined(OS_OPENBSD) || defined(__GLIBC__)
++#if defined(OS_LINUX) || defined(OS_OPENBSD) || defined(__GLIBC__) || defined(OS_HURD)
+ #include <unistd.h>
+ typedef pid_t PlatformThreadId;
+ #elif defined(OS_BSD)
+diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
+index b4e105b..cf723dd 100644
+--- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
++++ b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
+@@ -58,7 +58,7 @@ PlatformThreadId PlatformThread::CurrentId() {
+    return getpid();
+ #endif
+ #endif
+-#elif defined(OS_OPENBSD) || defined(__GLIBC__)
++#elif defined(OS_OPENBSD) || defined(__GLIBC__) || defined(OS_HURD)
+   return (intptr_t) (pthread_self());
+ #elif defined(OS_NETBSD)
+   return _lwp_self();
+diff --git a/mozilla/ipc/chromium/src/base/port.h b/mozilla/ipc/chromium/src/base/port.h
+index 573f5f0..7ce76f4 100644
+--- a/mozilla/ipc/chromium/src/base/port.h
++++ b/mozilla/ipc/chromium/src/base/port.h
+@@ -56,7 +56,7 @@ namespace base {
+ // Define an OS-neutral wrapper for shared library entry points
+ #if defined(OS_WIN)
+ #define API_CALL __stdcall
+-#elif defined(OS_LINUX) || defined(OS_MACOSX)
++#elif defined(OS_LINUX) || defined(OS_MACOSX) || defined(OS_HURD)
+ #define API_CALL
+ #endif
+ 
+diff --git a/mozilla/ipc/chromium/src/base/process_util.h b/mozilla/ipc/chromium/src/base/process_util.h
+index a8ce304..300262e 100644
+--- a/mozilla/ipc/chromium/src/base/process_util.h
++++ b/mozilla/ipc/chromium/src/base/process_util.h
+@@ -17,7 +17,7 @@
+ #ifndef STDOUT_FILENO
+ #define STDOUT_FILENO 1
+ #endif
+-#elif defined(OS_LINUX) || defined(__GLIBC__)
++#elif defined(OS_LINUX) || defined(__GLIBC__) || defined(OS_HURD)
+ #include <dirent.h>
+ #include <limits.h>
+ #include <sys/types.h>
+diff --git a/mozilla/ipc/chromium/src/base/process_util_posix.cc b/mozilla/ipc/chromium/src/base/process_util_posix.cc
+index 28c96dd..bca66a6 100644
+--- a/mozilla/ipc/chromium/src/base/process_util_posix.cc
++++ b/mozilla/ipc/chromium/src/base/process_util_posix.cc
+@@ -127,6 +127,10 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
+   static const rlim_t kSystemDefaultMaxFds = 1024;
+   // at least /dev/fd will exist
+   static const char kFDDir[] = "/dev/fd";
++#elif defined(OS_HURD)
++  static const rlim_t kSystemDefaultMaxFds = 1024;
++  // Currently always empty, but it exists
++  static const char kFDDir[] = "/dev/fd";
+ #endif
+ 
+   // Get the maximum number of FDs possible.
+@@ -210,7 +214,7 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
+ void SetAllFDsToCloseOnExec() {
+ #if defined(OS_LINUX)
+   const char fd_dir[] = "/proc/self/fd";
+-#elif defined(OS_MACOSX) || defined(OS_BSD)
++#elif defined(OS_MACOSX) || defined(OS_BSD) || defined(OS_HURD)
+   const char fd_dir[] = "/dev/fd";
+ #endif
+   ScopedDIR dir_closer(opendir(fd_dir));
+diff --git a/mozilla/media/webrtc/signaling/signaling.gyp b/mozilla/media/webrtc/signaling/signaling.gyp
+index d39daf0..cb76175 100644
+--- a/mozilla/media/webrtc/signaling/signaling.gyp
++++ b/mozilla/media/webrtc/signaling/signaling.gyp
+@@ -368,6 +368,22 @@
+           'cflags_mozilla': [
+           ],
+         }],
++        ['OS=="gnu"', {
++          'include_dirs': [
++          ],
++          'defines': [
++            'OS_HURD',
++            'WEBRTC_POSIX',
++            'SIP_OS_HURD',
++            'HURD',
++            '_GNU_SOURCE',
++            'GIPS_VER=3510',
++            'SECLIB_OPENSSL',
++          ],
++
++          'cflags_mozilla': [
++          ],
++        }],
+       ],
+     },
+   ],
+diff --git a/mozilla/media/webrtc/signaling/src/sdp/sipcc/cpr_types.h b/mozilla/media/webrtc/signaling/src/sdp/sipcc/cpr_types.h
+index 808067e..d43eaaa 100644
+--- a/mozilla/media/webrtc/signaling/src/sdp/sipcc/cpr_types.h
++++ b/mozilla/media/webrtc/signaling/src/sdp/sipcc/cpr_types.h
+@@ -5,7 +5,7 @@
+ #ifndef _CPR_TYPES_H_
+ #define _CPR_TYPES_H_
+ 
+-#if defined SIP_OS_LINUX
++#if defined SIP_OS_LINUX || defined(SIP_OS_HURD)
+ #include "cpr_linux_types.h"
+ #elif defined SIP_OS_WINDOWS
+ #include "cpr_win_types.h"
+diff --git a/mozilla/media/webrtc/trunk/build/build_config.h b/mozilla/media/webrtc/trunk/build/build_config.h
+index 55ed38c..dcb3d47 100644
+--- a/mozilla/media/webrtc/trunk/build/build_config.h
++++ b/mozilla/media/webrtc/trunk/build/build_config.h
+@@ -37,6 +37,9 @@
+ #elif defined(_WIN32)
+ #define OS_WIN 1
+ #define TOOLKIT_VIEWS 1
++#elif defined(__GNU__)
++#define OS_HURD 1
++#define TOOLKIT_GTK
+ #elif defined(__DragonFly__)
+ #define OS_DRAGONFLY 1
+ #define TOOLKIT_GTK
+@@ -70,7 +73,8 @@
+ // For access to standard POSIXish features, use OS_POSIX instead of a
+ // more specific macro.
+ #if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_BSD) ||	\
+-    defined(OS_SOLARIS) || defined(OS_ANDROID) || defined(OS_NACL)
++    defined(OS_SOLARIS) || defined(OS_ANDROID) || defined(OS_NACL) ||   \
++    defined(OS_HURD)
+ #define OS_POSIX 1
+ #endif
+ 
+diff --git a/mozilla/media/webrtc/trunk/testing/gtest/include/gtest/internal/gtest-port.h b/mozilla/media/webrtc/trunk/testing/gtest/include/gtest/internal/gtest-port.h
+index 3a595f4..d429e6a 100644
+--- a/mozilla/media/webrtc/trunk/testing/gtest/include/gtest/internal/gtest-port.h
++++ b/mozilla/media/webrtc/trunk/testing/gtest/include/gtest/internal/gtest-port.h
+@@ -259,6 +259,8 @@
+ # define GTEST_OS_OPENBSD 1
+ #elif defined __QNX__
+ # define GTEST_OS_QNX 1
++#elif defined(__GNU__)
++# define GTEST_OS_HURD 1
+ #endif  // __CYGWIN__
+ 
+ #ifndef GTEST_LANG_CXX11
+@@ -450,7 +452,7 @@
+ // To disable threading support in Google Test, add -DGTEST_HAS_PTHREAD=0
+ // to your compiler flags.
+ # define GTEST_HAS_PTHREAD (GTEST_OS_LINUX || GTEST_OS_MAC || GTEST_OS_HPUX \
+-    || GTEST_OS_QNX)
++    || GTEST_OS_QNX || GTEST_OS_HURD)
+ #endif  // GTEST_HAS_PTHREAD
+ 
+ #if GTEST_HAS_PTHREAD
+@@ -605,7 +607,7 @@ using ::std::tuple_size;
+      (GTEST_OS_MAC && !GTEST_OS_IOS) || \
+      (GTEST_OS_WINDOWS_DESKTOP && _MSC_VER >= 1400) || \
+      GTEST_OS_WINDOWS_MINGW || GTEST_OS_AIX || GTEST_OS_HPUX || \
+-     GTEST_OS_OPENBSD || GTEST_OS_QNX)
++     GTEST_OS_OPENBSD || GTEST_OS_QNX || GTEST_OS_HURD)
+ # define GTEST_HAS_DEATH_TEST 1
+ # include <vector>  // NOLINT
+ #endif
+diff --git a/mozilla/security/sandbox/chromium/build/build_config.h b/mozilla/security/sandbox/chromium/build/build_config.h
+index b07660d..e3519ef 100644
+--- a/mozilla/security/sandbox/chromium/build/build_config.h
++++ b/mozilla/security/sandbox/chromium/build/build_config.h
+@@ -46,6 +46,8 @@
+ // we really are using glibc, not uClibc pretending to be glibc
+ #define LIBC_GLIBC 1
+ #endif
++#elif defined(__GNU__)
++#define OS_HURD 1
+ #elif defined(_WIN32)
+ #define OS_WIN 1
+ #define TOOLKIT_VIEWS 1
+@@ -75,7 +77,7 @@
+ // more specific macro.
+ #if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD) ||     \
+     defined(OS_OPENBSD) || defined(OS_SOLARIS) || defined(OS_ANDROID) ||  \
+-    defined(OS_NACL) || defined(OS_QNX)
++    defined(OS_NACL) || defined(OS_QNX) || defined(OS_HURD)
+ #define OS_POSIX 1
+ #endif
+ 
