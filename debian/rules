@@ -161,7 +161,7 @@ override_dh_install-indep:
 	mkdir -p debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/
 	GDATA_PROVIDER=`find -type f -name "gdata-provider*.xpi"` &&\
 		unzip -d debian/calendar-google-provider/usr/share/xul-ext/calendar-google-provider/ $(CURDIR)/$$GDATA_PROVIDER
-	# sometimes there are temporary build files in calendoar-google-provider
+	# sometimes there are temporary build files in calendar-google-provider
 	@echo "    --> searching for temporary build files in 'calendar-google-provider' ..."
 	@for i in `find debian/calendar-google-provider/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
 
