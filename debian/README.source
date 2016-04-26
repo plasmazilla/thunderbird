@@ -26,3 +26,19 @@ should be used to create the *.tar.xz file. To download the l10n related
 files call the helper script with the needed arguments. Call the script
 without arguments to get a output of the usage for the script.
 You need to run the script on top of the Icedove Git repository.
+
+== Creating a new upstream source tarball iceowl-l10n ==
+
+Like before for icedove-l10n we need also for the Iceowl localization a correct
+named subtarball
+
+ icedove_[xx].orig-iceowl-l10n.tar.xz
+
+For this is also a helper script created
+
+ debian/create-iceowl-l10n-tarball.sh
+
+that will create a *.tar.xz with the l10n sources of Lightning.
+It will also need a few arguments, you will also get the options of the command
+line if you call the script without any or wrong arguments.
+This script also needs to be called on top of the Icedove Git tree.
