@@ -1,0 +1,37 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sat, 6 Jun 2015 18:06:03 +0200
+Subject: Brand-el
+
+---
+ iceowl-l10n/el/locale/el/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/el/locale/el/lightning/lightning.properties b/iceowl-l10n/el/locale/el/lightning/lightning.properties
+index 3c61d82..7a38ec8 100644
+--- a/iceowl-l10n/el/locale/el/lightning/lightning.properties
++++ b/iceowl-l10n/el/locale/el/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=An integrated calendar for Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=An integrated calendar for Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Mozilla Calendar Project
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Tasks
+@@ -122,7 +122,7 @@ imipBarUpdateText=This message contains an update to an existing event.
+ imipBarAlreadyProcessedText=This message contains an event that has already been processed.
+ imipBarProcessedNeedsAction=This message contains an event that you have not yet responded to.
+ imipBarReplyText=This message contains a reply to an invitation.
+-imipBarUnsupportedText=This message contains an event that this version of Lightning cannot process.
++imipBarUnsupportedText=This message contains an event that this version of Iceowl cannot process.
+ imipBarProcessingFailed=Processing message failed. Status: %1$S.
+ imipBarNotWritable=No writable calendars are configured for invitations, please check the calendar properties.
+ imipSendMail.title=E-Mail Notification

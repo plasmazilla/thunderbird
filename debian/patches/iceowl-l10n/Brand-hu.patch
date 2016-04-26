@@ -1,0 +1,37 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:26 +0200
+Subject: Brand-hu
+
+---
+ iceowl-l10n/hu/locale/hu/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/hu/locale/hu/lightning/lightning.properties b/iceowl-l10n/hu/locale/hu/lightning/lightning.properties
+index b0aac68..284df88 100644
+--- a/iceowl-l10n/hu/locale/hu/lightning/lightning.properties
++++ b/iceowl-l10n/hu/locale/hu/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Integrált naptár a Thunderbirdhöz
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Integrált naptár a Icedoveöz
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Mozilla Calendar Project
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Feladatok
+@@ -107,7 +107,7 @@ imipBarUpdateText=Ez az üzenet egy létező esemény frissítését tartalmazza
+ imipBarAlreadyProcessedText=Ez az üzenet egy olyan eseményt tartalmaz, amely már fel van dolgozva.
+ imipBarProcessedNeedsAction=Ez az üzenet megválaszolatlan eseményt tartalmaz.
+ imipBarReplyText=Ez az üzenet egy meghívóra küldött választ tartalmaz.
+-imipBarUnsupportedText=Ez az üzenet egy olyan eseményt tartalmaz, amelyet a Lightning ezen verziója nem tud feldolgozni.
++imipBarUnsupportedText=Ez az üzenet egy olyan eseményt tartalmaz, amelyet a Iceowl ezen verziója nem tud feldolgozni.
+ imipBarProcessingFailed=Az üzenet feldolgozása sikertelen. Állapot: %1$S.
+ imipBarNotWritable=Nincsenek beállítva írható naptárak a meghívókhoz, ellenőrizze a naptár beállításait.
+ imipSendMail.title=E-mail értesítés

@@ -1,0 +1,32 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sun, 17 Aug 2014 10:02:05 +0200
+Subject: Brand-pa-IN
+
+---
+ iceowl-l10n/pa-IN/locale/pa-IN/lightning/lightning.properties | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/iceowl-l10n/pa-IN/locale/pa-IN/lightning/lightning.properties b/iceowl-l10n/pa-IN/locale/pa-IN/lightning/lightning.properties
+index fab0eac..28b7776 100644
+--- a/iceowl-l10n/pa-IN/locale/pa-IN/lightning/lightning.properties
++++ b/iceowl-l10n/pa-IN/locale/pa-IN/lightning/lightning.properties
+@@ -38,8 +38,8 @@
+ # ***** END LICENSE BLOCK *****
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=An integrated calendar for Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=An integrated calendar for Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Mozilla Calendar Project
+ 
+ # Lightning branding
+@@ -72,7 +72,7 @@ imipBarRequestText=This message contains an invitation to an event.
+ imipBarUpdateText=This message contains an update to an existing event.
+ imipBarAlreadyProcessedText=This message contains an event that has already been processed.
+ imipBarReplyText=This message contains a reply to an invitation.
+-imipBarUnsupportedText=This message contains an event that this version of Lightning cannot process.
++imipBarUnsupportedText=This message contains an event that this version of Iceowl cannot process.
+ imipBarProcessingFailed=Processing message failed. Status: %1$S.
+ imipAcceptInvitation.label=ਮਨਜ਼ੂਰ
+ imipCancelInvitation.label=ਹਟਾਓ

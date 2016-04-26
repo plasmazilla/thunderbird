@@ -1,0 +1,41 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sat, 6 Jun 2015 18:18:09 +0200
+Subject: Brand-si
+
+---
+ iceowl-l10n/si/locale/si/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/si/locale/si/lightning/lightning.properties b/iceowl-l10n/si/locale/si/lightning/lightning.properties
+index 16b002c..98512f6 100644
+--- a/iceowl-l10n/si/locale/si/lightning/lightning.properties
++++ b/iceowl-l10n/si/locale/si/lightning/lightning.properties
+@@ -38,7 +38,7 @@
+ # ***** END LICENSE BLOCK *****
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=කාර්යය
+@@ -60,7 +60,7 @@ imipBarCancelText=මෙම පණිවිඩයේ වැඩසටහනක්
+ imipBarRequestText=මෙම පණිවිඩයේ වැඩසටහනකට අරාධනයක් අඩංගු වේ.
+ imipBarUpdateText=මෙම පණිවිඩයේ දැනට පවතින වැඩසටහනකට යාවත්කාලීන කිරීමක් අඩංගු වේ.
+ imipBarReplyText=මෙම පණිවිඩයේ ආරාධනාවකට පිළිතුරක් අඩංගු වේ.
+-imipBarUnsupportedText=මෙම පණිවිඩයේ Lightning හි මෙම සංස්කරණයට සැකසීමට නොහැක.
++imipBarUnsupportedText=මෙම පණිවිඩයේ  Iceowl හි මෙම සංස්කරණයට සැකසීමට නොහැක.
+ imipAcceptInvitation.label=පිළිගන්න
+ imipCancelInvitation.label=මකන්න
+ imipDeclineInvitation.label=ප්‍රතික්‍ෂේප කරන්න
+@@ -83,8 +83,8 @@ invitationsLink.label=ආරාධනා: %1$S
+ imipSendMail.title=වි.තැපැල් දැනුම් දීම
+ imipSendMail.text=ඔබ වි.තැපැලෙන් දැනුම් දීමක් දැන් යැවීමට කැමතිද?
+ imipSendMail.Outlook2000CompatMode.text=Support Outlook 2000 and Outlook 2002/XP
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=An integrated calendar for Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=An integrated calendar for Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Mozilla Calendar Project
+ imipSend.label=යැවීම
+ 

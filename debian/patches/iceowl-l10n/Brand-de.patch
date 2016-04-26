@@ -1,0 +1,37 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:25 +0200
+Subject: Brand-de
+
+---
+ iceowl-l10n/de/locale/de/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/de/locale/de/lightning/lightning.properties b/iceowl-l10n/de/locale/de/lightning/lightning.properties
+index 668625f..c4a3726 100644
+--- a/iceowl-l10n/de/locale/de/lightning/lightning.properties
++++ b/iceowl-l10n/de/locale/de/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Ein integrierter Kalender für Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Ein integrierter Kalender für Iceowl
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Mozilla Kalender-Projekt
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Aufgaben
+@@ -122,7 +122,7 @@ imipBarUpdateText=Diese Nachricht enthält eine Aktualisierung für einen vorhan
+ imipBarAlreadyProcessedText=Diese Nachricht enthält einen Termin, der bereits verarbeitet wurde.
+ imipBarProcessedNeedsAction=Diese Nachricht enthält einen Termin, auf den Sie noch nicht geantwortet haben.
+ imipBarReplyText=Diese Nachricht enthält eine Antwort auf eine Einladung.
+-imipBarUnsupportedText=Diese Nachricht enthält einen Termin, der mit dieser Version von Lightning nicht verarbeitet werden kann.
++imipBarUnsupportedText=Diese Nachricht enthält einen Termin, der mit dieser Version von Iceowl nicht verarbeitet werden kann.
+ imipBarProcessingFailed=Bearbeiten der Nachricht fehlgeschlagen. Status: %1$S.
+ imipBarNotWritable=Kein Kalender mit Schreibrechten für Einladungen eingerichtet, bitte die Kalendereigenschaften überprüfen.
+ imipSendMail.title=E-Mail-Benachrichtigung
