@@ -7,13 +7,9 @@ mailnews/base/test/unit/test_compactColumnSave.js
 # don't filter out the following JS file, it's needed later while building
 #mozilla/testing/marionette/atoms/atoms.js
 mozilla/addon-sdk/source/examples/actor-repl/data/codemirror-compressed.js
-mozilla/browser/components/loop/content/shared/libs/react-0.12.2.js
-mozilla/browser/components/loop/content/shared/libs/react-0.12.2-prod.js
-mozilla/browser/components/loop/content/shared/libs/sdk-content/js/dynamic_config.min.js
 mozilla/browser/components/pocket/panels/js/vendor/jquery-2.1.1.min.js
 mozilla/browser/components/pocket/panels/js/vendor/jquery.tokeninput.min.js
 mozilla/browser/components/translation/cld2/cld-worker.js
-mozilla/build/mobile/robocop/robotium-solo-4.3.1.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-javadoc.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-sources.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0.jar
@@ -77,6 +73,7 @@ mozilla/python/mock-1.0.0/html/_static/jquery.js
 mozilla/python/mock-1.0.0/html/_static/underscore.js
 mozilla/python/mock-1.0.0/html/searchindex.js
 mozilla/python/psutil/build
+mozilla/python/psutil/psutil/*.so
 mozilla/testing/marionette/client/marionette/runner/mixins/browsermob-proxy-py/docs/_build/html/_static/jquery.js
 mozilla/testing/marionette/client/marionette/runner/mixins/browsermob-proxy-py/docs/_build/html/_static/underscore.js
 mozilla/testing/marionette/client/marionette/runner/mixins/resources/htmlreport/jquery.js
