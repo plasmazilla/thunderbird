@@ -1,0 +1,64 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY lightning.toolbar.calendar.name "Barenn ostilhoù an deiziataer">
+<!ENTITY lightning.toolbar.calendar.name.accesskey "d">
+<!ENTITY lightning.toolbar.task.name "Barenn ostilhoù an trevelloù">
+<!ENTITY lightning.toolbar.task.name.accesskey "T">
+
+<!ENTITY lightning.toolbar.sync.label "Goubredañ">
+<!ENTITY lightning.toolbar.sync.tooltip "Adkargañ an deiziataerioù ha goubredañ ar c'hemmadennoù">
+<!ENTITY lightning.toolbar.delete.label "Dilemel">
+<!ENTITY lightning.toolbar.delete.tooltip "Dilemel an degouezhioù hag an trevelloù diuzet">
+<!ENTITY lightning.toolbar.edit.label "Embann">
+<!ENTITY lightning.toolbar.edit.tooltip "Embann an degouezh pe an trevell diuzet">
+
+
+<!ENTITY lightning.toolbar.print.label "Moullañ">
+<!ENTITY lightning.toolbar.print.tooltip "Moullañ an degouezhioù pe an trevelloù">
+<!-- Mode Toolbar -->
+
+<!ENTITY lightning.toolbar.calendar.label     "Deiziataer">
+<!ENTITY lightning.toolbar.calendar.tooltip   "Mont betek ivinell an deiziataer">
+<!ENTITY lightning.toolbar.calendar.accesskey "D">
+
+<!ENTITY lightning.toolbar.task.tooltip       "Mont betek ivinell an trevelloù">
+
+<!-- Toolbar write button -->
+
+<!ENTITY lightning.toolbar.newevent.label     "Degouezh">
+<!ENTITY lightning.toolbar.newevent.tooltip   "Krouiñ un degouezh nevez">
+<!ENTITY lightning.toolbar.newtask.label      "Trevell">
+<!ENTITY lightning.toolbar.newtask.tooltip    "Krouiñ un drevell nevez">
+<!-- Calendar and Task Mode Toolbar -->
+
+
+
+
+
+<!ENTITY lightning.toolbar.month.label               "Miz">
+<!ENTITY lightning.toolbar.month.accesskey           "M">
+<!-- LOCALIZATION NOTE: the same as appmenuButton.label and appmenuButton1.tooltip
+     from messenger.dtd -->
+<!ENTITY lightning.toolbar.appmenuButton.label       "Lañser an arloadoù">
+<!ENTITY lightning.toolbar.appmenuButton1.tooltip    "Diskouez al lañser &brandShortName;">
+
+
+<!ENTITY lightning.toolbar.calendarpane.label        "Diskouez penel an deiziataer">
+<!ENTITY lightning.toolbar.calendarpane.accesskey    "p">
+
+<!ENTITY lightning.toolbar.calendarmenu.accesskey    "P">
+<!ENTITY lightning.toolbar.calendarmenu.label        "Calendar Pane">
+<!ENTITY lightning.toolbar.day.accesskey             "D">
+
+<!-- Calendar and Task Mode Toolbar -->
+<!ENTITY lightning.toolbar.day.label                 "Day">
+<!ENTITY lightning.toolbar.gototoday.label "Go to Today">
+<!ENTITY lightning.toolbar.gototoday.tooltip "Go to Today">
+<!ENTITY lightning.toolbar.multiweek.accesskey       "u">
+<!ENTITY lightning.toolbar.multiweek.label           "Multiweek">
+<!ENTITY lightning.toolbar.task.accesskey     "T">
+<!ENTITY lightning.toolbar.task.label         "Tasks">
+<!ENTITY lightning.toolbar.week.accesskey            "W">
+<!ENTITY lightning.toolbar.week.label                "Week">

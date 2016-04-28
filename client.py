@@ -27,6 +27,9 @@ DEFAULTS = {
 
     # URL of the default hg repository to clone for Mozilla.
     'MOZILLA_REPO': 'https://hg.mozilla.org/releases/mozilla-esr45/',
+
+    # Branch to use from the Mozilla repository.
+    'MOZILLA_REV': 'THUNDERBIRD_45_VERBRANCH',
 }
 
 REPO_SHORT_NAMES = {
