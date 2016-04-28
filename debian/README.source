@@ -1,18 +1,22 @@
-== Importing a new upstream tarball ==
+== Creating and Importing a new upstream tarballs ==
+====================================================
 
-After downlading the sources debian/repack.py is used 
-to repackage the tarball
+After downlading the sources debian/repack.py has to be used to repackage
+the Thunderbird upstream tarball, preferable from the top of the repository.
 
-    icedove/debian/repack.py -p icedove -u 34.0~b1 -c xz \
-           thunderbird-34.0b1.source.tar.bz2
-    cd icedove
-    git-import-orig ../icedove_34.0~b1.orig.tar.xz
+ debian/repack.py -p icedove -u 45.0 -c xz thunderbird-45.0.source.tar.xz
+
+ [additional other needed preparations]
+
+ git-import-orig ../icedove_45.0.orig.tar.xz
     
 Alternatively uscan should do the right thing:
 
     git-import-orig --uscan
 
+
 == Creating a new upstream source tarball icedove-l10n ==
+=========================================================
 
 By using multiple upstream tarballs we needed to create a file
 
@@ -27,7 +31,9 @@ files call the helper script with the needed arguments. Call the script
 without arguments to get a output of the usage for the script.
 You need to run the script on top of the Icedove Git repository.
 
+
 == Creating a new upstream source tarball iceowl-l10n ==
+========================================================
 
 Like before for icedove-l10n we need also for the Iceowl localization a correct
 named subtarball
