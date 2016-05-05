@@ -30,21 +30,7 @@ ifeq ($(DEB_BUILD_ARCH),armel)
 	CFLAGS += -D__ARM_PCS
 endif
 
-# special LDFLAGS for various platforms
-ifeq ($(DEB_BUILD_ARCH),alpha)
-	LDFLAGS += -Wl,--no-relax
-endif
-
-# Reduce memory usage of the linker at the expense of processing time
-# This should help on lower-end architectures like arm and mips, which
-# spend an immense amount of time swapping.
-ifneq ($(DEB_BUILD_ARCH),ia64)
-	LDFLAGS += -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
-endif
-ifneq ($(DEB_BUILD_ARCH),alpha)
-	LDFLAGS += -Wl,--no-keep-memory
-endif
-# Also add execution time and memory usage stats in the logs
+# Add execution time and memory usage stats in the logs
 LDFLAGS += -Wl,--stats
 
 export MOZ_BUILD_DATE := $(shell TZ=UTC date -d "$(shell dpkg-parsechangelog -S Date)" +%Y%m%d%H%M%S)
