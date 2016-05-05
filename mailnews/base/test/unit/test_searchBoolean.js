@@ -8,10 +8,10 @@
  
 Components.utils.import("resource:///modules/mailServices.js");
 
-const gSearchSession = Cc["@mozilla.org/messenger/searchSession;1"]
+var gSearchSession = Cc["@mozilla.org/messenger/searchSession;1"]
                         .createInstance(Ci.nsIMsgSearchSession);
 
-let gHdr; // the message header for the one mailbox message
+var gHdr; // the message header for the one mailbox message
 
 var Tests =
 [
@@ -168,7 +168,7 @@ function run_test()
                                     false, 0, "", copyListener, null);
 }
 
-let gTest = null;
+var gTest = null;
 // process each test from queue, calls itself upon completion of each search
 function testSearch()
 {

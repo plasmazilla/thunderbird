@@ -15,6 +15,7 @@
 #include "nsILDAPErrors.h"
 #include "nsIClassInfoImpl.h"
 #include "nsLDAPUtils.h"
+#include "mozilla/Logging.h"
 
 NS_IMPL_CLASSINFO(nsLDAPMessage, NULL, nsIClassInfo::THREADSAFE,
                   NS_LDAPMESSAGE_CID)
@@ -70,14 +71,14 @@ nsLDAPMessage::~nsLDAPMessage(void)
 
         case LDAP_SUCCESS:
             // timed out (dunno why LDAP_SUCCESS is used to indicate this) 
-            PR_LOG(gLDAPLogModule, PR_LOG_WARNING, 
+            MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Warning, 
                    ("nsLDAPMessage::~nsLDAPMessage: ldap_msgfree() "
                     "timed out\n"));
             break;
 
         default:
             // other failure
-            PR_LOG(gLDAPLogModule, PR_LOG_WARNING, 
+            MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Warning, 
                    ("nsLDAPMessage::~nsLDAPMessage: ldap_msgfree() "
                     "failed: %s\n", ldap_err2string(rc)));
             break;
@@ -322,7 +323,7 @@ nsLDAPMessage::IterateAttributes(uint32_t *aAttrCount, char** *aAttributes,
 
         // create an array of the appropriate size
         //
-        *aAttributes = static_cast<char **>(nsMemory::Alloc(*aAttrCount *
+        *aAttributes = static_cast<char **>(moz_xmalloc(*aAttrCount *
                                                       sizeof(char *)));
         if (!*aAttributes) {
             return NS_ERROR_OUT_OF_MEMORY;
@@ -345,7 +346,7 @@ nsLDAPMessage::IterateAttributes(uint32_t *aAttrCount, char** *aAttributes,
         (*aAttributes)[0] = NS_strdup(attr);
         if (!(*aAttributes)[0]) {
             ldap_memfree(attr);
-            nsMemory::Free(*aAttributes);
+            free(*aAttributes);
             return NS_ERROR_OUT_OF_MEMORY;
         }
 
@@ -436,7 +437,7 @@ NS_IMETHODIMP nsLDAPMessage::GetDn(nsACString& aDn)
         }
     }
 
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("nsLDAPMessage::GetDn(): dn = '%s'", rawDn));
 
     aDn.Assign(rawDn);
@@ -455,7 +456,7 @@ nsLDAPMessage::GetValues(const char *aAttr, uint32_t *aCount,
     
 #if defined(DEBUG)
     // We only want this being logged for debug builds so as not to affect performance too much.
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("nsLDAPMessage::GetValues(): called with aAttr = '%s'", aAttr));
 #endif
 
@@ -470,7 +471,7 @@ nsLDAPMessage::GetValues(const char *aAttr, uint32_t *aCount,
             // this may not be an error; it could just be that the 
             // caller has asked for an attribute that doesn't exist.
             //
-            PR_LOG(gLDAPLogModule, PR_LOG_WARNING, 
+            MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Warning, 
                    ("nsLDAPMessage::GetValues(): ldap_get_values returned "
                     "LDAP_DECODING_ERROR"));
             return NS_ERROR_LDAP_DECODING_ERROR;
@@ -491,7 +492,7 @@ nsLDAPMessage::GetValues(const char *aAttr, uint32_t *aCount,
 
     // create an array of the appropriate size
     //
-    *aValues = static_cast<char16_t **>(nsMemory::Alloc(numVals * sizeof(char16_t *)));
+    *aValues = static_cast<char16_t **>(moz_xmalloc(numVals * sizeof(char16_t *)));
     if (!*aValues) {
         ldap_value_free(values);
         return NS_ERROR_OUT_OF_MEMORY;
@@ -532,7 +533,7 @@ nsLDAPMessage::GetBinaryValues(const char *aAttr, uint32_t *aCount,
 
 #if defined(DEBUG)
     // We only want this being logged for debug builds so as not to affect performance too much.
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("nsLDAPMessage::GetBinaryValues(): called with aAttr = '%s'", 
             aAttr));
 #endif
@@ -548,7 +549,7 @@ nsLDAPMessage::GetBinaryValues(const char *aAttr, uint32_t *aCount,
             // this may not be an error; it could just be that the 
             // caller has asked for an attribute that doesn't exist.
             //
-            PR_LOG(gLDAPLogModule, PR_LOG_WARNING, 
+            MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Warning, 
                    ("nsLDAPMessage::GetBinaryValues(): ldap_get_values "
                     "returned LDAP_DECODING_ERROR"));
             return NS_ERROR_LDAP_DECODING_ERROR;
@@ -570,7 +571,7 @@ nsLDAPMessage::GetBinaryValues(const char *aAttr, uint32_t *aCount,
     // create the out array
     //
     *aValues = 
-        static_cast<nsILDAPBERValue **>(nsMemory::Alloc(numVals * sizeof(nsILDAPBERValue)));
+        static_cast<nsILDAPBERValue **>(moz_xmalloc(numVals * sizeof(nsILDAPBERValue)));
     if (!aValues) {
         ldap_value_free_len(values);
         return NS_ERROR_OUT_OF_MEMORY;

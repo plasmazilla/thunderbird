@@ -2,19 +2,19 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "cloudfile-backend-helpers";
+var MODULE_NAME = "cloudfile-backend-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["window-helpers"];
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["window-helpers"];
 
 Cu.import('resource://gre/modules/XPCOMUtils.jsm');
 
-const kUserAuthRequested = "cloudfile:auth";
-const kUserDataRequested = "cloudfile:user";
-const kUploadFile = "cloudfile:uploadFile";
-const kGetFileURL = "cloudfile:getFileURL";
-const kDeleteFile = "cloudfile:deleteFile";
-const kLogout = "cloudfile:logout";
+var kUserAuthRequested = "cloudfile:auth";
+var kUserDataRequested = "cloudfile:user";
+var kUploadFile = "cloudfile:uploadFile";
+var kGetFileURL = "cloudfile:getFileURL";
+var kDeleteFile = "cloudfile:deleteFile";
+var kLogout = "cloudfile:logout";
 
 var wh;
 
@@ -47,7 +47,7 @@ SimpleRequestObserverManager.prototype = {
   },
 
   check: function() {
-    for each (let [, observer] in Iterator(this._observers)) {
+    for (let observer of this._observers) {
       if (!observer.success)
         throw new Error("An observer named " + observer.name + " was leftover, "
                         + "with its success attribute set to: "
@@ -92,7 +92,7 @@ function assert_can_cancel_uploads(aController, aProvider, aFiles) {
   let fileListenerMap = [];
   wh.plan_for_observable_event("cloudfile:uploadStarted");
 
-  for each (let [, file] in Iterator(aFiles)) {
+  for (let file of aFiles) {
     let mapping = {};
     mapping.listener = {
       onStartRequest: function(aRequest, aContext) {

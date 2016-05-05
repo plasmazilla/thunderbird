@@ -1,4 +1,4 @@
-const LOCATIONS = [
+var LOCATIONS = [
   // Normal pages
   {url : "http://www.google.de", type: "id", value : "logo"},
   {url : "https://addons.mozilla.org/en-US/firefox/?browse=featured", type: "id", value : "search-q"},
@@ -23,7 +23,7 @@ var testWaitForPageLoad = function() {
   /**
    * PART I - Check different types of pages
    */
-  for each (var location in LOCATIONS) {
+  for (var location of LOCATIONS) {
     controller.open(location.url);
     controller.waitForPageLoad();
 

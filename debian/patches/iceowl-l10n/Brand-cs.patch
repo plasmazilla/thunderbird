@@ -1,0 +1,37 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:25 +0200
+Subject: Brand-cs
+
+---
+ iceowl-l10n/cs/locale/cs/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/cs/locale/cs/lightning/lightning.properties b/iceowl-l10n/cs/locale/cs/lightning/lightning.properties
+index f595009..187e994 100644
+--- a/iceowl-l10n/cs/locale/cs/lightning/lightning.properties
++++ b/iceowl-l10n/cs/locale/cs/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Integrovaný kalendář Thunderbirdu
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Integrovaný kalendář Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Projekt kalendáře Mozilla
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Úkoly
+@@ -122,7 +122,7 @@ imipBarUpdateText=Tato zpráva obsahuje aktualizaci existující události.
+ imipBarAlreadyProcessedText=Tato zpráva obsahuje událost, která již byla zpracována.
+ imipBarProcessedNeedsAction=Tato zpráva obsahuje událost, na kterou jste ještě neodpověděli.
+ imipBarReplyText=Tato zpráva obsahuje odpověď na pozvání.
+-imipBarUnsupportedText=Tato zpráva obsahuje akci, kterou nelze v této verzi Lightningu zpracovat.
++imipBarUnsupportedText=Tato zpráva obsahuje akci, kterou nelze v této verzi Iceowlu zpracovat.
+ imipBarProcessingFailed=Zpracování zprávy skončilo chybou. Stav: %1$S.
+ imipBarNotWritable=K vytvoření pozvánky není dostupný žádný zapisovatelný kalendář. Zkontrolujte prosím vlastnosti kalendáře.
+ imipSendMail.title=Oznamovací e-mail

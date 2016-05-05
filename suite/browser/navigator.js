@@ -394,7 +394,7 @@ nsBrowserAccess.prototype = {
     }
   },
   isTabContentWindow: function isTabContentWindow(aWindow) {
-    return gBrowser.browsers.some(function (browser) browser.contentWindow == aWindow);
+    return gBrowser.browsers.some(browser => browser.contentWindow == aWindow);
   }
 }
 
@@ -679,8 +679,22 @@ function Startup()
     setTimeout(InitSessionStoreCallback, 0);
   }
 
+  window.addEventListener("MozAfterPaint", DelayedStartup, false);
+}
+
+// Minimal gBrowserInit shim to keep the Addon-SDK happy.
+var gBrowserInit = {
+  delayedStartupFinished: false,
+}
+
+function DelayedStartup() {
+  window.removeEventListener("MozAfterPaint", DelayedStartup);
+
   // Bug 778855 - Perf regression if we do this here. To be addressed in bug 779008.
   setTimeout(function() { SafeBrowsing.init(); }, 2000);
+
+  gBrowserInit.delayedStartupFinished = true;
+  Services.obs.notifyObservers(window, "browser-delayed-startup-finished", "");
 }
 
 function UpdateNavBar()
@@ -696,6 +710,34 @@ function UpdateNavBar()
     var previous = element.previousSibling;
     if (!previous || !previous.classList.contains("nav-bar-class"))
       element.classList.add("nav-bar-first");
+  }
+  UpdateUrlbarSearchSplitterState();
+}
+
+function UpdateUrlbarSearchSplitterState()
+{
+  var splitter = document.getElementById("urlbar-search-splitter");
+  var urlbar = document.getElementById("nav-bar-inner");
+  var searchbar = document.getElementById("search-container");
+
+  var ibefore = null;
+  if (isElementVisible(urlbar) && isElementVisible(searchbar)) {
+    if (searchbar.matches("#nav-bar-inner ~ #search-container"))
+      ibefore = searchbar;
+    else if (urlbar.matches("#search-container ~ #nav-bar-inner"))
+      ibefore = searchbar.nextSibling;
+  }
+
+  if (ibefore) {
+    splitter = document.createElement("splitter");
+    splitter.id = "urlbar-search-splitter";
+    splitter.setAttribute("resizebefore", "flex");
+    splitter.setAttribute("resizeafter", "flex");
+    splitter.setAttribute("skipintoolbarset", "true");
+    splitter.setAttribute("overflows", "false");
+    splitter.classList.add("chromeclass-toolbar-additional",
+                           "nav-bar-class");
+    ibefore.parentNode.insertBefore(splitter, ibefore);
   }
 }
 
@@ -1051,7 +1093,7 @@ function BrowserHome(aEvent)
   openUILinkArrayIn(homePage, where);
 }
 
-const BrowserSearch = {
+var BrowserSearch = {
   handleEvent: function (event) { // "DOMLinkAdded" event
     var link = event.originalTarget;
 
@@ -1075,7 +1117,7 @@ const BrowserSearch = {
 
     // Check to see whether we've already added an engine with this title
     if (browser.engines) {
-      if (browser.engines.some(function (e) e.title == engine.title))
+      if (browser.engines.some(e => e.title == engine.title))
         return;
     }
 
@@ -1731,65 +1773,66 @@ function promiseShortcutOrURI(aURL)
     return Promise.resolve([submission.uri.spec, submission.postData]);
   }
 
-  var [shortcutURL, postData] =
-    PlacesUtils.getURLAndPostDataForKeyword(keyword);
+  return PlacesUtils.keywords.fetch(keyword).then(entry => {
+    if (!entry)
+      return [aURL];
 
-  if (!shortcutURL)
-    return Promise.resolve([aURL]);
+    var shortcutURL = entry.url.href;
+    var postData = entry.postData;
+    if (postData)
+      postData = unescape(postData);
 
-  if (postData)
-    postData = unescape(postData);
-
-  if (/%s/i.test(shortcutURL) || /%s/i.test(postData)) {
-    var charset;
-    const re = /^(.*)\&mozcharset=([a-zA-Z][_\-a-zA-Z0-9]+)\s*$/;
-    var matches = shortcutURL.match(re);
-    if (matches) {
-      shortcutURL = matches[1];
-      charset = Promise.resolve(matches[2]);
-    } else {
-      // Try to get the saved character-set.
-      try {
-        // makeURI throws if URI is invalid.
-        // Will return an empty string if character-set is not found.
-        charset = PlacesUtils.getCharsetForURI(makeURI(shortcutURL));
-      } catch (e) {
-        charset = Promise.resolve();
+    if (/%s/i.test(shortcutURL) || /%s/i.test(postData)) {
+      var charset;
+      const re = /^(.*)\&mozcharset=([a-zA-Z][_\-a-zA-Z0-9]+)\s*$/;
+      var matches = shortcutURL.match(re);
+      if (matches) {
+        shortcutURL = matches[1];
+        charset = Promise.resolve(matches[2]);
+      } else {
+        // Try to get the saved character-set.
+        try {
+          // makeURI throws if URI is invalid.
+          // Will return an empty string if character-set is not found.
+          charset = PlacesUtils.getCharsetForURI(makeURI(shortcutURL));
+        } catch (e) {
+          charset = Promise.resolve();
+        }
       }
+
+      return charset.then(charset => {
+        // encodeURIComponent produces UTF-8, and cannot be used for other
+        // charsets. escape() works in those cases, but it doesn't uri-encode
+        // +, @, and /. Therefore we need to manually replace these ASCII
+        // characters by their encodeURIComponent result, to match the
+        // behaviour of nsEscape() with url_XPAlphas.
+        var encodedParam = "";
+        if (charset && charset != "UTF-8")
+          encodedParam = escape(convertFromUnicode(charset, param)).
+                         replace(/[+@\/]+/g, encodeURIComponent);
+        else // Default charset is UTF-8
+          encodedParam = encodeURIComponent(param);
+
+        shortcutURL = shortcutURL.replace(/%s/g, encodedParam).replace(/%S/g, param);
+
+        if (/%s/i.test(postData)) { // POST keyword
+          var postDataStream = getPostDataStream(postData, param, encodedParam,
+                                                 "application/x-www-form-urlencoded");
+          return [shortcutURL, postDataStream];
+        }
+
+        return [shortcutURL];
+      });
     }
 
-    return charset.then(charset => {
-      // encodeURIComponent produces UTF-8, and cannot be used for other
-      // charsets. escape() works in those cases, but it doesn't uri-encode
-      // +, @, and /. Therefore we need to manually replace these ASCII
-      // characters by their encodeURIComponent result, to match the
-      // behaviour of nsEscape() with url_XPAlphas.
-      var encodedParam = "";
-      if (charset && charset != "UTF-8")
-        encodedParam = escape(convertFromUnicode(charset, param)).
-                       replace(/[+@\/]+/g, encodeURIComponent);
-      else // Default charset is UTF-8
-        encodedParam = encodeURIComponent(param);
+    if (param) {
+      // This keyword doesn't take a parameter, but one was provided. Just return
+      // the original URL.
+      return [aURL];
+    }
 
-      shortcutURL = shortcutURL.replace(/%s/g, encodedParam).replace(/%S/g, param);
-
-      if (/%s/i.test(postData)) { // POST keyword
-        var postDataStream = getPostDataStream(postData, param, encodedParam,
-                                               "application/x-www-form-urlencoded");
-        return [shortcutURL, postDataStream];
-      }
-
-      return [shortcutURL];
-    });
-  }
-
-  if (param) {
-    // This keyword doesn't take a parameter, but one was provided. Just return
-    // the original URL.
-    return Promise.resolve([aURL]);
-  }
-
-  return Promise.resolve([shortcutURL]);
+    return [shortcutURL];
+  });
 }
 
 function getPostDataStream(aStringData, aKeyword, aEncKeyword, aType)
@@ -1853,46 +1896,65 @@ function readFromClipboard()
   return url;
 }
 
-function BrowserViewSourceOfDocument(aDocument)
-{
-  var pageCookie;
-  var webNav;
+/**
+ * Open the View Source dialog.
+ *
+ * @param aArgsOrDocument
+ *        Either an object or a Document. Passing a Document is deprecated,
+ *        and is not supported with e10s. This function will throw if
+ *        aArgsOrDocument is a CPOW.
+ *
+ *        If aArgsOrDocument is an object, that object can take the
+ *        following properties:
+ *
+ *        URL (required):
+ *          A string URL for the page we'd like to view the source of.
+ *        browser (optional):
+ *          The browser containing the document that we would like to view the
+ *          source of. This is required if outerWindowID is passed.
+ *        outerWindowID (optional):
+ *          The outerWindowID of the content window containing the document that
+ *          we want to view the source of. You only need to provide this if you
+ *          want to attempt to retrieve the document source from the network
+ *          cache.
+ *        lineNumber (optional):
+ *          The line number to focus on once the source is loaded.
+ */
+function BrowserViewSourceOfDocument(aArgsOrDocument) {
+  if (aArgsOrDocument instanceof Document) {
+    // Deprecated API - callers should pass args object instead.
+    if (Components.utils.isCrossProcessWrapper(aArgsOrDocument)) {
+      throw new Error("BrowserViewSourceOfDocument cannot accept a CPOW " +
+                      "as a document.");
+    }
 
-  // Get the nsIWebNavigation associated with the document
-  try {
-      var win;
-      var ifRequestor;
-
-      // Get the DOMWindow for the requested document.  If the DOMWindow
-      // cannot be found, then just use the content window...
-      //
-      // XXX:  This is a bit of a hack...
-      win = aDocument.defaultView;
-      if (win == window) {
-        win = content;
-      }
-      ifRequestor = win.QueryInterface(Components.interfaces.nsIInterfaceRequestor);
-
-      webNav = ifRequestor.getInterface(Components.interfaces.nsIWebNavigation);
-  } catch(err) {
-      // If nsIWebNavigation cannot be found, just get the one for the whole
-      // window...
-      webNav = getWebNavigation();
+    let requestor = aArgsOrDocument.defaultView
+                                   .QueryInterface(Components.interfaces.nsIInterfaceRequestor);
+    let browser = requestor.getInterface(Components.interfaces.nsIWebNavigation)
+                           .QueryInterface(Components.interfaces.nsIDocShell)
+                           .chromeEventHandler;
+    let outerWindowID = requestor.getInterface(Components.interfaces.nsIDOMWindowUtils)
+                                 .outerWindowID;
+    let URL = browser.currentURI.spec;
+    aArgsOrDocument = { browser, outerWindowID, URL };
   }
-  //
-  // Get the 'PageDescriptor' for the current document. This allows the
-  // view-source to access the cached copy of the content rather than
-  // refetching it from the network...
-  //
-  try{
-    var PageLoader = webNav.QueryInterface(Components.interfaces.nsIWebPageDescriptor);
 
-    pageCookie = PageLoader.currentDescriptor;
-  } catch(err) {
-    // If no page descriptor is available, just use the view-source URL...
-  }
+  gViewSourceUtils.viewSource(aArgsOrDocument);
+}
 
-  gViewSourceUtils.viewSource(webNav.currentURI.spec, pageCookie, aDocument);
+/**
+ * Opens the View Source dialog for the source loaded in the root
+ * top-level document of the browser.
+ *
+ * @param aBrowser
+ *        The browser that we want to load the source of.
+ */
+function BrowserViewSource(aBrowser) {
+  gViewSourceUtils.viewSource({
+    browser: aBrowser,
+    outerWindowID: aBrowser.outerWindowID,
+    URL: aBrowser.currentURI.spec,
+  });
 }
 
 // doc - document to use for source, or null for the current tab
@@ -2578,6 +2640,10 @@ function BrowserToolboxCustomizeInit()
   SetPageProxyState("invalid", null);
   toolboxCustomizeInit("main-menubar");
   PlacesToolbarHelper.customizeStart();
+
+  var splitter = document.getElementById("urlbar-search-splitter");
+  if (splitter)
+    splitter.remove();
 }
 
 function BrowserToolboxCustomizeDone(aToolboxChanged)

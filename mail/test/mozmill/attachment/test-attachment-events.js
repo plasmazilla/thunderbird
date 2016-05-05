@@ -6,28 +6,28 @@
  * Ensures that attachment events are fired properly
  */
 
-const MODULE_NAME = 'test-attachment-events';
+var MODULE_NAME = 'test-attachment-events';
 
-const RELATIVE_ROOT = '../shared-modules';
-const MODULE_REQUIRES = ['folder-display-helpers', 'compose-helpers',
+var RELATIVE_ROOT = '../shared-modules';
+var MODULE_REQUIRES = ['folder-display-helpers', 'compose-helpers',
                          'window-helpers', 'attachment-helpers',
                          'prompt-helpers'];
 
-let elib = {};
+var elib = {};
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
-let EventUtils = {};
+var EventUtils = {};
 Cu.import('resource://mozmill/stdlib/EventUtils.js', EventUtils);
-let os = {};
+var os = {};
 Cu.import('resource://mozmill/stdlib/os.js', os);
 
 Cu.import('resource://gre/modules/Services.jsm');
 Cu.import('resource:///modules/iteratorUtils.jsm');
 
-const kAttachmentsAdded = "attachments-added";
-const kAttachmentsRemoved = "attachments-removed";
-const kAttachmentRenamed = "attachment-renamed";
+var kAttachmentsAdded = "attachments-added";
+var kAttachmentsRemoved = "attachments-removed";
+var kAttachmentRenamed = "attachment-renamed";
 
-let gPath;
+var gPath;
 
 function setupModule(module) {
   let fdh = collector.getModule('folder-display-helpers');
@@ -132,7 +132,7 @@ function test_attachments_added_on_multiple() {
   assert_equals(2, subjects.length);
 
   for (let attachment in fixIterator(subjects, Ci.nsIMsgAttachment)) {
-    assert_true(attachmentUrls.indexOf(attachment.url) != -1);
+    assert_true(attachmentUrls.includes(attachment.url));
   }
 
   // Close the compose window - let's try again with 3 attachments.
@@ -156,7 +156,7 @@ function test_attachments_added_on_multiple() {
   assert_equals(3, subjects.length);
 
   for (let attachment in fixIterator(subjects, Ci.nsIMsgAttachment)) {
-    assert_true(attachmentUrls.indexOf(attachment.url) != -1);
+    assert_true(attachmentUrls.includes(attachment.url));
   }
 
   // Make sure we don't fire the event again if we try to attach the same
@@ -249,7 +249,7 @@ function test_attachments_removed_on_multiple() {
   let removedAttachmentItems = select_attachments(cw, 0, 2);
 
   let removedAttachmentUrls = removedAttachmentItems.map(
-    function(aAttachment) aAttachment.attachment.url
+    aAttachment => aAttachment.attachment.url
   );
 
   cw.window.goDoCommand("cmd_delete");
@@ -264,7 +264,7 @@ function test_attachments_removed_on_multiple() {
   assert_equals(3, subjects.length);
 
   for (let attachment in fixIterator(subjects, Ci.nsIMsgAttachment)) {
-    assert_true(removedAttachmentUrls.indexOf(attachment.url) != -1);
+    assert_true(removedAttachmentUrls.includes(attachment.url));
   }
 
   // Ok, let's attach and remove some again to ensure that we still see the event.
@@ -356,7 +356,7 @@ function test_attachment_renamed() {
   let originalName1 = lastEvent.detail;
   assert_true(renamedAttachment1 instanceof Ci.nsIMsgAttachment);
   assert_equals(kRenameTo1, renamedAttachment1.name);
-  assert_true(renamedAttachment1.url.contains("http://www.example.com/1"));
+  assert_true(renamedAttachment1.url.includes("http://www.example.com/1"));
   assert_equals("www.example.com/1", originalName1);
 
   // Ok, let's try renaming the same attachment.
@@ -372,7 +372,7 @@ function test_attachment_renamed() {
   let originalName2 = lastEvent.detail;
   assert_true(renamedAttachment2 instanceof Ci.nsIMsgAttachment);
   assert_equals(kRenameTo2, renamedAttachment2.name);
-  assert_true(renamedAttachment2.url.contains("http://www.example.com/1"));
+  assert_true(renamedAttachment2.url.includes("http://www.example.com/1"));
   assert_equals(kRenameTo1, originalName2);
 
   // Ok, let's rename another attachment
@@ -391,7 +391,7 @@ function test_attachment_renamed() {
   let originalName3 = lastEvent.detail;
   assert_true(renamedAttachment3 instanceof Ci.nsIMsgAttachment);
   assert_equals(kRenameTo3, renamedAttachment3.name);
-  assert_true(renamedAttachment3.url.contains("http://www.example.com/2"));
+  assert_true(renamedAttachment3.url.includes("http://www.example.com/2"));
   assert_equals("www.example.com/2", originalName3);
 
   // Unregister the Mock Prompt service, and remove our observer.

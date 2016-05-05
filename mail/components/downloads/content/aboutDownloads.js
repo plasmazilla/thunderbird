@@ -6,9 +6,9 @@
 
 "use strict";
 
-const Cu = Components.utils;
-const Cc = Components.classes;
-const Ci = Components.interfaces;
+var Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
@@ -16,7 +16,7 @@ XPCOMUtils.defineLazyModuleGetter(this, "Downloads", "resource://gre/modules/Dow
 XPCOMUtils.defineLazyModuleGetter(this, "DownloadUtils", "resource://gre/modules/DownloadUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "OS", "resource://gre/modules/osfile.jsm");
 
-const DownloadsView = {
+var DownloadsView = {
   init() {
     window.controllers.insertControllerAt(0, this);
     this.listElement = document.getElementById("msgDownloadsRichListBox");
@@ -113,13 +113,13 @@ const DownloadsView = {
     for (let i = 0; i < this.listElement.itemCount; i++) {
       let downloadElem = this.listElement.getItemAtIndex(i);
       downloadElem.collapsed =
-        !downloadElem.downloadItem.fileName.contains(searchString);
+        !downloadElem.downloadItem.fileName.includes(searchString);
     }
     this.listElement.clearSelection();
   },
 
   supportsCommand(aCommand) {
-    return (this.commands.indexOf(aCommand) >= 0 ||
+    return (this.commands.includes(aCommand) ||
             (DownloadItem.prototype.supportsCommand(aCommand)));
   },
 
@@ -187,7 +187,7 @@ function DownloadItem(aDownload) {
   this._filePath = aDownload.target.path;
 }
 
-const kDownloadStatePropertyNames = [
+var kDownloadStatePropertyNames = [
   "stopped",
   "succeeded",
   "canceled",
@@ -221,7 +221,7 @@ DownloadItem.prototype = {
     return false;
   },
 
-  get download() this._download,
+  get download() { return this._download; },
 
   get element() {
     if (!this._element) {
@@ -281,11 +281,11 @@ DownloadItem.prototype = {
     this.updateElement(this.element);
   },
 
-  get fileName() this._fileName,
+  get fileName() { return this._fileName; },
 
-  get iconUrl() this._iconUrl,
+  get iconUrl() { return this._iconUrl; },
 
-  get sender() this._sender,
+  get sender() { return this._sender; },
 
   get size() {
     let bytes;
@@ -297,10 +297,10 @@ DownloadItem.prototype = {
     return DownloadUtils.convertByteUnits(bytes).join("");
   },
 
-  get startDate() this._startDate,
+  get startDate() { return this._startDate; },
 
   supportsCommand(aCommand) {
-    return this.commands.indexOf(aCommand) >= 0;
+    return this.commands.includes(aCommand);
   },
 
   isCommandEnabled(aCommand) {

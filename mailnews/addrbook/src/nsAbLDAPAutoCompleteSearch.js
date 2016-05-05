@@ -7,9 +7,9 @@ Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
-const ACR = Components.interfaces.nsIAutoCompleteResult;
-const nsIAbAutoCompleteResult = Components.interfaces.nsIAbAutoCompleteResult;
-const nsIAbDirectoryQueryResultListener =
+var ACR = Components.interfaces.nsIAutoCompleteResult;
+var nsIAbAutoCompleteResult = Components.interfaces.nsIAbAutoCompleteResult;
+var nsIAbDirectoryQueryResultListener =
   Components.interfaces.nsIAbDirectoryQueryResultListener;
 
 // nsAbLDAPAutoCompleteResult
@@ -178,7 +178,7 @@ nsAbLDAPAutoCompleteSearch.prototype = {
     // result ignored.
     // The comma check is so that we don't autocomplete against the user
     // entering multiple addresses.
-    if (!applicable || !aSearchString || aSearchString.contains(",")) {
+    if (!applicable || !aSearchString || aSearchString.includes(",")) {
       this._result.searchResult = ACR.RESULT_IGNORED;
       aListener.onSearchResult(this, this._result);
       return;
@@ -322,4 +322,4 @@ nsAbLDAPAutoCompleteSearch.prototype = {
 
 // Module
 
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([nsAbLDAPAutoCompleteSearch]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([nsAbLDAPAutoCompleteSearch]);

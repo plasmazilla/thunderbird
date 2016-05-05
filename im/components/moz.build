@@ -3,14 +3,17 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('windows', 'gtk2'):
+if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('windows', 'gtk2', 'gtk3'):
     DIRS += ['mintrayr']
 
 EXTRA_COMPONENTS += [
-    'contentHandler.js contentHandler.manifest',
+    'contentHandler.js',
+    'contentHandler.manifest',
     'ibCommandLineHandler.manifest',
-    'ibConvStatsService.js ibConvStatsService.manifest',
-    'ibStatusCommandLineHandler.js ibStatusCommandLineHandler.manifest',
+    'ibConvStatsService.js',
+    'ibConvStatsService.manifest',
+    'ibStatusCommandLineHandler.js',
+    'ibStatusCommandLineHandler.manifest',
 ]
 
 EXTRA_PP_COMPONENTS += [

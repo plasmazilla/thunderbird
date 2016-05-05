@@ -43,7 +43,7 @@ var EXPORTED_SYMBOLS = ["openFile", "saveFile", "saveAsFile", "genBoiler",
                         "tempfile", "getMethodInWindows", "getPreference", "setPreference",
                         "sleep", "assert", "unwrapNode", "TimeoutError", "waitFor", "waitForEval"];
 
-const Ci = Components.interfaces;
+var Ci = Components.interfaces;
 
 
 var hwindow = Components.classes["@mozilla.org/appshell/appShellService;1"]
@@ -89,7 +89,7 @@ function getWindows(type) {
 }
 
 function getMethodInWindows (methodName) {
-  for each(w in getWindows()) {
+  for (var w of getWindows()) {
     if (w[methodName] != undefined) {
       return w[methodName];
     }
@@ -98,7 +98,7 @@ function getMethodInWindows (methodName) {
 }
 
 function getWindowByTitle(title) {
-  for each(w in getWindows()) {
+  for (var w of getWindows()) {
     if (w.document.title && w.document.title == title) {
       return w;
     }

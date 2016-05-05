@@ -108,7 +108,7 @@
 @DIR_MACOS@distribution/extensions/langpack-@AB_CD@@venkman.mozilla.org.xpi
 #endif
 #endif
-#ifdef MOZ_GTK2
+#ifdef MOZ_GTK
 @DIR_MACOS@chrome/icons/default/venkman-window.png
 @DIR_MACOS@chrome/icons/default/venkman-window16.png
 @DIR_MACOS@chrome/icons/default/venkman-window48.png
@@ -349,6 +349,11 @@ jsj3250.dll
 @DIR_MACOS@@DLL_PREFIX@smime3@DLL_SUFFIX@
 @DIR_MACOS@@DLL_PREFIX@nssutil3@DLL_SUFFIX@
 @DIR_MACOS@@DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
+#endif
+#ifdef XP_WIN
+nsldap32v60.dll
+nsldappr32v60.dll
+nsldif32v60.dll
 #endif
 @DLL_PREFIX@mozlcms@DLL_SUFFIX@
 omni.jar
@@ -747,11 +752,15 @@ Throbber-small.gif
   @DIR_MACOS@extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/components/chatzilla-service.js
   @DIR_MACOS@extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}/install.rdf
   @DIR_MACOS@extensions/{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}.xpi
+#ifndef MOZ_OMNIJAR
+  @DIR_MACOS@extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}.xpi
+#else
   @DIR_MACOS@extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/
   @DIR_MACOS@extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/chrome.manifest
   @DIR_MACOS@extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/icon.png
   @DIR_MACOS@extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/install.rdf
   @DIR_MACOS@extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/preview.png
+#endif
   @DIR_MACOS@extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/
   @DIR_MACOS@extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/chrome/
   @DIR_MACOS@extensions/{f13b157f-b174-47e7-a34d-4815ddfdfeb8}/chrome/venkman.jar

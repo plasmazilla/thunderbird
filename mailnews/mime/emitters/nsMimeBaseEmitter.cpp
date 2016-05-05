@@ -20,7 +20,7 @@
 #include "nsIMimeStreamConverter.h"
 #include "nsIMimeConverter.h"
 #include "nsMsgMimeCID.h"
-#include "prlog.h"
+#include "mozilla/Logging.h"
 #include "prprf.h"
 #include "nsIMimeHeaders.h"
 #include "nsIMsgWindow.h"
@@ -60,11 +60,11 @@ nsMimeBaseEmitter::nsMimeBaseEmitter()
 
   // Setup array for attachments
   mAttachCount = 0;
-  mAttachArray = new nsVoidArray();
+  mAttachArray = new nsTArray<attachmentInfoType*>();
   mCurrentAttachment = nullptr;
 
   // Header cache...
-  mHeaderArray = new nsVoidArray();
+  mHeaderArray = new nsTArray<headerInfoType*>();
 
   // Embedded Header Cache...
   mEmbeddedHeaderArray = nullptr;
@@ -91,8 +91,6 @@ nsMimeBaseEmitter::nsMimeBaseEmitter()
 
 nsMimeBaseEmitter::~nsMimeBaseEmitter(void)
 {
-  int32_t i;
-
   // Delete the buffer manager...
   if (mBufferMgr)
   {
@@ -103,9 +101,9 @@ nsMimeBaseEmitter::~nsMimeBaseEmitter(void)
   // Clean up the attachment array structures...
   if (mAttachArray)
   {
-    for (i=0; i<mAttachArray->Count(); i++)
+    for (size_t i = 0; i < mAttachArray->Length(); i++)
     {
-      attachmentInfoType *attachInfo = (attachmentInfoType *)mAttachArray->ElementAt(i);
+      attachmentInfoType *attachInfo = mAttachArray->ElementAt(i);
       if (!attachInfo)
         continue;
 
@@ -133,14 +131,14 @@ NS_IMETHODIMP nsMimeBaseEmitter::GetInterface(const nsIID & aIID, void * *aInsta
 }
 
 void
-nsMimeBaseEmitter::CleanupHeaderArray(nsVoidArray *aArray)
+nsMimeBaseEmitter::CleanupHeaderArray(nsTArray<headerInfoType*> *aArray)
 {
   if (!aArray)
     return;
 
-  for (int32_t i=0; i<aArray->Count(); i++)
+  for (size_t i = 0; i < aArray->Length(); i++)
   {
-    headerInfoType *headerInfo = (headerInfoType *)aArray->ElementAt(i);
+    headerInfoType *headerInfo = aArray->ElementAt(i);
     if (!headerInfo)
       continue;
 
@@ -431,7 +429,7 @@ nsMimeBaseEmitter::Write(const nsACString &buf, uint32_t *amountWritten)
   printf("%s", buf);
 #endif
 
-  PR_LOG(gMimeEmitterLogModule, PR_LOG_ALWAYS, ("%s", PromiseFlatCString(buf).get()));
+  MOZ_LOG(gMimeEmitterLogModule, mozilla::LogLevel::Info, ("%s", PromiseFlatCString(buf).get()));
   //
   // Make sure that the buffer we are "pushing" into has enough room
   // for the write operation. If not, we have to buffer, return, and get
@@ -500,16 +498,15 @@ nsMimeBaseEmitter::WriteHelper(const nsACString &buf, uint32_t *countWritten)
 const char *
 nsMimeBaseEmitter::GetHeaderValue(const char  *aHeaderName)
 {
-  int32_t     i;
   char        *retVal = nullptr;
-  nsVoidArray *array = mDocHeader? mHeaderArray : mEmbeddedHeaderArray;
+  nsTArray<headerInfoType*> *array = mDocHeader? mHeaderArray : mEmbeddedHeaderArray;
 
   if (!array)
     return nullptr;
 
-  for (i = 0; i < array->Count(); i++)
+  for (size_t i = 0; i < array->Length(); i++)
   {
-    headerInfoType *headerInfo = (headerInfoType *)array->ElementAt(i);
+    headerInfoType *headerInfo = array->ElementAt(i);
     if ( (!headerInfo) || (!headerInfo->name) || (!(*headerInfo->name)) )
       continue;
 
@@ -547,7 +544,7 @@ nsMimeBaseEmitter::StartHeader(bool rootMailHeader, bool headerOnly, const char 
     if (mEmbeddedHeaderArray)
       CleanupHeaderArray(mEmbeddedHeaderArray);
 
-    mEmbeddedHeaderArray = new nsVoidArray();
+    mEmbeddedHeaderArray = new nsTArray<headerInfoType*>();
     NS_ENSURE_TRUE(mEmbeddedHeaderArray, NS_ERROR_OUT_OF_MEMORY);
   }
 
@@ -615,7 +612,7 @@ nsMimeBaseEmitter::AddHeaderField(const char *field, const char *value)
   if ( (!field) || (!value) )
     return NS_OK;
 
-  nsVoidArray   *tPtr;
+  nsTArray<headerInfoType*>  *tPtr;
   if (mDocHeader)
     tPtr = mHeaderArray;
   else
@@ -985,14 +982,13 @@ nsMimeBaseEmitter::DumpToCC()
 nsresult
 nsMimeBaseEmitter::DumpRestOfHeaders()
 {
-  int32_t     i;
-  nsVoidArray *array = mDocHeader? mHeaderArray : mEmbeddedHeaderArray;
+  nsTArray<headerInfoType*> *array = mDocHeader? mHeaderArray : mEmbeddedHeaderArray;
 
   mHTMLHeaders.Append("<table border=0 cellspacing=0 cellpadding=0 width=\"100%\" class=\"header-part3\">");
 
-  for (i = 0; i < array->Count(); i++)
+  for (size_t i = 0; i < array->Length(); i++)
   {
-    headerInfoType *headerInfo = (headerInfoType *)array->ElementAt(i);
+    headerInfoType *headerInfo = array->ElementAt(i);
     if ( (!headerInfo) || (!headerInfo->name) || (!(*headerInfo->name)) ||
       (!headerInfo->value) || (!(*headerInfo->value)))
       continue;
@@ -1049,7 +1045,7 @@ nsMimeBaseEmitter::Complete()
   if (mOutListener)
   {
     uint64_t bytesInStream = 0;
-    nsresult rv2 = mInputStream->Available(&bytesInStream);
+    mozilla::DebugOnly<nsresult> rv2 = mInputStream->Available(&bytesInStream);
     NS_ASSERTION(NS_SUCCEEDED(rv2), "Available failed");
     if (bytesInStream)
     {

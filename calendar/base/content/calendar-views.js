@@ -217,7 +217,7 @@ function switchToView(aViewType) {
     // Set up the labels for the view navigation
     ["previous-view-button",
      "today-view-button",
-     "next-view-button"].forEach(function(x) setupViewNode(x, "tooltiptext"));
+     "next-view-button"].forEach(x => setupViewNode(x, "tooltiptext"));
 
     try {
         selectedDay = viewDeck.selectedPanel.selectedDay;
@@ -632,6 +632,7 @@ function editSelectedEvents() {
 function selectAllEvents() {
     var items = [];
     var listener = {
+        QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
         onOperationComplete: function selectAll_ooc(aCalendar, aStatus,
                                                     aOperationType, aId,
                                                     aDetail) {
@@ -666,7 +667,7 @@ function selectAllEvents() {
     composite.getItems(filter, 0, currentView().startDay, end, listener);
 }
 
-let cal = cal || {};
+var cal = cal || {};
 cal.navigationBar = {
     setDateRange: function setDateRange(aStartDate, aEndDate) {
         let docTitle = "";

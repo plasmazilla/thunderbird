@@ -2,14 +2,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const ELLIPSIS = Services.prefs.getComplexValue("intl.ellipsis",
+var ELLIPSIS = Services.prefs.getComplexValue("intl.ellipsis",
                                                 Ci.nsIPrefLocalizedString).data;
 
 // We use a preferences whitelist to make sure we only show preferences that
 // are useful for support and won't compromise the user's privacy.  Note that
 // entries are *prefixes*: for example, "accessibility." applies to all prefs
 // under the "accessibility.*" branch.
-const PREFS_WHITELIST = [
+var PREFS_WHITELIST = [
   // core prefs
   "accessibility.",
   "browser.cache.",
@@ -66,7 +66,7 @@ const PREFS_WHITELIST = [
 ];
 
 // The blacklist, unlike the whitelist, is a list of regular expressions.
-const PREFS_BLACKLIST = [
+var PREFS_BLACKLIST = [
   /^network[.]proxy[.]/,
   /[.]print_to_filename$/,
   /[.]lastFolderIndexedUri/,
@@ -112,7 +112,7 @@ function getModifiedPrefs() {
   // time it's called.  See bug 517312.
   let prefNames = getWhitelistedPrefNames();
   let prefs = [Application.prefs.get(prefName)
-                      for each (prefName in prefNames)
+                      for (prefName of prefNames)
                           if (Services.prefs.prefHasUserValue(prefName)
                             && !isBlacklisted(prefName))];
   return prefs;
@@ -128,5 +128,5 @@ function getWhitelistedPrefNames() {
 }
 
 function isBlacklisted(prefName) {
-  return PREFS_BLACKLIST.some(function (re) re.test(prefName));
+  return PREFS_BLACKLIST.some(re => re.test(prefName));
 }

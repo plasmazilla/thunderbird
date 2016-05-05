@@ -260,11 +260,25 @@ toolbar[mode="text"] > #window-controls > toolbarbutton > .toolbarbutton-icon {
   color: #000000;
 }
 
+@media (-moz-windows-theme: aero) {
+  #urlbar {
+    padding: 1px;
+  }
+}
+
 #wrapper-nav-bar-inner[place="palette"] > #nav-bar-inner
   > .button-toolbar,
 #wrapper-nav-bar-inner[place="palette"] > #nav-bar-inner
   > #urlbar > .urlbar-icons {
   display: none;
+}
+
+#urlbar-search-splitter {
+  -moz-appearance: none;
+  min-width: 6px;
+  margin: 0 -3px;
+  border: none;
+  background-color: transparent;
 }
 
 /* ::::: notification popups ::::: */
@@ -301,8 +315,7 @@ toolbar[mode="text"] > #window-controls > toolbarbutton > .toolbarbutton-icon {
   list-style-image: url("chrome://global/skin/icons/question-64.png");
 }
 
-.popup-notification-icon[popupid="password-change"],
-.popup-notification-icon[popupid="password-save"] {
+.popup-notification-icon[popupid="password"] {
   list-style-image: url("chrome://mozapps/skin/passwordmgr/key-64.png");
 }
 

@@ -30,7 +30,7 @@ function getBestIdentity(identities, optionalHint)
         if (!identity.email)
           continue;
         if (hints[i].trim() == identity.email.toLowerCase() ||
-            hints[i].contains("<" + identity.email.toLowerCase() + ">"))
+            hints[i].includes("<" + identity.email.toLowerCase() + ">"))
           return identity;
       }
     }
@@ -80,7 +80,7 @@ function getIdentityForHeader(hdr, type)
           continue;
         // If the deliver-to header contains the defined identity, that's it.
         if (deliveredTos[i] == identity.email.toLowerCase() ||
-            deliveredTos[i].contains("<" + identity.email.toLowerCase() + ">"))
+            deliveredTos[i].includes("<" + identity.email.toLowerCase() + ">"))
           return identity.email;
       }
     }
@@ -153,6 +153,12 @@ function GetMsgKeyFromURI(uri) {
 // type is a nsIMsgCompType and format is a nsIMsgCompFormat
 function ComposeMessage(type, format, folder, messageArray)
 {
+  if (messageArray && messageArray.length == 1) {
+    if (GetMsgKeyFromURI(messageArray[0]) != gMessageDisplay.keyForCharsetOverride) {
+      msgWindow.charsetOverride = false;
+    }
+  }
+
   // Check if the draft is already open in another window. If it is, just focus the window.
   if (type == Components.interfaces.nsIMsgCompType.Draft && messageArray.length == 1) {
     // We'll search this uri in the opened windows.
@@ -358,11 +364,12 @@ function SaveAsFile(uris)
       let msgHdr = messenger.messageServiceFromURI(uris[i])
                             .messageURIToMsgHdr(uris[i]);
 
-      let name = GenerateFilenameFromMsgHdr(msgHdr);
-      name = GenerateValidFilename(name, ".eml");
+      let nameBase = GenerateFilenameFromMsgHdr(msgHdr);
+      let name = GenerateValidFilename(nameBase, ".eml");
+
       let number = 2;
-      while (filenames.indexOf(name) != -1) { // should be unlikely
-        name = name.substring(0, name.length - 4) + "-" + number + ".eml";
+      while (filenames.includes(name)) { // should be unlikely
+        name = GenerateValidFilename(nameBase + "-" + number, ".eml");
         number++;
       }
       filenames.push(name);
@@ -447,9 +454,9 @@ function ViewPageSource(messages)
     return false;
   }
 
-  try {
-    var mailCharacterSet = "charset=" + msgWindow.mailCharacterSet;
+  var browser = getBrowser();
 
+  try {
     for (var i = 0; i < numMessages; i++)
     {
       // Now, we need to get a URL from a URI
@@ -459,8 +466,9 @@ function ViewPageSource(messages)
       // display the message source, not the processed HTML.
       url = url.replace(/type=application\/x-message-display&/, "");
       window.openDialog("chrome://global/content/viewSource.xul",
-                        "_blank", "all,dialog=no", url,
-                        mailCharacterSet);
+                        "_blank", "all,dialog=no",
+                        {URL: url, browser: browser,
+                         outerWindowID: browser.outerWindowID});
     }
     return true;
   } catch (e) {

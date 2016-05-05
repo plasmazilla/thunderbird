@@ -2,9 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["YahooSession"];
+this.EXPORTED_SYMBOLS = ["YahooSession"];
 
-const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource://gre/modules/FileUtils.jsm");
 Cu.import("resource://gre/modules/Http.jsm");
@@ -14,27 +14,27 @@ Cu.import("resource:///modules/imServices.jsm");
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 Cu.import("resource:///modules/socket.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "_", function()
+XPCOMUtils.defineLazyGetter(this, "_", () =>
   l10nHelper("chrome://chat/locale/yahoo.properties")
 );
 
 XPCOMUtils.defineLazyServiceGetter(this, "imgTools",
                                    "@mozilla.org/image/tools;1", "imgITools");
 
-const kProtocolVersion = 16;
-const kVendorId = 0;
+var kProtocolVersion = 16;
+var kVendorId = 0;
 
-const kPacketDataDelimiter = "\xC0\x80";
-const kPacketIdentifier = "YMSG";
-const kPacketHeaderSize = 20;
-const kProfileIconWidth = 96;
+var kPacketDataDelimiter = "\xC0\x80";
+var kPacketIdentifier = "YMSG";
+var kPacketHeaderSize = 20;
+var kProfileIconWidth = 96;
 
 // These constants are used by the icon uploading code since the Yahoo! file
 // transfer server is used for user icon uploads.
-const kFileTransferHost = "filetransfer.msg.yahoo.com";
-const kFileTransferPort = 80;
+var kFileTransferHost = "filetransfer.msg.yahoo.com";
+var kFileTransferPort = 80;
 
-const kPacketType = {
+var kPacketType = {
   // Sent by a client when logging off of the Yahoo! network.
   Logoff:         0x02,
   // Sent by a client when a message is sent to a buddy.
@@ -83,7 +83,7 @@ const kPacketType = {
   MessageAck:     0xfb
 };
 
-const kPacketStatuses = {
+var kPacketStatuses = {
   ServerAck: 0x1,
   Typing: 0x16
 };
@@ -92,7 +92,7 @@ const kPacketStatuses = {
 // contains the last part of the name of its localized string. This is appended
 // to "login.error." to obtain the string. The second element is the
 // Instantbird error that is given to the error handler.
-const kLoginStatusErrors = {
+var kLoginStatusErrors = {
   "1212" : ["badCredentials",
             Ci.prplIAccount.ERROR_AUTHENTICATION_FAILED],
   "1213" : ["accountLockedFailed",
@@ -106,7 +106,7 @@ const kLoginStatusErrors = {
 };
 
 // These are the status codes that buddies can send us.
-const kBuddyStatuses = {
+var kBuddyStatuses = {
   // Available.
   "0"   : Ci.imIStatusInfo.STATUS_AVAILABLE,
   // Be right back.
@@ -326,7 +326,12 @@ YahooSession.prototype = {
     let file = FileUtils.getFile("ProfD", [aFileName]);
     let type = Cc["@mozilla.org/mime;1"].getService(Ci.nsIMIMEService)
                                         .getTypeFromFile(file);
-    NetUtil.asyncFetch2(file, (function(aStream, aStatus) {
+    NetUtil.asyncFetch({
+        uri: NetUtil.newURI(file),
+        contentPolicyType: Ci.nsIContentPolicy.TYPE_IMAGE,
+        securityFlags: Ci.nsILoadInfo.SEC_NORMAL,
+        loadUsingSystemPrincipal: true
+      }, (aStream, aStatus) => {
         if (!Components.isSuccessCode(aStatus)) {
           throw "Could not access icon file.";
           return;
@@ -335,9 +340,7 @@ YahooSession.prototype = {
         let uploader = new YahooProfileIconUploader(this._account, this,
                                                     aFileName, image);
         uploader.uploadIcon();
-      }).bind(this),
-      null, null, Services.scriptSecurityManager.getSystemPrincipal(),
-      null, Ci.nsILoadInfo.SEC_NORMAL, Ci.nsIContentPolicy.TYPE_IMAGE);
+      });
   },
 
   requestBuddyIcon: function(aName) {
@@ -399,9 +402,9 @@ YahooSession.prototype = {
   // Private methods.
 
   // Socket Event Callbacks.
-  LOG: function(aString) this._account.LOG(aString),
+  LOG: function(aString) { return this._account.LOG(aString); },
 
-  DEBUG: function(aString) this._account.DEBUG(aString),
+  DEBUG: function(aString) { return this._account.DEBUG(aString); },
 
   onConnection: function() {
     // We send an authentication request packet as soon as we connect to the
@@ -853,7 +856,7 @@ YahooPacket.extractPackets = function(aData, aOnNetworkError) {
  *
  * Keep in mind too that "this" in each function will be bound to a
  * YahooAccount object, since they are all invoked using call(). */
-const YahooPacketHandler = {
+var YahooPacketHandler = {
   // Buddy logoff.
   0x02: function(aPacket) {
     let name = aPacket.getValue(7);
@@ -924,7 +927,7 @@ const YahooPacketHandler = {
   // Conference additional invitation. NOTE: Since this packet has the same
   // structure as the normal conference invite (packet 0x18), we simply
   // reuse that handler.
-  0x1c: function(aPacket) YahooPacketHandler[0x18].call(this, aPacket),
+  0x1c: function(aPacket) { return YahooPacketHandler[0x18].call(this, aPacket); },
 
   // Conference message.
   0x1d: function(aPacket) {
@@ -995,7 +998,7 @@ const YahooPacketHandler = {
 
   // Buddy icon request reply. This can be handled in the same way as a buddy
   // icon checksum packet, so we simply reuse the handler.
-  0xbe: function (aPacket) YahooPacketHandler[0xbd].call(this, aPacket),
+  0xbe: function (aPacket) { return YahooPacketHandler[0xbd].call(this, aPacket); },
 
   // Buddy status update.
   0xc6: function (aPacket) {

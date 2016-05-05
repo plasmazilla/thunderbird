@@ -2,35 +2,35 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ['Log4Moz'];
+this.EXPORTED_SYMBOLS = ['Log4Moz'];
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
-const MODE_RDONLY   = 0x01;
-const MODE_WRONLY   = 0x02;
-const MODE_CREATE   = 0x08;
-const MODE_APPEND   = 0x10;
-const MODE_TRUNCATE = 0x20;
+var MODE_RDONLY   = 0x01;
+var MODE_WRONLY   = 0x02;
+var MODE_CREATE   = 0x08;
+var MODE_APPEND   = 0x10;
+var MODE_TRUNCATE = 0x20;
 
-const PERMS_FILE      = parseInt("0644", 8);
-const PERMS_DIRECTORY = parseInt("0755", 8);
+var PERMS_FILE      = parseInt("0644", 8);
+var PERMS_DIRECTORY = parseInt("0755", 8);
 
-const ONE_BYTE = 1;
-const ONE_KILOBYTE = 1024 * ONE_BYTE;
-const ONE_MEGABYTE = 1024 * ONE_KILOBYTE;
+var ONE_BYTE = 1;
+var ONE_KILOBYTE = 1024 * ONE_BYTE;
+var ONE_MEGABYTE = 1024 * ONE_KILOBYTE;
 
-const DEFAULT_NETWORK_TIMEOUT_DELAY = 5;
+var DEFAULT_NETWORK_TIMEOUT_DELAY = 5;
 
-const CDATA_START = "<![CDATA[";
-const CDATA_END = "]]>";
-const CDATA_ESCAPED_END = CDATA_END + "]]&gt;" + CDATA_START;
+var CDATA_START = "<![CDATA[";
+var CDATA_END = "]]>";
+var CDATA_ESCAPED_END = CDATA_END + "]]&gt;" + CDATA_START;
 
-let Log4Moz = {
+var Log4Moz = {
   Level: {
     Fatal:  70,
     Error:  60,
@@ -288,7 +288,7 @@ Logger.prototype = {
   },
 
   _parent: null,
-  get parent() this._parent,
+  get parent() { return this._parent; },
   set parent(parent) {
     if (this._parent == parent) {
       return;
@@ -499,9 +499,7 @@ BasicFormatter.prototype = {
     let date = new Date(message.time);
     // The trick below prevents errors further down because mo is null or
     //  undefined.
-    let messageString = [
-      ("" + mo) for each
-      ([,mo] in Iterator(message.messageObjects))].join(" ");
+    let messageString = message.messageObjects.map(mo => "" + mo).join(" ");
     return date.toLocaleFormat(this.dateFormat) + "\t" +
       message.loggerName + "\t" + message.levelDesc + "\t" +
       messageString + "\n";
@@ -523,10 +521,10 @@ XMLFormatter.prototype = {
 
   format: function XF_format(message) {
     let cdataEscapedMessage =
-      [((typeof(mo) == "object") ? mo.toString() : mo) for each
-       ([,mo] in Iterator(message.messageObjects))]
+      message.messageObjects
+        .map(mo => (typeof(mo) == "object") ? mo.toString() : mo)
         .join(" ")
-        .replace(CDATA_END, CDATA_ESCAPED_END, "g");
+        .split(CDATA_END).join(CDATA_ESCAPED_END);
     return "<log4j:event logger='" + message.loggerName + "' " +
                         "level='" + message.levelDesc + "' thread='unknown' " +
                         "timestamp='" + message.time + "'>" +
@@ -550,7 +548,7 @@ JSONFormatter.prototype = {
     let origMessageObjects = message.messageObjects;
     message.messageObjects = [];
     let reProto = [];
-    for each (let [, messageObject] in Iterator(origMessageObjects)) {
+    for (let messageObject of origMessageObjects) {
       if (messageObject)
         if (messageObject._jsonMe) {
           message.messageObjects.push(messageObject);
@@ -567,7 +565,7 @@ JSONFormatter.prototype = {
     }
     let encoded = JSON.stringify(message) + "\r\n";
     message.msgObjects = origMessageObjects;
-//    for each (let [,objectAndProtoPair] in Iterator (reProto)) {
+//    for (let objectAndProtoPair of reProto) {
 //      objectAndProtoPair[0].__proto__ = objectAndProtoPair[1];
 //    }
     return encoded;
@@ -742,7 +740,7 @@ FileAppender.prototype = {
     if (message === null || message.length <= 0)
       return;
     try {
-      this._fos().write(message, message.length);
+      this._fos.write(message, message.length);
     } catch(e) {
       dump("Error writing file:\n" + e);
     }

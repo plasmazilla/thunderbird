@@ -103,6 +103,9 @@ pref("mail.imap.check_deleted_before_expunge", false);
 pref("mail.imap.expunge_option",            0);
 pref("mail.imap.expunge_threshold_number",  20);
 pref("mail.imap.hdr_chunk_size", 200);
+// Should we filter imap messages based on new messages since the previous
+// highest UUID seen instead of unread?
+pref("mail.imap.filter_on_new", false);
 
 // if true, we assume that a user access a folder in the other users namespace
 // is acting as a delegate for that folder, and wishes to use the other users
@@ -129,6 +132,16 @@ pref("mail.file_attach_binary",             false);
 pref("mail.show_headers",                   1); // some
 pref("mail.pane_config.dynamic",            0);
 pref("mail.addr_book.mapit_url.format", "chrome://messenger-region/locale/region.properties");
+pref("mail.addr_book.mapit_url.1.name", "chrome://messenger-region/locale/region.properties");
+pref("mail.addr_book.mapit_url.1.format", "chrome://messenger-region/locale/region.properties");
+pref("mail.addr_book.mapit_url.2.name", "chrome://messenger-region/locale/region.properties");
+pref("mail.addr_book.mapit_url.2.format", "chrome://messenger-region/locale/region.properties");
+pref("mail.addr_book.mapit_url.3.name", "chrome://messenger-region/locale/region.properties");
+pref("mail.addr_book.mapit_url.3.format", "chrome://messenger-region/locale/region.properties");
+pref("mail.addr_book.mapit_url.4.name", "chrome://messenger-region/locale/region.properties");
+pref("mail.addr_book.mapit_url.4.format", "chrome://messenger-region/locale/region.properties");
+pref("mail.addr_book.mapit_url.5.name", "chrome://messenger-region/locale/region.properties");
+pref("mail.addr_book.mapit_url.5.format", "chrome://messenger-region/locale/region.properties");
 #ifdef MOZ_SUITE
 pref("mailnews.start_page.url", "chrome://messenger-region/locale/region.properties");
 pref("messenger.throbber.url", "chrome://messenger-region/locale/region.properties");
@@ -139,12 +152,31 @@ pref("mail.accountwizard.deferstorage", false);
 pref("mail.showCondensedAddresses", false);
 #endif
 
-// the format for "mail.addr_book.quicksearchquery.format" is:
-// @V == the escaped value typed in the quick search bar in the addressbook
+// mail.addr_book.quicksearchquery.format is the model query used for:
+// * TB: AB Quick Search and composition's Contact Side Bar
+// * SM: AB Quick Search and composition's Select Addresses dialogue
 //
-// note, changing this might require a change to SearchNameOrEmail.label in
-// messenger.dtd or searchNameAndEmail.emptytext in abMainWindow.dtd
-pref("mail.addr_book.quicksearchquery.format", "chrome://messenger/locale/messenger.properties");
+// The format for "mail.addr_book.quicksearchquery.format" is:
+// @V == the escaped value typed in the quick search bar in the address book
+// c  == contains | bw == beginsWith | ...
+//
+// Note, changing the fields searched might require changing labels:
+// SearchNameOrEmail.label in messenger.dtd,
+// searchNameAndEmail.emptytext in abMainWindow.dtd, etc.
+//
+// mail.addr_book.quicksearchquery.format will be used if mail.addr_book.show_phonetic_fields is "false"
+pref("mail.addr_book.quicksearchquery.format", "(or(DisplayName,c,@V)(FirstName,c,@V)(LastName,c,@V)(NickName,c,@V)(PrimaryEmail,c,@V)(SecondEmail,c,@V)(and(IsMailList,=,TRUE)(Notes,c,@V))(Company,c,@V)(Department,c,@V)(JobTitle,c,@V)(WebPage1,c,@V)(WebPage2,c,@V))");
+// mail.addr_book.quicksearchquery.format.phonetic will be used if mail.addr_book.show_phonetic_fields is "true"
+pref("mail.addr_book.quicksearchquery.format.phonetic", "(or(DisplayName,c,@V)(FirstName,c,@V)(LastName,c,@V)(NickName,c,@V)(PrimaryEmail,c,@V)(SecondEmail,c,@V)(and(IsMailList,=,TRUE)(Notes,c,@V))(Company,c,@V)(Department,c,@V)(JobTitle,c,@V)(WebPage1,c,@V)(WebPage2,c,@V)(PhoneticFirstName,c,@V)(PhoneticLastName,c,@V))");
+
+// mail.addr_book.autocompletequery.format is the model query used for:
+// * TB: Recipient Autocomplete (composition, mailing list properties dialogue)
+// * SM: Recipient Autocomplete (composition, mailing list properties dialogue)
+//
+// mail.addr_book.autocompletequery.format will be used if mail.addr_book.show_phonetic_fields is "false"
+pref("mail.addr_book.autocompletequery.format", "(or(DisplayName,c,@V)(FirstName,c,@V)(LastName,c,@V)(NickName,c,@V)(PrimaryEmail,c,@V)(SecondEmail,c,@V)(and(IsMailList,=,TRUE)(Notes,c,@V)))");
+// mail.addr_book.autocompletequery.format.phonetic will be used if mail.addr_book.show_phonetic_fields is "true"
+pref("mail.addr_book.autocompletequery.format.phonetic", "(or(DisplayName,c,@V)(FirstName,c,@V)(LastName,c,@V)(NickName,c,@V)(PrimaryEmail,c,@V)(SecondEmail,c,@V)(and(IsMailList,=,TRUE)(Notes,c,@V))(PhoneticFirstName,c,@V)(PhoneticLastName,c,@V))");
 
 // values for "mail.addr_book.lastnamefirst" are:
 //0=displayname, 1=lastname first, 2=firstname first
@@ -159,7 +191,11 @@ pref("mail.html_compose",                   true);
 pref("mail.compose.other.header", "");
 pref("mail.compose.autosave", true);
 pref("mail.compose.autosaveinterval", 5); // in minutes
-
+// true:  If the message has practically no HTML formatting, bypass recipient-centric
+//        auto-detection of delivery format; auto-downgrade and silently send as plain text.
+// false: Don't auto-downgrade; use recipient-centric auto-detection of best delivery format,
+//        including send options.
+pref("mailnews.sendformat.auto_downgrade", true);
 pref("mail.default_html_action", 0);          // 0=ask, 1=plain, 2=html, 3=both
 
 pref("mail.mdn.report.not_in_to_cc", 2);               // 0: Never 1: Always 2: Ask me
@@ -206,6 +242,7 @@ pref("mail.operate_on_msgs_in_collapsed_threads", false);
 pref("mail.warn_on_collapsed_thread_operation", true);
 pref("mail.warn_on_shift_delete", true);
 pref("news.warn_on_delete", true);
+pref("mail.warn_on_delete_from_trash", true);
 pref("mail.purge_threshhold_mb", 20);
 pref("mail.prompt_purge_threshhold",       true);
 pref("mail.purge.ask",                     true);
@@ -698,6 +735,9 @@ pref("mailnews.ui.advanced_directory_search_results.version", 1);
 //If set to a number greater than 0, msg compose windows will be recycled in order to open them quickly
 pref("mail.compose.max_recycled_windows", 1);
 
+// from/recipient columns will be replaced with correspondents column
+pref("mailnews.ui.upgrade.correspondents", true);
+
 // default description and color prefs for tags
 // (we keep the .labels. names for backwards compatibility)
 pref("mailnews.labels.description.1", "chrome://messenger/locale/messenger.properties");
@@ -784,7 +824,7 @@ pref("dom.max_chrome_script_run_time", 0);
 // gtk2 (*nix) lacks transparent/translucent drag support (bug 376238), so we
 // want to disable it so people can see where they are dragging things.
 // (Stock gtk drag icons will be used instead.)
-#ifdef MOZ_WIDGET_GTK2
+#ifdef MOZ_WIDGET_GTK
 pref("nglayout.enable_drag_images", false);
 #endif
 

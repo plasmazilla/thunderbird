@@ -6,12 +6,12 @@
  * Wrap everything about virtual folders.
  */
 
-const EXPORTED_SYMBOLS = ['VirtualFolderHelper'];
+this.EXPORTED_SYMBOLS = ['VirtualFolderHelper'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource:///modules/iteratorUtils.jsm");
@@ -122,7 +122,7 @@ VirtualFolderWrapper.prototype = {
     let virtualFolderUris =
       this.dbFolderInfo.getCharProperty("searchFolderUri").split("|");
     let folders = [];
-    for each (let [, folderURI] in Iterator(virtualFolderUris)) {
+    for (let folderURI of virtualFolderUris) {
       if (folderURI)
         folders.push(rdfService.GetResource(folderURI)
                                .QueryInterface(Ci.nsIMsgFolder));

@@ -8,102 +8,105 @@ var gThreadPaneCommandUpdater = null;
 
 function ThreadPaneOnClick(event)
 {
-    // we only care about button 0 (left click) events
-    if (event.button != 0) return;
+  // We only care about button 0 (left click) events.
+  if (event.button != 0) {
+    event.stopPropagation();
+    return;
+  }
 
-    // we are already handling marking as read and flagging
-    // in nsMsgDBView.cpp
-    // so all we need to worry about here is double clicks
-    // and column header.
-    //
-    // we get in here for clicks on the "treecol" (headers)
-    // and the "scrollbarbutton" (scrollbar buttons)
-    // we don't want those events to cause a "double click"
+  // We already handle marking as read/flagged/junk cyclers in nsMsgDBView.cpp
+  // so all we need to worry about here is doubleclicks and column header. We
+  // get here for clicks on the "treecol" (headers) and the "scrollbarbutton"
+  // (scrollbar buttons) and don't want those events to cause a doubleclick.
 
-    var t = event.originalTarget;
+  let t = event.originalTarget;
 
-    if (t.localName == "treecol") {
-       HandleColumnClick(t.id);
-    }
-    else if (t.localName == "treechildren") {
-      var row = new Object;
-      var col = new Object;
-      var childElt = new Object;
+  if (t.localName == "treecol") {
+    HandleColumnClick(t.id);
+    return;
+  }
 
-      var tree = GetThreadTree();
-      // figure out what cell the click was in
-      tree.treeBoxObject.getCellAt(event.clientX, event.clientY, row, col, childElt);
-      if (row.value == -1)
-       return;
+  if (t.localName != "treechildren")
+    return;
 
-      // if the cell is in a "cycler" column
-      // or if the user double clicked on the twisty,
-      // don't open the message in a new window
-      if (event.detail == 2 && !col.value.cycler && (childElt.value != "twisty")) {
-        ThreadPaneDoubleClick();
-        // double clicking should not toggle the open / close state of the
-        // thread.  this will happen if we don't prevent the event from
-        // bubbling to the default handler in tree.xml
-        event.stopPropagation();
-      }
-      else if (col.value.id == "junkStatusCol") {
-        MsgJunkMailInfo(true);
-      }
-      else if (col.value.id == "threadCol" && !event.shiftKey &&
-          (event.ctrlKey || event.metaKey)) {
-        gDBView.ExpandAndSelectThreadByIndex(row.value, true);
-        event.stopPropagation();
-      }
-    }
+  let row = {};
+  let col = {};
+  let elt = {};
+  let tree = GetThreadTree();
+
+  // Figure out what cell the click was in.
+  tree.treeBoxObject.getCellAt(event.clientX, event.clientY, row, col, elt);
+  if (row.value == -1)
+   return;
+
+  // Grouped By Sort dummy header row non cycler column doubleclick toggles the
+  // thread's open/close state; tree.xml handles it. Cyclers are not currently
+  // implemented in group header rows, a click/doubleclick there should
+  // select/toggle thread state.
+  if (gFolderDisplay.view.isGroupedByHeaderAtIndex(row.value)) {
+    if (!col.value.cycler)
+      return;
+
+    if (event.detail == 1)
+      gFolderDisplay.selectViewIndex(row.value);
+    if (event.detail == 2)
+      gFolderDisplay.view.dbView.toggleOpenState(row.value);
+
+    event.stopPropagation();
+    return;
+  }
+
+  // If the cell is in a cycler column or if the user doubleclicked on the
+  // twisty, don't open the message in a new window.
+  if (event.detail == 2 && !col.value.cycler && elt.value != "twisty") {
+    ThreadPaneDoubleClick();
+    // Doubleclicking should not toggle the open/close state of the thread.
+    // This will happen if we don't prevent the event from bubbling to the
+    // default handler in tree.xml.
+    event.stopPropagation();
+  }
+  else if (col.value.id == "junkStatusCol") {
+    MsgJunkMailInfo(true);
+  }
+  else if (col.value.id == "threadCol" && !event.shiftKey &&
+           (event.ctrlKey || event.metaKey)) {
+    gDBView.ExpandAndSelectThreadByIndex(row.value, true);
+    event.stopPropagation();
+  }
 }
 
 function HandleColumnClick(columnID)
 {
-  const columnMap = {dateCol: 'byDate',
-                     receivedCol: 'byReceived',
-                     senderCol: 'byAuthor',
-                     recipientCol: 'byRecipient',
-                     subjectCol: 'bySubject',
-                     locationCol: 'byLocation',
-                     accountCol: 'byAccount',
-                     unreadButtonColHeader: 'byUnread',
-                     statusCol: 'byStatus',
-                     sizeCol: 'bySize',
-                     priorityCol: 'byPriority',
-                     flaggedCol: 'byFlagged',
-                     threadCol: 'byThread',
-                     tagsCol: 'byTags',
-                     junkStatusCol: 'byJunkStatus',
-                     idCol: 'byId',
-                     attachmentCol: 'byAttachments'};
+  if (gFolderDisplay.COLUMNS_MAP_NOSORT.has(columnID))
+    return;
 
-
-  var sortType;
-  if (columnID in columnMap) {
-    sortType = columnMap[columnID];
-  } else {
-    // If the column isn't in the map, check and see if it's a custom column
+  let sortType = gFolderDisplay.COLUMNS_MAP.get(columnID);
+  let curCustomColumn = gDBView.curCustomColumn;
+  if (!sortType) {
+    // If the column isn't in the map, check if it's a custom column.
     try {
-      // try to grab the columnHandler (an error is thrown if it does not exist)
+      // Test for the columnHandler (an error is thrown if it does not exist).
       gDBView.getColumnHandler(columnID);
 
-      // it exists - set it to be the current custom column
+      // Handler is registered - set column to be the current custom column.
       gDBView.curCustomColumn = columnID;
-
       sortType = "byCustom";
-    } catch(err) {
-        dump("unsupported sort column: " + columnID + " - no custom handler installed. (Error was: " + err + ")\n");
-        return; // bail out
+    }
+    catch (ex) {
+      dump("HandleColumnClick: No custom column handler registered for " +
+           "columnID: " + columnID + " - " + ex + "\n");
+      return;
     }
   }
 
   let viewWrapper = gFolderDisplay.view;
-  var simpleColumns = false;
+  let simpleColumns = false;
   try {
     simpleColumns = !Services.prefs.getBoolPref("mailnews.thread_pane_column_unthreads");
   }
   catch (ex) {
   }
+
   if (sortType == "byThread") {
     if (simpleColumns)
       MsgToggleThreaded();
@@ -111,18 +114,23 @@ function HandleColumnClick(columnID)
       MsgReverseSortThreadPane();
     else
       MsgSortByThread();
+
+    return;
+  }
+
+  if (!simpleColumns && viewWrapper.showThreaded) {
+    viewWrapper.showUnthreaded = true;
+    MsgSortThreadPane(sortType);
+    return;
+  }
+
+  if (viewWrapper.primarySortType == nsMsgViewSortType[sortType] &&
+      (viewWrapper.primarySortType != nsMsgViewSortType.byCustom ||
+       curCustomColumn == columnID)) {
+    MsgReverseSortThreadPane();
   }
   else {
-    if (!simpleColumns && viewWrapper.showThreaded) {
-      viewWrapper.showUnthreaded = true;
-      MsgSortThreadPane(sortType);
-    }
-    else if (viewWrapper.primarySortType == nsMsgViewSortType[sortType]) {
-      MsgReverseSortThreadPane();
-    }
-    else {
-      MsgSortThreadPane(sortType);
-    }
+    MsgSortThreadPane(sortType);
   }
 }
 
@@ -145,8 +153,22 @@ function ThreadPaneDoubleClick()
 
 function ThreadPaneKeyDown(event)
 {
-  if (event.keyCode == KeyEvent.DOM_VK_RETURN)
-    ThreadPaneDoubleClick();
+  if (event.keyCode != KeyEvent.DOM_VK_RETURN)
+    return;
+
+  // Grouped By Sort dummy header row <enter> toggles the thread's open/close
+  // state. Let tree.xml handle it.
+  if (gFolderDisplay.view.showGroupedBySort &&
+      gFolderDisplay.treeSelection && gFolderDisplay.treeSelection.count == 1 &&
+      gFolderDisplay.view.isGroupedByHeaderAtIndex(gFolderDisplay.treeSelection.currentIndex)) {
+    return;
+  }
+
+  // Prevent any thread that happens to be last selected (currentIndex) in a
+  // single or multi selection from toggling in tree.xml.
+  event.stopImmediatePropagation();
+
+  ThreadPaneDoubleClick();
 }
 
 function MsgSortByThread()
@@ -157,19 +179,79 @@ function MsgSortByThread()
 
 function MsgSortThreadPane(sortName)
 {
-  var sortType = nsMsgViewSortType[sortName];
+  let sortType = nsMsgViewSortType[sortName];
+  let grouped = gFolderDisplay.view.showGroupedBySort;
+  gFolderDisplay.view._threadExpandAll =
+    Boolean(gFolderDisplay.view._viewFlags & nsMsgViewFlagsType.kExpandAll);
+
+  if (!grouped) {
+    gFolderDisplay.view.sort(sortType, nsMsgViewSortOrder.ascending);
+    // Respect user's last expandAll/collapseAll choice, post sort direction change.
+    gFolderDisplay.restoreThreadState();
+    return;
+  }
+
   // legacy behavior dictates we un-group-by-sort if we were.  this probably
   //  deserves a UX call...
+
+  // For non virtual folders, do not ungroup (which sorts by the going away
+  // sort) and then sort, as it's a double sort.
+  // For virtual folders, which are rebuilt in the backend in a grouped
+  // change, create a new view upfront rather than applying viewFlags. There
+  // are oddities just applying viewFlags, for example changing out of a
+  // custom column grouped xfvf view with the threads collapsed works (doesn't)
+  // differently than other variations.
+  // So, first set the desired sortType and sortOrder, then set viewFlags in
+  // batch mode, then apply it all (open a new view) with endViewUpdate().
+  gFolderDisplay.view.beginViewUpdate();
+  gFolderDisplay.view._sort = [[sortType, nsMsgViewSortOrder.ascending]];
   gFolderDisplay.view.showGroupedBySort = false;
-  gFolderDisplay.view.sort(sortType, nsMsgViewSortOrder.ascending)
+  gFolderDisplay.view.endViewUpdate();
+
+  // Virtual folders don't persist viewFlags well in the back end,
+  // due to a virtual folder being either 'real' or synthetic, so make
+  // sure it's done here.
+  if (gFolderDisplay.view.isVirtual)
+    gFolderDisplay.view.dbView.viewFlags = gFolderDisplay.view.viewFlags;
 }
 
 function MsgReverseSortThreadPane()
 {
+  let grouped = gFolderDisplay.view.showGroupedBySort;
+  gFolderDisplay.view._threadExpandAll =
+    Boolean(gFolderDisplay.view._viewFlags & nsMsgViewFlagsType.kExpandAll);
+
+  // Grouped By view is special for column click sort direction changes.
+  if (grouped) {
+    if (gDBView.selection.count)
+      gFolderDisplay._saveSelection();
+
+    if (gFolderDisplay.view.isSingleFolder) {
+      if (gFolderDisplay.view.isVirtual)
+        gFolderDisplay.view.showGroupedBySort = false;
+      else
+       // Must ensure rows are collapsed and kExpandAll is unset.
+       gFolderDisplay.doCommand(nsMsgViewCommandType.collapseAll);
+    }
+  }
+
   if (gFolderDisplay.view.isSortedAscending)
     gFolderDisplay.view.sortDescending();
   else
     gFolderDisplay.view.sortAscending();
+
+  // Restore Grouped By state post sort direction change.
+  if (grouped) {
+    if (gFolderDisplay.view.isVirtual && gFolderDisplay.view.isSingleFolder)
+      MsgGroupBySort();
+
+    // Restore Grouped By selection post sort direction change.
+    gFolderDisplay._restoreSelection();
+  }
+
+  // Respect user's last expandAll/collapseAll choice, for both threaded and grouped
+  // views, post sort direction change.
+  gFolderDisplay.restoreThreadState();
 }
 
 function MsgToggleThreaded()
@@ -197,11 +279,25 @@ function MsgSortUnthreaded()
 
 function MsgSortAscending()
 {
+  if (gFolderDisplay.view.showGroupedBySort && gFolderDisplay.view.isSingleFolder) {
+    if (gFolderDisplay.view.isSortedDescending)
+       MsgReverseSortThreadPane();
+
+    return;
+  }
+
   gFolderDisplay.view.sortAscending();
 }
 
 function MsgSortDescending()
 {
+  if (gFolderDisplay.view.showGroupedBySort && gFolderDisplay.view.isSingleFolder) {
+    if (gFolderDisplay.view.isSortedAscending)
+       MsgReverseSortThreadPane();
+
+    return;
+  }
+
   gFolderDisplay.view.sortDescending();
 }
 

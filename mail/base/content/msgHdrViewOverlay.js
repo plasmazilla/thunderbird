@@ -12,7 +12,7 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/displayNameUtils.js");
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/gloda/utils.js");
-let {Status: statusUtils} =
+var {Status: statusUtils} =
   Components.utils.import("resource:///modules/imStatusUtils.jsm");
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +91,7 @@ var gExpandedHeaderList = [
  * These are all the items that use a mail-multi-emailHeaderField widget and
  * therefore may require updating if the address book changes.
  */
-const gEmailAddressHeaderNames = ["from", "reply-to",
+var gEmailAddressHeaderNames = ["from", "reply-to",
                                   "to", "cc", "bcc", "toCcBcc"];
 
 /**
@@ -117,9 +117,9 @@ var currentHeaderData = {};
  */
 var currentAttachments = new Array();
 
-const nsIAbDirectory = Components.interfaces.nsIAbDirectory;
-const nsIAbListener = Components.interfaces.nsIAbListener;
-const nsIAbCard = Components.interfaces.nsIAbCard;
+var nsIAbDirectory = Components.interfaces.nsIAbDirectory;
+var nsIAbListener = Components.interfaces.nsIAbListener;
+var nsIAbCard = Components.interfaces.nsIAbCard;
 
 /**
  * Our constructor method which creates a header Entry based on an entry
@@ -345,7 +345,7 @@ function OnUnloadMsgHeaderPane()
     { bubbles: false, cancelable: true }));
 }
 
-const MsgHdrViewObserver =
+var MsgHdrViewObserver =
 {
   observe: function(subject, topic, prefName)
   {
@@ -545,7 +545,7 @@ var messageHeaderSink = {
         var fromMailboxes = kMailboxSeparator +
           MailServices.headerParser.extractHeaderAddressMailboxes(
             currentHeaderData.from.headerValue) + kMailboxSeparator;
-        if (fromMailboxes.contains(senderMailbox))
+        if (fromMailboxes.includes(senderMailbox))
           delete currentHeaderData.sender;
       }
 
@@ -658,7 +658,7 @@ var messageHeaderSink = {
     {
       displayAttachmentsForExpandedView();
 
-      for each (let [, listener] in Iterator(gMessageListeners)) {
+      for (let listener of gMessageListeners) {
         if ("onEndAttachments" in listener)
           listener.onEndAttachments();
       }
@@ -694,7 +694,7 @@ var messageHeaderSink = {
           this.mSaveHdr && gFolderDisplay.selectedMessageIsFeed &&
           browser && browser.contentDocument && browser.contentDocument.body) {
         for (let img of browser.contentDocument.body.getElementsByClassName("moz-attached-image")) {
-          for each (let [, attachment] in Iterator(currentAttachments)) {
+          for (let attachment of currentAttachments) {
             let partID = img.src.split("&part=")[1];
             partID = partID ? partID.split("&")[0] : null;
             if (attachment.partID && partID == attachment.partID) {
@@ -784,7 +784,7 @@ function SetTagHeader()
   // get the list of known tags
   var tagArray = MailServices.tags.getAllTags({});
   var tagKeys = {};
-  for each (var tagInfo in tagArray)
+  for (var tagInfo of tagArray)
     if (tagInfo.tag)
       tagKeys[tagInfo.key] = true;
 
@@ -795,7 +795,7 @@ function SetTagHeader()
   var label = msgHdr.label;
   if (label) {
     let labelKey = "$label" + label;
-    if (msgKeyArray.indexOf(labelKey) < 0)
+    if (!msgKeyArray.includes(labelKey))
       msgKeyArray.unshift(labelKey);
   }
 
@@ -853,7 +853,8 @@ function OnTagsChange()
  */
 function ClearHeaderView(aHeaderTable)
 {
-  for each (let [, headerEntry] in Iterator(aHeaderTable)) {
+  for (let name in aHeaderTable) {
+    let headerEntry = aHeaderTable[name];
     if (headerEntry.enclosingBox.clearHeaderValues)
       headerEntry.enclosingBox.clearHeaderValues();
 
@@ -868,8 +869,10 @@ function ClearHeaderView(aHeaderTable)
  */
 function hideHeaderView(aHeaderTable)
 {
-  for each (let [, headerEntry] in Iterator(aHeaderTable))
+  for (let name in aHeaderTable) {
+    let headerEntry = aHeaderTable[name];
     headerEntry.enclosingRow.collapsed = true;
+  }
 }
 
 /**
@@ -879,7 +882,8 @@ function hideHeaderView(aHeaderTable)
  */
 function showHeaderView(aHeaderTable)
 {
-  for each (let [, headerEntry] in Iterator(aHeaderTable)) {
+  for (let name in aHeaderTable) {
+    let headerEntry = aHeaderTable[name];
     if (headerEntry.valid) {
       headerEntry.enclosingRow.collapsed = false;
     } else {
@@ -900,7 +904,8 @@ function EnsureMinimumNumberOfHeaders (headerTable)
     return;
 
   var numVisibleHeaders = 0;
-  for each (let [, headerEntry] in Iterator(headerTable)) {
+  for (let name in headerTable) {
+    let headerEntry = headerTable[name];
     if (headerEntry.valid)
       numVisibleHeaders ++;
   }
@@ -911,7 +916,8 @@ function EnsureMinimumNumberOfHeaders (headerTable)
 
     // We may have already dynamically created our empty rows and we just need
     // to make them visible.
-    for each (let [index, headerEntry] in Iterator(headerTable)) {
+    for (let index in headerTable) {
+      let headerEntry = headerTable[index];
       if (index.startsWith("Dummy-Header") && numEmptyHeaders) {
         headerEntry.valid = true;
         numEmptyHeaders--;
@@ -1052,7 +1058,8 @@ function HeaderView(headerName, label)
  */
 function RemoveNewHeaderViews(aHeaderTable)
 {
-  for each (let [, headerEntry] in Iterator(aHeaderTable)) {
+  for (let name in aHeaderTable) {
+    let headerEntry = aHeaderTable[name];
     if (headerEntry.isNewHeader)
       headerEntry.enclosingRow.remove();
   }
@@ -1179,7 +1186,7 @@ function HideMessageHeaderPane()
 function OutputNewsgroups(headerEntry, headerValue)
 {
   headerValue.split(",").forEach(
-    function(newsgroup) headerEntry.enclosingBox.addNewsgroupView(newsgroup));
+    newsgroup => headerEntry.enclosingBox.addNewsgroupView(newsgroup));
 
   headerEntry.enclosingBox.buildViews();
 }
@@ -1287,7 +1294,7 @@ function UpdateEmailNodeDetails(aEmailAddress, aDocumentNode, aCardDetails) {
     Components.utils.import("resource:///modules/chatHandler.jsm", chatHandler);
   }
   let onlineContacts = chatHandler.onlineContacts;
-  for each (let chatAddress in chatAddresses) {
+  for (let chatAddress of chatAddresses) {
     if (Object.prototype.hasOwnProperty.call(onlineContacts, chatAddresses)) {
       chatContact = onlineContacts[chatAddress];
       break;
@@ -1603,7 +1610,7 @@ function SendMailToNode(addressNode, aEvent)
 
   // If aEvent is passed, check if Shift key was pressed for composition in
   // non-default format (HTML vs. plaintext).
-  params.format = (aEvent && aEvent.shiftKey) ? 
+  params.format = (aEvent && aEvent.shiftKey) ?
     Components.interfaces.nsIMsgCompFormat.OppositeOfDefault :
     Components.interfaces.nsIMsgCompFormat.Default;
 
@@ -1621,12 +1628,15 @@ function SendMailToNode(addressNode, aEvent)
  *
  * @param addressNode  a node which has an "emailAddress" or "newsgroup"
  *                     attribute
+ * @param aIncludeName when true, also copy the name onto the clipboard,
+ *                     otherwise only the email address
  */
-function CopyEmailNewsAddress(addressNode)
+function CopyEmailNewsAddress(addressNode, aIncludeName = false)
 {
   let clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"]
                             .getService(Components.interfaces.nsIClipboardHelper);
-  let address = addressNode.getAttribute("emailAddress") ||
+  let address = addressNode.getAttribute(aIncludeName ? "fullAddress"
+                                                      : "emailAddress") ||
                 addressNode.getAttribute("newsgroup");
   clipboard.copyString(address);
 }
@@ -1637,13 +1647,17 @@ function CopyEmailNewsAddress(addressNode)
  *
  * @param aHeaderNode  A node which has an "emailAddress" attribute
  *                     or a "headerName" attribute.
+ * @param aMessage     Optional nsIMsgHdr of the message from which the values
+ *                     are taken. Will be used to preselect its folder in the
+ *                     filter list.
  */
-function CreateFilter(aHeaderNode)
+function CreateFilter(aHeaderNode, aMessage)
 {
   let nodeIsAddress = aHeaderNode.hasAttribute("emailAddress");
   let nodeValue = nodeIsAddress ? aHeaderNode.getAttribute("emailAddress") :
                                   document.getAnonymousNodes(aHeaderNode)[0].textContent;
-  top.MsgFilters(nodeValue, null, aHeaderNode.getAttribute("headerName"));
+  let folder = aMessage ? aMessage.folder : null;
+  top.MsgFilters(nodeValue, folder, aHeaderNode.getAttribute("headerName"));
 }
 
 /**
@@ -1867,7 +1881,13 @@ AttachmentInfo.prototype = {
   {
     // Create an input stream on the attachment url.
     let url = Services.io.newURI(this.url, null, null);
-    let stream = Services.io.newChannelFromURI(url).open();
+    let channel = Services.io.newChannelFromURI2(url,
+                                                 null,
+                                                 Services.scriptSecurityManager.getSystemPrincipal(),
+                                                 null,
+                                                 Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                 Components.interfaces.nsIContentPolicy.TYPE_OTHER);
+    let stream = channel.open();
 
     let inputStream = Components.classes["@mozilla.org/binaryinputstream;1"]
                                 .createInstance(Components.interfaces.nsIBinaryInputStream);
@@ -1957,9 +1977,10 @@ function onShowAttachmentItemContextMenu()
     if (contextMenu.triggerNode == attachmentName)
       attachmentName.setAttribute("selected", true);
   }
-  else
-    selectedAttachments = [item.attachment for each([, item] in
-                           Iterator(attachmentList.selectedItems))];
+  else {
+    selectedAttachments =
+      [...attachmentList.selectedItems].map(item => item.attachment);
+  }
   contextMenu.attachments = selectedAttachments;
 
   var allSelectedDetached = selectedAttachments.every(function(attachment) {
@@ -2112,7 +2133,7 @@ var AttachmentListController =
   {}
 };
 
-let AttachmentMenuController = {
+var AttachmentMenuController = {
   commands: {
     cmd_openAllAttachments: {
       isEnabled: function() {
@@ -2227,7 +2248,7 @@ function displayAttachmentsForExpandedView()
 
     var lastPartID;
     var unknownSize = false;
-    for each (let [, attachment] in Iterator(currentAttachments)) {
+    for (let attachment of currentAttachments) {
       // Create a new attachment widget
       var displayName = SanitizeAttachmentDisplayName(attachment);
       var item = attachmentList.appendItem(attachment, displayName);
@@ -2390,7 +2411,7 @@ function FillAttachmentListPopup(aEvent, aPopup)
   // First clear out the old view...
   ClearAttachmentMenu(aPopup);
 
-  for each (let [attachmentIndex, attachment] in Iterator(currentAttachments))
+  for (let [attachmentIndex, attachment] of currentAttachments.entries())
     addAttachmentToPopup(aPopup, attachment, attachmentIndex);
 
   goUpdateAttachmentCommands();
@@ -2564,8 +2585,9 @@ function HandleSelectedAttachments(action)
 {
   let attachmentList = document.getElementById("attachmentList");
   let selectedAttachments = [];
-  for (let i in attachmentList.selectedItems)
-    selectedAttachments.push(attachmentList.selectedItems[i].attachment);
+  for (let item of attachmentList.selectedItems) {
+    selectedAttachments.push(item.attachment);
+  }
 
   HandleMultipleAttachments(selectedAttachments, action);
 }
@@ -2586,7 +2608,7 @@ function HandleMultipleAttachments(attachments, action)
 
   // populate these arrays..
   var actionIndex = 0;
-  for each(let [, attachment] in Iterator(attachments)) {
+  for (let attachment of attachments) {
     // Exclude attachment which are 1) deleted, or 2) detached with missing
     // external files.
     if (!attachment.hasFile)
@@ -2672,7 +2694,7 @@ function ClearAttachmentList()
 
   // clear selection
   var list = document.getElementById("attachmentList");
-  list.selectedItems.length = 0;
+  list.clearSelection();
 
   while (list.hasChildNodes())
     list.lastChild.remove();
@@ -2683,8 +2705,15 @@ var attachmentListDNDObserver = {
   {
     let target = aEvent.target;
 
-    if (target.localName == "attachmentitem")
-      aAttachmentData.data = CreateAttachmentTransferData(target.attachment);
+    if (target.localName == "attachmentitem") {
+      let selection = target.parentNode.selectedItems;
+      aAttachmentData.data = new TransferDataSet();
+      for (let item of selection) {
+        let transferData = CreateAttachmentTransferData(item.attachment);
+        if (transferData)
+          aAttachmentData.data.push(transferData);
+      }
+    }
   }
 };
 
@@ -2782,6 +2811,8 @@ function ConversationOpener()
 
 ConversationOpener.prototype = {
   openConversationForMessages: function(messages) {
+    if (messages.length < 1)
+      return;
     try {
       this._items = [];
       this._msgHdr = messages[0];

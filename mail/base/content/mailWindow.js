@@ -447,13 +447,22 @@ function loadStartPage(aForce)
   }
 }
 
-// The zoom manager, view source and possibly some other functions still rely
-// on the getBrowser function.
+/**
+ * Returns the browser element of the current tab.
+ * The zoom manager, view source and possibly some other functions still rely
+ * on the getBrowser function.
+ */
 function getBrowser()
 {
   let tabmail = document.getElementById('tabmail');
-  return tabmail ? tabmail.getBrowserForSelectedTab() :
-                   document.getElementById("messagepane");
+  return tabmail ? tabmail.getBrowserForSelectedTab() : getMessagePaneBrowser();
+}
+
+/**
+ * Returns the browser element of the message pane.
+ */
+function getMessagePaneBrowser() {
+  return document.getElementById("messagepane");
 }
 
 /**
@@ -491,8 +500,8 @@ function OpenInboxForServer(server)
 
 /** Update state of zoom type (text vs. full) menu item. */
 function UpdateFullZoomMenu() {
-  var menuItem = document.getElementById("menu_fullZoomToggle");
-  menuItem.setAttribute("checked", !ZoomManager.useFullZoom);
+  let cmdItem = document.getElementById("cmd_fullZoomToggle");
+  cmdItem.setAttribute("checked", !ZoomManager.useFullZoom);
 }
 
 /**
@@ -616,6 +625,9 @@ function MailSetCharacterSet(aEvent) {
   if (aEvent.target.hasAttribute("charset")) {
     msgWindow.mailCharacterSet = aEvent.target.getAttribute("charset");
     msgWindow.charsetOverride = true;
+    gMessageDisplay.keyForCharsetOverride =
+      ("messageKey" in gMessageDisplay.displayedMessage ?
+       gMessageDisplay.displayedMessage.messageKey : null);
   }
   messenger.setDocumentCharset(msgWindow.mailCharacterSet);
 }

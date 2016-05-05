@@ -4,7 +4,7 @@
 
 Components.utils.import("resource:///modules/imServices.jsm");
 
-const EXPORTED_SYMBOLS = [
+this.EXPORTED_SYMBOLS = [
   "cleanupImMarkup", // used to clean up incoming IMs.
                      // This will use the global ruleset of acceptable stuff
                      // except if another (custom one) is provided
@@ -33,7 +33,7 @@ const EXPORTED_SYMBOLS = [
  *
  *    each attribute can have a function returning a boolean indicating if
  *    the attribute is accepted.
- *      example: 'href': function(aValue) aValue == 'about:blank'
+ *      example: 'href': aValue => aValue == 'about:blank'
  *
  *  - styles: an object with the allowed CSS style rule.
  *      example: 'font-size': true
@@ -42,19 +42,20 @@ const EXPORTED_SYMBOLS = [
  *  See the 3 examples of rulesets below.
  */
 
-const kAllowedURLs = function(aValue) /^(https?|ftp|mailto):/.test(aValue);
-const kAllowedMozClasses =
-  function(aClassName) aClassName == "moz-txt-underscore" ||
-                       aClassName == "moz-txt-tag";
+var kAllowedURLs = aValue => /^(https?|ftp|mailto):/.test(aValue);
+var kAllowedMozClasses =
+  aClassName => aClassName == "moz-txt-underscore" ||
+                aClassName == "moz-txt-tag" ||
+                aClassName == "ib-person";
 
 /* Tags whose content should be fully removed, and reported in the Error Console. */
-const kForbiddenTags = {
+var kForbiddenTags = {
   script: true,
   style: true
 };
 
 // in strict mode, remove all formatings. Keep only links and line breaks.
-const kStrictMode = {
+var kStrictMode = {
   attrs: { },
 
   tags: {
@@ -70,7 +71,7 @@ const kStrictMode = {
 };
 
 // standard mode allows basic formattings (bold, italic, underlined)
-const kStandardMode = {
+var kStandardMode = {
   attrs: {
     'style': true
   },
@@ -107,7 +108,7 @@ const kStandardMode = {
 };
 
 // permissive mode allows about anything that isn't going to mess up the chat window
-const kPermissiveMode = {
+var kPermissiveMode = {
   attrs: {
     'style': true
   },
@@ -156,8 +157,8 @@ const kPermissiveMode = {
   }
 };
 
-const kModePref = "messenger.options.filterMode";
-const kModes = [kStrictMode, kStandardMode, kPermissiveMode];
+var kModePref = "messenger.options.filterMode";
+var kModes = [kStrictMode, kStandardMode, kPermissiveMode];
 
 var gGlobalRuleset = null;
 

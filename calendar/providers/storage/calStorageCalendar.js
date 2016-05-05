@@ -11,9 +11,9 @@ Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
 Components.utils.import("resource://calendar/modules/calStorageUpgrade.jsm");
 Components.utils.import("resource://calendar/modules/calStorageHelpers.jsm");
 
-const USECS_PER_SECOND = 1000000;
-const kCalICalendar = Components.interfaces.calICalendar;
-const cICL = Components.interfaces.calIChangeLog;
+var USECS_PER_SECOND = 1000000;
+var kCalICalendar = Components.interfaces.calICalendar;
+var cICL = Components.interfaces.calIChangeLog;
 
 //
 // calStorageCalendar
@@ -25,8 +25,8 @@ function calStorageCalendar() {
     this.mRecEventCache = {};
     this.mRecTodoCache = {};
 }
-const calStorageCalendarClassID = Components.ID("{b3eaa1c4-5dfe-4c0a-b62a-b3a514218461}");
-const calStorageCalendarInterfaces = [
+var calStorageCalendarClassID = Components.ID("{b3eaa1c4-5dfe-4c0a-b62a-b3a514218461}");
+var calStorageCalendarInterfaces = [
     Components.interfaces.calICalendar,
     Components.interfaces.calICalendarProvider,
     Components.interfaces.calIOfflineStorage,
@@ -278,7 +278,7 @@ calStorageCalendar.prototype = {
                  * @param newCalId  The new calendar id to set
                  * @param oldCalId  The old calendar id to look for
                  */
-                function migrateTables(db, newCalId, oldCalId) {
+                let migrateTables = function(db, newCalId, oldCalId) {
                     for each (let tbl in ["cal_alarms", "cal_attachments",
                                           "cal_attendees", "cal_events",
                                           "cal_metadata", "cal_properties",
@@ -301,7 +301,7 @@ calStorageCalendar.prototype = {
                             }
                         }
                     }
-                }
+                };
 
                 let id = 0;
                 let path = this.uri.path;
@@ -1013,6 +1013,7 @@ calStorageCalendar.prototype = {
     modifyOfflineItem: function(aItem, aListener) {
         let this_ = this;
         let opListener = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onGetResult: function (calendar, status, itemType, detail, count, items) {
             },
             onOperationComplete: function(calendar, status, opType, id, oldOfflineJournalFlag ) {
@@ -1035,6 +1036,7 @@ calStorageCalendar.prototype = {
     deleteOfflineItem: function(aItem, aListener) {
         let this_ = this;
         let opListener = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onGetResult: function (calendar, status, itemType, detail, count, items) {
 
             },
@@ -1561,7 +1563,7 @@ calStorageCalendar.prototype = {
 
         try {
             this.prepareStatement(this.mSelectTodosWithRecurrence);
-            sp = this.mSelectTodosWithRecurrence.params;
+            let sp = this.mSelectTodosWithRecurrence.params;
             while (this.mSelectTodosWithRecurrence.executeStep()) {
                 var row = this.mSelectTodosWithRecurrence.row;
                 var item = this.getTodoFromRow(row, {});
@@ -2442,7 +2444,7 @@ calStorageCalendar.prototype = {
 };
 
 /** Module Registration */
-const scriptLoadOrder = [
+var scriptLoadOrder = [
     "calUtils.js",
 ];
 

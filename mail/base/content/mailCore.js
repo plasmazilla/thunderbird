@@ -509,9 +509,14 @@ function openIMAccountWizard()
 function openSavedFilesWnd()
 {
   let tabmail = document.getElementById("tabmail");
-  tabmail.openTab("chromeTab",
-                  { chromePage: "about:downloads",
-                    clickHandler: "specialTabs.aboutClickHandler(event);" });
+  let downloadsBrowser = tabmail.getBrowserForDocumentId("aboutDownloads");
+  if (downloadsBrowser)
+    tabmail.switchToTab(downloadsBrowser);
+  else {
+    tabmail.openTab("chromeTab",
+                    { chromePage: "about:downloads",
+                      clickHandler: "specialTabs.aboutClickHandler(event);" });
+  }
 }
 
 function SetBusyCursor(window, enable)
@@ -740,7 +745,7 @@ nsFlavorDataProvider.prototype =
       // cheat and scan through them
 
       var attachment = null;
-      for each (let index in Iterator(currentAttachments, true))
+      for (let index of currentAttachments.keys())
       {
         attachment = currentAttachments[index];
         if (attachment.url == srcUrlPrimitive)

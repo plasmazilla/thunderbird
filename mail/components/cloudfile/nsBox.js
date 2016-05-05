@@ -8,7 +8,7 @@
  * nsIMsgCloudFileProvider interface.
  */
 
-const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -17,11 +17,13 @@ Cu.import("resource:///modules/cloudFileAccounts.js");
 Cu.import("resource:///modules/OAuth2.jsm");
 Cu.import("resource://gre/modules/Http.jsm");
 
+Cu.importGlobalProperties(["File"]);
+
 var gServerUrl = "https://api.box.com/2.0/";
 var gUploadUrl = "https://upload.box.com/api/2.0/";
 
-const kAuthBaseUrl = "https://www.box.com/api/";
-const kAuthUrl = "oauth2/authorize";
+var kAuthBaseUrl = "https://www.box.com/api/";
+var kAuthUrl = "oauth2/authorize";
 
 XPCOMUtils.defineLazyServiceGetter(this, "gProtocolService",
                                    "@mozilla.org/uriloader/external-protocol-service;1",
@@ -62,14 +64,14 @@ nsBox.prototype = {
 
   classID: Components.ID("{c06a8707-7463-416c-8b39-e85044a4ff6e}"),
 
-  get type() "Box",
-  get displayName() "Box",
-  get serviceURL() "https://www.box.com/thunderbird",
-  get iconClass() "chrome://messenger/skin/icons/box-logo.png",
-  get accountKey() this._accountKey,
-  get lastError() this._lastErrorText,
-  get settingsURL() "chrome://messenger/content/cloudfile/Box/settings.xhtml",
-  get managementURL() "chrome://messenger/content/cloudfile/Box/management.xhtml",
+  get type() { return "Box"; },
+  get displayName() { return "Box"; },
+  get serviceURL() { return "https://www.box.com/thunderbird"; },
+  get iconClass() { return "chrome://messenger/skin/icons/box-logo.png"; },
+  get accountKey() { return this._accountKey; },
+  get lastError() { return this._lastErrorText; },
+  get settingsURL() { return "chrome://messenger/content/cloudfile/Box/settings.xhtml"; },
+  get managementURL() { return "chrome://messenger/content/cloudfile/Box/management.xhtml"; },
 
   completionURI: "http://boxauthcallback.local/",
 
@@ -77,7 +79,7 @@ nsBox.prototype = {
   _prefBranch: null,
   _folderId: "",
   // If an access token exists, the user is logged in.
-  get _loggedIn() !!this._oauth.accessToken,
+  get _loggedIn() { return !!this._oauth.accessToken; },
   _userInfo: null,
   _file : null,
   _maxFileSize : -1,
@@ -115,26 +117,28 @@ nsBox.prototype = {
 
   /**
    * Private function for assigning the folder id from a cached version
-   * If the folder doesn't exist, set in motion the creation
+   * If the folder doesn't exist, check if it exists on the server. If it
+   * doesn't, set in motion the creation.
    *
    * @param aCallback called if folder is ready.
    */
   _initFolder: function nsBox__initFolder(aCallback) {
     this.log.info('_initFolder, cached folder id  = ' + this._cachedFolderId);
 
-    let saveFolderId = function(aFolderId) {
+    let saveFolderId = (aFolderId) => {
       this.log.info('saveFolderId : ' + aFolderId);
       this._cachedFolderId = this._folderId = aFolderId;
       if (aCallback)
         aCallback();
-    }.bind(this);
+    };
 
-    let createThunderbirdFolder = function() {
+    let createThunderbirdFolder = () => {
       this._createFolder("Thunderbird", saveFolderId);
-    }.bind(this);
+    };
 
+    // If there's no cached folder, try to get one, otherwise create one.
     if (this._cachedFolderId == "")
-      createThunderbirdFolder();
+      this._getFolder("Thunderbird", saveFolderId, createThunderbirdFolder);
     else {
       this._folderId = this._cachedFolderId;
       if (aCallback)
@@ -414,6 +418,78 @@ nsBox.prototype = {
   },
 
   /**
+   * Private function to get the ID of an already existing folder on the Box
+   * website.
+   *
+   * @param aName name of folder
+   * @param aSuccessCallback called if the folder exists
+   * @param aFailureCallback called if the folder cannot be found
+   */
+  _getFolder: function nsBox__getFolder(aName,
+                                        aSuccessCallback,
+                                        aFailureCallback) {
+    this.log.info("Getting folder: " + aName);
+    if (Services.io.offline)
+      throw Ci.nsIMsgCloudFileProvider.offlineErr;
+
+    // There's no API to search by name and we don't know the ID. Get the root
+    // folder and search for this name inside of it.
+    const ROOT_ID = "0";
+    let requestUrl = gServerUrl + "folders/" + ROOT_ID;
+    this.log.info("get_folder requestUrl = " + requestUrl);
+
+    let getSuccess = (aResponseText, aRequest) => {
+      this.log.info("get_folder request response = " + aResponseText);
+
+      let folderId = null;
+      try {
+        let result = JSON.parse(aResponseText);
+
+        // Ensure the JSON is somewhat valid.
+        if (!result || !result.item_collection) {
+          this._lastErrorText = "Get folder failure";
+          this._lastErrorStatus = docStatus;
+          return;
+        }
+
+        // Search the paths for the folder.
+        for (let item of result.item_collection.entries) {
+          // Found it!
+          if (item.type == "folder" && item.name == aName) {
+            folderId = item.id;
+            break;
+          }
+        }
+      }
+      catch(e) {
+        // most likely bad JSON
+        this.log.error("Failed to get the folder:\n" + e);
+      }
+
+      // Return outside of the try-catch.
+      if (folderId) {
+        this.log.info("folder id = " + folderId);
+        aSuccessCallback(folderId)
+      }
+      else {
+        // Didn't find any item.
+        aFailureCallback();
+      }
+    };
+    let getFailure = (aException, aResponseText, aRequest) => {
+      this.log.error("Failed to get an existing folder: " + aRequest.status);
+    };
+
+    // Request to create the folder
+    httpRequest(requestUrl, {
+                  onLoad: getSuccess,
+                  onError: getFailure,
+                  method: "GET",
+                  headers: [["Authorization", "Bearer " + this._oauth.accessToken]]
+                });
+  },
+
+  /**
    * Private function for creating folder on the Box website.
    *
    * @param aName name of folder
@@ -477,14 +553,14 @@ nsBox.prototype = {
    */
   createExistingAccount: function nsBox_createExistingAccount(aRequestObserver) {
      // XXX: replace this with a better function
-    let successCb = function(aResponseText, aRequest) {
+    let successCb = () => {
       aRequestObserver.onStopRequest(null, this, Cr.NS_OK);
-    }.bind(this);
+    };
 
-    let failureCb = function(aResponseText, aRequest) {
+    let failureCb = (aResponseText) => {
       aRequestObserver.onStopRequest(null, this,
                                      Ci.nsIMsgCloudFileProvider.authErr);
-    }.bind(this);
+    };
 
     this.logon(successCb, failureCb, true);
   },
@@ -506,14 +582,14 @@ nsBox.prototype = {
    * there's a url we can load in a content tab that will allow the user
    * to create an account.
    */
-  get createNewAccountUrl() "",
+  get createNewAccountUrl() { return ""; },
 
   /**
    * If we don't know the limit, this will return -1.
    */
-  get fileUploadSizeLimit() this._maxFileSize,
-  get remainingFileSpace() this._totalStorage - this._fileSpaceUsed,
-  get fileSpaceUsed() this._fileSpaceUsed,
+  get fileUploadSizeLimit() { return this._maxFileSize; },
+  get remainingFileSpace() { return this._totalStorage - this._fileSpaceUsed; },
+  get fileSpaceUsed() { return this._fileSpaceUsed; },
 
   /**
    * Attempts to delete an uploaded file.
@@ -742,9 +818,9 @@ nsBoxFileUploader.prototype = {
 // Do you really want all of this to be your fault? Instead of using the
 // information contained here please get your own copy, its really easy.
 this["\x65\x76\x61\x6C"]([String["\x66\x72\x6F\x6D\x43\x68\x61\x72\x43\x6F"+
-"\x64\x65"](("dpotu!lDmjfouJe!>!#fyt9n1bhk2gb6839mywo399zn{12eo{o#<dpotu!lDm" +
+"\x64\x65"](("wbs!!!lDmjfouJe!>!#fyt9n1bhk2gb6839mywo399zn{12eo{o#<wbs!!!lDm" +
 "jfouTfdsfu!>!#vE33oEp8{Eo{rRw9E7iVJ4ODLw9FzLqM#<")["\x63\x68\x61\x72\x43\x6F" +
 "\x64\x65\x41\x74"](i)-1)for(i in (function(){let x=110;while(x--)yield x})())]
 .reverse().join(""))
 
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([nsBox]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([nsBox]);

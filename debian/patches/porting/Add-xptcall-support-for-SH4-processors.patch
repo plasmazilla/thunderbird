@@ -13,11 +13,11 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=382214
  create mode 100644 mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp
 
 diff --git a/mozilla/xpcom/reflect/xptcall/md/unix/Makefile.in b/mozilla/xpcom/reflect/xptcall/md/unix/Makefile.in
-index 80dc570..805e45f 100644
+index e4cdc38..521ddff 100644
 --- a/mozilla/xpcom/reflect/xptcall/md/unix/Makefile.in
 +++ b/mozilla/xpcom/reflect/xptcall/md/unix/Makefile.in
-@@ -66,6 +66,18 @@ endif
- endif
+@@ -42,6 +42,18 @@ ifeq ($(OS_ARCH),AIX)
+ CXXFLAGS 	:=  $(filter-out $(MOZ_OPTIMIZE_FLAGS), $(CXXFLAGS))
  endif
  
 +############

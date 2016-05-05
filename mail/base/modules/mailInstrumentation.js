@@ -8,15 +8,14 @@
 
 /* :::::::: Constants and Helpers ::::::::::::::: */
 
-const EXPORTED_SYMBOLS = ["mailInstrumentationManager"];
+this.EXPORTED_SYMBOLS = ["mailInstrumentationManager"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cu = Components.utils;
 
-const nsIMFNService = Ci.nsIMsgFolderNotificationService;
+var nsIMFNService = Ci.nsIMsgFolderNotificationService;
 
-Cu.import("resource:///modules/IOUtils.js");
 Cu.import("resource:///modules/errUtils.js");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/mailServices.js");
@@ -55,7 +54,7 @@ var mailInstrumentationManager =
 
   _accountsChanged: function() {
     // check if there are at least two accounts - one is local folders account
-    if (Services.prefs.getCharPref("mail.accountmanager.accounts").contains(',', 1)) {
+    if (Services.prefs.getCharPref("mail.accountmanager.accounts").includes(',', 1)) {
       mailInstrumentationManager.addEvent("accountAdded", true);
       mailInstrumentationManager._removeObserver(
         "mail.accountmanager.accounts",
@@ -139,8 +138,8 @@ var mailInstrumentationManager =
   },
   // Convert each hashed byte into 2-hex strings, then combine them.
   _bytesAsHex: function minst_bytesAsHex(bytes) {
-    return [("0" + byte.charCodeAt().toString(16)).slice(-2)
-            for each (byte in bytes)].join("");
+    return Array.from(bytes).
+      map(byte => ("0" + byte.charCodeAt().toString(16)).slice(-2)).join("");
   },
   /**
    * Return sha-256 hash of the passed in e-mail address

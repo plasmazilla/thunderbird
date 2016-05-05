@@ -15,7 +15,6 @@
 #include "nsAbDirFactoryService.h"
 #include "nsAbMDBDirFactory.h"
 #include "nsArrayEnumerator.h"
-#include "nsVoidArray.h"
 
 #include "nsCRTGlue.h"
 
@@ -108,14 +107,14 @@ nsresult nsAbBSDirectory::EnsureInitialized()
     do_GetService(NS_ABDIRFACTORYSERVICE_CONTRACTID,&rv);
   NS_ENSURE_SUCCESS (rv, rv);
     
-  nsVoidArray *directories = DIR_GetDirectories();
+  nsTArray<DIR_Server*> *directories = DIR_GetDirectories();
   if (!directories)
     return NS_ERROR_FAILURE;
     
-  int32_t count = directories->Count();
+  int32_t count = directories->Length();
   for (int32_t i = 0; i < count; i++)
   {
-    DIR_Server *server = (DIR_Server *)(directories->ElementAt(i));
+    DIR_Server *server = directories->ElementAt(i);
       
     // if this is a 4.x, local .na2 addressbook (PABDirectory)
     // we must skip it.
@@ -228,27 +227,6 @@ NS_IMETHODIMP nsAbBSDirectory::CreateDirectoryByURI(const nsAString &aDisplayNam
 	return rv;
 }
 
-struct GetDirectories
-{
-  GetDirectories(DIR_Server* aServer) : mServer(aServer) { }
-
-  nsCOMArray<nsIAbDirectory> directories;
-  DIR_Server* mServer;
-};
-
-static PLDHashOperator
-GetDirectories_getDirectory(nsISupports *aKey, DIR_Server* aData, void* aClosure)
-{
-  GetDirectories* getDirectories = (GetDirectories*)aClosure;
-
-  if (aData == getDirectories->mServer) {
-    nsCOMPtr<nsIAbDirectory> abDir = do_QueryInterface(aKey);
-    getDirectories->directories.AppendObject(abDir);
-  }
-
-  return PL_DHASH_NEXT;
-}
-
 NS_IMETHODIMP nsAbBSDirectory::DeleteDirectory(nsIAbDirectory *directory)
 {
   NS_ENSURE_ARG_POINTER(directory);
@@ -262,9 +240,20 @@ NS_IMETHODIMP nsAbBSDirectory::DeleteDirectory(nsIAbDirectory *directory)
   if (!server)
     return NS_ERROR_FAILURE;
 
+  struct GetDirectories
+  {
+    GetDirectories(DIR_Server* aServer) : mServer(aServer) { }
+
+    nsCOMArray<nsIAbDirectory> directories;
+    DIR_Server* mServer;
+  };
   GetDirectories getDirectories(server);
-  mServers.EnumerateRead(GetDirectories_getDirectory,
-                         (void*)&getDirectories);
+  for (auto iter = mServers.Iter(); !iter.Done(); iter.Next()) {
+    if (iter.UserData() == getDirectories.mServer) {
+      nsCOMPtr<nsIAbDirectory> abDir = do_QueryInterface(iter.Key());
+      getDirectories.directories.AppendObject(abDir);
+    }
+  }
 
   DIR_DeleteServerFromList(server);
 

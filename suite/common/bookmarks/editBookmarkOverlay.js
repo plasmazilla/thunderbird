@@ -145,7 +145,14 @@ var gEditItemOverlay = {
       else {
         this._uri = null;
         this._isLivemark = false;
-        PlacesUtils.livemarks.getLivemark({ id: this._itemId }, this);
+        PlacesUtils.livemarks.getLivemark({ id: this._itemId })
+                             .then(aLivemark => {
+          this._isLivemark = true;
+          this._initTextField("feedLocationField", aLivemark.feedURI.spec, true);
+          this._initTextField("siteLocationField",
+                              aLivemark.siteURI ? aLivemark.siteURI.spec : "", true);
+          this._showHideRows();
+        }, () => undefined);
       }
 
       // folder picker
@@ -216,9 +223,9 @@ var gEditItemOverlay = {
    */
   _getCommonTags: function() {
     return this._tags[0].filter(
-      function (aTag) this._tags.every(
-        function (aTags) aTags.indexOf(aTag) != -1
-      ), this
+      aTag => this._tags.every(
+        aTags => aTags.indexOf(aTag) != -1
+      )
     );
   },
 
@@ -326,7 +333,6 @@ var gEditItemOverlay = {
 
   QueryInterface: function EIO_QueryInterface(aIID) {
     if (aIID.equals(Components.interfaces.nsIDOMEventListener) ||
-        aIID.equals(Components.interfaces.mozILivemarkCallback) ||
         aIID.equals(Components.interfaces.nsINavBookmarkObserver) ||
         aIID.equals(Components.interfaces.nsISupports))
       return this;
@@ -648,7 +654,7 @@ var gEditItemOverlay = {
       this._folderMenuList.selectedItem = item;
       // XXXmano HACK: setTimeout 100, otherwise focus goes back to the
       // menulist right away
-      setTimeout(function(self) self.toggleFolderTreeVisibility(), 100, this);
+      setTimeout(() => this.toggleFolderTreeVisibility(), 100);
       return;
     }
 
@@ -792,7 +798,7 @@ var gEditItemOverlay = {
     let tags = this._element("tagsField").value;
     return tags.trim()
                .split(/\s*,\s*/) // Split on commas and remove spaces.
-               .filter(function (tag) tag.length > 0); // Kill empty tags.
+               .filter(tag => tag.length > 0); // Kill empty tags.
   },
 
   newFolder: function EIO_newFolder() {
@@ -837,17 +843,6 @@ var gEditItemOverlay = {
     case "unload":
       this.uninitPanel(false);
       break;
-    }
-  },
-
-  // mozILivemarkCallback
-  onCompletion: function EIO_onCompletion(aStatus, aLivemark) {
-    if (Components.isSuccessCode(aStatus)) {
-      this._isLivemark = true;
-      this._initTextField("feedLocationField", aLivemark.feedURI.spec, true);
-      this._initTextField("siteLocationField",
-                          aLivemark.siteURI ? aLivemark.siteURI.spec : "", true);
-      this._showHideRows();
     }
   },
 

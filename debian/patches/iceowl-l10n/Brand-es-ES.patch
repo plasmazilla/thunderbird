@@ -1,0 +1,35 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:25 +0200
+Subject: Brand-es-ES
+
+---
+ iceowl-l10n/es-ES/locale/es-ES/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/es-ES/locale/es-ES/lightning/lightning.properties b/iceowl-l10n/es-ES/locale/es-ES/lightning/lightning.properties
+index c39e0b5..ece3e51 100644
+--- a/iceowl-l10n/es-ES/locale/es-ES/lightning/lightning.properties
++++ b/iceowl-l10n/es-ES/locale/es-ES/lightning/lightning.properties
+@@ -2,10 +2,10 @@
+ # License, v. 2.0. If a copy of the MPL was not distributed with this
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name = Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description = Un calendario integrado para Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name = Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description = Un calendario integrado para Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator = Mozilla Calendar Project
+-brandShortName = Lightning
++brandShortName = Iceowl
+ taskModeApplicationTitle = Tareas
+ tabTitleCalendar = Calendario
+ tabTitleTasks = Tareas
+@@ -51,7 +51,7 @@ imipBarUpdateText = Este mensaje contiene una actualización a un evento existen
+ imipBarAlreadyProcessedText = Este mensaje contiene un evento que ya ha sido procesado.
+ imipBarProcessedNeedsAction = Este mensaje contiene un evento al que aún no ha respondido.
+ imipBarReplyText = Este mensaje contiene una respuesta a una invitación.
+-imipBarUnsupportedText = Este mensaje contiene un evento que esta versión de Lightning no puede procesar.
++imipBarUnsupportedText = Este mensaje contiene un evento que esta versión de Iceowl no puede procesar.
+ imipBarProcessingFailed = Fallo al procesar el mensaje. Estado: %1$S.
+ imipBarNotWritable = No hay calendarios escribibles configurados para invitaciones, compruebe las propiedades de los calendarios.
+ imipSendMail.title = Notificación de correo-e

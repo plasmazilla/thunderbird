@@ -6,10 +6,10 @@
  * Tests that forwarded content is ok.
  */
 
-const MODULE_NAME = "test-forwarded-content";
+var MODULE_NAME = "test-forwarded-content";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers",
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers",
                          "window-helpers", "compose-helpers"];
 
 var elib = {};
@@ -50,7 +50,7 @@ function test_forwarded_subj() {
 
   let headerTableText  = fwdWin.e("content-frame").contentDocument
                           .querySelector("table").textContent;
-  if (!headerTableText.contains(msg.mime2DecodedSubject)) {
+  if (!headerTableText.includes(msg.mime2DecodedSubject)) {
     throw new Error("Subject not set correctly in header table: subject=" +
                     msg.mime2DecodedSubject + ", header table text=" +
                     headerTableText);

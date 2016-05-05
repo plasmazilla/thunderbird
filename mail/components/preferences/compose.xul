@@ -51,6 +51,9 @@
       <preference id="mail.compose.attachment_reminder"
                   name="mail.compose.attachment_reminder"
                   type="bool"/>
+      <preference id="editor.CR_creates_new_p"
+                  name="editor.CR_creates_new_p"
+                  type="bool"/>
     </preferences>
 
     <commandset id="compositionGeneralCommandSet">
@@ -132,12 +135,12 @@
               <label control="fontSizeSelect" value="&size.label;" accesskey="&size.accesskey;"/>
               <menulist id="fontSizeSelect" preference="msgcompose.font_size">
                 <menupopup>
-                  <menuitem value="x-small" label="&size-x-smallCmd.label;"/>
+                  <menuitem value="x-small" label="&size-tinyCmd.label;"/>
                   <menuitem value="small"   label="&size-smallCmd.label;"/>
                   <menuitem value="medium"  label="&size-mediumCmd.label;"/>
                   <menuitem value="large"   label="&size-largeCmd.label;"/>
-                  <menuitem value="x-large" label="&size-x-largeCmd.label;"/>
-                  <menuitem value="xx-large" label="&size-xx-largeCmd.label;"/>
+                  <menuitem value="x-large" label="&size-extraLargeCmd.label;"/>
+                  <menuitem value="xx-large" label="&size-hugeCmd.label;"/>
                 </menupopup>
               </menulist>
             </hbox>
@@ -153,6 +156,15 @@
               <spacer flex="1"/>
               <button label="&restoreHTMLDefaults.label;" accesskey="&restoreHTMLDefaults.accesskey;"
                       oncommand="gComposePane.restoreHTMLDefaults();"/>
+            </hbox>
+
+            <separator class="thin"/>
+
+            <hbox align="center">
+              <checkbox id="enterKeyCreatesNewParagraph"
+                        label="&enterKeyCreatesNewParagraph.label;"
+                        accesskey="&enterKeyCreatesNewParagraph.accesskey;"
+                        preference="editor.CR_creates_new_p"/>
             </hbox>
           </groupbox>
 

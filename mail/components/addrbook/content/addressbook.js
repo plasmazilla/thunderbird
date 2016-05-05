@@ -8,11 +8,12 @@
 Components.utils.import("resource://gre/modules/Services.jsm");
 // Ensure the activity modules are loaded for this window.
 Components.utils.import("resource:///modules/activity/activityModules.js");
+Components.utils.import("resource:///modules/ABQueryUtils.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 
-const nsIAbListener = Components.interfaces.nsIAbListener;
-const kPrefMailAddrBookLastNameFirst = "mail.addr_book.lastnamefirst";
-const kPersistCollapseMapStorage = "directoryTree.json";
+var nsIAbListener = Components.interfaces.nsIAbListener;
+var kPrefMailAddrBookLastNameFirst = "mail.addr_book.lastnamefirst";
+var kPersistCollapseMapStorage = "directoryTree.json";
 
 var gSearchTimer = null;
 var gStatusText = null;
@@ -24,22 +25,22 @@ var gPreviousDirTreeIndex = -1;
 var msgWindow = Components.classes["@mozilla.org/messenger/msgwindow;1"]
                           .createInstance(Components.interfaces.nsIMsgWindow);
 
-let chatHandler = {};
+var chatHandler = {};
 Components.utils.import("resource:///modules/chatHandler.jsm", chatHandler);
 
 // Constants that correspond to choices
 // in Address Book->View -->Show Name as
-const kDisplayName = 0;
-const kLastNameFirst = 1;
-const kFirstNameFirst = 2;
-const kLDAPDirectory = 0; // defined in nsDirPrefs.h
-const kPABDirectory  = 2; // defined in nsDirPrefs.h
+var kDisplayName = 0;
+var kLastNameFirst = 1;
+var kFirstNameFirst = 2;
+var kLDAPDirectory = 0; // defined in nsDirPrefs.h
+var kPABDirectory  = 2; // defined in nsDirPrefs.h
 
 // These chat properties are the ones that our IM component supports. If a
 // contact has a value for one of these properties, we can communicate with
 // that contact (assuming that the user has added that value to their list
 // of IM contacts).
-const kChatProperties = ["_GoogleTalk", "_JabberId"];
+var kChatProperties = ["_GoogleTalk", "_JabberId"];
 
 // Note: We need to keep this listener as it does not just handle dir
 // pane deletes but also deletes of address books and lists from places like
@@ -414,13 +415,47 @@ function AbPrintPreviewAddressBook()
   AbPrintAddressBookInternal(true, Components.interfaces.nsIMsgPrintEngine.MNAB_PRINTPREVIEW_ADDRBOOK);
 }
 
-function AbExport()
-{
-  try {
-    let selectedABURI = GetSelectedDirectory();
-    if (!selectedABURI) return;
+/**
+ * Export the currently selected addressbook.
+ */
+function AbExportSelection() {
+  let selectedABURI = GetSelectedDirectory();
+  if (!selectedABURI)
+    return;
 
-    let directory = GetDirectoryFromURI(selectedABURI);
+ if (selectedABURI == (kAllDirectoryRoot + "?"))
+   return AbExportAll();
+
+ return AbExport(selectedABURI);
+}
+
+/**
+ * Export all found addressbooks, each in a separate file.
+ */
+function AbExportAll()
+{
+  let directories = MailServices.ab.directories;
+
+  while (directories.hasMoreElements()) {
+    let directory = directories.getNext();
+    // Do not export LDAP ABs.
+    if (!directory.URI.startsWith(kLdapUrlPrefix))
+      AbExport(directory.URI);
+  }
+}
+
+/**
+ * Export the specified addressbook to a file.
+ *
+ * @param aSelectedABURI  The URI if the addressbook to export.
+ */
+function AbExport(aSelectedABURI)
+{
+  if (!aSelectedABURI)
+    return;
+
+  try {
+    let directory = GetDirectoryFromURI(aSelectedABURI);
     MailServices.ab.exportAddressBook(window, directory);
   }
   catch (ex) {
@@ -505,12 +540,9 @@ function onEnterInSearchBar()
 {
   ClearCardViewPane();
   if (!gQueryURIFormat) {
-    gQueryURIFormat = Services.prefs
-      .getComplexValue("mail.addr_book.quicksearchquery.format",
-                       Components.interfaces.nsIPrefLocalizedString).data;
-
-    // Remove the preceeding '?' as we have to prefix "?and" to this format.
-    gQueryURIFormat = gQueryURIFormat.slice(1);
+    // Get model query from pref. We don't want the query starting with "?"
+    // as we have to prefix "?and" to this format.
+    gQueryURIFormat = getModelQuery("mail.addr_book.quicksearchquery.format");
   }
 
   var searchURI = GetSelectedDirectory();
@@ -701,7 +733,7 @@ function AbIMSelected()
   let online = [];
   let offline = [];
 
-  for each (let [, chatProperty] in Iterator(kChatProperties)) {
+  for (let chatProperty of kChatProperties) {
     let chatID = card.getProperty(chatProperty, "");
 
     if (chatID && (chatID in chatHandler.allContacts)) {
@@ -763,8 +795,8 @@ function getMailToolbox()
   return document.getElementById("ab-toolbox");
 }
 
-const kOSXDirectoryURI = "moz-abosxdirectory:///";
-const kOSXPrefBase = "ldap_2.servers.osx";
+var kOSXDirectoryURI = "moz-abosxdirectory:///";
+var kOSXPrefBase = "ldap_2.servers.osx";
 
 function AbOSXAddressBookExists()
 {
@@ -799,7 +831,7 @@ function AbShowHideOSXAddressBook()
   }
 }
 
-let abResultsController = {
+var abResultsController = {
   commands: {
     cmd_chatWithCard: {
       isEnabled: function() {

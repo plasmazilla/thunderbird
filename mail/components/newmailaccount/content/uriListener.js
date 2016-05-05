@@ -8,10 +8,10 @@
  * one of our account providers.
  */
 
-let Cu = Components.utils;
-let Cc = Components.classes;
-let Ci = Components.interfaces;
-let Cr = Components.results;
+var Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -40,7 +40,8 @@ function httpRequestObserver(aBrowser, aParams) {
 
 httpRequestObserver.prototype = {
   observe: function(aSubject, aTopic, aData) {
-    if (aTopic != "http-on-examine-response")
+    if (aTopic != "http-on-examine-response" &&
+        aTopic != "http-on-examine-cached-response")
       return;
 
     if (!(aSubject instanceof Ci.nsIHttpChannel)) {

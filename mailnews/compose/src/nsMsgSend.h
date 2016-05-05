@@ -50,7 +50,8 @@
    - it is of a non-text type (in which case we will use base64); or
    - The "use QP" option has been selected and high-bit characters exist; or
    - any NULLs exist in the document; or
-   - any line is longer than 900 bytes.
+   - any line is longer than 990 bytes (see LINELENGTH_ENCODING_THRESHOLD below)
+     and it is not of type message/rfc822.
 
    - If we are encoding, and more than 10% of the document consists of
      non-ASCII characters, then we always use base64 instead of QP.
@@ -125,6 +126,7 @@
 #include "nsIMsgHdr.h"
 #include "nsIMsgIdentity.h"
 #include "nsWeakReference.h"
+#include "nsPIDOMWindow.h"
 #include "nsIDOMWindow.h"
 #include "nsIMsgComposeSecure.h"
 #include "nsAutoPtr.h"
@@ -139,6 +141,9 @@
 #define TEN_K                 10240
 #define MIME_BUFFER_SIZE      4096 // must be greater than 1000
                                    // SMTP (RFC821) limit
+// Maximum number of bytes we allow in a line before we force
+// encoding to base64 if not already QR-encoded or of type message/rfc822.
+#define LINELENGTH_ENCODING_THRESHOLD 990
 
 //
 // Utilities for string handling
@@ -165,7 +170,8 @@ class MimeEncoder;
 }
 
 class nsMsgComposeAndSend : public nsIMsgSend,
-                            public nsIMsgOperationListener
+                            public nsIMsgOperationListener,
+                            public nsSupportsWeakReference
 {
   typedef mozilla::mailnews::MimeEncoder MimeEncoder;
 public:
@@ -267,7 +273,7 @@ public:
   nsMsgKey                  m_messageKey;        // jt -- Draft/Template support; newly created key
   nsCOMPtr<nsIMsgIdentity>  mUserIdentity;
   nsCString                 mAccountKey;
-  nsRefPtr<nsMsgCompFields> mCompFields;         // All needed composition fields (header, etc...)
+  RefPtr<nsMsgCompFields> mCompFields;         // All needed composition fields (header, etc...)
   nsCOMPtr<nsIFile>         mTempFile;           // our temporary file
 
   nsCOMPtr<nsIOutputStream> mOutputFile;         // the actual output file stream
@@ -282,7 +288,7 @@ public:
   nsString mSavedToFolderName; // Name of folder we're saving to, used when
                                // displaying error on save.
   // These are needed for callbacks to the FE...
-  nsCOMPtr<nsIDOMWindow>          mParentWindow;
+  nsCOMPtr<nsPIDOMWindow>         mParentWindow;
   nsCOMPtr<nsIMsgProgress>        mSendProgress;
   nsCOMPtr<nsIMsgSendListener>    mListener;
   nsCOMPtr<nsIMsgStatusFeedback>  mStatusFeedback;
@@ -303,7 +309,7 @@ public:
   //
   nsCOMPtr<nsIFile>         mCopyFile;
   nsCOMPtr<nsIFile>         mCopyFile2;
-  nsRefPtr<nsMsgCopy>       mCopyObj;
+  RefPtr<nsMsgCopy>       mCopyObj;
   bool                      mNeedToPerformSecondFCC;
   bool                      mPerformingSecondFCC;
 
@@ -321,7 +327,7 @@ public:
   char                    *mOriginalHTMLBody;
 
   // The plaintext form of the first attachment, if needed.
-  nsRefPtr<nsMsgAttachmentHandler>  m_plaintext;
+  RefPtr<nsMsgAttachmentHandler>  m_plaintext;
 
   // The multipart/related save object for HTML text.
   nsMsgSendPart           *m_related_part;
@@ -332,7 +338,7 @@ public:
   //
   uint32_t                m_attachment_count;
   uint32_t                m_attachment_pending_count;
-  nsTArray< nsRefPtr<nsMsgAttachmentHandler> >  m_attachments;
+  nsTArray< RefPtr<nsMsgAttachmentHandler> >  m_attachments;
   nsresult                m_status; // in case some attachments fail but not all
 
   uint32_t                mPreloadedAttachmentCount;
@@ -370,12 +376,10 @@ public:
 protected:
   nsCOMPtr<nsIStringBundle> mComposeBundle;
   nsresult GetNotificationCallbacks(nsIInterfaceRequestor** aCallbacks);
-private:
+
   virtual ~nsMsgComposeAndSend();
   nsresult FilterSentMessage();
   nsresult MaybePerformSecondFCC(nsresult aStatus);
-  // will set m_attachment1_body & m_attachment1_body_length;
-  nsresult EnsureLineBreaks(const nsCString &aBody);
 
   // generates a message id for our message, if necessary
   void GenerateMessageId( );

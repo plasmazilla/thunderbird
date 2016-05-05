@@ -3,7 +3,6 @@ usr/share/icedove/chrome        usr/lib/icedove/chrome
 usr/share/icedove/defaults      usr/lib/icedove/defaults
 usr/share/icedove/isp           usr/lib/icedove/isp
 usr/share/icedove/omni.ja       usr/lib/icedove/omni.ja
-usr/share/icedove/searchplugins usr/lib/icedove/searchplugins
 
 /etc/icedove/pref               /usr/share/icedove/defaults/syspref
 

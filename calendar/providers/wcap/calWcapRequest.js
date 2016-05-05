@@ -192,8 +192,8 @@ function calWcapNetworkRequest(url, respFunc, bLogging) {
     this.m_respFunc = respFunc;
     this.m_bLogging = (bLogging === undefined ? true : bLogging);
 }
-const calWcapNetworkRequestClassID = Components.ID("{e3c62b37-83cf-41ec-9872-0af9f952430a}");
-const calWcapNetworkRequestInterfaces = [
+var calWcapNetworkRequestClassID = Components.ID("{e3c62b37-83cf-41ec-9872-0af9f952430a}");
+var calWcapNetworkRequestInterfaces = [
     Components.interfaces.nsIUnicharStreamLoaderObserver,
     Components.interfaces.nsIInterfaceRequestor,
     Components.interfaces.nsIChannelEventSink,
@@ -407,7 +407,12 @@ function issueNetworkRequest(parentRequest, respFunc, url, bLogging) {
     }
     try {
         var uri = Services.io.newURI(url, null, null);
-        var channel = Services.io.newChannelFromURI(uri);
+        var channel = Services.io.newChannelFromURI2(uri,
+                                                     null,
+                                                     Services.scriptSecurityManager.getSystemPrincipal(),
+                                                     null,
+                                                     Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                     Components.interfaces.nsIContentPolicy.TYPE_OTHER);
         netRequest.prepareChannel(channel);
         channel = channel.QueryInterface(Components.interfaces.nsIHttpChannel);
         channel.redirectionLimit = 3;

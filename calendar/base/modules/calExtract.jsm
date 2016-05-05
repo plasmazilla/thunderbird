@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["Extractor"];
+this.EXPORTED_SYMBOLS = ["Extractor"];
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/Preferences.jsm");
@@ -84,7 +84,7 @@ Extractor.prototype = {
     },
 
     checkBundle: function checkBundle(locale) {
-        let path = this.bundleUrl.replace("LOCALE", locale, "g");
+        let path = this.bundleUrl.replace(/LOCALE/g, locale);
         let bundle = Services.strings.createBundle(path);
 
         try {
@@ -125,7 +125,7 @@ Extractor.prototype = {
                 this.fallbackLocale = "en-US";
             }
 
-            path = this.bundleUrl.replace("LOCALE", this.fallbackLocale, "g");
+            path = this.bundleUrl.replace(/LOCALE/g, this.fallbackLocale);
 
             let pref = "calendar.patterns.last.used.languages";
             let lastUsedLangs = Preferences.get(pref, "");
@@ -213,34 +213,34 @@ Extractor.prototype = {
             // very well, possibly because of bug 471799
             if (avgCharCode > 48000 && avgCharCode < 50000) {
                 cal.LOG("[calExtract] Using ko patterns based on charcodes");
-                path = this.bundleUrl.replace("LOCALE", "ko", "g");
+                path = this.bundleUrl.replace(/LOCALE/g, "ko");
             // is it possible to differentiate zh-TW and zh-CN?
             } else if (avgCharCode > 24000 && avgCharCode < 32000) {
                 cal.LOG("[calExtract] Using zh-TW patterns based on charcodes");
-                path = this.bundleUrl.replace("LOCALE", "zh-TW", "g");
+                path = this.bundleUrl.replace(/LOCALE/g, "zh-TW");
             } else if (avgCharCode > 14000 && avgCharCode < 24000) {
                 cal.LOG("[calExtract] Using ja patterns based on charcodes");
-                path = this.bundleUrl.replace("LOCALE", "ja", "g");
+                path = this.bundleUrl.replace(/LOCALE/g, "ja");
             // Bulgarian also looks like that
             } else if (avgCharCode > 1000 && avgCharCode < 1200) {
                 cal.LOG("[calExtract] Using ru patterns based on charcodes");
-                path = this.bundleUrl.replace("LOCALE", "ru", "g");
+                path = this.bundleUrl.replace(/LOCALE/g, "ru");
             // dictionary based
             } else if (most > 0) {
                 cal.LOG("[calExtract] Using " + mostLocale + " patterns based on dictionary");
-                path = this.bundleUrl.replace("LOCALE", mostLocale, "g");
+                path = this.bundleUrl.replace(/LOCALE/g, mostLocale);
             // fallbackLocale matches patterns exactly
             } else if (this.checkBundle(this.fallbackLocale)) {
                 cal.LOG("[calExtract] Falling back to " + this.fallbackLocale);
-                path = this.bundleUrl.replace("LOCALE", this.fallbackLocale, "g");
+                path = this.bundleUrl.replace(/LOCALE/g, this.fallbackLocale);
             // beginning of fallbackLocale matches patterns
             } else if (this.checkBundle(this.fallbackLocale.substring(0, 2))) {
                 this.fallbackLocale = this.fallbackLocale.substring(0, 2);
                 cal.LOG("[calExtract] Falling back to " + this.fallbackLocale);
-                path = this.bundleUrl.replace("LOCALE", this.fallbackLocale, "g");
+                path = this.bundleUrl.replace(/LOCALE/g, this.fallbackLocale);
             } else {
                 cal.LOG("[calExtract] Using en-US");
-                path = this.bundleUrl.replace("LOCALE", "en-US", "g");
+                path = this.bundleUrl.replace(/LOCALE/g, "en-US");
             }
         }
         this.bundle = Services.strings.createBundle(path);
@@ -296,13 +296,13 @@ Extractor.prototype = {
         }
         this.hourlyNumbers += this.numbers[23];
 
-        this.hourlyNumbers = this.hourlyNumbers.replace("|", this.marker, "g");
-        this.dailyNumbers = this.dailyNumbers.replace("|", this.marker, "g");
+        this.hourlyNumbers = this.hourlyNumbers.replace(/\|/g, this.marker);
+        this.dailyNumbers = this.dailyNumbers.replace(/\|/g, this.marker);
 
         for (let i = 0; i < 12; i++) {
             this.months[i] = this.getPatterns("month." + (i + 1));
         }
-        this.allMonths = this.months.join(this.marker).replace("|", this.marker, "g");
+        this.allMonths = this.months.join(this.marker).replace(/\|/g, this.marker);
 
         // time
         this.extractTime("from.noon", "start", 12, 0);
@@ -391,7 +391,7 @@ Extractor.prototype = {
                                                 "(\\d{2,4})" ]);
         let res;
         for (let alt in alts) {
-            let exp = alts[alt].pattern.replace(this.marker, "|", "g");
+            let exp = alts[alt].pattern.split(this.marker).join("|");
             let positions = alts[alt].positions;
             let re = new RegExp(exp, "ig");
 
@@ -403,7 +403,7 @@ Extractor.prototype = {
 
                     if (this.isValidDay(day)) {
                         for (let i = 0; i < 12; i++) {
-                            if (this.months[i].split("|").indexOf(month.toLowerCase()) != -1) {
+                            if (this.months[i].split("|").includes(month.toLowerCase())) {
                                 let rev = this.prefixSuffixStartEnd(res, relation, this.email);
                                 this.guess(year, i + 1, day, null, null,
                                            rev.start, rev.end, rev.pattern, rev.relation, pattern);
@@ -436,7 +436,7 @@ Extractor.prototype = {
                                        "(" + this.allMonths + ")"]);
         let res;
         for (let alt in alts) {
-            let exp = alts[alt].pattern.replace(this.marker, "|", "g");
+            let exp = alts[alt].pattern.split(this.marker).join("|");
             let positions = alts[alt].positions;
             let re = new RegExp(exp, "ig");
 
@@ -447,8 +447,8 @@ Extractor.prototype = {
 
                     if (this.isValidDay(day)) {
                         for (let i = 0; i < 12; i++) {
-                            let ms = this.months[i].unescape().split("|");
-                            if (ms.indexOf(month.toLowerCase()) != -1) {
+                            let ms = this.unescape(this.months[i]).split("|");
+                            if (ms.includes(month.toLowerCase())) {
                                 let date = {year: this.now.getFullYear(), month: i + 1, day: day};
                                 if (this.isPastDate(date, this.now)) {
                                     // find next such date
@@ -517,7 +517,7 @@ Extractor.prototype = {
                                        ["(\\d{1,2}" + this.marker + this.dailyNumbers + ")"]);
         let res;
         for (let alt in alts) {
-            let exp = alts[alt].pattern.replace(this.marker, "|", "g");
+            let exp = alts[alt].pattern.split(this.marker).join("|");
             let re = new RegExp(exp, "ig");
 
             while ((res = re.exec(this.email)) != null) {
@@ -577,7 +577,7 @@ Extractor.prototype = {
                                        ["(\\d{1,2}" + this.marker + this.hourlyNumbers + ")"]);
         let res;
         for (let alt in alts) {
-            let exp = alts[alt].pattern.replace(this.marker, "|", "g");
+            let exp = alts[alt].pattern.split(this.marker).join("|");
             let re = new RegExp(exp, "ig");
 
             while ((res = re.exec(this.email)) != null) {
@@ -607,7 +607,7 @@ Extractor.prototype = {
                                        ["(\\d{1,2}" + this.marker + this.hourlyNumbers + ")"]);
         let res;
         for (let alt in alts) {
-            let exp = alts[alt].pattern.replace(this.marker, "|", "g");
+            let exp = alts[alt].pattern.split(this.marker).join("|");
             let re = new RegExp(exp, "ig");
 
             while ((res = re.exec(this.email)) != null) {
@@ -680,7 +680,7 @@ Extractor.prototype = {
                                        ["(\\d{1,2}" + this.marker + this.dailyNumbers + ")"]);
         let res;
         for (let alt in alts) {
-            let exp = alts[alt].pattern.replace(this.marker, "|", "g");
+            let exp = alts[alt].pattern.split(this.marker).join("|");
             let re = new RegExp(exp, "ig");
 
             while ((res = re.exec(this.email)) != null) {
@@ -727,8 +727,8 @@ Extractor.prototype = {
                 for (let j = 0; j < this.collected.length; j++) {
                     let selection = sel.getRangeAt(i).toString();
 
-                    if (!selection.contains(this.collected[j].str) &&
-                        !title.contains(this.collected[j].str) &&
+                    if (!selection.includes(this.collected[j].str) &&
+                        !title.includes(this.collected[j].str) &&
                         this.collected[j].start != null) { // always keep email date, needed for tasks
                         cal.LOG("[calExtract] Marking " + JSON.stringify(this.collected[j]) + " as notadatetime");
                         this.collected[j].relation = "notadatetime";
@@ -783,7 +783,7 @@ Extractor.prototype = {
     * @return          datetime object for start time
     */
     guessStart: function guessStart(isTask) {
-        let startTimes = this.collected.filter(function(val) val.relation == "start");
+        let startTimes = this.collected.filter(val => val.relation == "start");
         if (startTimes.length == 0) {
             return {};
         }
@@ -793,7 +793,7 @@ Extractor.prototype = {
         }
 
         let guess = {};
-        let wDayInit = startTimes.filter(function(val) val.day != null && val.start === undefined);
+        let wDayInit = startTimes.filter(val => val.day != null && val.start === undefined);
 
         // with tasks we don't try to guess start but assume email date
         if (isTask) {
@@ -805,12 +805,12 @@ Extractor.prototype = {
             return guess;
         }
 
-        let wDay = startTimes.filter(function(val) val.day != null && val.start !== undefined);
-        let wDayNA = wDay.filter(function(val) val.ambiguous === undefined);
+        let wDay = startTimes.filter(val => val.day != null && val.start !== undefined);
+        let wDayNA = wDay.filter(val => val.ambiguous === undefined);
 
-        let wMinute = startTimes.filter(function(val) val.minute != null && val.start !== undefined);
-        let wMinuteNA = wMinute.filter(function(val) val.ambiguous === undefined);
-        let wMinuteInit = startTimes.filter(function(val) val.minute != null && val.start === undefined);
+        let wMinute = startTimes.filter(val => val.minute != null && val.start !== undefined);
+        let wMinuteNA = wMinute.filter(val => val.ambiguous === undefined);
+        let wMinuteInit = startTimes.filter(val => val.minute != null && val.start === undefined);
 
         if (wMinuteNA.length != 0) {
             guess.hour = wMinuteNA[0].hour;
@@ -860,8 +860,8 @@ Extractor.prototype = {
     */
     guessEnd: function guessEnd(start, isTask) {
         let guess = {};
-        let endTimes = this.collected.filter(function(val) val.relation == "end");
-        let durations = this.collected.filter(function(val) val.relation == "duration");
+        let endTimes = this.collected.filter(val => val.relation == "end");
+        let durations = this.collected.filter(val => val.relation == "duration");
         if (endTimes.length == 0 && durations.length == 0) {
             return {};
         } else {
@@ -869,10 +869,10 @@ Extractor.prototype = {
                 cal.LOG("[calExtract] End: " + JSON.stringify(endTimes[val]));
             }
 
-            let wDay = endTimes.filter(function(val) val.day != null);
-            let wDayNA = wDay.filter(function(val) val.ambiguous === undefined);
-            let wMinute = endTimes.filter(function(val) val.minute != null);
-            let wMinuteNA = wMinute.filter(function(val) val.ambiguous === undefined);
+            let wDay = endTimes.filter(val => val.day != null);
+            let wDayNA = wDay.filter(val => val.ambiguous === undefined);
+            let wMinute = endTimes.filter(val => val.minute != null);
+            let wMinuteNA = wMinute.filter(val => val.ambiguous === undefined);
 
             // first set non-ambiguous dates
             let pos = isTask == true ? 0 : wDayNA.length - 1;
@@ -1065,7 +1065,7 @@ Extractor.prototype = {
                 let pattern = vals[val];
                 let cnt = 1;
                 for (let replaceable in replaceables) {
-                    pattern = pattern.replace("%" + cnt + "$S", replaceables[cnt - 1], "g");
+                    pattern = pattern.split("#" + cnt).join(replaceables[cnt - 1]);
                     cnt++;
                 }
                 patterns.push(pattern);
@@ -1088,10 +1088,10 @@ Extractor.prototype = {
 
     getPositionsFor: function getPositionsFor(s, name, count) {
         let positions = new Array();
-        let re = /\%(\d)\$S/g;
+        let re = /#(\d)/g;
         let match;
         let i = 0;
-        while (match = re.exec(s)) {
+        while ((match = re.exec(s))) {
             i++;
             positions[parseInt(match[1], 10)] = i;
         }
@@ -1100,7 +1100,7 @@ Extractor.prototype = {
         for (i = 1; i <= count; i++) {
             if (positions[i] === undefined) {
                 Components.utils.reportError("[calExtract] Faulty extraction pattern " + name +
-                                             ", missing parameter %" + i + "$S");
+                                             ", missing parameter #" + i);
             }
         }
         return positions;
@@ -1110,7 +1110,7 @@ Extractor.prototype = {
         // remove whitespace around | if present
         let value = pattern.replace(/\s*\|\s*/g, "|");
         // allow matching for patterns with missing or excessive whitespace
-        return value.sanitize().replace(/\s+/g, "\\s*");
+        return this.sanitize(value).replace(/\s+/g, "\\s*");
     },
 
     checkForFaultyPatterns: function checkForFaultyPatterns(pattern, name) {
@@ -1252,7 +1252,7 @@ Extractor.prototype = {
         if (isNaN(r)) {
             for (let i = 0; i <= 31; i++) {
                 let ns = numbers[i].split("|");
-                if (ns.indexOf(number.toLowerCase()) != -1) {
+                if (ns.includes(number.toLowerCase())) {
                     return i;
                 }
             }
@@ -1272,15 +1272,13 @@ Extractor.prototype = {
             guess.relation = "notadatetime";
         }
         this.collected.push(guess);
+    },
+
+    sanitize: function(str) {
+        return str.replace(/[-[\]{}()*+?.,\\^$]/g, "\\$&");
+    },
+
+    unescape: function(str) {
+        return str.replace(/\\([\.])/g, "$1");
     }
 };
-
-String.prototype.sanitize = function() {
-    return this.replace(/[-[\]{}()*+?.,\\^#]/g, "\\$&")
-               .replace(/([^\d])([$])/g, "$1\\$2");
-}
-
-String.prototype.unescape = function() {
-    let res = this.replace(/\\([\.])/g, "$1");
-    return res;
-}

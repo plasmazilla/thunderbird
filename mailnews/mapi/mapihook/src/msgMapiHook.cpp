@@ -45,6 +45,7 @@
 #include "nsIArray.h"
 #include "nsArrayUtils.h"
 #include "nsEmbedCID.h"
+#include "mozilla/Logging.h"
 
 extern PRLogModuleInfo *MAPI;
 
@@ -412,7 +413,7 @@ nsresult nsMapiHook::PopulateCompFields(lpnsMapiMessage aMessage,
     }
   }
 
-  PR_LOG(MAPI, PR_LOG_DEBUG, ("to: %s cc: %s bcc: %s \n", NS_ConvertUTF16toUTF8(To).get(), NS_ConvertUTF16toUTF8(Cc).get(), NS_ConvertUTF16toUTF8(Bcc).get()));
+  MOZ_LOG(MAPI, mozilla::LogLevel::Debug, ("to: %s cc: %s bcc: %s \n", NS_ConvertUTF16toUTF8(To).get(), NS_ConvertUTF16toUTF8(Cc).get(), NS_ConvertUTF16toUTF8(Bcc).get()));
   // set To, Cc, Bcc
   aCompFields->SetTo (To) ;
   aCompFields->SetCc (Cc) ;
@@ -468,7 +469,7 @@ nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, int32_t 
 
             bool bExist ;
             rv = pFile->Exists(&bExist) ;
-            PR_LOG(MAPI, PR_LOG_DEBUG, ("nsMapiHook::HandleAttachments: filename: %s path: %s exists = %s \n", (const char*)aFiles[i].lpszFileName, (const char*)aFiles[i].lpszPathName, bExist ? "true" : "false"));
+            MOZ_LOG(MAPI, mozilla::LogLevel::Debug, ("nsMapiHook::HandleAttachments: filename: %s path: %s exists = %s \n", (const char*)aFiles[i].lpszFileName, (const char*)aFiles[i].lpszPathName, bExist ? "true" : "false"));
             if (NS_FAILED(rv) || (!bExist) ) return NS_ERROR_FILE_TARGET_DOES_NOT_EXIST ;
 
             //Temp Directory
@@ -547,7 +548,7 @@ nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, int32_t 
             // add the attachment
             rv = aCompFields->AddAttachment (attachment);
             if (NS_FAILED(rv))
-              PR_LOG(MAPI, PR_LOG_DEBUG, ("nsMapiHook::HandleAttachments: AddAttachment rv =  %lx\n", rv));
+              MOZ_LOG(MAPI, mozilla::LogLevel::Debug, ("nsMapiHook::HandleAttachments: AddAttachment rv =  %lx\n", rv));
         }
     }
     return rv ;
@@ -611,7 +612,7 @@ nsresult nsMapiHook::PopulateCompFieldsWithConversion(lpnsMapiMessage aMessage,
   aCompFields->SetCc (Cc) ;
   aCompFields->SetBcc (Bcc) ;
 
-  PR_LOG(MAPI, PR_LOG_DEBUG, ("to: %s cc: %s bcc: %s \n", NS_ConvertUTF16toUTF8(To).get(), NS_ConvertUTF16toUTF8(Cc).get(), NS_ConvertUTF16toUTF8(Bcc).get()));
+  MOZ_LOG(MAPI, mozilla::LogLevel::Debug, ("to: %s cc: %s bcc: %s \n", NS_ConvertUTF16toUTF8(To).get(), NS_ConvertUTF16toUTF8(Cc).get(), NS_ConvertUTF16toUTF8(Bcc).get()));
 
   nsAutoCString platformCharSet;
   // set subject
@@ -658,27 +659,17 @@ nsresult nsMapiHook::PopulateCompFieldsWithConversion(lpnsMapiMessage aMessage,
 
 // this is used to populate the docs as attachments in the Comp fields for Send Documents
 nsresult nsMapiHook::PopulateCompFieldsForSendDocs(nsIMsgCompFields * aCompFields, ULONG aFlags,
-                            char16_t * aDelimChar, char16_t * aFilePaths)
+                                                   LPTSTR aDelimChar, LPTSTR aFilePaths)
 {
   nsAutoString strDelimChars ;
   nsString strFilePaths;
   nsresult rv = NS_OK ;
   bool bExist ;
 
-  if (aFlags & MAPI_UNICODE)
-  {
-    if (aDelimChar)
-      strDelimChars.Assign (aDelimChar);
-    if (aFilePaths)
-      strFilePaths.Assign (aFilePaths);
-  }
-  else
-  {
-    if (aDelimChar)
-      strDelimChars.Assign(aDelimChar);
-    if (aFilePaths)
-      strFilePaths.Assign ( aFilePaths);
-  }
+  if (aDelimChar)
+    strDelimChars.Assign(aDelimChar);
+  if (aFilePaths)
+    strFilePaths.Assign(aFilePaths);
 
   // check for comma in filename
   if (strDelimChars.FindChar(',') == kNotFound)  // if comma is not in the delimiter specified by user

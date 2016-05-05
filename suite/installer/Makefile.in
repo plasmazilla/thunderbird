@@ -2,13 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DEPTH		= @DEPTH@
-topsrcdir	= @top_srcdir@
-srcdir		= @srcdir@
-VPATH		= @srcdir@
-
-include $(DEPTH)/config/autoconf.mk
-
 STANDALONE_MAKEFILE := 1
 
 include $(topsrcdir)/config/rules.mk
@@ -31,16 +24,12 @@ MOZ_LOCALIZED_PKG_LIST = \
 	$(AB_CD) \
 	$(NULL)
 
-DEFINES += -DAB_CD=$(AB_CD) -DMOZ_APP_NAME=$(MOZ_APP_NAME) -DPREF_DIR=$(PREF_DIR)
+DEFINES += -DMOZ_APP_NAME=$(MOZ_APP_NAME) -DPREF_DIR=$(PREF_DIR)
 
 DEFINES += -DJAREXT=
 
 ifdef ENABLE_TESTS
 DEFINES += -DENABLE_TESTS=1
-endif
-
-ifdef LIBXUL_SDK
-DEFINES += -DLIBXUL_SDK=1
 endif
 
 ifdef MOZ_ANGLE_RENDERER
@@ -61,8 +50,11 @@ ifdef MOZ_ENABLE_GNOME_COMPONENT
 DEFINES += -DMOZ_ENABLE_GNOME_COMPONENT=1
 endif
 
-ifeq (gtk2, $(MOZ_WIDGET_TOOLKIT))
-DEFINES += -DMOZ_GTK2=1
+ifdef MOZ_WIDGET_GTK
+DEFINES += -DMOZ_GTK=1
+ifdef MOZ_ENABLE_GTK3
+DEFINES += -DMOZ_GTK3=1
+endif
 endif
 
 # Check whether this build is an alpha or nightly:
@@ -121,6 +113,10 @@ endif
 
 DEFINES += -DMOZ_CHILD_PROCESS_NAME=$(MOZ_CHILD_PROCESS_NAME)
 
+ifdef MAKENSISU
+DEFINES += -DHAVE_MAKENSISU=1
+endif
+
 ifdef MOZ_PKG_MANIFEST_P
 MOZ_PKG_MANIFEST = package-manifest
 
@@ -145,9 +141,7 @@ NON_OMNIJAR_FILES = \
 	defaults/profile/chrome/userContent-example.css \
 	$(NULL)
 
-ifndef LIBXUL_SDK
 INSTALL_SDK = 1
-endif
  
 include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/packager.mk
 
@@ -166,8 +160,13 @@ RESPATH = $(BINPATH)
 endif
 DEFINES += -DRESPATH=$(RESPATH)
 
-AB = $(firstword $(subst -, ,$(AB_CD)))
-DEFINES += -DAB=$(AB)
+LPROJ_ROOT = $(firstword $(subst -, ,$(AB_CD)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+ifeq (zh-TW,$(AB_CD))
+LPROJ_ROOT := $(subst -,_,$(AB_CD))
+endif
+endif
+DEFINES += -DLPROJ_ROOT=$(LPROJ_ROOT)
 
 DEFINES += -DMOZ_ICU_VERSION=$(MOZ_ICU_VERSION)
 ifdef MOZ_NATIVE_ICU

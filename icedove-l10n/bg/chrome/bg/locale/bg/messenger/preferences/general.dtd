@@ -1,0 +1,39 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY messengerStartPage.label         "Начална страница на &brandShortName;">
+<!ENTITY enableStartPage.label            "При стартиране на &brandShortName; се показва началната страница">
+<!ENTITY enableStartPage.accesskey        "с">
+<!ENTITY location.label                   "Адрес:">
+<!ENTITY location1.accesskey               "д">
+<!ENTITY useDefault.label                 "Възстановяване">
+<!ENTITY useDefault.accesskey             "В">
+
+<!ENTITY changeDockIconOptions.label      "Промяна на настройките за иконката на приложението">
+<!ENTITY dockOptions.label                "Настройки на иконката…">
+<!ENTITY dockOptions.accesskey            "и">
+
+<!ENTITY newMessagesArrive.label          "При пристигане на ново писмо:">
+<!ENTITY playSound.label                  "Изсвирва звук">
+<!ENTITY playSound1.accesskey              "у">
+<!ENTITY showAnimatedAlert.label          "Показване на известие">
+<!ENTITY showAnimatedAlert.accesskey      "и">
+<!ENTITY customizeMailAlert.label         "Нагласяване…">
+<!ENTITY customizeMailAlert.accesskey     "Н">
+
+<!ENTITY showTrayIcon.label               "Показване на tray иконка">
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY play.label                       "Прослушва">
+<!ENTITY play.accesskey                   "ш">
+<!ENTITY systemsound.label                "Стандартен системен звук за ново писмо">
+<!ENTITY systemsoundMac.label             "Предупредителен системен звук">
+<!ENTITY systemsoundMac.accesskey         "м">
+<!ENTITY systemsound.accesskey            "м">
+<!ENTITY customsound.label                "Използване на следния звуков файл">
+<!ENTITY customsound.accesskey            "И">
+<!ENTITY browse.label                     "Избор…">
+<!ENTITY browse.accesskey                 "р">
+
+<!ENTITY defaultSearchEngine.label        "Търсачка по подразбиране">

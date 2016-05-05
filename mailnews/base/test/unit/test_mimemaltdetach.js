@@ -76,9 +76,9 @@ function testDetach()
   let msgHdr = mailTestUtils.firstMsgHdr(localAccountUtils.inboxFolder);
 
   let messageContent = getContentFromMessage(msgHdr);
-  do_check_true(messageContent.contains("AttachmentDetached"));
+  do_check_true(messageContent.includes("AttachmentDetached"));
   // Make sure the body survived the detach.
-  do_check_true(messageContent.contains("body hello"));
+  do_check_true(messageContent.includes("body hello"));
 }
 
 function SaveAttachmentCallback() {
@@ -91,7 +91,7 @@ SaveAttachmentCallback.prototype = {
     async_driver();
   }
 }
-let gCallbackObject = new SaveAttachmentCallback();
+var gCallbackObject = new SaveAttachmentCallback();
 
 function run_test()
 {

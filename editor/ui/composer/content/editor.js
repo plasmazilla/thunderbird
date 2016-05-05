@@ -492,6 +492,7 @@ function EditorResetFontAndColorAttributes()
     // clears the typing state to discontinue all inline styles
     editor.removeAllInlineProperties();
     document.getElementById("cmd_fontFace").setAttribute("state", "");
+    ClearUsedFonts();
     gColorObj.LastTextColor = "";
     gColorObj.LastBackgroundColor = "";
     gColorObj.LastHighlightColor = "";
@@ -675,6 +676,13 @@ function onParagraphFormatChange(paraMenuList, commandID)
   }
 }
 
+/**
+ * Selects the current font face in the menulist.
+ *
+ * @param fontFaceMenuList  The menulist element containing the list of fonts.
+ * @param commandID         The commandID which holds the current font name
+ *                          in its "state" attribute.
+ */
 function onFontFaceChange(fontFaceMenuList, commandID)
 {
   var commandNode = document.getElementById(commandID);
@@ -698,22 +706,72 @@ function onFontFaceChange(fontFaceMenuList, commandID)
     fontFaceMenuList.selectedIndex = 1;
     break;
   default:
-    var menuPopup = document.getElementById("FontFacePopup");
-    var menuItems = menuPopup.childNodes;
+    let menuPopup = fontFaceMenuList.menupopup;
+    let menuItems = menuPopup.childNodes;
 
     // Bug 1139524: Normalise before we compare: Make it lower case
     // and replace ", " with "," so that entries like
     // "Helvetica, Arial, sans-serif" are always recognised correctly
-    var stateToLower = state.toLowerCase().replace(/, /g, ",");
+    let stateToLower = state.toLowerCase().replace(/, /g, ",");
+    let foundFont = false;
+    let notUsedFont = false;
+    let usedFontsSep = menuPopup.querySelector("menuseparator.fontFaceMenuAfterUsedFonts");
 
-    for (var i=0; i < menuItems.length; i++)
+    for (let i = 0; i < menuItems.length; i++)
     {
-      var menuItem = menuItems.item(i);
-      if (menuItem.getAttribute("label") && ("value" in menuItem &&
-          menuItem.value.toLowerCase().replace(/, /g, ",") == stateToLower))
-      {
-        fontFaceMenuList.selectedItem = menuItem;
-        break;
+      let menuItem = menuItems.item(i);
+      if (menuItem.hasAttribute("label") && ("value" in menuItem)) {
+        // The element seems to represent a font <menuitem>.
+        if (menuItem.getAttribute("value_parsed") == stateToLower) {
+          // This menuitem contains the font we are looking for.
+          if (notUsedFont) {
+            // Copy it into the group of used fonts if it isn't there already.
+            let defaultFontsSep = menuPopup.querySelector("menuseparator.fontFaceMenuAfterDefaultFonts");
+            let copyItem = menuItem.cloneNode(true);
+            menuPopup.insertBefore(copyItem, defaultFontsSep.nextSibling);
+            usedFontsSep.hidden = false;
+            menuItem = copyItem;
+          }
+          fontFaceMenuList.selectedItem = menuItem;
+          foundFont = true;
+          break;
+        }
+      } else {
+        // Some other element type.
+        if (menuItem == usedFontsSep)
+          notUsedFont = true;
+      }
+    }
+
+    if (!foundFont) {
+      // The text editor encountered a font that is not installed on this system,
+      // so add it to the font menu now.
+      let fontLabel = GetFormattedString("NotInstalled", state);
+      let menuItem = createFontFaceMenuitem(fontLabel, state, menuPopup);
+      usedFontsSep.hidden = false;
+      menuPopup.insertBefore(menuItem, usedFontsSep);
+      fontFaceMenuList.selectedItem = menuItem;
+    }
+  }
+}
+
+/**
+ * Clears the used fonts list from all the font face menulists.
+ */
+function ClearUsedFonts()
+{
+  let userFontSeps = document.querySelectorAll("menuseparator.fontFaceMenuAfterDefaultFonts");
+  for (let userFontSep of userFontSeps) {
+    let parentList = userFontSep.parentNode;
+    while (true) {
+      let nextNode = userFontSep.nextSibling;
+      if (nextNode.tagName != "menuseparator") {
+        nextNode.remove();
+      } else {
+        if (nextNode.classList.contains("fontFaceMenuAfterUsedFonts")) {
+          nextNode.hidden = true;
+          break;
+        }
       }
     }
   }
@@ -801,37 +859,41 @@ function initFontFaceMenu(menuPopup)
     var children = menuPopup.childNodes;
     if (!children) return;
 
-    var firstHas = { value: false };
-    var anyHas = { value: false };
-    var allHas = { value: false };
+    var mixed = { value: false };
+    var state = GetCurrentEditor().getFontFaceState(mixed);
+    if (!mixed.value)
+    {
+      switch (state)
+      {
+      case "":
+      case "serif":
+      case "sans-serif":
+        // Generic variable width.
+        state = "";
+        break;
+      case "tt":
+      case "monospace":
+        // Generic fixed width.
+        state = "tt";
+        break;
+      default:
+        state = state.toLowerCase().replace(/, /g, ","); // bug 1139524
+      }
+    }
 
-    // we need to set or clear the checkmark for each menu item since the selection
-    // may be in a new location from where it was when the menu was previously opened
-
-    // Fixed width (second menu item) is special case: old TT ("teletype") attribute
-    EditorGetTextProperty("tt", "", "", firstHas, anyHas, allHas);
-    children[1].setAttribute("checked", allHas.value);
-
-    if (!anyHas.value)
-      EditorGetTextProperty("font", "face", "", firstHas, anyHas, allHas);
-
-    children[0].setAttribute("checked", !anyHas.value);
-
-    // Skip over default, TT, and separator
-    for (var i = 3; i < children.length; i++)
+    for (var i = 0; i < children.length; i++)
     {
       var menuItem = children[i];
-      var faceType = menuItem.getAttribute("value");
-
-      if (faceType)
+      if (menuItem.localName == "menuitem")
       {
-        EditorGetTextProperty("font", "face", faceType, firstHas, anyHas, allHas);
-
-        // Check the menuitem only if all of selection has the face
-        if (allHas.value)
+        if (!mixed.value)
         {
-          menuItem.setAttribute("checked", "true");
-          break;
+          var faceType = menuItem.getAttribute("value").toLowerCase().replace(/, /g, ",");
+          if (faceType == state)
+          {
+            menuItem.setAttribute("checked", "true");
+            break;
+          }
         }
 
         // in case none match, make sure we've cleared the checkmark
@@ -841,7 +903,7 @@ function initFontFaceMenu(menuPopup)
   }
 }
 
-const kFixedFontFaceMenuItems = 7; // number of fixed font face menuitems
+const kFixedFontFaceMenuItems = 8; // number of fixed font face menuitems
 
 function initLocalFontFaceMenu(menuPopup)
 {
@@ -857,14 +919,16 @@ function initLocalFontFaceMenu(menuPopup)
     }
     catch(e) { }
   }
-  
-  var useRadioMenuitems = (menuPopup.parentNode.localName == "menu"); // don't do this for menulists  
-  if (menuPopup.childNodes.length == kFixedFontFaceMenuItems) 
+
+  // Don't use radios for menulists.
+  let useRadioMenuitems = (menuPopup.parentNode.localName == "menu");
+  menuPopup.setAttribute("useRadios", useRadioMenuitems);
+  if (menuPopup.childNodes.length == kFixedFontFaceMenuItems)
   {
     if (gLocalFonts.length == 0) {
-      menuPopup.childNodes[kFixedFontFaceMenuItems - 1].hidden = true;
+      menuPopup.querySelector(".fontFaceMenuAfterDefaultFonts").hidden = true;
     }
-    for (var i = 0; i < gLocalFonts.length; ++i)
+    for (let i = 0; i < gLocalFonts.length; ++i)
     {
       // Remove Linux system generic fonts that collide with CSS generic fonts.
       if (gLocalFonts[i] != "" &&
@@ -872,84 +936,149 @@ function initLocalFontFaceMenu(menuPopup)
           gLocalFonts[i] != "sans-serif" &&
           gLocalFonts[i] != "monospace")
       {
-        var itemNode = document.createElementNS(XUL_NS, "menuitem");
-        itemNode.setAttribute("label", gLocalFonts[i]);
-        itemNode.setAttribute("value", gLocalFonts[i]);
-        if (useRadioMenuitems) {
-          itemNode.setAttribute("type", "radio");
-          itemNode.setAttribute("name", "2");
-          itemNode.setAttribute("observes", "cmd_renderedHTMLEnabler");
-        }
+        let itemNode = createFontFaceMenuitem(gLocalFonts[i], gLocalFonts[i], menuPopup);
         menuPopup.appendChild(itemNode);
       }
     }
   }
 }
- 
 
-function initFontSizeMenu(menuPopup)
+/**
+ * Creates a menuitem element for the font faces menulist. Returns the menuitem
+ * but does not add it automatically to the menupopup.
+ *
+ * @param aFontLabel  Label to be displayed for the item
+ * @param aFontName   The font face value to be used for the item.
+ *                    Will be used in <font face="value"> in the edited document.
+ * @param aMenuPopup  The menupopup for which this menuitem is created.
+ */
+function createFontFaceMenuitem(aFontLabel, aFontName, aMenuPopup)
+{
+  let itemNode = document.createElementNS(XUL_NS, "menuitem");
+  itemNode.setAttribute("label", aFontLabel);
+  itemNode.setAttribute("value", aFontName);
+  itemNode.setAttribute("value_parsed", aFontName.toLowerCase().replace(/, /g, ","));
+  if (aMenuPopup.getAttribute("useRadios") == "true") {
+    itemNode.setAttribute("type", "radio");
+    itemNode.setAttribute("observes", "cmd_renderedHTMLEnabler");
+  }
+  return itemNode;
+}
+
+/**
+ * Helper function
+ */
+function getFontSizeIndex()
+{
+  var firstHas = { value: false };
+  var anyHas = { value: false };
+  var allHas = { value: false };
+
+  var fontSize = EditorGetTextProperty("font", "size", null, firstHas, anyHas, allHas);
+
+  // If the element has no size attribute and no size was found at all,
+  // we assume "medium" size. This is highly problematic since
+  // CSS sizes are not recognised and will show as "medium" as well.
+  // Currently we can't distinguish between "no attribute" which
+  // can imply "medium" and "CSS attribute present" which should not
+  // imply "medium".
+  if (!anyHas.value)
+    return 2;
+
+  // Mixed selection.
+  if (!allHas.value)
+    return -1;
+
+  switch (fontSize)
+  {
+    case "-3":
+    case "-2":
+    case "0":
+    case "1":
+      // x-small.
+      return 0;
+    case "-1":
+    case "2":
+      // small.
+      return 1;
+    case "3":
+      // medium.
+      return 2;
+    case "+1":
+    case "4":
+      // large.
+      return 3;
+    case "+2":
+    case "5":
+      // x-large.
+      return 4;
+    case "+3":
+    case "+4":
+    case "6":
+    case "7":
+      // xx-large.
+      return 5;
+  }
+
+  // We shouldn't get here. All the selection has a value we don't understand.
+  return -1;
+}
+
+function initFontSizeMenu(menuPopup, fullMenu)
 {
   if (menuPopup)
   {
     var children = menuPopup.childNodes;
-    if (!children) return;
+    if (!children)
+      return;
 
+    // Fixed size items start after menu separator depending on whether it is
+    // a full menu.
+    var menuIndex = fullMenu ? 3 : 0;
+
+    var setIndex = getFontSizeIndex();
+    if (setIndex >= 0)
+    {
+      children[menuIndex + setIndex].setAttribute("checked", true);
+    }
+    else
+    {
+      // In case of mixed, clear all items.
+      for (var i = menuIndex; i < children.length; i++) {
+        children[i].setAttribute("checked", false);
+      }
+    }
+
+    // Some configurations might not have the "small/big" indicator as
+    // last item. If there is no indicator, we are done.
+    if (!menuPopup.lastChild.id.includes("smallBigInfo"))
+      return;
+
+    // While it would be better to show the number of levels,
+    // at least this tells user if either of them are set.
     var firstHas = { value: false };
     var anyHas = { value: false };
     var allHas = { value: false };
 
-    var sizeWasFound = false;
+    // Show "small"/"big" indicator.
+    var htmlInfo = "";
+    EditorGetTextProperty("small", "", "", firstHas, anyHas, allHas);
+    if (anyHas.value)
+      htmlInfo = "<small>";
+    EditorGetTextProperty("big", "", "", firstHas, anyHas, allHas);
+    if (anyHas.value)
+      htmlInfo += "<big>";
 
-    // we need to set or clear the checkmark for each menu item since the selection
-    // may be in a new location from where it was when the menu was previously opened
-
-    // First 2 items add <small> and <big> tags
-    // While it would be better to show the number of levels,
-    //  at least this tells user if either of them are set
-    var menuItem = children[0];
-    if (menuItem)
+    if (htmlInfo)
     {
-      EditorGetTextProperty("small", "", "", firstHas, anyHas, allHas);
-      menuItem.setAttribute("checked", allHas.value);
-      sizeWasFound = anyHas.value;
+      menuPopup.lastChild.hidden = false;
+      menuPopup.lastChild.setAttribute("label", "HTML: " + htmlInfo);
+      menuPopup.lastChild.setAttribute("checked", true);
     }
-
-    menuItem = children[1];
-    if (menuItem)
+    else
     {
-      EditorGetTextProperty("big", "", "", firstHas, anyHas, allHas);
-      menuItem.setAttribute("checked", allHas.value);
-      sizeWasFound |= anyHas.value;
+      menuPopup.lastChild.hidden = true;
     }
-
-    // Fixed size items start after menu separator
-    var menuIndex = 3;
-    // Index of the medium (default) item
-    var mediumIndex = 5;
-
-    // Scan through all supported "font size" attribute values
-    for (var i = -2; i <= 3; i++)
-    {
-      menuItem = children[menuIndex];
-
-      // Skip over medium since it'll be set below.
-      // If font size=0 is actually set, we'll toggle it off below if
-      // we enter this loop in this case.
-      if (menuItem && (i != 0))
-      {
-        var sizeString = (i <= 0) ? String(i) : ("+" + String(i));
-        EditorGetTextProperty("font", "size", sizeString, firstHas, anyHas, allHas);
-        // Check the item only if all of selection has the size...
-        menuItem.setAttribute("checked", allHas.value);
-        // ...but remember if ANY of of selection had size set
-        sizeWasFound |= anyHas.value;
-      }
-      menuIndex++;
-    }
-
-    // if no size was found, then check default (medium)
-    // note that no item is checked in the case of "mixed" selection
-    children[mediumIndex].setAttribute("checked", !sizeWasFound);
   }
 }
 

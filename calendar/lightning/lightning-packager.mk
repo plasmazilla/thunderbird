@@ -31,6 +31,11 @@ UNIVERSAL_PATH=
 endif
 
 _ABS_DIST := $(abspath $(DIST))
+XPI_STAGE_PATH = $(DIST)/$(UNIVERSAL_PATH)xpi-stage
+_ABS_XPI_STAGE_PATH = $(_ABS_DIST)/$(UNIVERSAL_PATH)xpi-stage
+ENUS_PKGNAME=$(subst .$(AB_CD).,.en-US.,$(XPI_PKGNAME))
+XPI_ZIP_IN=$(_ABS_XPI_STAGE_PATH)/$(ENUS_PKGNAME).xpi
+
 
 # This variable is to allow the wget-en-US target to know which ftp server to download from
 ifndef EN_US_BINARY_URL
@@ -41,16 +46,20 @@ ifdef DOWNLOAD_HOST
 BUILD_NR=$(shell echo $(POST_UPLOAD_CMD) | sed -n -e 's/.*-n \([0-9]*\).*/\1/p')
 CANDIDATE_NR=$(if $(LIGHTNING_VERSION),$(LIGHTNING_VERSION),$(XPI_VERSION))
 EN_US_BINARY_URL=http://$(DOWNLOAD_HOST)/pub/calendar/lightning/candidates/$(CANDIDATE_NR)-candidates/build$(BUILD_NR)/$(MOZ_PKG_PLATFORM)
+endif
+endif
+
+# Check if EN_US_BINARY_URL has finally been set
+ifdef EN_US_BINARY_URL
+# If so, we are expected to unpack when the language pack is created
+ensure-stage-dir: wget-en-US unpack
 else
-EN_US_BINARY_URL = $(error You must set EN_US_BINARY_URL)
+# If not, use the existing lightning from xpi-stage, or warn that the var is not set.
+ensure-stage-dir:
+ifeq (,$(wildcard $(XPI_STAGE_PATH)/$(XPI_NAME)/))
+	$(error You must set EN_US_BINARY_URL)
 endif
 endif
-
-
-XPI_STAGE_PATH = $(DIST)/$(UNIVERSAL_PATH)xpi-stage
-_ABS_XPI_STAGE_PATH = $(_ABS_DIST)/$(UNIVERSAL_PATH)xpi-stage
-ENUS_PKGNAME=$(subst .$(AB_CD).,.en-US.,$(XPI_PKGNAME))
-XPI_ZIP_IN=$(_ABS_XPI_STAGE_PATH)/$(ENUS_PKGNAME).xpi
 
 $(XPI_STAGE_PATH):
 	mkdir -p $@
@@ -74,7 +83,6 @@ wget-en-US: $(XPI_STAGE_PATH)
 	(cd $(XPI_STAGE_PATH) && $(WGET) -nv -N $(FINAL_BINARY_URL)/$(ENUS_PKGNAME).xpi)
 	@echo "Downloaded $(FINAL_BINARY_URL)/$(ENUS_PKGNAME) to $(XPI_ZIP_IN)"
 
-ensure-stage-dir: $(if $(wildcard $(XPI_STAGE_PATH)/$(XPI_NAME)/),,wget-en-US unpack)
 
 # We're unpacking directly into FINAL_TARGET, this keeps code to do manual
 # repacks cleaner.
@@ -156,15 +164,15 @@ repack-process-extrafiles:
 
 # When repackaging Lightning from the builder, platform.ini is not yet created.
 # Recreate it from the app.ini bundled with the downloaded xpi.
-$(LIBXUL_DIST)/bin/platform.ini:
+$(DIST)/bin/platform.ini:
 	mkdir -p $(@D)
-	echo "[Build]" >> $(LIBXUL_DIST)/bin/platform.ini
-	echo "Milestone=$(call print_ltnconfig,Gecko,MaxVersion)" >> $(LIBXUL_DIST)/bin/platform.ini
-	echo "SourceStamp=$(call print_ltnconfig,Build,SourceStamp)" >> $(LIBXUL_DIST)/bin/platform.ini
-	echo "SourceRepository=$(call print_ltnconfig,Build,SourceRepository)" >> $(LIBXUL_DIST)/bin/platform.ini
-	echo "BuildID=$(call print_ltnconfig,App,BuildID)" >> $(LIBXUL_DIST)/bin/platform.ini
+	echo "[Build]" >> $(DIST)/bin/platform.ini
+	echo "Milestone=$(call print_ltnconfig,Gecko,MaxVersion)" >> $(DIST)/bin/platform.ini
+	echo "SourceStamp=$(call print_ltnconfig,Build,SourceStamp)" >> $(DIST)/bin/platform.ini
+	echo "SourceRepository=$(call print_ltnconfig,Build,SourceRepository)" >> $(DIST)/bin/platform.ini
+	echo "BuildID=$(call print_ltnconfig,App,BuildID)" >> $(DIST)/bin/platform.ini
 
-recreate-platformini: $(LIBXUL_DIST)/bin/platform.ini
+recreate-platformini: $(DIST)/bin/platform.ini
 
 
 # Lightning uses Thunderbird's build machinery, so we need to hack the post
@@ -174,6 +182,7 @@ upload-%: LTN_UPLOAD_CMD := $(patsubst $(THUNDERBIRD_VERSION)%,$(LIGHTNING_VERSI
 upload-%: stage_upload
 	POST_UPLOAD_CMD="$(LTN_UPLOAD_CMD)" \
 	  $(PYTHON) $(MOZILLA_DIR)/build/upload.py --base-path $(DIST) \
+	  --properties-file $(DIST)/$(XPI_NAME)_build_properties.json \
 	  "$(DIST)/$(MOZ_PKG_PLATFORM)/$(XPI_PKGNAME).xpi"
 
 stage_upload:

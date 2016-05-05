@@ -9,7 +9,7 @@ have a fixed location for extensions that build against it.
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/mozilla/config/baseconfig.mk b/mozilla/config/baseconfig.mk
-index dd4af0d..d9f5693 100644
+index 86920aa..bf083d1 100644
 --- a/mozilla/config/baseconfig.mk
 +++ b/mozilla/config/baseconfig.mk
 @@ -2,10 +2,10 @@
@@ -24,6 +24,6 @@ index dd4af0d..d9f5693 100644
 +idldir = $(datadir)/idl/$(MOZ_APP_NAME)
 +installdir = $(libdir)/$(MOZ_APP_NAME)
 +sdkdir = $(libdir)/$(MOZ_APP_NAME)-devel
- ifndef TOP_DIST
- TOP_DIST = dist
- endif
+ ifeq (.,$(DEPTH))
+ DIST = dist
+ else

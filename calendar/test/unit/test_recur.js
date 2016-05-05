@@ -38,7 +38,7 @@ function test_rules() {
 
         // Check number of items
         dump("Expected " + expected.length + " occurrences\n");
-        dump("Got: " + recdates.map(function(x) x.toString()) + "\n");
+        dump("Got: " + recdates.map(x => x.toString()) + "\n");
         //equal(recdates.length, expected.length);
         let fmt = cal.getDateFormatter();
 
@@ -323,6 +323,56 @@ function test_rules() {
                 "20150608T080000Z", "20150701T080000Z", "20150713T080000Z"],
                false);
 
+    // Bug 1146500 - Monthly recurrence, every MO and FR when are odd days starting from the 1st of March.
+    // Check the first occurrence when we have BYDAY along with BYMONTHDAY.
+    check_recur(createEventFromIcalString("BEGIN:VCALENDAR\nBEGIN:VEVENT\n" +
+                                         "DESCRIPTION:Monthly recurrence, every MO and FR when are odd days starting from the 1st of March\n" +
+                                         "RRULE:FREQ=MONTHLY;BYDAY=MO,FR;BYMONTHDAY=1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31;COUNT=4\n" +
+                                         "DTSTART:20150301T080000Z\n" +
+                                         "DTEND:20150301T090000Z\n" +
+                                         "END:VEVENT\nEND:VCALENDAR\n"),
+               ["20150301T080000Z",
+                "20150309T080000Z", "20150313T080000Z", "20150323T080000Z", "20150327T080000Z"],
+               false);
+
+    // Bug 1146500 - Monthly recurrence, every MO and FR when are odd days starting from the 1st of April.
+    // Check the first occurrence when we have BYDAY along with BYMONTHDAY.
+    check_recur(createEventFromIcalString("BEGIN:VCALENDAR\nBEGIN:VEVENT\n" +
+                                         "DESCRIPTION:Monthly recurrence, every MO and FR when are odd days starting from the 1st of March\n" +
+                                         "RRULE:FREQ=MONTHLY;BYDAY=MO,FR;BYMONTHDAY=1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31;COUNT=4\n" +
+                                         "DTSTART:20150401T080000Z\n" +
+                                         "DTEND:20150401T090000Z\n" +
+                                         "END:VEVENT\nEND:VCALENDAR\n"),
+               ["20150401T080000Z",
+                "20150403T080000Z", "20150413T080000Z", "20150417T080000Z", "20150427T080000Z"],
+               false);
+
+    // Bug 1146500 - Monthly recurrence, every MO and FR when are odd days starting from the 1st of April.
+    // Check the first occurrence when we have BYDAY along with BYMONTHDAY.
+    check_recur(createEventFromIcalString("BEGIN:VCALENDAR\nBEGIN:VEVENT\n" +
+                                         "DESCRIPTION:Monthly recurrence, every MO and FR when are odd days starting from the 1st of March\n" +
+                                         "RRULE:FREQ=MONTHLY;BYDAY=MO,SA;BYMONTHDAY=1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31;COUNT=4\n" +
+                                         "DTSTART:20150401T080000Z\n" +
+                                         "DTEND:20150401T090000Z\n" +
+                                         "END:VEVENT\nEND:VCALENDAR\n"),
+               ["20150401T080000Z",
+                "20150411T080000Z", "20150413T080000Z", "20150425T080000Z", "20150427T080000Z"],
+               false);
+
+    // Bug 1146500 - Monthly every SU and FR when are odd days starting from 28 of February (BYDAY and BYMONTHDAY).
+    // Check the first occurrence when we have BYDAY along with BYMONTHDAY.
+    check_recur(createEventFromIcalString("BEGIN:VCALENDAR\nBEGIN:VEVENT\n" +
+                                         "DESCRIPTION:Monthly recurrence, every SU and FR when are odd days starting from the 1st of March\n" +
+                                         "RRULE:FREQ=MONTHLY;BYDAY=SU,FR;BYMONTHDAY=1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31;COUNT=9\n" +
+                                         "DTSTART:20150228T080000Z\n" +
+                                         "DTEND:20150228T090000Z\n" +
+                                         "END:VEVENT\nEND:VCALENDAR\n"),
+               ["20150228T080000Z",
+                "20150301T080000Z", "20150313T080000Z", "20150315T080000Z", "20150327T080000Z",
+                "20150329T080000Z", "20150403T080000Z", "20150405T080000Z", "20150417T080000Z",
+                "20150419T080000Z"],
+               false);
+
     let item, occ1;
     item = makeEvent("DESCRIPTION:occurrence on day 1 moved between the occurrences " +
                                      "on days 2 and 3\n" +
@@ -492,13 +542,13 @@ function test_interface() {
 
     // deleteRecurrenceItem
     rinfo.deleteRecurrenceItem(ritems[0]);
-    ok(item.icalString.indexOf("RRULE") < 0);
+    ok(!item.icalString.includes("RRULE"));
 
     // deleteRecurrenceItemAt
     rinfo.deleteRecurrenceItemAt(1);
     itemString = item.icalString;
-    ok(itemString.indexOf("EXDATE") < 0);
-    ok(!(itemString.indexOf("RDATE") < 0));
+    ok(!itemString.includes("EXDATE"));
+    ok(itemString.includes("RDATE"));
 
     // insertRecurrenceItemAt with exdate
     rinfo.insertRecurrenceItemAt(ritems[1], 1);
@@ -522,9 +572,9 @@ function test_interface() {
     let occDate1 = cal.createDateTime("20020403T114500Z");
     let occDate2 = cal.createDateTime("20020404T114500Z");
     rinfo.removeOccurrenceAt(occDate1);
-    ok(!(item.icalString.indexOf("EXDATE") < 0));
+    ok(item.icalString.includes("EXDATE"));
     rinfo.restoreOccurrenceAt(occDate1)
-    ok(item.icalString.indexOf("EXDATE") < 0);
+    ok(!item.icalString.includes("EXDATE"));
 
     // modifyException / getExceptionFor
     let occ1 = rinfo.getOccurrenceFor(occDate1);
@@ -682,26 +732,26 @@ function test_failures() {
     let rinfo = item.recurrenceInfo;
     let ritem = cal.createRecurrenceDate();
 
-    throws(function() rinfo.getRecurrenceItemAt(-1), /Illegal value/, "Invalid Argument");
-    throws(function() rinfo.getRecurrenceItemAt(1), /Illegal value/, "Invalid Argument");
-    throws(function() rinfo.deleteRecurrenceItemAt(-1), /Illegal value/, "Invalid Argument");
-    throws(function() rinfo.deleteRecurrenceItemAt(1), /Illegal value/, "Invalid Argument");
-    throws(function() rinfo.deleteRecurrenceItem(ritem), /Illegal value/, "Invalid Argument");
-    throws(function() rinfo.insertRecurrenceItemAt(ritem, -1), /Illegal value/, "Invalid Argument");
-    throws(function() rinfo.insertRecurrenceItemAt(ritem, 2), /Illegal value/, "Invalid Argument");
-    throws(function() rinfo.restoreOccurrenceAt(cal.createDateTime("20080101T010101")), /Illegal value/, "Invalid Argument");
-    throws(function() cal.createRecurrenceInfo().isFinite, /Component not initialized/);
+    throws(() => rinfo.getRecurrenceItemAt(-1), /Illegal value/, "Invalid Argument");
+    throws(() => rinfo.getRecurrenceItemAt(1), /Illegal value/, "Invalid Argument");
+    throws(() => rinfo.deleteRecurrenceItemAt(-1), /Illegal value/, "Invalid Argument");
+    throws(() => rinfo.deleteRecurrenceItemAt(1), /Illegal value/, "Invalid Argument");
+    throws(() => rinfo.deleteRecurrenceItem(ritem), /Illegal value/, "Invalid Argument");
+    throws(() => rinfo.insertRecurrenceItemAt(ritem, -1), /Illegal value/, "Invalid Argument");
+    throws(() => rinfo.insertRecurrenceItemAt(ritem, 2), /Illegal value/, "Invalid Argument");
+    throws(() => rinfo.restoreOccurrenceAt(cal.createDateTime("20080101T010101")), /Illegal value/, "Invalid Argument");
+    throws(() => cal.createRecurrenceInfo().isFinite, /Component not initialized/);
 
     // modifyException with a different parent item
     let occ = rinfo.getOccurrenceFor(cal.createDateTime("20120102T114500Z"));
     occ.calendar = {}
     occ.id = "1234";
     occ.parentItem = occ;
-    throws(function() rinfo.modifyException(occ, true), /Illegal value/, "Invalid Argument");
+    throws(() => rinfo.modifyException(occ, true), /Illegal value/, "Invalid Argument");
 
     occ = rinfo.getOccurrenceFor(cal.createDateTime("20120102T114500Z"));
     occ.recurrenceId = null;
-    throws(function() rinfo.modifyException(occ, true), /Illegal value/, "Invalid Argument");
+    throws(() => rinfo.modifyException(occ, true), /Illegal value/, "Invalid Argument");
 
     // Missing DTSTART/DUE but RRULE
     item = createEventFromIcalString("BEGIN:VCALENDAR\r\n" +
@@ -727,7 +777,7 @@ function test_immutable() {
     let rinfo2 = item.recurrenceInfo.clone();
     rinfo2.makeImmutable();
     rinfo2.makeImmutable(); // Doing so twice shouldn't throw
-    throws(function() rinfo2.appendRecurrenceItem(ritem), /Can not modify immutable data container/);
+    throws(() => rinfo2.appendRecurrenceItem(ritem), /Can not modify immutable data container/);
     ok(!rinfo2.isMutable);
 
     let ritem = cal.createRecurrenceDate();
@@ -793,10 +843,10 @@ function test_rrule_icalstring() {
     recRule.type = "YEARLY";
     recRule.setComponent("BYMONTH", 1, [1]);
     recRule.setComponent("BYMONTHDAY", 1, [3]);
-    notEqual(-1, [
+    ok([
         "RRULE:FREQ=YEARLY;BYMONTHDAY=3;BYMONTH=1\r\n",
         "RRULE:FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=3\r\n"
-    ].indexOf(recRule.icalString));
+    ].includes(recRule.icalString));
     deepEqual(recRule.getComponent("BYMONTH", {}), [1]);
     deepEqual(recRule.getComponent("BYMONTHDAY", {}), [3]);
 
@@ -804,10 +854,10 @@ function test_rrule_icalstring() {
     recRule.type = "YEARLY";
     recRule.setComponent("BYMONTH", 1, [4]);
     recRule.setComponent("BYDAY", 1, [3]);
-    notEqual(-1, [
+    ok([
         "RRULE:FREQ=YEARLY;BYDAY=TU;BYMONTH=4\r\n",
         "RRULE:FREQ=YEARLY;BYMONTH=4;BYDAY=TU\r\n"
-    ].indexOf(recRule.icalString));
+    ].includes(recRule.icalString));
     deepEqual(recRule.getComponent("BYMONTH", {}), [4]);
     deepEqual(recRule.getComponent("BYDAY", {}), [3]);
 
@@ -815,10 +865,10 @@ function test_rrule_icalstring() {
     recRule.type = "YEARLY";
     recRule.setComponent("BYMONTH", 1, [4]);
     recRule.setComponent("BYDAY", 1, [10]);
-    notEqual(-1, [
+    ok([
         "RRULE:FREQ=YEARLY;BYDAY=1MO;BYMONTH=4\r\n",
         "RRULE:FREQ=YEARLY;BYMONTH=4;BYDAY=1MO\r\n"
-    ].indexOf(recRule.icalString));
+    ].includes(recRule.icalString));
     deepEqual(recRule.getComponent("BYMONTH", {}), [4]);
     deepEqual(recRule.getComponent("BYDAY", {}), [10]);
 
@@ -826,10 +876,10 @@ function test_rrule_icalstring() {
     recRule.type = "YEARLY";
     recRule.setComponent("BYMONTH", 1, [4]);
     recRule.setComponent("BYDAY", 1, [-22]);
-    notEqual(-1, [
+    ok([
         "RRULE:FREQ=YEARLY;BYDAY=-2FR;BYMONTH=4\r\n",
         "RRULE:FREQ=YEARLY;BYMONTH=4;BYDAY=-2FR\r\n"
-    ].indexOf(recRule.icalString));
+    ].includes(recRule.icalString));
     deepEqual(recRule.getComponent("BYMONTH", {}), [4]);
     deepEqual(recRule.getComponent("BYDAY", {}), [-22]);
 }

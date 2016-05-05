@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ['FreeTag', 'FreeTagNoun'];
+this.EXPORTED_SYMBOLS = ['FreeTag', 'FreeTagNoun'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/gloda/log4moz.js");
 
@@ -46,7 +46,7 @@ var FreeTagNoun = {
   },
 
   populateKnownFreeTags: function() {
-    for each (let [,attr] in Iterator(this.objectNounOfAttributes)) {
+    for (let attr of this.objectNounOfAttributes) {
       let attrDB = attr.dbDef;
       for (let param in attrDB.parameterBindings) {
         this.getFreeTag(param);
@@ -59,7 +59,7 @@ var FreeTagNoun = {
     let tag = this.knownFreeTags[aTagName];
     if (!tag) {
       tag = this.knownFreeTags[aTagName] = new FreeTag(aTagName);
-      for each (let [iListener, listener] in Iterator(this._listeners))
+      for (let listener of this._listeners)
         listener.onFreeTagAdded(tag);
     }
     return tag;

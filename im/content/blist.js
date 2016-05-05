@@ -2,13 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const Cu = Components.utils;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/imStatusUtils.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "OS", "resource://gre/modules/osfile.jsm");
 
-const events = ["buddy-authorization-request",
+var events = ["buddy-authorization-request",
                 "buddy-authorization-request-canceled",
                 "contact-availability-changed",
                 "contact-added",
@@ -23,7 +23,7 @@ const events = ["buddy-authorization-request",
                 "user-icon-changed",
                 "prpl-quit"];
 
-const showOfflineBuddiesPref = "messenger.buddies.showOffline";
+var showOfflineBuddiesPref = "messenger.buddies.showOffline";
 
 var gBuddyListContextMenu = null;
 
@@ -165,7 +165,7 @@ buddyListContextMenu.prototype = {
   },
   toggleTag: function blcm_toggleTag(aTag) {
     let contact = this.tagMenu.target.contact;
-    if (contact.getTags().some(function(t) t.id == aTag.id))
+    if (contact.getTags().some(t => t.id == aTag.id))
       contact.removeTag(aTag);
     else
       contact.addTag(aTag);
@@ -624,17 +624,17 @@ var buddyList = {
     }
 
     let video = document.getElementById("webcamVideo");
-    video.mozSrcObject = aStream;
-    video.play();
+    video.srcObject = aStream;
     video.onplaying = function() { document.getElementById("captureButton")
                                            .removeAttribute("disabled"); }
+    video.play();
   },
 
   takePictureButton: function bl_takePictureButton() {
     document.getElementById("userIconPanel").selectedIndex = 1;
-    navigator.mozGetUserMedia({audio: false, video: true},
-                              this.webcamSuccessCallback.bind(this),
-                              Cu.reportError);
+    navigator.mediaDevices.getUserMedia({audio: false, video: true})
+             .then(aStream => this.webcamSuccessCallback(aStream),
+                   Cu.reportError);
   },
 
   takePicture: function bl_takePicture() {
@@ -695,26 +695,20 @@ var buddyList = {
     let icon = Services.core.globalUserStatus.getUserIcon();
     document.getElementById("userIconPanelImage").src = icon ? icon.spec : "";
 
-    // FIXME: This is a workaround for the Bug 1011878.
-    // mozGetUserMediaDevices is currently only working after having called
-    // mozGetUserMedia at least once.
-    // Calling mozGetuserMedia with any parameters works.
-    navigator.mozGetUserMedia({audio: false, video: false},
-                              function() {}, function() {});
-
     let webcamButton = document.getElementById("takePictureButton");
     webcamButton.disabled = true;
-    navigator.mozGetUserMediaDevices({video: true},
-                                     devices => { webcamButton.disabled = !devices.length; },
-                                     Cu.reportError);
+    navigator.mediaDevices.enumerateDevices().then(aDevices => {
+      webcamButton.disabled =
+        !aDevices.some(aDevice => aDevice.kind == "videoinput");
+    }, Cu.reportError);
   },
 
   stopWebcamStream: function bl_stopWebcamStream() {
     let webcamVideo = document.getElementById("webcamVideo");
-    let webcamStream = webcamVideo.mozSrcObject;
+    let webcamStream = webcamVideo.srcObject;
     if (webcamStream) {
       webcamStream.stop();
-      webcamVideo.mozSrcObject = null;
+      webcamVideo.srcObject = null;
     }
 
     document.getElementById("captureButton").disabled = true;
@@ -854,9 +848,9 @@ var buddyList = {
     if (convs.length != 0) {
       if (!("Conversations" in window))
         Components.utils.import("resource:///modules/imWindows.jsm");
-      convs.sort(function(a, b)
+      convs.sort((a, b) =>
         a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
-      for each (let conv in convs) {
+      for (let conv of convs) {
         if (!Conversations.isUIConversationDisplayed(conv)) {
           let convElt = document.createElement("conv");
           buddyList.convBox.appendChild(convElt);
@@ -869,7 +863,7 @@ var buddyList = {
       .observe(buddyList.convBox, {childList: true});
 
     prefBranch.addObserver(showOfflineBuddiesPref, buddyList, false);
-    for each (let event in events)
+    for (let event of events)
       Services.obs.addObserver(buddyList, event, false);
 
     this.addEventListener("unload", buddyList.unload);
@@ -928,7 +922,7 @@ var buddyList = {
     document.getElementById("buddylistbox").clearSelection();
   },
   unload: function bl_unload() {
-    for each (let event in events)
+    for (let event of events)
       Services.obs.removeObserver(buddyList, event);
     Services.prefs.removeObserver(showOfflineBuddiesPref, buddyList);
    },

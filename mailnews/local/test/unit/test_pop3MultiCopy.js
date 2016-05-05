@@ -76,7 +76,7 @@ add_task(function* runPump() {
   // Check for subjects. maildir order for messages may not match
   // order for creation, hence the array.includes.
   for (let subject of testSubjects) {
-    do_check_true(subjects.indexOf(subject) >= 0);
+    do_check_true(subjects.includes(subject));
   }
 
   // Make sure the body matches the message.

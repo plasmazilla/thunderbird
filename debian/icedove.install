@@ -1,6 +1,4 @@
 debian/tmp/usr/lib/icedove/blocklist.xml
-debian/tmp/usr/lib/icedove/components/*
-debian/tmp/usr/lib/icedove/chrome.manifest
 debian/tmp/usr/lib/icedove/dependentlibs.list
 debian/tmp/usr/lib/icedove/icedove*
 debian/tmp/usr/lib/icedove/lib*
@@ -12,11 +10,9 @@ debian/tmp/usr/lib/icedove/run-mozilla.sh
 debian/tmp/usr/lib/icedove/chrome             usr/share/icedove
 debian/tmp/usr/lib/icedove/isp                usr/share/icedove
 debian/tmp/usr/lib/icedove/omni.ja            usr/share/icedove
-debian/tmp/usr/lib/icedove/searchplugins      usr/share/icedove
 
 debian/tmp/usr/lib/icedove/defaults/pref      usr/share/icedove/defaults
 debian/tmp/usr/lib/icedove/defaults/messenger usr/share/icedove/defaults
-debian/tmp/usr/lib/icedove/extensions/\{972ce4c6-7e08-4474-a285-3208198ce6fd\} usr/share/icedove/extensions
 
 debian/icedove.js                             etc/icedove/pref
 debian/vendor.js                              usr/share/icedove/defaults/pref

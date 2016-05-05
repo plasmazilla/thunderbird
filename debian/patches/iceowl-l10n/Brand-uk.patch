@@ -1,0 +1,37 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sun, 17 Aug 2014 09:58:36 +0200
+Subject: Brand-uk
+
+---
+ iceowl-l10n/uk/locale/uk/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/uk/locale/uk/lightning/lightning.properties b/iceowl-l10n/uk/locale/uk/lightning/lightning.properties
+index 4e4521d..65b4891 100644
+--- a/iceowl-l10n/uk/locale/uk/lightning/lightning.properties
++++ b/iceowl-l10n/uk/locale/uk/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Вбудований у Thunderbird календар
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Вбудований у Icedove календар
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Проект Mozilla Calendar
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Завдання
+@@ -122,7 +122,7 @@ imipBarUpdateText=Це повідомлення містить оновленн
+ imipBarAlreadyProcessedText=Це повідомлення містить подію, яка вже була оброблена.
+ imipBarProcessedNeedsAction=Це повідомлення містить подію, на яку ви ще не дали відповідь.
+ imipBarReplyText=Це повідомлення містить відповідь на запрошення.
+-imipBarUnsupportedText=Це повідомлення містить подію, яку ця версія Lightning не може обробити.
++imipBarUnsupportedText=Це повідомлення містить подію, яку ця версія Iceowl не може обробити.
+ imipBarProcessingFailed=Обробка повідомлення не вдалася. Статус: %1$S.
+ imipBarNotWritable=Немає налаштованих для запису календарів для запрошень. Будь ласка, перевірте властивості календаря.
+ imipSendMail.title=E-Mail сповіщення

@@ -6,9 +6,9 @@ Components.utils.import("resource://gre/modules/PluralForm.jsm");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
-const ALARM_RELATED_ABSOLUTE = Components.interfaces.calIAlarm.ALARM_RELATED_ABSOLUTE;
-const ALARM_RELATED_START = Components.interfaces.calIAlarm.ALARM_RELATED_START;
-const ALARM_RELATED_END = Components.interfaces.calIAlarm.ALARM_RELATED_END;
+var ALARM_RELATED_ABSOLUTE = Components.interfaces.calIAlarm.ALARM_RELATED_ABSOLUTE;
+var ALARM_RELATED_START = Components.interfaces.calIAlarm.ALARM_RELATED_START;
+var ALARM_RELATED_END = Components.interfaces.calIAlarm.ALARM_RELATED_END;
 
 function calAlarm() {
     this.wrappedJSObject = this;
@@ -18,8 +18,8 @@ function calAlarm() {
     this.mAttachments = [];
 }
 
-const calAlarmClassID = Components.ID("{b8db7c7f-c168-4e11-becb-f26c1c4f5f8f}");
-const calAlarmInterfaces = [Components.interfaces.calIAlarm];
+var calAlarmClassID = Components.ID("{b8db7c7f-c168-4e11-becb-f26c1c4f5f8f}");
+var calAlarmInterfaces = [Components.interfaces.calIAlarm];
 calAlarm.prototype = {
 
     mProperties: null,
@@ -617,6 +617,16 @@ calAlarm.prototype = {
     },
 
     toString: function cA_toString(aItem) {
+        function getItemBundleStringName(aPrefix) {
+            if (!aItem || isEvent(aItem)) {
+                return aPrefix + "Event";
+            } else if (isToDo(aItem)) {
+                return aPrefix + "Task";
+            } else {
+                return aPrefix;
+            }
+        }
+
         if (this.related == ALARM_RELATED_ABSOLUTE && this.mAbsoluteDate) {
             // this is an absolute alarm. Use the calendar default timezone and
             // format it.
@@ -624,15 +634,6 @@ calAlarm.prototype = {
             let formatDate = this.mAbsoluteDate.getInTimezone(cal.calendarDefaultTimezone());
             return formatter.formatDateTime(formatDate);
         } else if (this.related != ALARM_RELATED_ABSOLUTE && this.mOffset) {
-            function getItemBundleStringName(aPrefix) {
-                if (!aItem || isEvent(aItem)) {
-                    return aPrefix + "Event";
-                } else if (isToDo(aItem)) {
-                    return aPrefix + "Task";
-                } else {
-                    return aPrefix;
-                }
-            }
 
             // Relative alarm length
             let alarmlen = Math.abs(this.mOffset.inSeconds / 60);

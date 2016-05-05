@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 var gChatPane = {
   init: function ()
@@ -59,12 +59,17 @@ var gChatPane = {
 
     let soundLocation = document.getElementById("chatSoundType").value == 1 ?
                         document.getElementById("chatSoundUrlLocation").value :
-                        "_moz_mailbeep";
+                        "";
 
-    if (!soundLocation.startsWith("file://"))
-      sound.playSystemSound(soundLocation);
-    else
+    // This should be in sync with the code in nsStatusBarBiffManager::PlayBiffSound.
+    if (!soundLocation.startsWith("file://")) {
+      if (Services.appinfo.OS == "Darwin") // OS X
+        sound.beep();
+      else
+        sound.playEventSound(Ci.nsISound.EVENT_NEW_MAIL_RECEIVED);
+    } else {
       sound.play(Services.io.newURI(soundLocation, null, null));
+    }
   },
 
   browseForSoundFile: function ()

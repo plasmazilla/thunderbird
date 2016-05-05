@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "folder-display-helpers";
+var MODULE_NAME = "folder-display-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
+var RELATIVE_ROOT = "../shared-modules";
 // we need window-helpers for augment_controller
-const MODULE_REQUIRES = ["window-helpers"];
+var MODULE_REQUIRES = ["window-helpers"];
 
 var EventUtils = {};
 Cu.import('resource://mozmill/stdlib/EventUtils.js', EventUtils);
@@ -21,14 +21,14 @@ Cu.import('resource://mozmill/modules/utils.js', utils);
 
 Cu.import("resource:///modules/gloda/log4moz.js");
 
-const nsMsgViewIndex_None = 0xffffffff;
+var nsMsgViewIndex_None = 0xffffffff;
 Cu.import('resource:///modules/MailConsts.js');
 Cu.import("resource:///modules/mailServices.js");
 Cu.import('resource:///modules/MailUtils.js');
 Cu.import('resource:///modules/mailViewManager.js');
 Cu.import("resource://gre/modules/Services.jsm");
 
-const FILE_LOAD_PATHS = [
+var FILE_LOAD_PATHS = [
   "../resources",
   "../../../../mailnews/test/resources",
   "../../../../mail/base/test/unit/resources",
@@ -38,13 +38,13 @@ const FILE_LOAD_PATHS = [
 /**
  * Server hostname as set in runtest.py
  */
-const FAKE_SERVER_HOSTNAME = 'tinderbox123';
+var FAKE_SERVER_HOSTNAME = 'tinderbox123';
 
 /**
  * List of keys not to export via installInto; values do not matter, we just
  *  use true.
  */
-const DO_NOT_EXPORT = {
+var DO_NOT_EXPORT = {
   // magic globals
   MODULE_NAME: true, DO_NOT_EXPORT: true, installInto: true,
   // imported modules
@@ -64,7 +64,7 @@ const DO_NOT_EXPORT = {
   windowHelper: true,
 };
 
-const EXPORT_VIA_GETTER_SETTER = {
+var EXPORT_VIA_GETTER_SETTER = {
   // These should be getters and setters instead of direct property accesses so
   // that setting them reflects across scopes.
   mc: true,
@@ -271,12 +271,13 @@ function installInto(module) {
   // now copy everything into the module they provided to us...
   let us = collector.getModule('folder-display-helpers');
   let self = this;
-  for each (let [key, value] in Iterator(us)) {
+  for (let key in us) {
+    let value = us[key];
     if (key in EXPORT_VIA_GETTER_SETTER) {
       // The value of |key| changes between iterations, so it's important to
       // capture the right key in a local variable.
       let thisKey = key;
-      module.__defineGetter__(thisKey, function () self[thisKey]);
+      module.__defineGetter__(thisKey, () => self[thisKey]);
       module.__defineSetter__(thisKey, function (aNewValue) {
                                self[thisKey] = aNewValue;
                              });
@@ -780,7 +781,7 @@ function assert_tab_titled_from(aTab, aWhat) {
   else if (aWhat instanceof Ci.nsIMsgDBHdr)
     text = aWhat.mime2DecodedSubject;
 
-  if (!aTab.title.contains(text))
+  if (!aTab.title.includes(text))
     mark_failure(["Tab title of tab", aTab,
                   "should include '" + text + "' but does not." +
                   " (Current title: '" + aTab.title + "')"]);
@@ -1382,7 +1383,7 @@ function delete_via_popup() {
 
 function wait_for_popup_to_open(popupElem) {
   mark_action("fdh", "wait_for_popup_to_open", [popupElem]);
-  utils.waitFor(function () popupElem.state == "open",
+  utils.waitFor(() => popupElem.state == "open",
                 "Timeout waiting for popup to open", 1000, 50);
 }
 
@@ -1406,7 +1407,7 @@ function close_popup(aController, eid) {
                 ["popup suspiciously already closing..."]);
   else // actually push escape because it's not closing/closed
     aController.keypress(eid, "VK_ESCAPE", {});
-  utils.waitFor(function () elem.state == "closed", "Popup did not close!",
+  utils.waitFor(() => elem.state == "closed", "Popup did not close!",
                 1000, 50);
 }
 
@@ -1506,7 +1507,7 @@ function press_enter(aController) {
 function wait_for_all_messages_to_load(aController) {
   if (aController == null)
     aController = mc;
-  utils.waitFor(function () aController.folderDisplay.allMessagesLoaded,
+  utils.waitFor(() => aController.folderDisplay.allMessagesLoaded,
                 "Messages never finished loading.  Timed Out.");
   // the above may return immediately, meaning the event queue might not get a
   //  chance.  give it a chance now.
@@ -1677,7 +1678,7 @@ var FolderListener = {
       return;
     let self = this;
     try {
-      utils.waitFor(function () self.sawEvents);
+      utils.waitFor(() => self.sawEvents);
     } catch (e if e instanceof utils.TimeoutError) {
       mark_failure(["Timeout waiting for events:", this.watchingFor]);
     }
@@ -1687,7 +1688,7 @@ var FolderListener = {
       aFolder, aEvent) {
     if (!this.watchingFor)
       return;
-    if (this.watchingFor.indexOf(aEvent.toString()) != -1) {
+    if (this.watchingFor.includes(aEvent.toString())) {
       this.watchingFor = null;
       this.sawEvents = true;
     }
@@ -1739,7 +1740,7 @@ function assert_messages_not_in_view(aMessages, aController) {
     aController = mc;
   if (aMessages instanceof Ci.nsIMsgDBHdr)
     aMessages = [aMessages];
-  for each (let [, msgHdr] in Iterator(aMessages)) {
+  for (let msgHdr of aMessages) {
     if (mc.dbView.findIndexOfMsgHdr(msgHdr, true) != nsMsgViewIndex_None)
       mark_failure(["Message header is present in view but should not be:",
                     msgHdr, "index:",
@@ -1879,7 +1880,7 @@ function _process_row_message_arguments() {
     }
     // SyntheticMessageSet
     else if (arg.synMessages) {
-      for each (let msgHdr in arg.msgHdrs) {
+      for (let msgHdr of arg.msgHdrs) {
         let viewIndex = troller.dbView.findIndexOfMsgHdr(msgHdr, false);
         if (viewIndex == nsMsgViewIndex_None)
           throw_and_dump_view_state(
@@ -2035,8 +2036,7 @@ function _internal_assert_displayed(trustSelection, troller, desiredIndices) {
 
     // and _now_ make sure that we actually summarized what we wanted to
     //  summarize.
-    let desiredMessages = [mc.dbView.getMsgHdrAt(vi) for each
-                            ([, vi] in Iterator(desiredIndices))];
+    let desiredMessages = desiredIndices.map(vi => mc.dbView.getMsgHdrAt(vi));
     assert_messages_summarized(troller, desiredMessages);
   }
 }
@@ -2122,7 +2122,7 @@ function assert_messages_summarized(aController, aSelectedMessages) {
     aSelectedMessages = aController.folderDisplay.selectedMessages;
   // if it's a synthetic message set, we want the headers...
   if (aSelectedMessages.synMessages)
-    aSelectedMessages = [msgHdr for each (msgHdr in aSelectedMessages.msgHdrs)];
+    aSelectedMessages = Array.from(aSelectedMessages.msgHdrs);
 
   let summaryFrame = aController.window.gSummaryFrameManager.iframe;
   let summary = summaryFrame.contentWindow.gMessageSummary;
@@ -2145,7 +2145,7 @@ function assert_messages_summarized(aController, aSelectedMessages) {
  * Assert that there is nothing selected and, assuming we are in a folder, that
  *  the folder summary is displayed.
  */
-let assert_nothing_selected = assert_selected_and_displayed;
+var assert_nothing_selected = assert_selected_and_displayed;
 
 /**
  * Assert that the given view index or message is visible in the thread pane.
@@ -2186,7 +2186,7 @@ function _assert_elided_helper(aShouldBeElided, aArgs) {
     _process_row_message_arguments.apply(this, aArgs);
 
   let dbView = troller.dbView;
-  for each (let [, viewIndex] in Iterator(viewIndices)) {
+  for (let viewIndex of viewIndices) {
     let flags = dbView.getFlagsAt(viewIndex);
     if (Boolean(flags & Ci.nsMsgMessageFlags.Elided) != aShouldBeElided)
       throw new Error("Message at view index " + viewIndex +
@@ -2229,7 +2229,7 @@ function add_to_toolbar(aToolbarElement, aElementId) {
               ["adding", aElementId,
                "current set", aToolbarElement.currentSet]);
   let currentSet = aToolbarElement.currentSet.split(",");
-  if (currentSet.indexOf(aElementId) == -1) {
+  if (!currentSet.includes(aElementId)) {
     currentSet.unshift(aElementId);
     aToolbarElement.currentSet = currentSet.join(",");
   }
@@ -2249,7 +2249,7 @@ function remove_from_toolbar(aToolbarElement, aElementId) {
               ["removing", aElementId,
                "current set", aToolbarElement.currentSet]);
   let currentSet = aToolbarElement.currentSet.split(",");
-  if (currentSet.indexOf(aElementId) != -1) {
+  if (currentSet.includes(aElementId)) {
     currentSet.splice(currentSet.indexOf(aElementId), 1);
     aToolbarElement.currentSet = currentSet.join(",");
   }
@@ -2311,7 +2311,7 @@ function _get_currently_focused_thing() {
   // If the message pane or multimessage is focused, return that
   let focusedWindow = mc.window.document.commandDispatcher.focusedWindow;
   if (focusedWindow) {
-    for each (let [, windowId] in Iterator(RECOGNIZED_WINDOWS)) {
+    for (let windowId of RECOGNIZED_WINDOWS) {
       let elem = mc.e(windowId);
       if (elem && focusedWindow == elem.contentWindow)
         return windowId;
@@ -2325,9 +2325,8 @@ function _get_currently_focused_thing() {
     return null;
 
   let focusedElement = mc.window.document.commandDispatcher.focusedElement;
-  let elementsToMatch = [mc.e(elem)
-                         for each ([, elem] in Iterator(RECOGNIZED_ELEMENTS))];
-  while (focusedElement && elementsToMatch.indexOf(focusedElement) == -1)
+  let elementsToMatch = RECOGNIZED_ELEMENTS.map(elem => mc.e(elem));
+  while (focusedElement && !elementsToMatch.includes(focusedElement))
     focusedElement = focusedElement.parentNode;
 
   return focusedElement ? focusedElement.id : null;
@@ -2459,9 +2458,9 @@ function assert_folders_selected() {
   // no shortcuts here. check if each folder in either array is present in the
   // other array
   if (desiredFolders.some(
-      function (folder) _non_strict_index_of(selectedFolders, folder) == -1) ||
+      folder => _non_strict_index_of(selectedFolders, folder) == -1) ||
       selectedFolders.some(
-      function (folder) _non_strict_index_of(desiredFolders, folder) == -1))
+      folder => _non_strict_index_of(desiredFolders, folder) == -1))
     throw new Error("Desired selection is: " +
                     _prettify_folder_array(desiredFolders) + " but actual " +
                     "selection is: " + _prettify_folder_array(selectedFolders));
@@ -2469,7 +2468,7 @@ function assert_folders_selected() {
   return [troller, desiredFolders];
 }
 
-let assert_folder_selected = assert_folders_selected;
+var assert_folder_selected = assert_folders_selected;
 
 /**
  * Assert that the given folder is displayed, but not necessarily selected.
@@ -2521,8 +2520,8 @@ function assert_folders_selected_and_displayed() {
   }
 }
 
-let assert_no_folders_selected = assert_folders_selected_and_displayed;
-let assert_folder_selected_and_displayed =
+var assert_no_folders_selected = assert_folders_selected_and_displayed;
+var assert_folder_selected_and_displayed =
     assert_folders_selected_and_displayed;
 
 /**
@@ -2555,7 +2554,7 @@ function _non_strict_index_of(aArray, aSearchElement) {
 }
 
 function _prettify_folder_array(aArray) {
-  return aArray.map(function (folder) folder.prettiestName).join(", ");
+  return aArray.map(folder => folder.prettiestName).join(", ");
 }
 
 /**
@@ -2762,9 +2761,9 @@ function throw_and_dump_view_state(aMessage, aController) {
  * Copy constants from mailWindowOverlay.js
  */
 
-const kClassicMailLayout = 0;
-const kWideMailLayout = 1;
-const kVerticalMailLayout = 2;
+var kClassicMailLayout = 0;
+var kWideMailLayout = 1;
+var kVerticalMailLayout = 2;
 
 /**
  * Assert that the current mail pane layout is shown

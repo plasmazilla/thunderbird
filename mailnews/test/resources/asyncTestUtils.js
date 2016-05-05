@@ -166,7 +166,7 @@ function _async_driver() {
         dump("Generator explosion!\n");
         dump("Unhappiness at: " + ex.fileName + ":" + ex.lineNumber + "\n");
         dump("Because: " + ex + "\n");
-        dump("Stack:\n  " + ex.stack.replace("\n", "\n  ", "g") + "\n");
+        dump("Stack:\n  " + ex.stack.replace(/\n/g, "\n  ") + "\n");
         dump("**** Async Generator Stack source functions:\n");
         for (let i = asyncGeneratorStack.length - 1; i >= 0; i--) {
           dump("  " + asyncGeneratorStack[i][1] + "\n");
@@ -206,14 +206,14 @@ function async_test_runner_register_final_cleanup_helper(aHelper) {
 }
 
 function _async_test_runner_postTest() {
-  for each (let [, helper] in Iterator(ASYNC_TEST_RUNNER_HELPERS)) {
+  for (let helper of ASYNC_TEST_RUNNER_HELPERS) {
     if (helper.postTest)
       helper.postTest();
   }
 }
 
 function _async_test_runner_timeout() {
-  for each (let [, helper] in Iterator(ASYNC_TEST_RUNNER_HELPERS)) {
+  for (let helper of ASYNC_TEST_RUNNER_HELPERS) {
     try {
       if (helper.onTimeout)
         helper.onTimeout();
@@ -241,7 +241,7 @@ function parameterizeTest(aTestFunc, aParameters) {
 // This time is 60 seconds less than the tinderbox timeout default of 300
 // seconds and will hopefully cause tests to give us their logs before that
 // timeout.
-const DEFAULT_LONGEST_TEST_RUN_CONCEIVABLE_SECS = 240;
+var DEFAULT_LONGEST_TEST_RUN_CONCEIVABLE_SECS = 240;
 function async_run_tests(aTests, aLongestTestRunTimeConceivableInSecs) {
   if (aLongestTestRunTimeConceivableInSecs == null)
     aLongestTestRunTimeConceivableInSecs =
@@ -255,11 +255,11 @@ function async_run_tests(aTests, aLongestTestRunTimeConceivableInSecs) {
 }
 
 function _async_test_runner(aTests) {
-  for each (let [, test] in Iterator(aTests)) {
+  for (let test of aTests) {
     // parameterized?
     if (test.length) {
       let [testFunc, parameters] = test;
-      for each (let [, parameter] in Iterator(parameters)) {
+      for (let parameter of parameters) {
         let paramDesc, args;
         if (typeof(parameter) == "object") {
           if (parameter.length) {
@@ -292,8 +292,7 @@ function _async_test_runner(aTests) {
 
   dump("=== (Done With Tests)\n");
 
-  for each (let [, cleanupHelper] in
-            Iterator(ASYNC_TEST_RUNNER_FINAL_CLEANUP_HELPERS)) {
+  for (let cleanupHelper of ASYNC_TEST_RUNNER_FINAL_CLEANUP_HELPERS) {
     try {
       cleanupHelper();
     }

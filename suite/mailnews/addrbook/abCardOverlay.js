@@ -5,7 +5,7 @@
 
 const kNonVcardFields =
         ["NickNameContainer", "SecondaryEmailContainer", "ScreenNameContainer",
-         "customFields", "allowRemoteContent", "preferDisplayName"];
+         "customFields", "preferDisplayName"];
 
 const kPhoneticFields =
         ["PhoneticLastName", "PhoneticLabel1", "PhoneticSpacer1",
@@ -109,10 +109,6 @@ function OnLoadNewCard()
     if ("aimScreenName" in window.arguments[0])
       gEditCard.card.setProperty("_AimScreenName",
                                  window.arguments[0].aimScreenName);
-
-    if ("allowRemoteContent" in window.arguments[0])
-      gEditCard.card.setProperty("AllowRemoteContent",
-                                 window.arguments[0].allowRemoteContent);
 
     if ("okCallback" in window.arguments[0])
       gOkCallback = window.arguments[0].okCallback;
@@ -274,9 +270,8 @@ function OnLoadEditCard()
         document.getElementById(kPhoneticFields[0]).readOnly = true;
         document.getElementById(kPhoneticFields[3]).readOnly = true;
 
-        // Also disable the mail format popup and allow remote content items.
+        // Also disable the mail format popup.
         document.getElementById("PreferMailFormatPopup").disabled = true;
-        document.getElementById("allowRemoteContent").disabled = true;
 
         // And the "prefer display name" checkbox.
         document.getElementById("preferDisplayName").disabled = true;
@@ -284,10 +279,6 @@ function OnLoadEditCard()
         document.documentElement.buttons = "accept";
         document.documentElement.removeAttribute("ondialogaccept");
       }
-
-      // hide remote content in HTML field for remote directories
-      if (directory.isRemote)
-        document.getElementById('allowRemoteContent').hidden = true;
     }
   }
 }
@@ -420,11 +411,6 @@ function NewCardOKButton()
       var directory = GetDirectoryFromURI(uri);
       gEditCard.card = directory.addCard(gEditCard.card);
       NotifySaveListeners(directory);
-      if ("arguments" in window && window.arguments[0] &&
-          "allowRemoteContent" in window.arguments[0])
-        // getProperty may return a "1" or "0" string, we want a boolean
-        window.arguments[0].allowRemoteContent =
-          gEditCard.card.getProperty("AllowRemoteContent", false) != false;
     }
   }
 
@@ -484,11 +470,6 @@ function GetCardValues(cardproperty, doc)
   var popup = document.getElementById("PreferMailFormatPopup");
   if (popup)
     popup.value = cardproperty.getProperty("PreferMailFormat", "");
-
-  var allowRemoteContentEl = document.getElementById("allowRemoteContent");
-  if (allowRemoteContentEl)
-    // getProperty may return a "1" or "0" string, we want a boolean
-    allowRemoteContentEl.checked = cardproperty.getProperty("AllowRemoteContent", false) != false;
 
   var preferDisplayNameEl = document.getElementById("preferDisplayName");
   if (preferDisplayNameEl)
@@ -555,10 +536,6 @@ function CheckAndSetCardValues(cardproperty, doc, check)
   var popup = document.getElementById("PreferMailFormatPopup");
   if (popup)
     cardproperty.setProperty("PreferMailFormat", popup.value);
-
-  var allowRemoteContentEl = document.getElementById("allowRemoteContent");
-  if (allowRemoteContentEl)
-    cardproperty.setProperty("AllowRemoteContent", allowRemoteContentEl.checked);
 
   var preferDisplayNameEl = document.getElementById("preferDisplayName");
   if (preferDisplayNameEl)
@@ -694,7 +671,7 @@ function calculateAge(aEvent, aElement) {
     yearElem.value = datepicker.year;
   var year = yearElem.value;
   // if the year element's value is invalid set the year and age elements to null
-  if (isNaN(year) || year < 1 || year > 9999) {
+  if (isNaN(year) || year < kMinYear || year > kMaxYear) {
     yearElem.value = null;
     ageElem.value = null;
     datepicker.year = kDefaultYear;
@@ -733,10 +710,10 @@ function calculateYear(aEvent, aElement) {
   if (aEvent)
     aElement = this;
   if (aElement.id == "Age") {
-    yearElem = document.getElementById("BirthYear");
     datepicker = document.getElementById("Birthday");
+    yearElem = document.getElementById("BirthYear");
   }
-  if (!yearElem || !datepicker)
+  if (!datepicker || !yearElem)
     return;
 
   // if the age is null, remove the year from the year element, and set the
@@ -760,7 +737,9 @@ function calculateYear(aEvent, aElement) {
     datepicker.year = kDefaultYear;
     // if there was an error (like invalid year) set the year and age to null
     yearElem.value = null;
-    ageElem.value = null;
+    let ageElem = document.getElementById("Age");
+    if (ageElem)
+      ageElem.value = null;
   }
 }
 
@@ -810,7 +789,7 @@ function modifyDatepicker(aDatepicker) {
       var dt = new Date(this.year, currentMonth, aValue);
       return dt.getMonth() != currentMonth ? 1 : aValue;
     }
-    var max = (aField == this.monthField) ? 11 : 9999;
+    var max = (aField == this.monthField) ? 11 : kMaxYear;
     // make sure the value isn't too high
     if (aValue > max)
       return aNoWrap ? max : min;
@@ -819,7 +798,7 @@ function modifyDatepicker(aDatepicker) {
   // sets the specified field to the given value, but allows blank fields
   // from: mozilla/toolkit/content/widgets/datetimepicker.xml#698
   aDatepicker._setFieldValue = function setValue(aField, aValue) {
-    if (aField == this.yearField && aValue > 0 && aValue < 10000) {
+    if (aField == this.yearField && aValue >= kMinYear && aValue <= kMaxYear) {
       var oldDate = this._dateValue;
       this._dateValue.setFullYear(aValue);
       if (oldDate != this._dateValue) {

@@ -4,28 +4,19 @@
 
 @import url("chrome://messenger/content/quickFilterBar.css");
 
-/* :::: Filter Tab Bar Button :::: */
-
-#qfb-show-filter-bar {
-  list-style-image: url("moz-icon://stock/gtk-find?size=menu");
-}
-
-toolbar[iconsize="large"] #qfb-show-filter-bar {
-  list-style-image: url("moz-icon://stock/gtk-find?size=toolbar");
-}
-
-#qfb-show-filter-bar[disabled="true"] {
-  list-style-image: url("moz-icon://stock/gtk-find?size=menu&state=disabled");
-}
-
-toolbar[iconsize="large"] #qfb-show-filter-bar[disabled="true"] {
-  list-style-image: url("moz-icon://stock/gtk-find?size=toolbar&state=disabled");
-}
-
 /* :::: Filter Bar :::: */
+
+#quick-filter-bar {
+  background-color: -moz-dialog;
+  border-bottom: 1px solid ThreeDShadow;
+}
 
 #quick-filter-bar-main-bar {
   -moz-padding-start: 4px;
+}
+
+#qfb-qs-textbox {
+  margin: 5px;
 }
 
 #quick-filter-bar-expando {

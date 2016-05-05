@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "content-tab-helpers";
+var MODULE_NAME = "content-tab-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
+var RELATIVE_ROOT = "../shared-modules";
 // we need this for the main controller
-const MODULE_REQUIRES = ["folder-display-helpers",
+var MODULE_REQUIRES = ["folder-display-helpers",
                          "window-helpers",
                          "mock-object-helpers"];
 
@@ -17,10 +17,10 @@ Cu.import('resource://mozmill/modules/utils.js', utils);
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import('resource://gre/modules/XPCOMUtils.jsm');
 
-const NORMAL_TIMEOUT = 6000;
-const FAST_TIMEOUT = 1000;
-const FAST_INTERVAL = 100;
-const EXT_PROTOCOL_SVC_CID = "@mozilla.org/uriloader/external-protocol-service;1";
+var NORMAL_TIMEOUT = 6000;
+var FAST_TIMEOUT = 1000;
+var FAST_INTERVAL = 100;
+var EXT_PROTOCOL_SVC_CID = "@mozilla.org/uriloader/external-protocol-service;1";
 
 var folderDisplayHelper;
 var mc;
@@ -30,7 +30,7 @@ var _originalBlocklistURL = null;
 
 // logHelper (and therefore folderDisplayHelper) exports
 var mark_failure;
-let gMockExtProtocolSvcReg;
+var gMockExtProtocolSvcReg;
 
 function setupModule() {
   folderDisplayHelper = collector.getModule('folder-display-helpers');
@@ -76,7 +76,7 @@ function installInto(module) {
  * gMockExtProtocolSvc allows us to capture (most if not all) attempts to
  * open links in the default browser.
  */
-let gMockExtProtSvc = {
+var gMockExtProtSvc = {
   _loadedURLs: [],
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIExternalProtocolService]),
 
@@ -106,7 +106,7 @@ let gMockExtProtSvc = {
   },
 
   urlLoaded: function(aURL) {
-    return this._loadedURLs.indexOf(aURL) != -1;
+    return this._loadedURLs.includes(aURL);
   },
 }
 
@@ -119,9 +119,9 @@ function MockExtProtConstructor() {
  * content tabs, for example: plugin crash notifications, theme
  * install notifications.
  */
-const ALERT_TIMEOUT = 10000;
+var ALERT_TIMEOUT = 10000;
 
-let NotificationWatcher = {
+var NotificationWatcher = {
   planForNotification: function(aController) {
     this.alerted = false;
     aController.window.document.addEventListener("AlertActive",
@@ -129,14 +129,14 @@ let NotificationWatcher = {
   },
   waitForNotification: function(aController) {
     if (!this.alerted) {
-      aController.waitFor(function () this.alerted, "Timeout waiting for alert",
-                          ALERT_TIMEOUT, 100, this);
+      aController.waitFor(() => this.alerted, "Timeout waiting for alert",
+                          ALERT_TIMEOUT, 100);
     }
     // Double check the notification box has finished animating.
     let notificationBox =
       mc.tabmail.selectedTab.panel.querySelector("notificationbox");
     if (notificationBox && notificationBox._animating)
-      aController.waitFor(function () !notificationBox._animating,
+      aController.waitFor(() => !notificationBox._animating,
                           "Timeout waiting for notification box animation to finish",
                           ALERT_TIMEOUT, 100);
 
@@ -171,7 +171,7 @@ function open_content_tab_with_url(aURL, aClickHandler, aBackground, aController
   let newTab = mc.tabmail.openTab("contentTab", {contentPage: aURL,
                                                  background: aBackground,
                                                  clickHandler: aClickHandler});
-  utils.waitFor(function () (
+  utils.waitFor(() => (
                   aController.tabmail.tabContainer.childNodes.length == preCount + 1),
                 "Timeout waiting for the content tab to open with URL: " + aURL,
                 FAST_TIMEOUT, FAST_INTERVAL);
@@ -200,7 +200,7 @@ function open_content_tab_with_click(aElem, aExpectedURL, aController) {
 
   let preCount = aController.tabmail.tabContainer.childNodes.length;
   aController.click(new elib.Elem(aElem));
-  utils.waitFor(function () (
+  utils.waitFor(() => (
                   aController.tabmail.tabContainer.childNodes.length == preCount + 1),
                 "Timeout waiting for the content tab to open",
                 FAST_TIMEOUT, FAST_INTERVAL);
@@ -235,10 +235,11 @@ function plan_for_content_tab_load(aTab) {
  * Note that you cannot call |plan_for_content_tab_load| if you're opening a new
  * tab. That is fine, because pageLoaded is initially false.
  *
- * @param [aTab] optional tab, defaulting to the current tab.
- * @param aURL The URL being loaded in the tab.
+ * @param [aTab]      Optional tab, defaulting to the current tab.
+ * @param aURL        The URL being loaded in the tab.
+ * @param [aTimeout]  Optional time to wait for the load.
  */
-function wait_for_content_tab_load(aTab, aURL) {
+function wait_for_content_tab_load(aTab, aURL, aTimeout) {
   if (aTab === undefined)
     aTab = mc.tabmail.currentTabInfo;
 
@@ -251,9 +252,9 @@ function wait_for_content_tab_load(aTab, aURL) {
   }
 
   utils.waitFor(isLoadedChecker,
-                "Timeout waiting for the content tab page to load.");
-  // the above may return immediately, meaning the event queue might not get a
-  //  chance.  give it a chance now.
+                "Timeout waiting for the content tab page to load.", aTimeout);
+  // The above may return immediately, meaning the event queue might not get a
+  // chance. Give it a chance now.
   mc.sleep(0);
   // Finally, require that the tab's browser thinks that no page is being loaded.
   wh.wait_for_browser_load(aTab.browser, aURL);
@@ -342,7 +343,7 @@ function wait_for_content_tab_element_display_value(aTab, aElem, aValue) {
  */
 function assert_content_tab_text_present(aTab, aText) {
   let html = aTab.browser.contentDocument.documentElement.innerHTML;
-  if (!html.contains(aText)) {
+  if (!html.includes(aText)) {
     mark_failure(["Unable to find string \"" + aText + "\" on the content tab's page"]);
   }
 }
@@ -352,7 +353,7 @@ function assert_content_tab_text_present(aTab, aText) {
  */
 function assert_content_tab_text_absent(aTab, aText) {
   let html = aTab.browser.contentDocument.documentElement.innerHTML;
-  if (html.contains(aText)) {
+  if (html.includes(aText)) {
     mark_failure(["Found string \"" + aText + "\" on the content tab's page"]);
   }
 }
@@ -392,14 +393,14 @@ function plugins_run_in_separate_processes(aController) {
   let supportsOOPP = false;
 
   if (aController.mozmillModule.isMac) {
-    if (Services.appinfo.XPCOMABI.contains("x86-")) {
+    if (Services.appinfo.XPCOMABI.includes("x86-")) {
       try {
         supportsOOPP = Services.prefs.getBoolPref("dom.ipc.plugins.enabled.i386.test.plugin");
       } catch(e) {
         supportsOOPP = Services.prefs.getBoolPref("dom.ipc.plugins.enabled.i386");
       }
     }
-    else if (Services.appinfo.XPCOMABI.contains("x86_64-")) {
+    else if (Services.appinfo.XPCOMABI.includes("x86_64-")) {
       try {
         supportsOOPP = Services.prefs.getBoolPref("dom.ipc.plugins.enabled.x86_64.test.plugin");
       } catch(e) {

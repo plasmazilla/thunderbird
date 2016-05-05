@@ -26,6 +26,7 @@
 #include "nsMemory.h"
 #include "nsLDAPUtils.h"
 #include "nsProxyRelease.h"
+#include "mozilla/Logging.h"
 
 using namespace mozilla;
 
@@ -176,7 +177,7 @@ void
 nsLDAPConnection::Close()
 {
   int rc;
-  PR_LOG(gLDAPLogModule, PR_LOG_DEBUG, ("unbinding\n"));
+  MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug, ("unbinding\n"));
 
   if (mConnectionHandle) {
       // note that the ldap_unbind() call in the 5.0 version of the LDAP C SDK
@@ -186,7 +187,7 @@ nsLDAPConnection::Close()
       rc = ldap_unbind(mConnectionHandle);
 #ifdef PR_LOGGING
       if (rc != LDAP_SUCCESS) {
-          PR_LOG(gLDAPLogModule, PR_LOG_WARNING,
+          MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Warning,
                  ("nsLDAPConnection::Close(): %s\n",
                   ldap_err2string(rc)));
       }
@@ -194,7 +195,7 @@ nsLDAPConnection::Close()
       mConnectionHandle = nullptr;
   }
 
-  PR_LOG(gLDAPLogModule, PR_LOG_DEBUG, ("unbound\n"));
+  MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug, ("unbound\n"));
 
   NS_ASSERTION(!mThread || NS_SUCCEEDED(mThread->Shutdown()),
                "Failed to shutdown thread cleanly");
@@ -208,16 +209,6 @@ nsLDAPConnection::Close()
   }
   mInitListener = 0;
 
-}
-/** Get list of pending operation and store pointers to array
-  * \param userArg pointer to nsTArray<nsILDAPOperation*>
-  */
-PLDHashOperator
-GetListOfPendingOperations(const uint32_t &key, nsILDAPOperation *op, void *userArg)
-{
-  nsTArray<nsILDAPOperation*>* pending_operations = static_cast<nsTArray<nsILDAPOperation*>* >(userArg);
-  pending_operations->AppendElement(op);
-  return PL_DHASH_NEXT;
 }
 
 NS_IMETHODIMP
@@ -234,7 +225,9 @@ nsLDAPConnection::Observe(nsISupports *aSubject, const char *aTopic,
     nsTArray<nsILDAPOperation*> pending_operations;
     {
       MutexAutoLock lock(mPendingOperationsMutex);
-      mPendingOperations.EnumerateRead(GetListOfPendingOperations, (void *) (&pending_operations));
+      for (auto iter = mPendingOperations.Iter(); !iter.Done(); iter.Next()) {
+        pending_operations.AppendElement(iter.UserData());
+      }
     }
     for (uint32_t i = 0; i < pending_operations.Length(); i++) {
       pending_operations[i]->AbandonExt();
@@ -333,7 +326,7 @@ nsLDAPConnection::AddPendingOperation(uint32_t aOperationID, nsILDAPOperation *a
   {
     MutexAutoLock lock(mPendingOperationsMutex);
     mPendingOperations.Put((uint32_t)aOperationID, aOperation);
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("pending operation added; total pending operations now = %d\n",
             mPendingOperations.Count()));
   }
@@ -369,13 +362,13 @@ nsLDAPConnection::RemovePendingOperation(uint32_t aOperationID)
 {
   NS_ENSURE_TRUE(aOperationID > 0, NS_ERROR_UNEXPECTED);
 
-  PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+  MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
          ("nsLDAPConnection::RemovePendingOperation(): operation removed\n"));
 
   {
     MutexAutoLock lock(mPendingOperationsMutex);
     mPendingOperations.Remove(aOperationID);
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("nsLDAPConnection::RemovePendingOperation(): operation "
             "removed; total pending operations now = %d\n",
             mPendingOperations.Count()));
@@ -393,7 +386,7 @@ public:
   {}
   NS_DECL_NSIRUNNABLE
 private:
-  nsRefPtr<nsLDAPMessage> m_msg;
+  RefPtr<nsLDAPMessage> m_msg;
   bool m_clear;
 };
 
@@ -428,7 +421,7 @@ nsLDAPConnection::InvokeMessageCallback(LDAPMessage *aMsgHandle,
 {
 #if defined(DEBUG)
   // We only want this being logged for debug builds so as not to affect performance too much.
-  PR_LOG(gLDAPLogModule, PR_LOG_DEBUG, ("InvokeMessageCallback entered\n"));
+  MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug, ("InvokeMessageCallback entered\n"));
 #endif
 
   // Get the operation.
@@ -444,7 +437,7 @@ nsLDAPConnection::InvokeMessageCallback(LDAPMessage *aMsgHandle,
   msg->mOperation = operation;
 
   // proxy the listener callback to the ui thread.
-  nsRefPtr<nsOnLDAPMessageRunnable> runnable =
+  RefPtr<nsOnLDAPMessageRunnable> runnable =
     new nsOnLDAPMessageRunnable(msg, aRemoveOpFromConnQ);
   // invoke the callback
   NS_DispatchToMainThread(runnable);
@@ -456,7 +449,7 @@ nsLDAPConnection::InvokeMessageCallback(LDAPMessage *aMsgHandle,
     MutexAutoLock lock(mPendingOperationsMutex);
     mPendingOperations.Remove(aOperation);
 
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("pending operation removed; total pending operations now ="
             " %d\n", mPendingOperations.Count()));
   }
@@ -635,7 +628,7 @@ NS_IMETHODIMP nsLDAPConnectionRunnable::Run()
 
   LDAPMessage *msgHandle;
   bool operationFinished = true;
-  nsRefPtr<nsLDAPMessage> msg;
+  RefPtr<nsLDAPMessage> msg;
 
   struct timeval timeout = { 0, 0 };
 

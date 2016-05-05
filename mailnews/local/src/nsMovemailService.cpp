@@ -34,14 +34,16 @@
 #include "nsIStringBundle.h"
 #include "nsIMsgPluggableStore.h"
 #include "mozilla/Services.h"
+#include "nsIInputStream.h"
+#include "nsIOutputStream.h"
 
-#include "prlog.h"
+#include "mozilla/Logging.h"
 #if defined(PR_LOGGING)
 //
 // export NSPR_LOG_MODULES=Movemail:5
 //
 static PRLogModuleInfo *gMovemailLog = nullptr;
-#define LOG(args) PR_LOG(gMovemailLog, PR_LOG_DEBUG, args)
+#define LOG(args) MOZ_LOG(gMovemailLog, mozilla::LogLevel::Debug, args)
 #else
 #define LOG(args)
 #endif
@@ -83,7 +85,7 @@ private:
   bool mLocked;
   nsCString mSpoolName;
   bool mUsingLockFile;
-  nsRefPtr<nsMovemailService> mOwningService;
+  RefPtr<nsMovemailService> mOwningService;
   nsCOMPtr<nsIMsgIncomingServer> mServer;
 
   bool ObtainSpoolLock(unsigned int aSeconds);
@@ -466,7 +468,7 @@ nsMovemailService::GetNewMail(nsIMsgWindow *aMsgWindow,
   NS_ENSURE_SUCCESS(rv, rv);
 
   // create a new mail parser
-  nsRefPtr<nsParseNewMailState> newMailParser = new nsParseNewMailState;
+  RefPtr<nsParseNewMailState> newMailParser = new nsParseNewMailState;
 
   // Try and obtain the lock for the spool file.
   SpoolLock lock(&spoolPath, 5, *this, in_server);

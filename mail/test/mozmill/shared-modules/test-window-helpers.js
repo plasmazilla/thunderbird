@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "window-helpers";
+var MODULE_NAME = "window-helpers";
 
 Cu.import('resource:///modules/iteratorUtils.jsm');
 Cu.import('resource://gre/modules/NetUtil.jsm');
@@ -23,38 +23,38 @@ Cu.import('resource://mozmill/modules/utils.js', utils);
  * Timeout to use when waiting for the first window ever to load.  This is
  *  long because we are basically waiting for the entire app startup process.
  */
-const FIRST_WINDOW_EVER_TIMEOUT_MS = 30000;
+var FIRST_WINDOW_EVER_TIMEOUT_MS = 30000;
 /**
  * Interval to check if the window has shown up for the first window ever to
  *  load.  The check interval is longer because it's less likely the window
  *  is going to show up quickly and there is a cost to the check.
  */
-const FIRST_WINDOW_CHECK_INTERVAL_MS = 300;
+var FIRST_WINDOW_CHECK_INTERVAL_MS = 300;
 
 /**
  * Timeout for opening a window.
  */
-const WINDOW_OPEN_TIMEOUT_MS = 10000;
+var WINDOW_OPEN_TIMEOUT_MS = 10000;
 /**
  * Check interval for opening a window.
  */
-const WINDOW_OPEN_CHECK_INTERVAL_MS = 100;
+var WINDOW_OPEN_CHECK_INTERVAL_MS = 100;
 
 /**
  * Timeout for closing a window.
  */
-const WINDOW_CLOSE_TIMEOUT_MS = 10000;
+var WINDOW_CLOSE_TIMEOUT_MS = 10000;
 /**
  * Check interval for closing a window.
  */
-const WINDOW_CLOSE_CHECK_INTERVAL_MS = 100;
+var WINDOW_CLOSE_CHECK_INTERVAL_MS = 100;
 
 /**
  * Timeout for focusing a window.  Only really an issue on linux.
  */
-const WINDOW_FOCUS_TIMEOUT_MS = 10000;
+var WINDOW_FOCUS_TIMEOUT_MS = 10000;
 
-const hiddenWindow = Services.appShell.hiddenDOMWindow;
+var hiddenWindow = Services.appShell.hiddenDOMWindow;
 
 // Have a dummy mark_action function in case test-folder-display-helpers does
 // not provide us with one.
@@ -244,13 +244,12 @@ var WindowWatcher = {
    */
   waitForWindowOpen: function WindowWatcher_waitForWindowOpen(aWindowType) {
     this.waitingForOpen = aWindowType;
-    utils.waitFor(function () this.monitorizeOpen(),
+    utils.waitFor(() => this.monitorizeOpen(),
                   "Timed out waiting for window open!",
                   this._firstWindowOpened ? WINDOW_OPEN_TIMEOUT_MS
                     : FIRST_WINDOW_EVER_TIMEOUT_MS,
                   this._firstWindowOpened ? WINDOW_OPEN_CHECK_INTERVAL_MS
-                    : FIRST_WINDOW_CHECK_INTERVAL_MS,
-                  this);
+                    : FIRST_WINDOW_CHECK_INTERVAL_MS);
 
     this.waitingForOpen = null;
     let xulWindow = this.waitingList.get(aWindowType);
@@ -375,8 +374,8 @@ var WindowWatcher = {
     if (this.subTestFunc == null)
       return;
     // spin the event loop until we the window has come and gone.
-    utils.waitFor(function () (this.waitingForOpen == null &&
-                               this.monitorizeClose()),
+    utils.waitFor(function () { return (this.waitingForOpen == null &&
+                                        this.monitorizeClose()); },
                   "Timeout waiting for modal dialog to open.",
                   aTimeout || WINDOW_OPEN_TIMEOUT_MS,
                   WINDOW_OPEN_CHECK_INTERVAL_MS, this);
@@ -397,9 +396,10 @@ var WindowWatcher = {
    */
   waitingForClose: null,
   waitForWindowClose: function WindowWatcher_waitForWindowClose() {
-    utils.waitFor(function () this.monitorizeClose(),
+    utils.waitFor(() => this.monitorizeClose(),
                   "Timeout waiting for window to close!",
-      WINDOW_CLOSE_TIMEOUT_MS, WINDOW_CLOSE_CHECK_INTERVAL_MS, this);
+                  WINDOW_CLOSE_TIMEOUT_MS,
+                  WINDOW_CLOSE_CHECK_INTERVAL_MS);
     let didDisappear = (this.waitingList.get(this.waitingForClose) == null);
     let windowType = this.waitingForClose;
     this.waitingList.delete(windowType);
@@ -682,7 +682,7 @@ function wait_for_window_focused(aWindow) {
     targetWindow.focus();
   }
 
-  utils.waitFor(function() focused,
+  utils.waitFor(() => focused,
       "Timeout waiting for window to be focused.",
       WINDOW_FOCUS_TIMEOUT_MS, 100, this);
 }
@@ -712,11 +712,13 @@ function wait_for_frame_load(aFrame, aURLOrPredicate) {
   let details = {
     // Not sure whether all of these really need to be getters, but this is the
     // safest thing to do.
-    get webProgress () (aFrame.contentWindow.QueryInterface(Ci.nsIInterfaceRequestor)
-                              .getInterface(Ci.nsIWebNavigation)
-                              .QueryInterface(Ci.nsIWebProgress)),
-    get currentURI () (NetUtil.newURI(aFrame.contentDocument.location)),
-    get contentWindow () (aFrame.contentWindow),
+    get webProgress () {
+      return aFrame.contentWindow.QueryInterface(Ci.nsIInterfaceRequestor)
+             .getInterface(Ci.nsIWebNavigation)
+             .QueryInterface(Ci.nsIWebProgress);
+    },
+    get currentURI () { return NetUtil.newURI(aFrame.contentDocument.location); },
+    get contentWindow () { return aFrame.contentWindow; },
   };
   return _wait_for_generic_load(details, aURLOrPredicate);
 }
@@ -732,7 +734,7 @@ function _wait_for_generic_load(aDetails, aURLOrPredicate) {
   let predicate;
   if (typeof aURLOrPredicate == "string") {
     let expectedURL = NetUtil.newURI(aURLOrPredicate);
-    predicate = function (url) (expectedURL.equals(url));
+    predicate = url => expectedURL.equals(url);
   }
   else {
     predicate = aURLOrPredicate;
@@ -764,8 +766,8 @@ function _wait_for_generic_load(aDetails, aURLOrPredicate) {
 }
 
 
-let observationWaitFuncs = {};
-let observationSaw = {};
+var observationWaitFuncs = {};
+var observationSaw = {};
 /**
  * Plan for a notification to be sent via the observer service.
  *
@@ -834,8 +836,7 @@ var AugmentEverybodyWith = {
           let elems = Array.prototype.slice.call(
                         elem.getElementsByTagName(aQuery.tagName));
           if (aQuery.label)
-            elems = [elem for each (elem in elems)
-                          if (elem.label == aQuery.label)];
+            elems = elems.filter(elem => elem.label == aQuery.label);
           elem = elems[0];
         }
       }
@@ -958,16 +959,16 @@ var AugmentEverybodyWith = {
       if (aRootPopup.state == "closed")
         aRootPopup.openPopup(null, "", 0, 0, true, true);
       if (aRootPopup.state != "open") { // handle "showing"
-        utils.waitFor(function() { return aRootPopup.state == "open"; },
+        utils.waitFor(() => aRootPopup.state == "open",
                       "Popup never opened! id=" + aRootPopup.id +
-                      ", state=" + aRootPopup.state, 5000, 50);
+                      ", state=" + aRootPopup.state);
       }
       // These popups sadly do not close themselves, so we need to keep track
       // of them so we can make sure they end up closed.
       let closeStack = [aRootPopup];
 
       let curPopup = aRootPopup;
-      for each (let [iAction, actionObj] in Iterator(aActions)) {
+      for (let [iAction, actionObj] of aActions.entries()) {
         /**
          * Check if aNode attributes match all those given in actionObj.
          * Nodes that are obvious containers are skipped, and their children
@@ -986,7 +987,8 @@ var AugmentEverybodyWith = {
           }
 
           let matchedAll = true;
-          for each (let [name, value] in Iterator(actionObj)) {
+          for (let name in actionObj) {
+            let value = actionObj[name];
             if (!aNode.hasAttribute(name) ||
                 aNode.getAttribute(name) != value) {
               matchedAll = false;
@@ -1091,7 +1093,7 @@ var AugmentEverybodyWith = {
  * border but are no longer so (bug 595652), so we need these wrappers to
  * perform the operations at the center when aLeft or aTop aren't passed in.
  */
-const MOUSE_OPS_TO_WRAP = [
+var MOUSE_OPS_TO_WRAP = [
   "click", "doubleClick", "mouseDown", "mouseOut", "mouseOver", "mouseUp",
   "middleClick", "rightClick",
 ];
@@ -1308,25 +1310,27 @@ var PerWindowTypeAugmentations = {
 
 function _augment_helper(aController, aAugmentDef) {
   if (aAugmentDef.elementsToExpose) {
-    for each (let [key, value] in Iterator(aAugmentDef.elementsToExpose)) {
+    for (let key in aAugmentDef.elementsToExpose) {
+      let value = aAugmentDef.elementsToExpose[key];
       aController[key] = aController.window.document.getElementById(value);
     }
   }
   if (aAugmentDef.elementsIDsToExpose) {
-    for each (let [key, value] in Iterator(aAugmentDef.elementIDsToExpose)) {
+    for (let key in aAugmentDef.elementIDsToExpose) {
+      let value = aAugmentDef.elementIDsToExpose[key];
       aController[key] = new elib.ID(
                            aController.window.document, value);
     }
   }
   if (aAugmentDef.globalsToExposeAtStartup) {
-    for each (let [key, value] in
-              Iterator(aAugmentDef.globalsToExposeAtStartup)) {
+    for (let key in aAugmentDef.globalsToExposeAtStartup) {
+      let value = aAugmentDef.globalsToExposeAtStartup[key];
       aController[key] = aController.window[value];
     }
   }
   if (aAugmentDef.globalsToExposeViaGetters) {
-    for each (let [key, value] in
-              Iterator(aAugmentDef.globalsToExposeViaGetters)) {
+    for (let key in aAugmentDef.globalsToExposeViaGetters) {
+      let value = aAugmentDef.globalsToExposeViaGetters[key];
       let globalName = value;
       aController.__defineGetter__(key, function() {
           return this.window[globalName];
@@ -1334,19 +1338,21 @@ function _augment_helper(aController, aAugmentDef) {
     }
   }
   if (aAugmentDef.getters) {
-    for each (let [key, value] in Iterator(aAugmentDef.getters)) {
+    for (let key in aAugmentDef.getters) {
+      let value = aAugmentDef.getters[key];
       aController.__defineGetter__(key, value);
     }
   }
   if (aAugmentDef.methods) {
-    for each (let [key, value] in Iterator(aAugmentDef.methods)) {
+    for (let key in aAugmentDef.methods) {
+      let value = aAugmentDef.methods[key];
       aController[key] = value;
     }
   }
 
   if (aAugmentDef.debugTrace) {
     let win = aController.window;
-    for each (let [, traceDef] in Iterator(aAugmentDef.debugTrace)) {
+    for (let traceDef of aAugmentDef.debugTrace) {
       let baseObj, useThis;
       // - Get the object that actually has the method to wrap
       if (traceDef.hasOwnProperty("onGlobal")) {
@@ -1845,8 +1851,8 @@ function captureWindowStatesForErrorReporting(normalizeForJsonFunc) {
     let openPopups =
       Array.prototype.slice.call(
           win.document.documentElement.getElementsByTagName("menupopup"))
-        .filter(function(x) x.state != "closed")
-        .map(function (x) normalizeForJsonFunc(x));
+        .filter(x => x.state != "closed")
+        .map(x => normalizeForJsonFunc(x));
 
     let ignoredFocusedWindow = {};
     let winfo = {

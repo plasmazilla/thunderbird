@@ -20,8 +20,8 @@ var sentFolder;
 var originalData;
 var finished = false;
 
-const kSender = "from@foo.invalid";
-const kTo = "to@foo.invalid";
+var kSender = "from@foo.invalid";
+var kTo = "to@foo.invalid";
 
 function msl() {}
 
@@ -39,7 +39,7 @@ msl.prototype = {
 
       do_check_transaction(server.playTransaction(),
                            ["EHLO test",
-                            "MAIL FROM:<" + kSender + "> SIZE=" + originalData.length,
+                            "MAIL FROM:<" + kSender + "> BODY=8BITMIME SIZE=" + originalData.length,
                             "RCPT TO:<" + kTo + ">",
                             "DATA"]);
 

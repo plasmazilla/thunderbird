@@ -1,0 +1,37 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:26 +0200
+Subject: Brand-ja
+
+---
+ iceowl-l10n/ja/locale/ja/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/ja/locale/ja/lightning/lightning.properties b/iceowl-l10n/ja/locale/ja/lightning/lightning.properties
+index ba361a8..3fc21ba 100644
+--- a/iceowl-l10n/ja/locale/ja/lightning/lightning.properties
++++ b/iceowl-l10n/ja/locale/ja/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Thunderbird に統合されたカレンダー
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Icedove に統合されたカレンダー
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Mozilla Calendar Project
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=ToDo
+@@ -122,7 +122,7 @@ imipBarUpdateText=メッセージに既存の予定の更新が含まれてい
+ imipBarAlreadyProcessedText=メッセージにすでに処理された予定が含まれています。
+ imipBarProcessedNeedsAction=メッセージにまだ返答していない予定が含まれています。
+ imipBarReplyText=メッセージに参加依頼への返信が含まれています。
+-imipBarUnsupportedText=メッセージにこのバージョンの Lightning では処理できない予定が含まれています。
++imipBarUnsupportedText=メッセージにこのバージョンの Iceowl では処理できない予定が含まれています。
+ imipBarProcessingFailed=メッセージの処理に失敗しました。状態: %1$S
+ imipBarNotWritable=カレンダーに書き込みできないため参加依頼を処理できません。カレンダーのプロパティを確認してください。
+ imipSendMail.title=メール通知

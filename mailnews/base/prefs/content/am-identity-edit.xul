@@ -32,21 +32,13 @@
           src="chrome://messenger/content/am-prefs.js"/>
   <script type="application/javascript"
           src="chrome://messenger/content/am-identity-edit.js"/>
-  <script type="application/javascript">
-  <![CDATA[
-    function getServerIdAndPageIdFromTree(tree)
-    {
-      return {"serverId": gAccount.incomingServer.key, "pageId": "" }
-    }
-  ]]>
-  </script>
 
   <broadcaster id="broadcaster_attachSignature"/>
 
   <description flex="1">&identityListDesc.label;</description>
   <separator class="thin"/>
 
-  <tabbox>
+  <tabbox flex="1" style="overflow: auto;">
     <tabs id="identitySettings">
       <tab label="&settingsTab.label;"/>
       <tab label="&copiesFoldersTab.label;"/>

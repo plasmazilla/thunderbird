@@ -16,8 +16,8 @@ function calMonthPrinter() {
     this.wrappedJSObject = this;
 }
 
-const calMonthPrinterClassID = Components.ID("{f42d5132-92c4-487b-b5c8-38bf292d74c1}");
-const calMonthPrinterInterfaces = [Components.interfaces.calIPrintFormatter];
+var calMonthPrinterClassID = Components.ID("{f42d5132-92c4-487b-b5c8-38bf292d74c1}");
+var calMonthPrinterInterfaces = [Components.interfaces.calIPrintFormatter];
 calMonthPrinter.prototype = {
     classID: calMonthPrinterClassID,
     QueryInterface: XPCOMUtils.generateQI(calMonthPrinterInterfaces),
@@ -29,7 +29,7 @@ calMonthPrinter.prototype = {
         interfaces: calMonthPrinterInterfaces
     }),
 
-    get name() cal.calGetString("calendar", "monthPrinterName"),
+    get name() { return cal.calGetString("calendar", "monthPrinterName"); },
 
     formatToHtml: function monthPrint_format(aStream, aStart, aEnd, aCount, aItems, aTitle) {
         let document = cal.xml.parseFile("chrome://calendar-common/skin/printing/calMonthGridPrinter.html");
@@ -59,13 +59,13 @@ calMonthPrinter.prototype = {
         for each (let item in aItems) {
             let itemStartDate = item[cal.calGetStartDateProp(item)] || item[cal.calGetEndDateProp(item)];
             let itemEndDate = item[cal.calGetEndDateProp(item)] || item[cal.calGetStartDateProp(item)];
-            itemStartDate = itemStartDate.getInTimezone(defaultTimezone);
-            itemEndDate = itemEndDate.getInTimezone(defaultTimezone);
 
             if (!itemStartDate && !itemEndDate) {
                 cal.print.addItemToDayboxNodate(document, item);
                 continue;
             }
+            itemStartDate = itemStartDate.getInTimezone(defaultTimezone);
+            itemEndDate = itemEndDate.getInTimezone(defaultTimezone);
 
             let boxDate = itemStartDate.clone();
             boxDate.isDate = true;
@@ -86,7 +86,7 @@ calMonthPrinter.prototype = {
                 }
 
                 let dayBoxes = dayTable[boxDateKey];
-                let addSingleItem = cal.print.addItemToDaybox.bind(cal.print, document, item);
+                let addSingleItem = cal.print.addItemToDaybox.bind(cal.print, document, item, boxDate);
 
                 if (Array.isArray(dayBoxes)) {
                     dayBoxes.forEach(addSingleItem);

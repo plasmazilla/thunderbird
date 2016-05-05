@@ -8,15 +8,18 @@
  * books.
  */
 
+Components.utils.import("resource:///modules/ABQueryUtils.jsm");
+
 // taken from nsAbAutoCompleteSearch.js
-const ACR = Components.interfaces.nsIAutoCompleteResult;
-const nsIAbAutoCompleteResult = Components.interfaces.nsIAbAutoCompleteResult;
+var ACR = Components.interfaces.nsIAutoCompleteResult;
+var nsIAbAutoCompleteResult = Components.interfaces.nsIAbAutoCompleteResult;
 
 function nsAbAutoCompleteResult(aSearchString) {
   // Can't create this in the prototype as we'd get the same array for
   // all instances
-  this._searchResults = new Array();
+  this._searchResults = [];
   this.searchString = aSearchString;
+  this.modelQuery = getModelQuery("mail.addr_book.autocompletequery.format");
 }
 
 nsAbAutoCompleteResult.prototype = {
@@ -24,6 +27,7 @@ nsAbAutoCompleteResult.prototype = {
 
   // nsIAutoCompleteResult
 
+  modelQuery: null,
   searchString: null,
   searchResult: ACR.RESULT_NOMATCH,
   defaultIndex: -1,
@@ -89,40 +93,40 @@ function createCard(chars, popularity) {
   return card;
 }
 
-const lastSearchCards = [ createCard(1, 0), createCard(2, 0), createCard(3, 0) ];
+var lastSearchCards = [ createCard(1, 0), createCard(2, 0), createCard(3, 0) ];
 
-const results = [ { email: "d <e@foo.invalid>", dirName: kPABData.dirName },
+var results = [ { email: "d <e@foo.invalid>", dirName: kPABData.dirName },
                   { email: "di <em@foo.invalid>", dirName: kPABData.dirName },
                   { email: "dis <ema@foo.invalid>", dirName: kPABData.dirName } ];
 
-const firstNames = [ { search: "fi",     expected: [1, 2] },
+var firstNames = [ { search: "fi",     expected: [1, 2] },
                      { search: "fir",    expected: [2] } ];
 
-const lastNames = [ { search: "la",     expected: [1, 2] },
+var lastNames = [ { search: "la",     expected: [1, 2] },
                     { search: "las",    expected: [2] } ];
 
-const displayNames = [ { search: "d",      expected: [5, 0, 1, 2, 3, 4] },
+var displayNames = [ { search: "d",      expected: [5, 0, 1, 2, 3, 4] },
                        { search: "di",     expected: [5, 1, 2, 3, 4] },
                        { search: "dis",    expected: [5, 2, 3, 4] },
                        { search: "disp",   expected: [5, 3, 4]},
                        { search: "displ",  expected: [5, 4]},
                        { search: "displa", expected: [5]} ];
 
-const nickNames = [ { search: "n",      expected: [5, 0, 1, 2, 3, 4] },
+var nickNames = [ { search: "n",      expected: [5, 0, 1, 2, 3, 4] },
                     { search: "ni",     expected: [5, 0, 1, 2, 3] },
                     { search: "nic",    expected: [5, 1, 2, 3] },
                     { search: "nick",   expected: [5, 2, 3] },
                     { search: "nickn",  expected: [5, 3] },
                     { search: "nickna", expected: [5] } ];
 
-const emails = [ { search: "e",     expected: [0, 1, 2, 3, 4] },
+var emails = [ { search: "e",     expected: [0, 1, 2, 3, 4] },
                  { search: "em",    expected: [0, 1, 2, 4] },
                  { search: "ema",   expected: [0, 1, 2] },
                  { search: "emai",  expected: [1, 2] },
                  { search: "email", expected: [2] } ];
 
 // "l" case tested above
-const lists = [ { search: "li", expected: [6, 7, 8] },
+var lists = [ { search: "li", expected: [6, 7, 8] },
                 { search: "lis", expected: [6, 7] },
                 { search: "list", expected: [6] },
                 { search: "t", expected: [6, 7, 8, 9] },
@@ -130,7 +134,7 @@ const lists = [ { search: "li", expected: [6, 7, 8] },
                 { search: "tes", expected: [8, 9] },
                 { search: "test", expected: [9] } ];
 
-const inputs = [ firstNames, lastNames];//, displayNames, nickNames, emails, lists ];
+var inputs = [ firstNames, lastNames];//, displayNames, nickNames, emails, lists ];
 
 function acObserver() {}
 
@@ -175,7 +179,7 @@ function run_test() {
 
   // Now check multiple matches
   function checkInputItem(element, index, array) {
-    acs.startSearch(element.search, JSON.stringify({ type: "addr_to"  }), lastResult, obs);
+    acs.startSearch(element.search, JSON.stringify({ type: "addr_to", idKey: "" }), lastResult, obs);
 
     do_check_eq(obs._search, acs);
     do_check_eq(obs._result.searchString, element.search);

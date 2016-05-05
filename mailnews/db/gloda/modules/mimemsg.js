@@ -2,26 +2,26 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ['MsgHdrToMimeMessage',
+this.EXPORTED_SYMBOLS = ['MsgHdrToMimeMessage',
                           'MimeMessage', 'MimeContainer',
                           'MimeBody', 'MimeUnknown',
                           'MimeMessageAttachment'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
-const EMITTER_MIME_CODE = "application/x-js-mime-message";
+var EMITTER_MIME_CODE = "application/x-js-mime-message";
 
 /**
  * The URL listener is surplus because the CallbackStreamListener ends up
  *  getting the same set of events, effectively.
  */
-let dumbUrlListener = {
+var dumbUrlListener = {
   OnStartRunningUrl: function (aUrl) {
   },
   OnStopRunningUrl: function (aUrl, aExitCode) {
@@ -34,9 +34,9 @@ let dumbUrlListener = {
  *  from C++ after the various XPConnect contexts have already begun their
  *  teardown process.
  */
-let activeStreamListeners = {};
+var activeStreamListeners = {};
 
-let shutdownCleanupObserver = {
+var shutdownCleanupObserver = {
   _initialized: false,
   ensureInitialized: function mimemsg_shutdownCleanupObserver_init() {
     if (this._initialized)
@@ -52,8 +52,8 @@ let shutdownCleanupObserver = {
     if (aTopic == "quit-application") {
       Services.obs.removeObserver(this, "quit-application");
 
-      for each (let [, streamListener] in
-                Iterator(activeStreamListeners)) {
+      for (let uri in activeStreamListeners) {
+        let streamListener = activeStreamListeners[uri];
         if (streamListener._request)
           streamListener._request.cancel(Cr.NS_BINDING_ABORTED);
       }
@@ -131,7 +131,7 @@ CallbackStreamListener.prototype = {
   },
 };
 
-let gMessenger = Cc["@mozilla.org/messenger;1"].
+var gMessenger = Cc["@mozilla.org/messenger;1"].
                    createInstance(Ci.nsIMessenger);
 
 function stripEncryptedParts(aPart) {
@@ -205,7 +205,7 @@ function MsgHdrToMimeMessage(aMsgHdr, aCallbackThis, aCallback,
     if (aOptions && aOptions.examineEncryptedParts)
       return aCallback;
     else
-      return (function (aMsgHdr, aMimeMsg)
+      return ((aMsgHdr, aMimeMsg) =>
         aCallback.call(aCallbackThis, aMsgHdr, stripEncryptedParts(aMimeMsg))
       );
   };
@@ -277,7 +277,7 @@ MsgHdrToMimeMessage.RESULT_RENDEVOUZ = {};
  */
 MsgHdrToMimeMessage.OPTION_TUNNEL = null;
 
-let HeaderHandlerBase = {
+var HeaderHandlerBase = {
   /**
    * Look-up a header that should be present at most once.
    *
@@ -328,7 +328,8 @@ let HeaderHandlerBase = {
     if (aIndent === undefined)
       aIndent = "";
     let s = "";
-    for each (let [header, values] in Iterator(this.headers)) {
+    for (let header in this.headers) {
+      let values = this.headers[header];
       s += "\n        " + aIndent + header + ": " + values;
     }
     return s;
@@ -384,16 +385,16 @@ MimeMessage.prototype = {
       return [this];
     else
       // Why is there no flatten method for arrays?
-      return [child.allUserAttachments for each ([, child] in Iterator(this.parts))]
-        .reduce(function (a, b) a.concat(b), []);
+      return this.parts.map(child => child.allUserAttachments)
+        .reduce((a, b) => a.concat(b), []);
   },
 
   /**
    * @return the total size of this message, that is, the size of all subparts
    */
   get size () {
-    return [child.size for each ([, child] in Iterator(this.parts))]
-      .reduce(function (a, b) a + Math.max(b, 0), 0);
+    return this.parts.map(child => child.size)
+      .reduce((a, b) => a + Math.max(b, 0), 0);
   },
 
   /**
@@ -421,7 +422,7 @@ MimeMessage.prototype = {
   coerceBodyToPlaintext:
       function MimeMessage_coerceBodyToPlaintext(aMsgFolder) {
     let bodies = [];
-    for each (let [, part] in Iterator(this.parts)) {
+    for (let part of this.parts) {
       // an undefined value for something not having the method is fine
       let body = part.coerceBodyToPlaintext &&
                  part.coerceBodyToPlaintext(aMsgFolder);
@@ -490,12 +491,12 @@ MimeContainer.prototype = {
     return results;
   },
   get allUserAttachments () {
-    return [child.allUserAttachments for each ([, child] in Iterator(this.parts))]
-      .reduce(function (a, b) a.concat(b), []);
+    return this.parts.map(child => child.allUserAttachments)
+      .reduce((a, b) => a.concat(b), []);
   },
   get size () {
-    return [child.size for each ([, child] in Iterator(this.parts))]
-      .reduce(function (a, b) a + Math.max(b, 0), 0);
+    return this.parts.map(child => child.size)
+      .reduce((a, b) => a + Math.max(b, 0), 0);
   },
   set size (whatever) {
     // nop
@@ -505,7 +506,7 @@ MimeContainer.prototype = {
     if (this.contentType == "multipart/alternative") {
       let htmlPart;
       // pick the text/plain if we can find one, otherwise remember the HTML one
-      for each (let [, part] in Iterator(this.parts)) {
+      for (let part of this.parts) {
         if (part.contentType == "text/plain")
           return part.body;
         if (part.contentType == "text/html")
@@ -630,16 +631,16 @@ function MimeUnknown(aContentType) {
 MimeUnknown.prototype = {
   __proto__: HeaderHandlerBase,
   get allAttachments() {
-    return [child.allAttachments for each ([, child] in Iterator(this.parts))]
-      .reduce(function (a, b) a.concat(b), []);
+    return this.parts.map(child => child.allAttachments)
+      .reduce((a, b) => a.concat(b), []);
   },
   get allUserAttachments() {
-    return [child.allUserAttachments for each ([, child] in Iterator(this.parts))]
-      .reduce(function (a, b) a.concat(b), []);
+    return this.parts.map(child => child.allUserAttachments)
+      .reduce((a, b) => a.concat(b), []);
   },
   get size() {
-    return this._size + [child.size for each ([, child] in Iterator(this.parts))]
-      .reduce(function (a, b) a + Math.max(b, 0), 0);
+    return this._size + this.parts.map(child => child.size)
+      .reduce((a, b) => a + Math.max(b, 0), 0);
   },
   set size(aSize) {
     this._size = aSize;

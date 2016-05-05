@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["SuffixTree", "MultiSuffixTree"];
+this.EXPORTED_SYMBOLS = ["SuffixTree", "MultiSuffixTree"];
 
 /**
  * Given a list of strings and a corresponding map of items that those strings
@@ -323,7 +323,7 @@ dump("  bailing! (bail was: " + bail + ")\n");
       dump(aIndent + aKey + ": (explicit:" + aState.start + ":" + aState.end +")\n");
     let nextIndent = aIndent + "  ";
     let keys = [c for (c in aState) if (c.length == 1)];
-    for each (let [iKey, key] in Iterator(keys)) {
+    for (let key of keys) {
       this.dump(aState[key], nextIndent, key);
     }
   }

@@ -2,16 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["TBDistCustomizer"];
+this.EXPORTED_SYMBOLS = ["TBDistCustomizer"];
 
-const Ci = Components.interfaces;
-const Cc = Components.classes;
-const Cu = Components.utils;
+var Ci = Components.interfaces;
+var Cc = Components.classes;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
-const DISTRIBUTION_CUSTOMIZATION_COMPLETE_TOPIC =
+var DISTRIBUTION_CUSTOMIZATION_COMPLETE_TOPIC =
   "distribution-customization-complete";
 
 var TBDistCustomizer = {
@@ -95,7 +95,7 @@ var TBDistCustomizer = {
         let key = keys.getNext();
         try {
           let value = eval(this._ini.getString("LocalizablePreferences", key));
-          value = value.replace("%LOCALE%", this._locale, "g");
+          value = value.replace(/%LOCALE%/g, this._locale);
           localizedStr.data = "data:text/plain," + key + "=" + value;
           defaults.setComplexValue(key, Ci.nsIPrefLocalizedString, localizedStr);
         } catch (e) {

@@ -10,8 +10,8 @@
 load("../../../resources/logHelper.js");
 load("../../../resources/asyncTestUtils.js");
 
-const gFileName = "draft1";
-const gMsgFile = do_get_file("../../../data/" + gFileName);
+var gFileName = "draft1";
+var gMsgFile = do_get_file("../../../data/" + gFileName);
 
 var tests = [
   setup,
@@ -48,9 +48,9 @@ function checkBccs() {
   let enumerator = IMAPPump.inbox.msgDatabase.EnumerateMessages();
   while(enumerator.hasMoreElements()) {
     let hdr = enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-    do_check_true(hdr.bccList.contains("Another Person"));
-    do_check_true(hdr.bccList.contains("<u1@example.com>"));
-    do_check_false(hdr.bccList.contains("IDoNotExist"));
+    do_check_true(hdr.bccList.includes("Another Person"));
+    do_check_true(hdr.bccList.includes("<u1@example.com>"));
+    do_check_false(hdr.bccList.includes("IDoNotExist"));
   }
 }
 

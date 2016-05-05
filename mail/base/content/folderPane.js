@@ -6,9 +6,10 @@ Components.utils.import("resource:///modules/folderUtils.jsm");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/MailUtils.js");
+Components.utils.import("resource:///modules/IOUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
-const kDefaultMode = "all";
+var kDefaultMode = "all";
 
 var nsMsgFolderFlags = Components.interfaces.nsMsgFolderFlags;
 
@@ -30,7 +31,7 @@ var nsMsgFolderFlags = Components.interfaces.nsMsgFolderFlags;
  * register this mode with |gFolderTreeView|, see
  * |gFolderTreeView.registerFolderTreeMode|.
  */
-let IFolderTreeMode = {
+var IFolderTreeMode = {
   /**
    * Generates the folder map for this mode.
    *
@@ -116,7 +117,7 @@ let IFolderTreeMode = {
  * This is our controller for the folder-tree. It includes our nsITreeView
  * implementation, as well as other control functions.
  */
-let gFolderTreeView = {
+var gFolderTreeView = {
   messengerBundle: null,
 
   /**
@@ -159,23 +160,8 @@ let gFolderTreeView = {
 
     if (aJSONFile) {
       // Parse our persistent-open-state json file
-      let file = Services.dirsvc.get("ProfD", Ci.nsIFile);
-      file.append(aJSONFile);
-
-      if (file.exists()) {
-        let data = "";
-        let fstream = Cc["@mozilla.org/network/file-input-stream;1"]
-                         .createInstance(Ci.nsIFileInputStream);
-        let sstream = Cc["@mozilla.org/scriptableinputstream;1"]
-                         .createInstance(Ci.nsIScriptableInputStream);
-        fstream.init(file, -1, 0, 0);
-        sstream.init(fstream);
-
-        while (sstream.available())
-          data += sstream.read(4096);
-
-        sstream.close();
-        fstream.close();
+      let data = IOUtils.loadFileToString(aJSONFile);
+      if (data) {
         try {
           this._persistOpenMap = JSON.parse(data);
         } catch (x) {
@@ -213,17 +199,7 @@ let gFolderTreeView = {
     if (aJSONFile) {
       // Write out our json file...
       let data = JSON.stringify(this._persistOpenMap);
-      let file = Services.dirsvc.get("ProfD", Ci.nsIFile);
-      file.append(aJSONFile);
-      let foStream = Cc["@mozilla.org/network/safe-file-output-stream;1"]
-                        .createInstance(Ci.nsIFileOutputStream);
-
-      foStream.init(file, 0x02 | 0x08 | 0x20, parseInt("0666", 8), 0);
-      // safe-file-output-stream appears to throw an error if it doesn't write everything at once
-      // so we won't worry about looping to deal with partial writes
-      foStream.write(data, data.length);
-      foStream.QueryInterface(Ci.nsISafeOutputStream).finish();
-      foStream.close();
+      IOUtils.saveStringToFile(aJSONFile, data);
     }
   },
 
@@ -555,7 +531,7 @@ let gFolderTreeView = {
    *       anscetors is collapsed), this function returns null.
    */
   getIndexOfFolder: function ftv_getIndexOfFolder(aFolder) {
-    for each (let [iRow, row] in Iterator(this._rowMap)) {
+    for (let [iRow, row] of this._rowMap.entries()) {
       if (row.id == aFolder.URI)
         return iRow;
     }
@@ -985,6 +961,9 @@ let gFolderTreeView = {
   isContainerOpen: function ftv_isContainerOpen(aIndex) {
     return this._rowMap[aIndex].open;
   },
+  getSummarizedCounts: function(aIndex, aColName) {
+    return this._rowMap[aIndex]._summarizedCounts.get(aColName);
+  },
   isEditable: function ftv_isEditable(aRow, aCol) {
     // We don't support editing rows in the tree yet.  We may want to later as
     // an easier way to rename folders.
@@ -1102,7 +1081,7 @@ let gFolderTreeView = {
   _allFoldersWithStringProperty: function ftv_getAllFoldersWithProperty(accounts, aFolderName, deep)
   {
     let folders = [];
-    for each (let acct in accounts) {
+    for (let acct of accounts) {
       let folder = acct.incomingServer.rootFolder;
       this._subFoldersWithStringProperty(folder, folders, aFolderName, deep);
     }
@@ -1112,7 +1091,7 @@ let gFolderTreeView = {
   _allFoldersWithFlag: function ftv_getAllFolders(accounts, aFolderFlag, deep)
   {
     let folders = [];
-    for each (let acct in accounts) {
+    for (let acct of accounts) {
       let foldersWithFlag = acct.incomingServer.rootFolder.getFoldersWithFlags(aFolderFlag);
       if (foldersWithFlag.length > 0) {
         for (let folderWithFlag in fixIterator(foldersWithFlag,
@@ -1158,7 +1137,7 @@ let gFolderTreeView = {
       let folderItem = new ftvItem(subFolders[0]);
       folderItem._level = 0;
       if (flag & nsMsgFolderFlags.Inbox)
-        folderItem.__defineGetter__("children", function() []);
+        folderItem.__defineGetter__("children", () => []);
       if (position == undefined)
         map.push(folderItem);
       else
@@ -1177,7 +1156,7 @@ let gFolderTreeView = {
     if (!smartFolder) {
       let searchFolders = gFolderTreeView._allSmartFolders(accounts, flag, folderName, true);
       let searchFolderURIs = "";
-      for each (let searchFolder in searchFolders) {
+      for (let searchFolder of searchFolders) {
         if (searchFolderURIs.length)
           searchFolderURIs += '|';
         searchFolderURIs +=  searchFolder.URI;
@@ -1197,17 +1176,17 @@ let gFolderTreeView = {
     // Add the actual special folders as sub-folders of the saved search.
     // By setting _children directly, we bypass the normal calculation
     // of subfolders.
-    smartFolderItem._children = [new ftvItem(f) for each (f in subFolders)];
+    smartFolderItem._children = subFolders.map(f => new ftvItem(f));
 
     let prevChild = null;
     // Each child is a level one below the smartFolder
-    for each (let child in smartFolderItem._children) {
+    for (let child of smartFolderItem._children) {
       child._level = smartFolderItem._level + 1;
       child._parent = smartFolderItem;
       // don't show sub-folders of the inbox, but I think Archives/Sent, etc
       // should have the sub-folders.
       if (flag & nsMsgFolderFlags.Inbox)
-        child.__defineGetter__("children", function() []);
+        child.__defineGetter__("children", () => []);
       // If we have consecutive children with the same server, then both
       // should display as folder - server.
       if (prevChild && (child._folder.server == prevChild._folder.server)) {
@@ -1307,7 +1286,7 @@ let gFolderTreeView = {
     let mode = this.mode;
     // Remove any saved state of modes where open state should not be persisted.
     // This is mostly for migration from older profiles that may have the info stored.
-    if (this._notPersistedModes.indexOf(mode) != -1) {
+    if (this._notPersistedModes.includes(mode)) {
       delete this._persistOpenMap[mode];
     }
 
@@ -1325,7 +1304,7 @@ let gFolderTreeView = {
           continue;
 
         // The initial state of all rows is closed, so toggle those we want open.
-        if (!map || map.indexOf(row.id) != -1) {
+        if (!map || map.includes(row.id)) {
           tree._toggleRow(i, false);
           goOn = true;
         }
@@ -1347,7 +1326,7 @@ let gFolderTreeView = {
    */
   _persistItemClosed: function ftv_unpersistItem(aItemId) {
     let mode = this.mode;
-    if (this._notPersistedModes.indexOf(mode) != -1)
+    if (this._notPersistedModes.includes(mode))
       return;
 
     // If the whole mode is not in the map yet,
@@ -1368,13 +1347,13 @@ let gFolderTreeView = {
    */
   _persistItemOpen: function ftv_persistItem(aItemId) {
     let mode = this.mode;
-    if (this._notPersistedModes.indexOf(mode) != -1)
+    if (this._notPersistedModes.includes(mode))
       return;
 
     if (!this._persistOpenMap[mode])
       this._persistOpenMap[mode] = [];
 
-    if (this._persistOpenMap[mode].indexOf(aItemId) == -1)
+    if (!this._persistOpenMap[mode].includes(aItemId))
       this._persistOpenMap[mode].push(aItemId);
   },
 
@@ -1456,8 +1435,7 @@ let gFolderTreeView = {
         // force each root folder to do its local subfolder discovery.
         MailUtils.discoverFolders();
 
-        return [new ftvItem(acct.incomingServer.rootFolder)
-                for each (acct in accounts)];
+        return accounts.map(acct => new ftvItem(acct.incomingServer.rootFolder));
       }
     },
 
@@ -1474,12 +1452,8 @@ let gFolderTreeView = {
       generateMap: function ftv_unread_generateMap(ftv) {
         let filterUnread = function filterUnread(aFolder) {
           let currentFolder = gFolderTreeView.getSelectedFolders()[0];
-          const outFolderFlagMask = nsMsgFolderFlags.SentMail |
-            nsMsgFolderFlags.Drafts | nsMsgFolderFlags.Queue |
-            nsMsgFolderFlags.Templates;
-          return (!aFolder.isSpecialFolder(outFolderFlagMask, true) &&
-                  ((aFolder.getNumUnread(true) > 0) ||
-                   (aFolder == currentFolder)))
+          return ((aFolder.getNumUnread(true) > 0) ||
+                  (aFolder == currentFolder));
         }
 
         let accounts = gFolderTreeView._sortedAccounts();
@@ -1519,19 +1493,15 @@ let gFolderTreeView = {
       generateMap: function(ftv) {
         let map = [];
         let currentFolder = gFolderTreeView.getSelectedFolders()[0];
-        const outFolderFlagMask = nsMsgFolderFlags.SentMail |
-          nsMsgFolderFlags.Drafts | nsMsgFolderFlags.Queue |
-          nsMsgFolderFlags.Templates;
         for (let folder of ftv._enumerateFolders) {
-          if (!folder.isSpecialFolder(outFolderFlagMask, true) &&
-              (!folder.isServer && folder.getNumUnread(false) > 0) ||
+          if ((!folder.isServer && folder.getNumUnread(false) > 0) ||
               (folder == currentFolder))
             map.push(new ftvItem(folder));
         }
 
         // There are no children in this view!
         for (let folder of map) {
-          folder.__defineGetter__("children", function() []);
+          folder.__defineGetter__("children", () => []);
           folder.addServerName = true;
         }
         sortFolderItems(map);
@@ -1626,7 +1596,7 @@ let gFolderTreeView = {
         // There are no children in this view!
         for (let item of faves) {
           let name = item._folder.abbreviatedName.toLocaleLowerCase();
-          item.__defineGetter__("children", function() []);
+          item.__defineGetter__("children", () => []);
           item.addServerName = dupeNames.has(name);
         }
         sortFolderItems(faves);
@@ -1679,7 +1649,7 @@ let gFolderTreeView = {
         // And we want to display the account name to distinguish folders w/
         // the same name.
         for (let folder of items) {
-          folder.__defineGetter__("children", function() []);
+          folder.__defineGetter__("children", () => []);
           folder.addServerName = true;
         }
 
@@ -1779,7 +1749,7 @@ let gFolderTreeView = {
       get _allSmartFlags() {
         delete this._allSmartFlags;
         return this._allSmartFlags = this._flagNameList.reduce(
-          function (res, [flag,, isDeep,]) res | flag, 0);
+          (res, [flag,, isDeep,]) => res | flag, 0);
       },
 
       /**
@@ -1788,7 +1758,7 @@ let gFolderTreeView = {
       get _allShallowFlags() {
         delete this._allShallowFlags;
         return this._allShallowFlags = this._flagNameList.reduce(
-          function (res, [flag,, isDeep,]) isDeep ? res : (res | flag), 0);
+          (res, [flag,, isDeep,]) => isDeep ? res : (res | flag), 0);
       },
 
       /**
@@ -1834,12 +1804,12 @@ let gFolderTreeView = {
         }
 
         sortFolderItems(smartChildren);
-        for each (let smartChild in smartChildren)
+        for (let smartChild of smartChildren)
           map.push(smartChild);
 
         MailUtils.discoverFolders();
 
-        for each (let acct in accounts)
+        for (let acct of accounts)
           map.push(new ftv_SmartItem(acct.incomingServer.rootFolder));
 
         return map;
@@ -2047,7 +2017,7 @@ let gFolderTreeView = {
       newChild.useServerNameOnly = true;
     }
     if (aItem.flags & nsMsgFolderFlags.Inbox)
-      newChild.__defineGetter__("children", function() []);
+      newChild.__defineGetter__("children", () => []);
     if (parent)
       this._addChildToView(parent, parentIndex, newChild);
     else {
@@ -2089,7 +2059,7 @@ let gFolderTreeView = {
     // array just now, in which case the added item will already exist
     let children = parent.children;
     var newChild;
-    for each (let child in children) {
+    for (let child of children) {
       if (child._folder == aItem) {
         newChild = child;
         break;
@@ -2210,6 +2180,10 @@ function ftvItem(aFolder, aFolderFilter) {
   this._parent = null;
   this._folderFilter = aFolderFilter;
   this._favicon = null;
+  // The map contains message counts for each folder column.
+  // Each key is a column name (ID) from the folder tree.
+  // Value is an array of the format "[value_for_folder, value_for_all_its_subfolders]".
+  this._summarizedCounts = new Map();
 }
 
 ftvItem.prototype = {
@@ -2231,6 +2205,7 @@ ftvItem.prototype = {
                           (gFolderTreeView.mode == kDefaultMode) &&
                           this._folder.hasSubFolders && !this.open;
 
+    this._summarizedCounts.delete(aColName);
     switch (aColName) {
       case "folderNameCol":
         let text;
@@ -2248,44 +2223,59 @@ ftvItem.prototype = {
         if (!document.getElementById("folderUnreadCol").hidden)
           return text;
 
-        let unread = this._folder.getNumUnread(gFolderStatsHelpers.sumSubfolders);
-        if (unread > 0)
+        let unread = this._folder.getNumUnread(false);
+        let totalUnread = gFolderStatsHelpers.sumSubfolders ?
+                          this._folder.getNumUnread(true) : unread;
+        this._summarizedCounts.set(aColName, [unread, totalUnread - unread]);
+        if (totalUnread > 0) {
           text = gFolderTreeView.messengerBundle
             .getFormattedString("folderWithUnreadMsgs",
-                                [text, gFolderStatsHelpers.addSummarizedPrefix(unread)]);
+                                [text, gFolderStatsHelpers.addSummarizedPrefix(totalUnread,
+                                       unread != totalUnread)]);
+        }
         return text;
 
       case "folderUnreadCol":
+        let folderUnread = this._folder.getNumUnread(false);
+        let subfoldersUnread = gFolderStatsHelpers.sumSubfolders ?
+                               this._folder.getNumUnread(true) : folderUnread;
+        this._summarizedCounts.set(aColName, [folderUnread,
+                                              subfoldersUnread - folderUnread]);
         return gFolderStatsHelpers
-                 .fixNum(this._folder.getNumUnread(gFolderStatsHelpers.sumSubfolders));
+                 .fixNum(subfoldersUnread, folderUnread != subfoldersUnread);
 
       case "folderTotalCol":
+        let folderTotal = this._folder.getTotalMessages(false);
+        let subfoldersTotal = gFolderStatsHelpers.sumSubfolders ?
+                              this._folder.getTotalMessages(true) : folderTotal;
+        this._summarizedCounts.set(aColName, [folderTotal,
+                                              subfoldersTotal - folderTotal]);
         return gFolderStatsHelpers
-                 .fixNum(this._folder.getTotalMessages(gFolderStatsHelpers.sumSubfolders));
+                 .fixNum(subfoldersTotal, folderTotal != subfoldersTotal);
 
       case "folderSizeCol":
-        let size = gFolderStatsHelpers.getFolderSize(this._folder);
-        if (size == 0)
+        let thisFolderSize = gFolderStatsHelpers.getFolderSize(this._folder);
+        let subfoldersSize = gFolderStatsHelpers.sumSubfolders ?
+                             gFolderStatsHelpers.getSubfoldersSize(this._folder) : 0;
+
+        if (subfoldersSize == gFolderStatsHelpers.kUnknownSize ||
+            thisFolderSize == gFolderStatsHelpers.kUnknownSize)
+          return gFolderStatsHelpers.kUnknownSize;
+
+        let totalSize = thisFolderSize + subfoldersSize;
+        if (totalSize == 0)
           return "";
-        if (size == gFolderStatsHelpers.kUnknownSize)
-          return size;
 
-        // If size is non-zero try to show it in a unit that fits in 3 digits,
-        // but if user specified a fixed unit, use that.
-        size = Math.round(size / 1024);
-        let units = gFolderStatsHelpers.kiloUnit;
-        if (gFolderStatsHelpers.sizeUnits != "KB" &&
-            (size > 999 || gFolderStatsHelpers.sizeUnits == "MB")) {
-          size = Math.round(size / 1024);
-          units = gFolderStatsHelpers.megaUnit;
-        }
-
-        // This needs to be updated if the "%.*f" placeholder string
-        // in "*ByteAbbreviation2" in messenger.properties changes.
+        let [totalText, folderUnit] = gFolderStatsHelpers.formatFolderSize(totalSize);
+        let folderText = (subfoldersSize == 0) ? totalText :
+                         gFolderStatsHelpers.formatFolderSize(thisFolderSize, folderUnit)[0];
+        let subfoldersText = (subfoldersSize == 0) ? "" :
+                             gFolderStatsHelpers.formatFolderSize(subfoldersSize, folderUnit)[0];
+        this._summarizedCounts.set(aColName, [folderText, subfoldersText]);
         return gFolderStatsHelpers
-                 .addSummarizedPrefix(units.replace("%.*f", size).replace(" ",""));
+                 .addSummarizedPrefix(totalText, totalSize != thisFolderSize);
 
-        default:
+      default:
         return "";
     }
   },
@@ -2359,7 +2349,7 @@ ftvItem.prototype = {
  * This handles the invocation of most commmands dealing with folders, based off
  * of the current selection, or a passed in folder.
  */
-let gFolderTreeController = {
+var gFolderTreeController = {
   /**
    * Opens the dialog to create a new sub-folder, and creates it if the user
    * accepts
@@ -2596,7 +2586,7 @@ let gFolderTreeController = {
 
     // Now delete the messages
     iter = fixIterator(folder.messages);
-    let messages = [m for each (m in iter)];
+    let messages = [m for (m in iter)];
     let children = toXPCOMArray(messages, Ci.nsIMutableArray);
     folder.deleteMessages(children, msgWindow, true, false, null, false);
   },
@@ -2764,7 +2754,7 @@ ftv_SmartItem.prototype = {
       }
       sortFolderItems(this._children);
       // Each child is a level one below us
-      for each (let child in this._children) {
+      for (let child of this._children) {
         child._level = this._level + 1;
         child._parent = this;
       }
@@ -2817,51 +2807,100 @@ var gFolderStatsHelpers = {
      * folders when they are shown expanded (due to rounding to a unit).
      * E.g. folder1 600bytes -> 1KB, folder2 700bytes -> 1KB
      * summarized at parent folder: 1300bytes -> 1KB
+     *
+     * @param aValue                  The value to be displayed.
+     * @param aSubfoldersContributed  Boolean indicating whether subfolders
+     *                                contributed to the accumulated total value.
      */
-    addSummarizedPrefix: function(aValue) {
+    addSummarizedPrefix: function(aValue, aSubfoldersContributed) {
       if (!this.sumSubfolders)
         return aValue;
 
+      if (!aSubfoldersContributed)
+        return aValue;
+
       return gFolderTreeView.messengerBundle
-        .getFormattedString("folderSummarizedValue", [aValue]);
+        .getFormattedString("folderSummarizedSymbolValue", [aValue]);
     },
 
     /**
      * nsIMsgFolder uses -1 as a magic number to mean "I don't know". In those
      * cases we indicate it to the user. The user has to open the folder
      * so that the property is initialized from the DB.
+     *
+     * @param aNumber                 The number to translate for the user.
+     * @param aSubfoldersContributed  Boolean indicating whether subfolders
+     *                                contributed to the accumulated total value.
      */
-    fixNum: function(aNumber) {
+    fixNum: function(aNumber, aSubfoldersContributed) {
       if (aNumber < 0)
         return this.kUnknownSize;
 
-      return (aNumber == 0 ? "" : this.addSummarizedPrefix(aNumber));
+      return (aNumber == 0 ? "" : this.addSummarizedPrefix(aNumber,
+                                                           aSubfoldersContributed));
     },
 
     /**
-     * Recursively get the size of specified folder and all its subfolders.
+     * Get the size of the specified folder.
+     *
+     * @param aFolder  The nsIMsgFolder to analyze.
      */
     getFolderSize: function(aFolder) {
-      let size = 0;
+      let folderSize = 0;
       try {
-        size = aFolder.sizeOnDisk;
-        if (size < 0)
+        folderSize = aFolder.sizeOnDisk;
+        if (folderSize < 0)
           return this.kUnknownSize;
       } catch(ex) {
         return this.kUnknownSize;
       }
-      if (this.sumSubfolders && aFolder.hasSubFolders) {
+      return folderSize;
+    },
+
+    /**
+     * Get the total size of all subfolders of the specified folder.
+     *
+     * @param aFolder  The nsIMsgFolder to analyze.
+     */
+    getSubfoldersSize: function(aFolder) {
+      let folderSize = 0;
+      if (aFolder.hasSubFolders) {
         let subFolders = aFolder.subFolders;
         while (subFolders.hasMoreElements()) {
           let subFolder = subFolders.getNext()
             .QueryInterface(Components.interfaces.nsIMsgFolder);
           let subSize = this.getFolderSize(subFolder);
-          if (subSize == this.kUnknownSize)
+          let subSubSize = this.getSubfoldersSize(subFolder);
+          if (subSize == this.kUnknownSize || subSubSize == this.kUnknownSize)
             return subSize;
 
-          size += subSize;
+          folderSize += subSize + subSubSize;
         }
       }
-      return size;
+      return folderSize;
+    },
+
+    /**
+     * Format the given folder size into a string with an appropriate unit.
+     *
+     * @param aSize  The size in bytes to format.
+     * @param aUnit  Optional unit to use for the format.
+     *               Possible values are "KB" or "MB".
+     * @return       An array with 2 values. First is the resulting formatted strings.
+     *               The second one is the final unit used to format the string.
+     */
+    formatFolderSize: function(aSize, aUnit = gFolderStatsHelpers.sizeUnits) {
+      let size = Math.round(aSize / 1024);
+      let unit = gFolderStatsHelpers.kiloUnit;
+      // If size is non-zero try to show it in a unit that fits in 3 digits,
+      // but if user specified a fixed unit, use that.
+      if (aUnit != "KB" && (size > 999 || aUnit == "MB")) {
+        size = Math.round(size / 1024);
+        unit = gFolderStatsHelpers.megaUnit;
+        aUnit = "MB";
+      }
+      // This needs to be updated if the "%.*f" placeholder string
+      // in "*ByteAbbreviation2" in messenger.properties changes.
+      return [unit.replace("%.*f", size).replace(" ",""), aUnit];
     }
 };

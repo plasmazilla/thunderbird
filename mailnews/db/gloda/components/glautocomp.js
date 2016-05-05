@@ -2,10 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource:///modules/errUtils.js");
@@ -54,7 +54,7 @@ ResultRowMulti.prototype = {
   fullText: false,
   onItemsAdded: function(aItems) {
     if (this.renderer) {
-      for each (let [iItem, item] in Iterator(aItems)) {
+      for (let [iItem, item] of aItems.entries()) {
         this.renderer.renderItem(item);
       }
     }
@@ -83,7 +83,7 @@ function nsAutoCompleteGlodaResult(aListener, aCompleter, aString) {
 }
 nsAutoCompleteGlodaResult.prototype = {
   getObjectAt: function(aIndex) {
-    return this._results[aIndex];
+    return this._results[aIndex] || null;
   },
   markPending: function ACGR_markPending(aCompleter) {
     this._pendingCount++;
@@ -125,7 +125,7 @@ nsAutoCompleteGlodaResult.prototype = {
   // we try and show the contact's name here.
   getValueAt: function(aIndex) {
     let thing = this._results[aIndex];
-    return thing.name || thing.value || thing.subject;
+    return thing.name || thing.value || thing.subject || null;
   },
   getLabelAt: function(aIndex) {
     return this.getValueAt(aIndex);
@@ -151,11 +151,12 @@ nsAutoCompleteGlodaResult.prototype = {
       return null;
 
     return ""; // we don't want to use gravatars as is.
-
+    /*
     let md5hash = GlodaUtils.md5HashString(thing.value);
     let gravURL = "http://www.gravatar.com/avatar/" + md5hash +
                                 "?d=identicon&s=32&r=g";
     return gravURL;
+    */
   },
   getFinalCompleteValueAt: function(aIndex) {
     return this.getValueAt(aIndex);
@@ -166,7 +167,7 @@ nsAutoCompleteGlodaResult.prototype = {
   }
 };
 
-const MAX_POPULAR_CONTACTS = 200;
+var MAX_POPULAR_CONTACTS = 200;
 
 /**
  * Complete contacts/identities based on name/email.  Instant phase is based on
@@ -216,11 +217,11 @@ ContactIdentityCompleter.prototype = {
     }
     // and since we can now map from contacts down to identities, map contacts
     //  to the first identity for them that we find...
-    matches = [val.NOUN_ID == Gloda.NOUN_IDENTITY ? val : val.identities[0]
-               for each ([iVal, val] in Iterator(contactToThing))];
+    matches = Object.keys(contactToThing).map(id => contactToThing[id]).
+      map(val => val.NOUN_ID == Gloda.NOUN_IDENTITY ? val : val.identities[0]);
 
-    let rows = [new ResultRowSingle(match, "text", aResult.searchString)
-                for each ([iMatch, match] in Iterator(matches))];
+    let rows = matches.
+      map(match => new ResultRowSingle(match, "text", aResult.searchString));
     aResult.addRows(rows);
 
     // - match against database contacts / identities
@@ -262,13 +263,13 @@ ContactIdentityCompleter.prototype = {
       this.identityCollection =
         this.contactCollection.subCollections[Gloda.NOUN_IDENTITY];
 
-      let contactNames = [(c.name.replace(" ", "").toLowerCase() || "x") for each
-                          ([, c] in Iterator(this.contactCollection.items))];
+      let contactNames = this.contactCollection.items.
+        map(c => c.name.replace(" ", "").toLowerCase() || "x");
       // if we had no contacts, we will have no identity collection!
       let identityMails;
       if (this.identityCollection)
-        identityMails = [i.value.toLowerCase() for each
-                         ([, i] in Iterator(this.identityCollection.items))];
+        identityMails = this.identityCollection.items.
+          map(i => i.value.toLowerCase());
 
       // The suffix tree takes two parallel lists; the first contains strings
       //  while the second contains objects that correspond to those strings.
@@ -318,8 +319,8 @@ ContactIdentityCompleter.prototype = {
 
       // sort in order of descending popularity
       possibleDudes.sort(this._popularitySorter);
-      let rows = [new ResultRowSingle(dude, "text", result.searchString)
-                  for each ([iDude, dude] in Iterator(possibleDudes))];
+      let rows = possibleDudes.
+        map(dude => new ResultRowSingle(dude, "text", result.searchString));
       result.addRows(rows);
       result.markCompleted(this);
 
@@ -363,7 +364,7 @@ ContactTagCompleter.prototype = {
 
     let tags = this._suffixTree.findMatches(aString.toLowerCase());
     let rows = [];
-    for each (let [iTag, tag] in Iterator(tags)) {
+    for (let tag of tags) {
       let query = Gloda.newQuery(Gloda.NOUN_CONTACT);
       query.freeTags(tag);
       let resRow = new ResultRowMulti(Gloda.NOUN_CONTACT, "tag", tag.name,
@@ -400,7 +401,7 @@ MessageTagCompleter.prototype = {
 
     let tags = this._suffixTree.findMatches(aString.toLowerCase());
     let rows = [];
-    for each (let [, tag] in Iterator(tags)) {
+    for (let tag of tags) {
       let resRow = new ResultRowSingle(tag, "tag", tag.tag, TagNoun.id);
       rows.push(resRow);
     }
@@ -511,7 +512,7 @@ nsAutoCompleteGloda.prototype = {
       this.curResult = result;
 
       if (aParam == "global") {
-        for each (let [iCompleter, completer] in Iterator(this.completers)) {
+        for (let completer of this.completers) {
           // they will return true if they have something pending.
           if (completer.complete(result, aString))
             result.markPending(completer);
@@ -533,4 +534,4 @@ nsAutoCompleteGloda.prototype = {
 };
 
 var components = [nsAutoCompleteGloda];
-const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

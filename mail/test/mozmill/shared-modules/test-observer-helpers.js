@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "observer-helpers";
+var MODULE_NAME = "observer-helpers";
 
 function installInto(module) {
   module.ObservationRecorder = ObservationRecorder;
@@ -21,7 +21,7 @@ ObservationRecorder.prototype = {
    * Called by the Observer Service when an event is fired.
    */
   observe: function OR_observe(aSubject, aTopic, aData) {
-    if (this._topics.indexOf(aTopic) != -1) {
+    if (this._topics.includes(aTopic)) {
       if (!(aTopic in this.saw))
         this.saw[aTopic] = 0;
 
@@ -109,7 +109,7 @@ ObservationRecorder.prototype = {
       aTopics = [aTopics];
 
     this._topics = this._topics.filter(
-      function (topic) aTopics.indexOf(topic) == -1
+      topic => !aTopics.includes(topic)
     );
   },
 

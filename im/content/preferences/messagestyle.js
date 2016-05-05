@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-let jsProtoHelper = {};
+var jsProtoHelper = {};
 Components.utils.import("resource:///modules/jsProtoHelper.jsm", jsProtoHelper);
 
 function Conversation(aName) {
@@ -24,11 +24,11 @@ function Message(aWho, aMessage, aObject) {
 }
 Message.prototype = {
   __proto__: jsProtoHelper.GenericMessagePrototype,
-  get displayMessage() this.originalMessage
+  get displayMessage() { return this.originalMessage; }
 };
 
 // Message style tooltips use this.
-function getBrowser() document.getElementById("previewbrowser");
+function getBrowser() { return document.getElementById("previewbrowser"); }
 
 var previewObserver = {
   _loaded: false,
@@ -171,10 +171,18 @@ var previewObserver = {
     if (aTopic != "conversation-loaded" || aSubject != this.browser)
       return;
 
+    // We want to avoid the convbrowser trying to scroll to the last
+    // added message, as that causes the entire pref pane to jump up
+    // (bug 1179943). Therefore, we override the method convbrowser
+    // uses to determine if it should scroll, as well as its
+    // mirror in the contentWindow (that messagestyle JS can call).
+    this.browser.autoScrollEnabled = () => false;
+    this.browser.contentWindow.autoScrollEnabled = () => false;
+
     // Display all queued messages. Use a timeout so that message text
     // modifiers can be added with observers for this notification.
     setTimeout(function() {
-      for each (let message in previewObserver.conv.messages)
+      for (let message of previewObserver.conv.messages)
         aSubject.appendMessage(message, false);
     }, 0);
 

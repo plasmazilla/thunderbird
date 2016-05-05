@@ -9,7 +9,7 @@
 #include "nsCOMArray.h"
 #include "nsArrayEnumerator.h"
 #include "nsComponentManagerUtils.h"
-#include "nsIVariant.h"
+#include "nsVariant.h"
 #include "nsIProperty.h"
 #include "nsMsgMessageFlags.h"
 #include "nsIMsgFolder.h"
@@ -110,22 +110,14 @@ NS_IMETHODIMP nsMailSimpleProperty::GetValue(nsIVariant* *aValue)
 
 // end nsMailSimpleProperty
 
-static PLDHashOperator
-PropertyHashToArrayFunc (const nsAString &aKey,
-                         nsIVariant* aData,
-                         void *userArg)
-{
-  nsCOMArray<nsIProperty> *propertyArray =
-      static_cast<nsCOMArray<nsIProperty> *>(userArg);
-  nsMailSimpleProperty *sprop = new nsMailSimpleProperty(aKey, aData);
-  propertyArray->AppendObject(sprop);
-  return PL_DHASH_NEXT;
-}
-
 NS_IMETHODIMP nsMsgTxn::GetEnumerator(nsISimpleEnumerator* *_retval)
 {
   nsCOMArray<nsIProperty> propertyArray;
-  mPropertyHash.EnumerateRead(PropertyHashToArrayFunc, &propertyArray);
+  for (auto iter = mPropertyHash.Iter(); !iter.Done(); iter.Next()) {
+    nsMailSimpleProperty *sprop = new nsMailSimpleProperty(iter.Key(),
+                                                           iter.Data());
+    propertyArray.AppendObject(sprop);
+  }
   return NS_NewArrayEnumerator(_retval, propertyArray);
 }
 
@@ -142,9 +134,7 @@ nsMsgTxn::GetPropertyAs ## Name (const nsAString & prop, Type *_retval) \
 NS_IMETHODIMP \
 nsMsgTxn::SetPropertyAs ## Name (const nsAString & prop, Type value) \
 { \
-    nsresult rv; \
-    nsCOMPtr<nsIWritableVariant> var = do_CreateInstance(NS_VARIANT_CONTRACTID, &rv); \
-    NS_ENSURE_SUCCESS(rv, rv); \
+    nsCOMPtr<nsIWritableVariant> var = new nsVariant(); \
     var->SetAs ## Name(value); \
     return SetProperty(prop, var); \
 }
@@ -205,9 +195,7 @@ NS_IMETHODIMP nsMsgTxn::GetPropertyAsInterface(const nsAString & prop,
 NS_IMETHODIMP nsMsgTxn::SetPropertyAsAString(const nsAString & prop, 
                                              const nsAString & value)
 {
-  nsresult rv;
-  nsCOMPtr<nsIWritableVariant> var = do_CreateInstance(NS_VARIANT_CONTRACTID, &rv); 
-  NS_ENSURE_SUCCESS(rv, rv); 
+  nsCOMPtr<nsIWritableVariant> var = new nsVariant();
   var->SetAsAString(value);
   return SetProperty(prop, var);
 }
@@ -215,9 +203,7 @@ NS_IMETHODIMP nsMsgTxn::SetPropertyAsAString(const nsAString & prop,
 NS_IMETHODIMP nsMsgTxn::SetPropertyAsACString(const nsAString & prop, 
                                               const nsACString & value)
 {
-  nsresult rv;
-  nsCOMPtr<nsIWritableVariant> var = do_CreateInstance(NS_VARIANT_CONTRACTID, &rv); 
-  NS_ENSURE_SUCCESS(rv, rv); 
+  nsCOMPtr<nsIWritableVariant> var = new nsVariant();
   var->SetAsACString(value);
   return SetProperty(prop, var);
 }
@@ -225,9 +211,7 @@ NS_IMETHODIMP nsMsgTxn::SetPropertyAsACString(const nsAString & prop,
 NS_IMETHODIMP nsMsgTxn::SetPropertyAsAUTF8String(const nsAString & prop, 
                                                  const nsACString & value)
 {
-  nsresult rv;
-  nsCOMPtr<nsIWritableVariant> var = do_CreateInstance(NS_VARIANT_CONTRACTID, &rv); 
-  NS_ENSURE_SUCCESS(rv, rv); 
+  nsCOMPtr<nsIWritableVariant> var = new nsVariant();
   var->SetAsAUTF8String(value);
   return SetProperty(prop, var);
 }
@@ -235,9 +219,7 @@ NS_IMETHODIMP nsMsgTxn::SetPropertyAsAUTF8String(const nsAString & prop,
 NS_IMETHODIMP nsMsgTxn::SetPropertyAsInterface(const nsAString & prop, 
                                                nsISupports* value)
 {
-  nsresult rv;
-  nsCOMPtr<nsIWritableVariant> var = do_CreateInstance(NS_VARIANT_CONTRACTID, &rv); 
-  NS_ENSURE_SUCCESS(rv, rv); 
+  nsCOMPtr<nsIWritableVariant> var = new nsVariant();
   var->SetAsISupports(value);
   return SetProperty(prop, var);
 }

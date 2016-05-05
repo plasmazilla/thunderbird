@@ -9,10 +9,11 @@
 
 // make SOLO_TEST=composition/test-charset-edit.js mozmill-one
 
-const MODULE_NAME = "test-charset-upgrade";
+var MODULE_NAME = "test-charset-upgrade";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers", "window-helpers", "compose-helpers"];
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers", "compose-helpers",
+                       "window-helpers", "notificationbox-helpers"];
 
 var os = {};
 Cu.import("resource://mozmill/stdlib/os.js", os);
@@ -114,8 +115,12 @@ function test_wrong_reply_charset() {
 
   // Edit the original message. Charset should be windows-1252 now.
   msg = select_click_row(0);
+
+  // Wait for the notification with the Edit button.
+  wait_for_notification_to_show(mc, "msgNotificationBar", "draftMsgContent");
+
   plan_for_new_window("msgcompose");
-  mc.click(mc.eid("menu_editMsgAsNew"));
+  mc.click(mc.eid("msgNotificationBar", {tagName: "button", label: "Edit"}));
   rwc = wait_for_compose_window();
   rwc.keypress(null, "s", {shiftKey: false, accelKey: true});
   close_compose_window(rwc);
@@ -149,14 +154,18 @@ function test_no_mojibake() {
   let draftMsg = select_click_row(1);
   assert_equals(getMsgHeaders(draftMsg).get("").charset, "UTF-8");
   let text = getMsgHeaders(draftMsg, true).get("");
-  if (!text.contains(nonASCII))
+  if (!text.includes(nonASCII))
     throw new Error("Expected to find " + nonASCII + " in " + text);
   press_delete(mc); // Delete message
 
   // Edit the original message. Charset should be UTF-8 now.
   msg = select_click_row(0);
+
+  // Wait for the notification with the Edit button.
+  wait_for_notification_to_show(mc, "msgNotificationBar", "draftMsgContent");
+
   plan_for_new_window("msgcompose");
-  mc.click(mc.eid("menu_editMsgAsNew"));
+  mc.click(mc.eid("msgNotificationBar", {tagName: "button", label: "Edit"}));
   rwc = wait_for_compose_window();
   rwc.keypress(null, "s", {shiftKey: false, accelKey: true});
   close_compose_window(rwc);

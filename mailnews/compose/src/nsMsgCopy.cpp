@@ -243,7 +243,7 @@ nsMsgCopy::DoCopy(nsIFile *aDiskFile, nsIMsgFolder *dstFolder,
   //Call copyservice with dstFolder, disk file, and txnManager
   if(NS_SUCCEEDED(rv))
   {
-    nsRefPtr<CopyListener> copyListener = new CopyListener();
+    RefPtr<CopyListener> copyListener = new CopyListener();
     if (!copyListener)
       return NS_ERROR_OUT_OF_MEMORY;
 
@@ -387,16 +387,16 @@ nsMsgCopy::CreateIfMissing(nsIMsgFolder **folder, bool *waitForUrl)
       bool exists = false;
       if (!isAsyncFolder && folderPath)
         folderPath->Exists(&exists);
-        if (!exists)
-        {
-          (*folder)->CreateStorageIfMissing(this);
-          if (isAsyncFolder)
-            *waitForUrl = true;
+      if (!exists)
+      {
+        (*folder)->CreateStorageIfMissing(this);
+        if (isAsyncFolder)
+          *waitForUrl = true;
 
-          rv = NS_OK;
-        }
+        rv = NS_OK;
       }
     }
+  }
   return rv;
 }
 ////////////////////////////////////////////////////////////////////////////////////

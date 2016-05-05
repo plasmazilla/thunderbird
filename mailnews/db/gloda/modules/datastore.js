@@ -7,12 +7,12 @@
  * for inspiration and idioms (and also a name :).
  */
 
-const EXPORTED_SYMBOLS = ["GlodaDatastore"];
+this.EXPORTED_SYMBOLS = ["GlodaDatastore"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/IOUtils.js");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -23,11 +23,11 @@ Cu.import("resource:///modules/gloda/datamodel.js");
 Cu.import("resource:///modules/gloda/databind.js");
 Cu.import("resource:///modules/gloda/collection.js");
 
-const MIN_CACHE_SIZE = 8 * 1048576;
-const MAX_CACHE_SIZE = 64 * 1048576;
-const MEMSIZE_FALLBACK_BYTES = 256 * 1048576;
+var MIN_CACHE_SIZE = 8 * 1048576;
+var MAX_CACHE_SIZE = 64 * 1048576;
+var MEMSIZE_FALLBACK_BYTES = 256 * 1048576;
 
-let PCH_LOG = Log4Moz.repository.getLogger("gloda.ds.pch");
+var PCH_LOG = Log4Moz.repository.getLogger("gloda.ds.pch");
 
 /**
  * Commit async handler; hands off the notification to
@@ -52,7 +52,7 @@ PostCommitHandler.prototype = {
       return;
 
     if (aReason == Ci.mozIStorageStatementCallback.REASON_FINISHED) {
-      for each (let [iCallback, callback] in Iterator(this.callbacks)) {
+      for (let callback of this.callbacks) {
         try {
           callback();
         }
@@ -72,7 +72,7 @@ PostCommitHandler.prototype = {
   }
 };
 
-let QFQ_LOG = Log4Moz.repository.getLogger("gloda.ds.qfq");
+var QFQ_LOG = Log4Moz.repository.getLogger("gloda.ds.qfq");
 
 /**
  * Singleton collection listener used by |QueryFromQueryCallback| to assist in
@@ -86,7 +86,7 @@ let QFQ_LOG = Log4Moz.repository.getLogger("gloda.ds.qfq");
  *  also deals with caching so that our identity invariant is maintained: user
  *  code should only ever see one distinct instance of a thing at a time.
  */
-let QueryFromQueryResolver = {
+var QueryFromQueryResolver = {
   onItemsAdded: function(aIgnoredItems, aCollection, aFake) {
     let originColl = aCollection.dataStack ? aCollection.dataStack.pop()
                                            : aCollection.data;
@@ -282,7 +282,8 @@ QueryFromQueryCallback.prototype = {
         //QFQ_LOG.debug("handleCompletion: " + this.collection._nounDef.name);
 
         if (this.needsLoads) {
-          for each (let [nounID, references] in Iterator(this.referencesByNounID)) {
+          for (let nounID in this.referencesByNounID) {
+            let references = this.referencesByNounID[nounID];
             if (nounID == this.nounDef.id)
               continue;
             let nounDef = GlodaDatastore._nounIDToDef[nounID];
@@ -316,7 +317,8 @@ QueryFromQueryCallback.prototype = {
                 inverseReferences =
                   this.masterInverseReferencesByNounID[nounDef.id] = {};
 
-              for each (let item in outReferences) {
+              for (let key in outReferences) {
+                let item = outReferences[key];
                 masterReferences[item.id] = item;
                 let parentID = item[nounDef.parentColumnAttr.idStorageAttributeName];
                 let childrenList = inverseReferences[parentID];
@@ -345,8 +347,8 @@ QueryFromQueryCallback.prototype = {
             }
           }
 
-          for each (let [nounID, inverseReferences] in
-              Iterator(this.inverseReferencesByNounID)) {
+          for (let nounID in this.inverseReferencesByNounID) {
+            let inverseReferences = this.inverseReferencesByNounID[nounID];
             this.collection.deferredCount++;
             let nounDef = GlodaDatastore._nounIDToDef[nounID];
 
@@ -572,7 +574,7 @@ ExplainedStatementProcessor.prototype = {
 };
 
 // See the documentation on GlodaDatastore._schemaVersion to understand these:
-const DB_SCHEMA_ACCEPT_LEAVE_LOW = 31,
+var DB_SCHEMA_ACCEPT_LEAVE_LOW = 31,
       DB_SCHEMA_ACCEPT_LEAVE_HIGH = 34,
       DB_SCHEMA_ACCEPT_DOWNGRADE_LOW = 35,
       DB_SCHEMA_ACCEPT_DOWNGRADE_HIGH = 39,
@@ -1342,24 +1344,28 @@ var GlodaDatastore = {
       aTableName, aTableDef) {
     // - Create the table
     this._log.info("Creating table: " + aTableName);
-    aDBConnection.createTable(aTableName,
-      [(coldef[0] + " " + coldef[1]) for each
-       ([i, coldef] in Iterator(aTableDef.columns))].join(", "));
+    let columnDefs = [];
+    for (let [column, type] of aTableDef.columns) {
+      columnDefs.push(column + " " + type);
+    }
+    aDBConnection.createTable(aTableName, columnDefs.join(", "));
 
     // - Create the fulltext table if applicable
     if (aTableDef.fulltextColumns) {
+      let columnDefs = [];
+      for (let [column, type] of aTableDef.fulltextColumns) {
+        columnDefs.push(column + " " + type);
+      }
       let createFulltextSQL = "CREATE VIRTUAL TABLE " + aTableName + "Text" +
-        " USING fts3(tokenize mozporter, " +
-        [(coldef[0] + " " + coldef[1]) for each
-         ([i, coldef] in Iterator(aTableDef.fulltextColumns))].join(", ") +
-        ")";
+        " USING fts3(tokenize mozporter, " + columnDefs.join(", ") + ")";
       this._log.info("Creating fulltext table: " + createFulltextSQL);
       aDBConnection.executeSimpleSQL(createFulltextSQL);
     }
 
     // - Create its indices
     if (aTableDef.indices) {
-      for each (let [indexName, indexColumns] in Iterator(aTableDef.indices)) {
+      for (let indexName in aTableDef.indices) {
+        let indexColumns = aTableDef.indices[indexName];
         aDBConnection.executeSimpleSQL(
           "CREATE INDEX " + indexName + " ON " + aTableName +
           "(" + indexColumns.join(", ") + ")");
@@ -1392,7 +1398,8 @@ var GlodaDatastore = {
    */
   _createSchema: function gloda_ds_createSchema(aDBConnection) {
     // -- For each table...
-    for each (let [tableName, tableDef] in Iterator(this._schema.tables)) {
+    for (let tableName in this._schema.tables) {
+      let tableDef = this._schema.tables[tableName];
       this._createTableSchema(aDBConnection, tableName, tableDef);
     }
 
@@ -1582,8 +1589,7 @@ var GlodaDatastore = {
   },
 
   _cleanupAsyncStatements: function gloda_ds_cleanupAsyncStatements() {
-    [stmt.finalize() for each
-     ([i, stmt] in Iterator(this._outstandingAsyncStatements))];
+    this._outstandingAsyncStatements.forEach(stmt => stmt.finalize());
   },
 
   _outstandingSyncStatements: [],
@@ -1607,8 +1613,7 @@ var GlodaDatastore = {
   },
 
   _cleanupSyncStatements: function gloda_ds_cleanupSyncStatements() {
-    [stmt.finalize() for each
-     ([i, stmt] in Iterator(this._outstandingSyncStatements))];
+    this._outstandingSyncStatements.forEach(stmt => stmt.finalize());
   },
 
   /**
@@ -1691,7 +1696,7 @@ var GlodaDatastore = {
    */
   get _beginTransactionStatement() {
     let statement = this._createAsyncStatement("BEGIN TRANSACTION");
-    this.__defineGetter__("_beginTransactionStatement", function() statement);
+    this.__defineGetter__("_beginTransactionStatement", () => statement);
     return this._beginTransactionStatement;
   },
 
@@ -1700,7 +1705,7 @@ var GlodaDatastore = {
    */
   get _commitTransactionStatement() {
     let statement = this._createAsyncStatement("COMMIT");
-    this.__defineGetter__("_commitTransactionStatement", function() statement);
+    this.__defineGetter__("_commitTransactionStatement", () => statement);
     return this._commitTransactionStatement;
   },
 
@@ -1709,7 +1714,7 @@ var GlodaDatastore = {
    */
   get _rollbackTransactionStatement() {
     let statement = this._createAsyncStatement("ROLLBACK");
-    this.__defineGetter__("_rollbackTransactionStatement", function() statement);
+    this.__defineGetter__("_rollbackTransactionStatement", () => statement);
     return this._rollbackTransactionStatement;
   },
 
@@ -1853,7 +1858,7 @@ var GlodaDatastore = {
       "INSERT INTO attributeDefinitions (id, attributeType, extensionName, \
                                   name, parameter) \
               VALUES (?1, ?2, ?3, ?4, ?5)");
-    this.__defineGetter__("_insertAttributeDefStatement", function() statement);
+    this.__defineGetter__("_insertAttributeDefStatement", () => statement);
     return this._insertAttributeDefStatement;
   },
 
@@ -1958,7 +1963,7 @@ var GlodaDatastore = {
                                     indexingPriority) VALUES \
         (?1, ?2, ?3, ?4, ?5)");
     this.__defineGetter__("_insertFolderLocationStatement",
-      function() statement);
+      () => statement);
     return this._insertFolderLocationStatement;
   },
 
@@ -2134,7 +2139,7 @@ var GlodaDatastore = {
       "UPDATE folderLocations SET dirtyStatus = ?1 \
               WHERE id = ?2");
     this.__defineGetter__("_updateFolderDirtyStatusStatement",
-      function() statement);
+      () => statement);
     return this._updateFolderDirtyStatusStatement;
   },
 
@@ -2150,7 +2155,7 @@ var GlodaDatastore = {
       "UPDATE folderLocations SET indexingPriority = ?1 \
               WHERE id = ?2");
     this.__defineGetter__("_updateFolderIndexingPriorityStatement",
-      function() statement);
+      () => statement);
     return this._updateFolderIndexingPriorityStatement;
   },
 
@@ -2166,7 +2171,7 @@ var GlodaDatastore = {
       "UPDATE folderLocations SET folderURI = ?1 \
               WHERE id = ?2");
     this.__defineGetter__("_updateFolderLocationStatement",
-      function() statement);
+      () => statement);
     return this._updateFolderLocationStatement;
   },
 
@@ -2195,7 +2200,7 @@ var GlodaDatastore = {
     let statement = this._createAsyncStatement(
       "DELETE FROM folderLocations WHERE id = ?1");
     this.__defineGetter__("_deleteFolderByIDStatement",
-      function() statement);
+      () => statement);
     return this._deleteFolderByIDStatement;
   },
 
@@ -2262,7 +2267,8 @@ var GlodaDatastore = {
     // we only need to keep going if there is at least one folder in the table
     //  that is still alive after this pass.
     let keepGoing = false;
-    for each (let glodaFolder in GlodaDatastore._liveGlodaFolders) {
+    for (let id in GlodaDatastore._liveGlodaFolders) {
+      let glodaFolder = GlodaDatastore._liveGlodaFolders[id];
       // returns true if it is now 'dead' and doesn't need this heartbeat check
       if (glodaFolder.forgetFolderIfUnused())
         delete GlodaDatastore._liveGlodaFolders[glodaFolder.id];
@@ -2294,7 +2300,7 @@ var GlodaDatastore = {
       "INSERT INTO conversations (id, subject, oldestMessageDate, \
                                   newestMessageDate) \
               VALUES (?1, ?2, ?3, ?4)");
-    this.__defineGetter__("_insertConversationStatement", function() statement);
+    this.__defineGetter__("_insertConversationStatement", () => statement);
     return this._insertConversationStatement;
   },
 
@@ -2303,7 +2309,7 @@ var GlodaDatastore = {
       "INSERT INTO conversationsText (docid, subject) \
               VALUES (?1, ?2)");
     this.__defineGetter__("_insertConversationTextStatement",
-      function() statement);
+      () => statement);
     return this._insertConversationTextStatement;
   },
 
@@ -2348,7 +2354,7 @@ var GlodaDatastore = {
     let statement = this._createAsyncStatement(
       "DELETE FROM conversations WHERE id = ?1");
     this.__defineGetter__("_deleteConversationByIDStatement",
-                          function() statement);
+                          () => statement);
     return this._deleteConversationByIDStatement;
   },
 
@@ -2406,7 +2412,7 @@ var GlodaDatastore = {
       "INSERT INTO messages (id, folderID, messageKey, conversationID, date, \
                              headerMessageID, jsonAttributes, notability) \
               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)");
-    this.__defineGetter__("_insertMessageStatement", function() statement);
+    this.__defineGetter__("_insertMessageStatement", () => statement);
     return this._insertMessageStatement;
   },
 
@@ -2415,7 +2421,7 @@ var GlodaDatastore = {
       "INSERT INTO messagesText (docid, subject, body, attachmentNames, \
                                  author, recipients) \
               VALUES (?1, ?2, ?3, ?4, ?5, ?6)");
-    this.__defineGetter__("_insertMessageTextStatement", function() statement);
+    this.__defineGetter__("_insertMessageTextStatement", () => statement);
     return this._insertMessageTextStatement;
   },
 
@@ -2543,7 +2549,7 @@ var GlodaDatastore = {
                            notability = ?7, \
                            deleted = ?8 \
               WHERE id = ?9");
-    this.__defineGetter__("_updateMessageStatement", function() statement);
+    this.__defineGetter__("_updateMessageStatement", () => statement);
     return this._updateMessageStatement;
   },
 
@@ -2553,7 +2559,7 @@ var GlodaDatastore = {
                                attachmentNames = ?2 \
               WHERE docid = ?3");
 
-    this.__defineGetter__("_updateMessageTextStatement", function() statement);
+    this.__defineGetter__("_updateMessageTextStatement", () => statement);
     return this._updateMessageTextStatement;
   },
 
@@ -2648,7 +2654,7 @@ var GlodaDatastore = {
     let statement = this._createAsyncStatement(
       "UPDATE messages SET folderID = ?1, messageKey = ?2 WHERE id = ?3");
     this.__defineGetter__("_updateMessageLocationStatement",
-                          function() statement);
+                          () => statement);
     return this._updateMessageLocationStatement;
   },
 
@@ -2683,7 +2689,8 @@ var GlodaDatastore = {
                                            cacheLookupMap,
                                            inMemoryItems,
                                            /* do not cache */ false);
-    for each (let [glodaId, glodaMsg] in Iterator(inMemoryItems)) {
+    for (let glodaId in inMemoryItems) {
+      let glodaMsg = inMemoryItems[glodaId];
       glodaMsg._folderID = destFolderID;
       glodaMsg._messageKey = cacheLookupMap[glodaId];
       modifiedItems.push(glodaMsg);
@@ -2701,7 +2708,7 @@ var GlodaDatastore = {
     let statement = this._createAsyncStatement(
       "UPDATE messages SET messageKey = ?1 WHERE id = ?2");
     this.__defineGetter__("_updateMessageKeyStatement",
-                          function() statement);
+                          () => statement);
     return this._updateMessageKeyStatement;
   },
 
@@ -2733,7 +2740,8 @@ var GlodaDatastore = {
                                            cacheLookupMap,
                                            inMemoryItems,
                                            /* do not cache */ false);
-    for each (let [glodaId, glodaMsg] in Iterator(inMemoryItems)) {
+    for (let glodaId in inMemoryItems) {
+      let glodaMsg = inMemoryItems[glodaId];
       glodaMsg._messageKey = cacheLookupMap[glodaId];
     }
   },
@@ -2762,7 +2770,8 @@ var GlodaDatastore = {
     let cached =
       GlodaCollectionManager.cacheLookupManyList(GlodaMessage.prototype.NOUN_ID,
                                                  aGlodaIds);
-    for each (let [, glodaMsg] in Iterator(cached)) {
+    for (let id in cached) {
+      let glodaMsg = cached[id];
       glodaMsg._folderID = destFolderID;
       glodaMsg._messageKey = null;
     }
@@ -2822,7 +2831,7 @@ var GlodaDatastore = {
       "UPDATE messages SET folderID = NULL, messageKey = NULL, \
               deleted = 1 WHERE folderID = ?1");
     this.__defineGetter__("_updateMessagesMarkDeletedByFolderID",
-      function() statement);
+      () => statement);
     return this._updateMessagesMarkDeletedByFolderID;
   },
 
@@ -2846,7 +2855,7 @@ var GlodaDatastore = {
     //  in-memory messages in that folder.
     GlodaCollectionManager.itemsDeletedByAttribute(
       GlodaMessage.prototype.NOUN_ID,
-      function(aMsg) aMsg._folderID == aFolderID);
+      aMsg => aMsg._folderID == aFolderID);
   },
 
   /**
@@ -2874,7 +2883,7 @@ var GlodaDatastore = {
     let statement = this._createAsyncStatement(
       "SELECT COUNT(*) FROM messages WHERE deleted = 1");
     this.__defineGetter__("_countDeletedMessagesStatement",
-                          function() statement);
+                          () => statement);
     return this._countDeletedMessagesStatement;
   },
 
@@ -2890,7 +2899,7 @@ var GlodaDatastore = {
     let statement = this._createAsyncStatement(
       "DELETE FROM messages WHERE id = ?1");
     this.__defineGetter__("_deleteMessageByIDStatement",
-                          function() statement);
+                          () => statement);
     return this._deleteMessageByIDStatement;
   },
 
@@ -2898,7 +2907,7 @@ var GlodaDatastore = {
     let statement = this._createAsyncStatement(
       "DELETE FROM messagesText WHERE docid = ?1");
     this.__defineGetter__("_deleteMessageTextByIDStatement",
-                          function() statement);
+                          () => statement);
     return this._deleteMessageTextByIDStatement;
   },
 
@@ -2927,7 +2936,7 @@ var GlodaDatastore = {
         WHERE folderID = ?1 AND \
           messageKey >= ?2 AND +deleted = 0 ORDER BY messageKey LIMIT ?3");
     this.__defineGetter__("_folderCompactionStatement",
-                          function() statement);
+                          () => statement);
     return this._folderCompactionStatement;
   },
 
@@ -2948,7 +2957,7 @@ var GlodaDatastore = {
                              value) \
               VALUES (?1, ?2, ?3, ?4)");
     this.__defineGetter__("_insertMessageAttributeStatement",
-      function() statement);
+      () => statement);
     return this._insertMessageAttributeStatement;
   },
 
@@ -2957,7 +2966,7 @@ var GlodaDatastore = {
       "DELETE FROM messageAttributes WHERE attributeID = ?1 AND value = ?2 \
          AND conversationID = ?3 AND messageID = ?4");
     this.__defineGetter__("_deleteMessageAttributeStatement",
-      function() statement);
+      () => statement);
     return this._deleteMessageAttributeStatement;
   },
 
@@ -3034,7 +3043,7 @@ var GlodaDatastore = {
     let statement = this._createAsyncStatement(
       "DELETE FROM messageAttributes WHERE messageID = ?1");
     this.__defineGetter__("_deleteMessageAttributesByMessageIDStatement",
-      function() statement);
+      () => statement);
     return this._deleteMessageAttributesByMessageIDStatement;
   },
 
@@ -3056,7 +3065,7 @@ var GlodaDatastore = {
   },
 
   _stringSQLQuoter: function(aString) {
-    return "'" + aString.replace("'", "''", "g") + "'";
+    return "'" + aString.replace(/\'/g, "''") + "'";
   },
   _numberQuoter: function(aNum) {
     return aNum;
@@ -3146,7 +3155,7 @@ var GlodaDatastore = {
    */
   get _escapeLikeStatement() {
     let statement = this._createAsyncStatement("SELECT 0");
-    this.__defineGetter__("_escapeLikeStatement", function() statement);
+    this.__defineGetter__("_escapeLikeStatement", () => statement);
     return this._escapeLikeStatement;
   },
 
@@ -3357,7 +3366,7 @@ var GlodaDatastore = {
         // @testpoint gloda.datastore.sqlgen.kConstraintIn
         else if (constraintType === this.kConstraintIn) {
           let clauses = [];
-          for each (let [attrID, values] in
+          for (let [attrID, values] of
               this._convertToDBValuesAndGroupByAttributeID(attrDef,
                                                            constraintValues)) {
             let clausePart;
@@ -3373,8 +3382,8 @@ var GlodaDatastore = {
               //  feels wrong to do it. (just double the quote character...)
               if (attrDef.special == this.kSpecialString)
                 clausePart += valueColumnName + " IN (" +
-                  [("'" + v.replace("'", "''", "g") + "'") for each
-                   ([, v] in Iterator(values))].join(",") + "))";
+                  values.map(v => "'" + v.replace(/\'/g, "''") + "'").
+                  join(",") + "))";
               else
                 clausePart += valueColumnName + " IN (" + values.join(",") +
                               "))";
@@ -3388,7 +3397,7 @@ var GlodaDatastore = {
         // @testpoint gloda.datastore.sqlgen.kConstraintRanges
         else if (constraintType === this.kConstraintRanges) {
           let clauses = [];
-          for each (let [attrID, dbStrings] in
+          for (let [attrID, dbStrings] of
               this._convertRangesToDBStringsAndGroupByAttributeID(attrDef,
                               constraintValues, valueColumnName)) {
             if (attrID !== undefined)
@@ -3402,16 +3411,16 @@ var GlodaDatastore = {
         // @testpoint gloda.datastore.sqlgen.kConstraintEquals
         else if (constraintType === this.kConstraintEquals) {
           let clauses = [];
-          for each (let [attrID, values] in
+          for (let [attrID, values] of
               this._convertToDBValuesAndGroupByAttributeID(attrDef,
                                                            constraintValues)) {
             if (attrID !== undefined)
               clauses.push("(attributeID = " + attrID +
-                  " AND (" + [valueColumnName + " = ?" for each
-                  (value in values)].join(" OR ") + "))");
+                  " AND (" + values.map(_ => valueColumnName + " = ?").
+                  join(" OR ") + "))");
             else
-              clauses.push("(" + [valueColumnName + " = ?" for each
-                  (value in values)].join(" OR ") + ")");
+              clauses.push("(" + values.map(_ => valueColumnName + " = ?").
+                           join(" OR ") + ")");
             boundArgs.push.apply(boundArgs, values);
           }
           test = clauses.join(" OR ");
@@ -3419,7 +3428,7 @@ var GlodaDatastore = {
         // @testpoint gloda.datastore.sqlgen.kConstraintStringLike
         else if (constraintType === this.kConstraintStringLike) {
           let likePayload = '';
-          for each (let [iValuePart, valuePart] in Iterator(constraintValues)) {
+          for (let valuePart of constraintValues) {
             if (typeof valuePart == "string")
               likePayload += this._escapeLikeStatement.escapeStringForLIKE(
                 valuePart, "/");
@@ -3563,7 +3572,7 @@ var GlodaDatastore = {
     //this._log.debug("  hadDeps: " + hadDeps + " deps: " +
     //    Log4Moz.enumerateProperties(deps).join(","));
 
-    for each (let [, attrib] in Iterator(aItem.NOUN_DEF.specialLoadAttribs)) {
+    for (let attrib of aItem.NOUN_DEF.specialLoadAttribs) {
       let objectNounDef = attrib.objectNounDef;
 
       if (attrib.special === this.kSpecialColumnChildren) {
@@ -3614,7 +3623,8 @@ var GlodaDatastore = {
     delete aItem._jsonText;
 
     // Iterate over the attributes on the item
-    for each (let [attribId, jsonValue] in Iterator(jsonDict)) {
+    for (let attribId in jsonDict) {
+      let jsonValue = jsonDict[attribId];
       // It is technically impossible for attribute ids to go away at this
       //  point in time.  This would require someone to monkey around with
       //  our schema.  But we will introduce this functionality one day, so
@@ -3651,7 +3661,8 @@ var GlodaDatastore = {
             references[jsonValue] = null;
         }
         else {
-          for each (let [, anID] in Iterator(jsonValue)) {
+          for (let key in jsonValue) {
+            let anID = jsonValue[key];
             if (!(anID in references))
             references[anID] = null;
           }
@@ -3683,7 +3694,8 @@ var GlodaDatastore = {
           // Convert all the entries in the list filtering out any undefined
           //  values. (TagNoun will do this if the tag is now dead.)
           let outList = [];
-          for each (let [, val] in Iterator(jsonValue)) {
+          for (let key in jsonValue) {
+            let val = jsonValue[key];
             let deserialized = objectNounDef.fromJSON(val, aItem);
             if (deserialized !== undefined)
               outList.push(deserialized);
@@ -3742,8 +3754,8 @@ var GlodaDatastore = {
         if (attrib.singular)
           aItem[attrib.boundName] = references[jsonValue];
         else
-          aItem[attrib.boundName] = [references[val] for each
-                                     ([, val] in Iterator(jsonValue))];
+          aItem[attrib.boundName] = Object.keys(jsonValue).
+            map(key => references[jsonValue[key]]);
       }
       else if (objectNounDef.contributeObjDependencies) {
         aItem[attrib.boundName] =
@@ -3772,7 +3784,7 @@ var GlodaDatastore = {
       "INSERT INTO contacts (id, directoryUUID, contactUUID, name, popularity,\
                              frecency, jsonAttributes) \
               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)");
-    this.__defineGetter__("_insertContactStatement", function() statement);
+    this.__defineGetter__("_insertContactStatement", () => statement);
     return this._insertContactStatement;
   },
 
@@ -3818,7 +3830,7 @@ var GlodaDatastore = {
                            frecency = ?5, \
                            jsonAttributes = ?6 \
                        WHERE id = ?7");
-    this.__defineGetter__("_updateContactStatement", function() statement);
+    this.__defineGetter__("_updateContactStatement", () => statement);
     return this._updateContactStatement;
   },
 
@@ -3862,7 +3874,7 @@ var GlodaDatastore = {
     let statement = this._createSyncStatement(
       "SELECT * FROM contacts WHERE id = ?1");
     this.__defineGetter__("_selectContactByIDStatement",
-      function() statement);
+      () => statement);
     return this._selectContactByIDStatement;
   },
 
@@ -3905,7 +3917,7 @@ var GlodaDatastore = {
     let statement = this._createAsyncStatement(
       "INSERT INTO identities (id, contactID, kind, value, description, relay) \
               VALUES (?1, ?2, ?3, ?4, ?5, ?6)");
-    this.__defineGetter__("_insertIdentityStatement", function() statement);
+    this.__defineGetter__("_insertIdentityStatement", () => statement);
     return this._insertIdentityStatement;
   },
 
@@ -3940,7 +3952,7 @@ var GlodaDatastore = {
     let statement = this._createSyncStatement(
       "SELECT * FROM identities WHERE kind = ?1 AND value = ?2");
     this.__defineGetter__("_selectIdentityByKindValueStatement",
-      function() statement);
+      () => statement);
     return this._selectIdentityByKindValueStatement;
   },
 

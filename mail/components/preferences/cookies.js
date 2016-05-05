@@ -5,7 +5,7 @@
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 
-const nsICookie = Components.interfaces.nsICookie;
+var nsICookie = Components.interfaces.nsICookie;
 
 var gCookiesWindow = {
   _ds               : Components.classes["@mozilla.org/intl/scriptabledateformat;1"]
@@ -514,7 +514,7 @@ var gCookiesWindow = {
                                      date.getMinutes(),
                                      date.getSeconds());
     }
-    return this._bundle.getString("AtEndOfSession");
+    return this._bundle.getString("expireAtEndOfSession");
   },
 
   _updateCookieData: function (aItem)
@@ -813,9 +813,9 @@ var gCookiesWindow = {
 
   _cookieMatchesFilter: function (aCookie)
   {
-    return aCookie.rawHost.contains(this._view._filterValue) ||
-           aCookie.name.contains(this._view._filterValue) ||
-           aCookie.value.contains(this._view._filterValue);
+    return aCookie.rawHost.includes(this._view._filterValue) ||
+           aCookie.name.includes(this._view._filterValue) ||
+           aCookie.value.includes(this._view._filterValue);
   },
 
   _filterCookies: function (aFilterValue)

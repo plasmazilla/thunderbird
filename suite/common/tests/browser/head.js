@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-let ss = Components.classes["@mozilla.org/suite/sessionstore;1"]
+var ss = Components.classes["@mozilla.org/suite/sessionstore;1"]
                    .getService(Components.interfaces.nsISessionStore);
 
 function provideWindow(aCallback, aURL, aFeatures) {
@@ -37,7 +37,7 @@ function waitForBrowserState(aState, aSetStateCallback) {
   let listening = false;
   let windowObserving = false;
 
-  aState.windows.forEach(function(winState) expectedTabsRestored += winState.tabs.length);
+  aState.windows.forEach(winState => expectedTabsRestored += winState.tabs.length);
 
   function onSSTabRestored(aEvent) {
     if (++tabsRestored == expectedTabsRestored) {

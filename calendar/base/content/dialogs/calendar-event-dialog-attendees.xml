@@ -512,7 +512,7 @@
               let thisId = abCard.primaryEmail;
               if (abCard.displayName.length > 0) {
                   let rCn = abCard.displayName;
-                  if (rCn.indexOf(",") >= 0) {
+                  if (rCn.includes(",")) {
                       rCn = '"' + rCn + '"';
                   }
                   thisId = rCn + " <" + thisId + ">";
@@ -971,7 +971,7 @@
           }
 
           let arrowLength = 1;
-          if (element.value.contains(",") || element.value.match(/^[^"].*[<>@,].*[^"] <.+@.+>$/)) {
+          if (element.value.includes(",") || element.value.match(/^[^"].*[<>@,].*[^"] <.+@.+>$/)) {
               let strippedAddresses = element.value.replace(/.* >> /, "");
               let addresses = MailServices.headerParser.makeFromDisplayAddress(strippedAddresses);
               element.value = parseHeaderValue(addresses[0]);

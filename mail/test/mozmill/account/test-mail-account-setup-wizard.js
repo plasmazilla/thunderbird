@@ -2,10 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "test-mail-account-setup-wizard";
+var MODULE_NAME = "test-mail-account-setup-wizard";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers", "window-helpers",
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers", "window-helpers",
                          "account-manager-helpers", "keyboard-helpers" ];
 
 Components.utils.import("resource://gre/modules/Services.jsm");
@@ -97,7 +97,7 @@ function test_mail_account_setup() {
     let config = null;
 
     // XXX: This should probably use a notification, once we fix bug 561143.
-    awc.waitFor(function () (awc.window.gEmailConfigWizard._currentConfig != null),
+    awc.waitFor(() => awc.window.gEmailConfigWizard._currentConfig != null,
                 "Timeout waiting for current config to become non-null",
                 8000, 600);
     config = awc.window.gEmailConfigWizard.getConcreteConfig();
@@ -113,7 +113,7 @@ function test_mail_account_setup() {
 }
 
 function subtest_verify_account(amc) {
-  amc.waitFor(function () (amc.window.currentAccount != null),
+  amc.waitFor(() => amc.window.currentAccount != null,
               "Timeout waiting for currentAccount to become non-null");
   account = amc.window.currentAccount;
   let identity = account.defaultIdentity;
@@ -185,12 +185,12 @@ function test_bad_password_uses_old_settings() {
 
       let config = null;
 
-      awc.waitFor(function () (this.disabled == false && this.hidden == false),
+      awc.waitFor(function() { return this.disabled == false && this.hidden == false; },
                   "Timeout waiting for create button to be visible and active",
                   8000, 600, awc.e("create_button"));
       awc.e("create_button").click();
 
-      awc.waitFor(function () (this.disabled == false),
+      awc.waitFor(function() { return this.disabled == false; },
                   "Timeout waiting for create button to be visible and active",
                   8000, 600, awc.e("create_button"));
       awc.e("create_button").click();

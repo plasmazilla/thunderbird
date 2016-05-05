@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
  
 Components.utils.import("resource://gre/modules/DownloadUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 function Startup()
 {
@@ -60,9 +61,8 @@ function UpdateActualCacheSize()
     }
   };
 
-  Components.classes["@mozilla.org/netwerk/cache-storage-service;1"]
-            .getService(Components.interfaces.nsICacheStorageService)
-            .appCacheStorage({}, null).asyncVisitStorage(visitor, false);
+  Services.cache2.appCacheStorage(Services.loadContextInfo.default, null)
+                 .asyncVisitStorage(visitor, false);
 }
 
 /**
@@ -78,9 +78,8 @@ var callback = {
 function ClearOfflineAppCache()
 {
   try {
-    Components.classes["@mozilla.org/netwerk/cache-storage-service;1"]
-              .getService(Components.interfaces.nsICacheStorageService)
-              .appCacheStorage({}, null).asyncEvictStorage(callback);
+    Services.cache2.appCacheStorage(Services.loadContextInfo.default, null)
+                   .asyncEvictStorage(callback);
   } catch(ex) {}
 }
 
@@ -92,7 +91,7 @@ function UpdateNotifyBox(aValue)
   document.getElementById("offlineNotifyPermissions").disabled = aValue;
 }
 
-function _getOfflineAppUsage(aHost)
+function _getOfflineAppUsage(aPermission)
 {
   var appCache = Components.classes["@mozilla.org/network/application-cache-service;1"]
                            .getService(Components.interfaces.nsIApplicationCacheService);
@@ -101,7 +100,7 @@ function _getOfflineAppUsage(aHost)
   var usage = 0;
   for (let i = 0; i < groups.length; i++) {
     let uri = Services.io.newURI(groups[i], null, null);
-    if (uri.asciiHost == aHost)
+    if (aPermission.matchesURI(uri, true))
       usage += appCache.getActiveCache(groups[i]).usage;
   }
   return usage;
@@ -127,9 +126,9 @@ function UpdateOfflineApps()
         perm.capability != pm.ALLOW_ACTION)
       continue;
 
-    let usage = _getOfflineAppUsage(perm.host);
+    let usage = _getOfflineAppUsage(perm);
     let row = document.createElement("listitem");
-    row.setAttribute("host", perm.host);
+    row.setAttribute("host", perm.principal.URI.host);
     let converted = DownloadUtils.convertByteUnits(usage);
     row.setAttribute("usage", bundle.getFormattedString("offlineAppUsage",
                                                         converted));

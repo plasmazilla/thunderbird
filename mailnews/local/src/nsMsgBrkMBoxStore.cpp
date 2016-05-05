@@ -226,7 +226,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::IsSummaryFileValid(nsIMsgFolder *aFolder,
   uint32_t actualFolderTimeStamp = 0;
   GetMailboxModProperties(aFolder, &fileSize, &actualFolderTimeStamp);
 
-  if (folderSize == fileSize && numUnreadMessages >= 0)
+  if ((int64_t)folderSize == fileSize && numUnreadMessages >= 0)
   {
     if (!folderSize)
     {
@@ -655,18 +655,7 @@ nsMsgBrkMBoxStore::GetNewMsgOutputStream(nsIMsgFolder *aFolder,
 
   if (db && !*aNewMsgHdr)
   {
-    nsMsgKey key = nsMsgKey_None;
-    // The key should not need to be the filePos anymore, but out of caution
-    // we will continue setting key to filePos for mboxes smaller than 0xFF000000.
-    if (filePos <= 0xFF000000)
-    {
-      // After compact, we can have duplicated keys (see bug 1202105) so only
-      // set key to filePos if there is no collision.
-      bool hasKey = true;
-      if (NS_SUCCEEDED(db->ContainsKey((nsMsgKey) filePos, &hasKey)) && !hasKey)
-        key = (nsMsgKey) filePos;
-    }
-    db->CreateNewHdr(key, aNewMsgHdr);
+    db->CreateNewHdr(nsMsgKey_None, aNewMsgHdr);
   }
 
   if (*aNewMsgHdr)
@@ -809,7 +798,6 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RebuildIndex(nsIMsgFolder *aFolder,
                                               nsIUrlListener *aListener)
 {
   NS_ENSURE_ARG_POINTER(aFolder);
-  // We don't use aMsgDB, but I think nsMsgMailDirStore needs it.
   nsCOMPtr<nsIFile> pathFile;
   nsresult rv = aFolder->GetFilePath(getter_AddRefs(pathFile));
   if (NS_FAILED(rv))
@@ -827,13 +815,16 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::RebuildIndex(nsIMsgFolder *aFolder,
     do_GetService(NS_MAILBOXSERVICE_CONTRACTID1, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsRefPtr<nsMsgMailboxParser> parser = new nsMsgMailboxParser(aFolder);
+  RefPtr<nsMsgMailboxParser> parser = new nsMsgMailboxParser(aFolder);
   NS_ENSURE_TRUE(parser, NS_ERROR_OUT_OF_MEMORY);
   rv = parser->Init();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  return mailboxService->ParseMailbox(aMsgWindow, pathFile, parser, aListener,
-                                      nullptr);
+  rv = mailboxService->ParseMailbox(aMsgWindow, pathFile, parser, aListener,
+                                    nullptr);
+  if (NS_SUCCEEDED(rv))
+    ResetForceReparse(aMsgDB);
+  return rv;
 }
 
 nsresult

@@ -34,19 +34,6 @@ const REMOVE_PAGES_MAX_SINGLEREMOVES = 10;
 var TAB_DROP_TYPE = "application/x-moz-tabbrowser-tab";
 
 /**
- * A completion callback for reloading a live bookmark.
- * @param   aStatus
- *          The status code for the async livemark operation
- * @param   aLivemark
- *          The live bookmark
- */
-function onReload(aStatus, aLivemark)
-{
-  if (Components.isSuccessCode(aStatus))
-    aLivemark.reload(true);
-}
-
-/**
  * Represents an insertion point within a container where we can insert
  * items.
  * @param   aItemId
@@ -680,7 +667,8 @@ PlacesController.prototype = {
   reloadSelectedLivemark: function PC_reloadSelectedLivemark() {
     var selectedNode = this._view.selectedNode;
     if (selectedNode)
-      PlacesUtils.livemarks.getLivemark({ id: selectedNode.itemId }, onReload);
+      PlacesUtils.livemarks.getLivemark({ id: selectedNode.itemId })
+                           .then(aLivemark => aLivemark.reload(true));
   },
 
   /**
@@ -1302,8 +1290,9 @@ PlacesController.prototype = {
    * @return true if there's a cached mozILivemarkInfo object for
    * aNode, false otherwise.
    */
-  hasCachedLivemarkInfo: function PC_hasCachedLivemarkInfo(aNode)
-    this._cachedLivemarkInfoObjects.has(aNode),
+  hasCachedLivemarkInfo: function PC_hasCachedLivemarkInfo(aNode) {
+    return this._cachedLivemarkInfoObjects.has(aNode);
+  },
 
   /**
    * Returns the cached livemark info for a node, if set by cacheLivemarkInfo,
@@ -1312,8 +1301,9 @@ PlacesController.prototype = {
    *        a places result node.
    * @return the mozILivemarkInfo object for aNode, if set, null otherwise.
    */
-  getCachedLivemarkInfo: function PC_getCachedLivemarkInfo(aNode)
-    this._cachedLivemarkInfoObjects.get(aNode, null)
+  getCachedLivemarkInfo: function PC_getCachedLivemarkInfo(aNode) {
+    return this._cachedLivemarkInfoObjects.get(aNode, null);
+  }
 };
 
 /**
@@ -1322,7 +1312,7 @@ PlacesController.prototype = {
  * the view that the item(s) have been dropped on was not necessarily active.
  * Drop functions are passed the view that is being dropped on.
  */
-let PlacesControllerDragHelper = {
+var PlacesControllerDragHelper = {
   /**
    * DOM Element currently being dragged over
    */

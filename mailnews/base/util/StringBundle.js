@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["StringBundle"];
+this.EXPORTED_SYMBOLS = ["StringBundle"];
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 
@@ -24,7 +24,7 @@ Components.utils.import("resource://gre/modules/Services.jsm");
  *     new StringBundle("chrome://example/locale/strings.properties");
  *   let foo = strings.get("foo");
  *   let barFormatted = strings.get("bar", [arg1, arg2]);
- *   for each (let string in strings.getAll())
+ *   for (let string of strings.getAll())
  *     dump (string.key + " = " + string.value + "\n");
  *
  * @param url {String}
@@ -56,7 +56,7 @@ StringBundle.prototype = {
    */
   get _stringBundle() {
     let stringBundle = Services.strings.createBundle(this.url, this._appLocale);
-    this.__defineGetter__("_stringBundle", function() stringBundle);
+    this.__defineGetter__("_stringBundle", () => stringBundle);
     return this._stringBundle;
   },
 

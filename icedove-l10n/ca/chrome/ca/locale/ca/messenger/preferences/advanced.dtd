@@ -1,0 +1,109 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY itemGeneral.label       "General">
+<!ENTITY dataChoicesTab.label    "Elecció de dades">
+<!ENTITY itemUpdate.label        "Actualització">
+<!ENTITY itemNetworking.label    "Xarxa i espai de disc">
+<!ENTITY itemCertificates.label  "Certificats">
+<!-- General Settings -->
+
+<!ENTITY enableGlodaSearch.label       "Habilita el cercador i indexador de missatges">
+<!ENTITY enableGlodaSearch.accesskey   "i">
+<!ENTITY allowHWAccel.label            "Utilitza l'acceleració de maquinari quan sigui disponible">
+<!ENTITY allowHWAccel.accesskey        "r">
+<!ENTITY storeType.label               "Tipus d'emmagatzematge de missatges per als comptes nous:">
+<!ENTITY storeType.accesskey           "T">
+<!ENTITY mboxStore2.label              "Un fitxer per carpeta (mbox)">
+<!ENTITY maildirStore.label            "Un fitxer per missatge (maildir)">
+
+<!ENTITY scrolling.label               "Desplaçament">
+<!ENTITY useAutoScroll.label           "Utilitza el desplaçament automàtic">
+<!ENTITY useAutoScroll.accesskey       "U">
+<!ENTITY useSmoothScrolling.label      "Utilitza el desplaçament suau">
+<!ENTITY useSmoothScrolling.accesskey  "m">
+
+<!ENTITY systemIntegration.label       "Integració amb el sistema">
+<!ENTITY alwaysCheckDefault.label      "A l'inici, comprova sempre si el &brandShortName; és el client de correu per defecte">
+<!ENTITY alwaysCheckDefault.accesskey  "l">
+<!ENTITY searchIntegration.label       "Permet al &searchIntegration.engineName; que cerqui missatges">
+<!ENTITY searchIntegration.accesskey   "c">
+<!ENTITY checkDefaultsNow.label        "Comprova-ho ara…">
+<!ENTITY checkDefaultsNow.accesskey    "h">
+<!ENTITY configEditDesc.label          "Configuració avançada">
+<!ENTITY configEdit.label              "Editor de la configuració…">
+<!ENTITY configEdit.accesskey          "c">
+<!ENTITY returnReceiptsInfo.label      "Determina com el &brandShortName; gestiona les confirmacions de recepció">
+<!ENTITY showReturnReceipts.label      "Confirmacions de recepció…">
+<!ENTITY showReturnReceipts.accesskey  "r">
+<!-- Data Choices -->
+
+<!ENTITY telemetrySection.label          "Telemesura">
+<!ENTITY telemetryDesc.label             "Comparteix dades sobre el rendiment, ús, maquinari i personalització del vostre client de correu amb &vendorShortName; per ajudar-nos a millorar el &brandShortName;">
+<!ENTITY enableTelemetry.label           "Habilita la telemesura">
+<!ENTITY enableTelemetry.accesskey       "t">
+<!ENTITY telemetryLearnMore.label        "Més informació">
+
+<!ENTITY crashReporterSection.label      "Informes de fallada">
+<!ENTITY crashReporterDesc.label         "El &brandShortName; tramet informes de fallada per ajudar a &vendorShortName; a fer el client de correu més estable i segur">
+<!ENTITY enableCrashReporter.label       "Habilita els informes de fallada">
+<!ENTITY enableCrashReporter.accesskey   "H">
+<!ENTITY crashReporterLearnMore.label    "Més informació">
+<!-- Update -->
+
+<!ENTITY updateApp.label                 "Actualitzacions del &brandShortName;:">
+<!ENTITY updateAuto.label                "Instal·la les actualitzacions automàticament (és l'opció recomanada per seguretat)">
+<!ENTITY updateAuto.accesskey            "a">
+<!ENTITY updateCheck.label               "Cerca actualitzacions, però demana'm si vull instal·lar-les">
+<!ENTITY updateCheck.accesskey           "C">
+<!ENTITY updateManual.label              "No cerquis mai actualitzacions (poc recomanable pel risc de seguretat que comporta)">
+<!ENTITY updateManual.accesskey          "N">
+<!ENTITY updateAutoAddonWarn.label       "Avisa'm si això faria que s'inhabilités algun dels meus complements">
+<!ENTITY updateAutoAddonWarn.accesskey   "v">
+<!ENTITY updateHistory.label             "Mostra l'historial d'actualitzacions">
+<!ENTITY updateHistory.accesskey         "h">
+
+<!ENTITY useService.label                "Instal·la les actualitzacions en segon pla">
+<!ENTITY useService.accesskey            "s">
+<!-- Networking and Disk Space -->
+
+<!ENTITY showSettings.label            "Paràmetres…">
+<!ENTITY showSettings.accesskey        "m">
+<!ENTITY proxiesConfigure.label        "Configura com es connecta el &brandShortName; a Internet">
+<!ENTITY connectionsInfo.caption       "Connexió">
+<!ENTITY offlineInfo.caption           "Fora de línia">
+<!ENTITY offlineInfo.label             "Configura els paràmetres de fora de línia">
+<!ENTITY showOffline.label             "Fora de línia…">
+<!ENTITY showOffline.accesskey         "o">
+
+<!ENTITY Diskspace                       "Espai de disc">
+<!ENTITY offlineCompactFolders.label     "Compacta totes les carpetes quan l'estalvi sigui superior a">
+<!ENTITY offlineCompactFolders.accesskey "a">
+<!ENTITY offlineCompactFoldersMB.label   "MB en total">
+<!-- LOCALIZATION NOTE:
+  The entities useCacheBefore.label and useCacheAfter.label appear on a single
+  line in preferences as follows:
+
+  &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
+-->
+
+<!ENTITY useCacheBefore.label            "Utilitza fins a">
+<!ENTITY useCacheBefore.accesskey        "U">
+<!ENTITY useCacheAfter.label             "MB d'espai de disc per a la memòria cau">
+<!ENTITY clearCacheNow.label             "Neteja-la ara">
+<!ENTITY clearCacheNow.accesskey         "N">
+<!-- Certificates -->
+
+<!ENTITY certSelection.description       "Quan un servidor demani el meu certificat personal:">
+<!ENTITY certs.auto                      "Selecciona'n un automàticament">
+<!ENTITY certs.auto.accesskey            "S">
+<!ENTITY certs.ask                       "Demana-m'ho cada vegada">
+<!ENTITY certs.ask.accesskey             "c">
+<!ENTITY enableOCSP.label                "Consulta els servidors de resposta OCSP per confirmar la validesa actual dels certificats">
+<!ENTITY enableOCSP.accesskey            "C">
+
+<!ENTITY viewCertificates.label         "Visualitza els certificats">
+<!ENTITY viewCertificates.accesskey     "a">
+<!ENTITY viewSecurityDevices.label      "Dispositius de seguretat">
+<!ENTITY viewSecurityDevices.accesskey  "D">

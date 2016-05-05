@@ -19,7 +19,7 @@ var gMsgEnumerator;
 var gMessenger = Cc["@mozilla.org/messenger;1"].
                    createInstance(Ci.nsIMessenger);
 
-let gUrlListener = {
+var gUrlListener = {
   OnStartRunningUrl: function (aUrl) {
   },
   OnStopRunningUrl: function (aUrl, aExitCode) {
@@ -34,7 +34,7 @@ function run_test()
 {
   do_test_pending();
   localAccountUtils.inboxFolder.QueryInterface(Ci.nsIMsgLocalMailFolder);
-  for each(let fileName in gTestFiles) {
+  for (let fileName of gTestFiles) {
     localAccountUtils.inboxFolder.addMessage(IOUtils.loadFileToString(do_get_file(fileName)));
   };
   gMsgEnumerator = localAccountUtils.inboxFolder.msgDatabase.EnumerateMessages();

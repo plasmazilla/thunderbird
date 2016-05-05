@@ -172,6 +172,8 @@
   <command id="cmd_convertCloud" oncommand="convertSelectedToCloudAttachment(event.target.cloudProvider); event.stopPropagation();"/>
   <command id="cmd_convertAttachment" oncommand="goDoCommand('cmd_convertAttachment')"/>
   <command id="cmd_cancelUpload" oncommand="goDoCommand('cmd_cancelUpload')"/>
+  <command id="cmd_customizeFromAddress" oncommand="MakeFromFieldEditable();"
+           checked="false" label="&customizeFromAddress.label;"/>
 </commandset>
 
 <broadcasterset id="composeBroadcasters">
@@ -684,6 +686,9 @@
             <menupopup id="fccMenuPopup" type="folder" mode="filing" showFileHereLabel="true"
                        fileHereLabel="&fileHereMenu.label;"/>
           </menu>
+          <menuseparator/>
+          <menuitem type="checkbox" command="cmd_customizeFromAddress"
+                    accesskey="&customizeFromAddress.accesskey;"/>
         </menupopup>
       </menu>
 
@@ -749,7 +754,7 @@
                tooltiptext="&attachButton.tooltip;"
                command="cmd_attachFile"
                ondragover="nsDragAndDrop.dragOver(event, envelopeDragObserver);"
-               ondragdrop="nsDragAndDrop.drop(event, envelopeDragObserver);"
+               ondrop="nsDragAndDrop.drop(event, envelopeDragObserver);"
                ondragexit="nsDragAndDrop.dragExit(event, envelopeDragObserver);">
       <menupopup id="button-attachPopup" onpopupshowing="updateAttachmentItems();">
         <menuitem id="button-attachPopup_attachFileItem"
@@ -853,7 +858,11 @@
                    command="cmd_paste"
                    tooltiptext="&pasteButton.tooltip;"/>
 
-    <toolbaritem id="priority-button" align="center" pack="center">
+    <toolbaritem id="priority-button"
+                 align="center"
+                 pack="center"
+                 title="&priorityButton.title;"
+                 tooltiptext="&priorityButton.tooltiptext;">
       <label value="&priorityButton.label;" control="priorityMenu-button"/>
       <menulist id="priorityMenu-button" value="Normal" oncommand="PriorityMenuSelect(event.target);">
         <menupopup id="priorityMenu-buttonPopup">
@@ -901,7 +910,7 @@
     <toolbar id="MsgHeadersToolbar" persist="collapsed" flex="1"
              customizable="true" nowindowdrag="true"
              ondragover="nsDragAndDrop.dragOver(event, envelopeDragObserver);"
-             ondragdrop="nsDragAndDrop.drop(event, envelopeDragObserver);"
+             ondrop="nsDragAndDrop.drop(event, envelopeDragObserver);"
              ondragexit="nsDragAndDrop.dragExit(event, envelopeDragObserver);">
       <hbox id="msgheaderstoolbar-box" flex="1">
         <vbox flex="1" id="addresses-box">
@@ -911,6 +920,7 @@
                      accesskey="&fromAddr.accesskey;" control="msgIdentity"/>
             </hbox>
             <menulist id="msgIdentity" type="description" flex="1"
+                      disableautoselect="true" onkeypress="fromKeyPress(event);"
                       oncommand="LoadIdentity(false);" disableonsend="true">
               <menupopup id="msgIdentityPopup"/>
             </menulist>
@@ -981,7 +991,7 @@
                           itemcontext="msgComposeAttachmentItemContext"
                           onclick="AttachmentBucketClicked(event);"
                           onselect="updateAttachmentItems();"
-                          ondraggesture="nsDragAndDrop.startDrag(event, attachmentBucketDNDObserver);"/>
+                          ondragstart="nsDragAndDrop.startDrag(event, attachmentBucketDNDObserver);"/>
         </vbox>
       </hbox>
     </toolbar>
@@ -994,6 +1004,7 @@
         <toolbaritem id="font-face-select-container"/>
         <toolbaritem id="color-buttons-container"
                      disableoncustomize="true"/>
+        <toolbarbutton id="AbsoluteFontSizeButton"/>
         <toolbarbutton id="DecreaseFontSizeButton"/>
         <toolbarbutton id="IncreaseFontSizeButton"/>
         <toolbarseparator class="toolbarseparator-standard"/>
@@ -1011,7 +1022,6 @@
         <toolbarbutton id="smileButtonMenu"
                        class="formatting-button"
                        tooltiptext="&SmileButton.tooltip;"
-                       padwithspace="true"
                        type="menu"
                        observes="cmd_smiley">
           <menupopup id="smilyPopup">
@@ -1058,7 +1068,12 @@
 
   <!-- The mail message body frame -->
   <vbox id="appcontent" flex="1">
-    <editor type="content-primary" id="content-frame" src="about:blank" name="browser.message.body" flex="1"
+    <editor id="content-frame"
+            type="content-primary"
+            src="about:blank"
+            name="browser.message.body"
+            minheight="100"
+            flex="1"
             ondblclick="EditorDblClick(event);"
             context="msgComposeContext"/>
     <findbar id="FindToolbar" browserid="content-frame"/>
@@ -1073,7 +1088,9 @@
   </panel>
 
   <hbox>
-    <notificationbox id="attachmentNotificationBox" flex="1" />
+    <notificationbox id="attachmentNotificationBox"
+                     flex="1"
+                     notificationside="bottom"/>
   </hbox>
 
   <statusbar id="status-bar" class="chromeclass-status">
@@ -1083,6 +1100,7 @@
                     collapsed="true">
       <progressmeter id="compose-progressmeter" class="progressmeter-statusbar" mode="normal" value="0"/>
     </statusbarpanel>
+    <statusbarpanel id="statusLanguageText" tooltiptext="&statusLanguageText.tooltip;"/>
   </statusbar>
 
 </window>

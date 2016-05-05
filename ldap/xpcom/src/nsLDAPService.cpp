@@ -15,6 +15,7 @@
 #include "nsILDAPErrors.h"
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
+#include "mozilla/Logging.h"
 
 using namespace mozilla;
 
@@ -755,7 +756,7 @@ NS_IMETHODIMP nsLDAPService::CreateFilter(uint32_t aMaxSize,
     const char *iterEnd = aValue.EndReading();
     uint32_t numTokens = CountTokens(iter, iterEnd); 
     char **valueWords;
-    valueWords = static_cast<char **>(nsMemory::Alloc((numTokens + 1) *
+    valueWords = static_cast<char **>(moz_xmalloc((numTokens + 1) *
                                                 sizeof(char *)));
     if (!valueWords) {
         return NS_ERROR_OUT_OF_MEMORY;
@@ -776,7 +777,7 @@ NS_IMETHODIMP nsLDAPService::CreateFilter(uint32_t aMaxSize,
 
     // make buffer to be used for construction 
     //
-    char *buffer = static_cast<char *>(nsMemory::Alloc(aMaxSize * sizeof(char)));
+    char *buffer = static_cast<char *>(moz_xmalloc(aMaxSize * sizeof(char)));
     if (!buffer) {
         NS_FREE_XPCOM_ALLOCATED_POINTER_ARRAY(numTokens, valueWords);
         return NS_ERROR_OUT_OF_MEMORY;
@@ -798,7 +799,7 @@ NS_IMETHODIMP nsLDAPService::CreateFilter(uint32_t aMaxSize,
         break;
 
     case LDAP_SIZELIMIT_EXCEEDED:
-        PR_LOG(gLDAPLogModule, PR_LOG_DEBUG, 
+        MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug, 
                    ("nsLDAPService::CreateFilter(): "
                     "filter longer than max size of %d generated", 
                     aMaxSize));
@@ -821,7 +822,7 @@ NS_IMETHODIMP nsLDAPService::CreateFilter(uint32_t aMaxSize,
     // done with the array and the buffer
     //
     NS_FREE_XPCOM_ALLOCATED_POINTER_ARRAY(numTokens, valueWords);
-    nsMemory::Free(buffer);
+    free(buffer);
 
     return rv;
 }
@@ -879,7 +880,7 @@ NS_IMETHODIMP nsLDAPService::ParseDn(const char *aDn,
   
     // get the RDN attribute names
     char **attrNameArray = static_cast<char **>(
-        nsMemory::Alloc(rdnCount * sizeof(char *)));
+        moz_xmalloc(rdnCount * sizeof(char *)));
     if (!attrNameArray) {
         NS_ERROR("nsLDAPService::ParseDn: out of memory ");
         ldap_value_free(dnComponents);

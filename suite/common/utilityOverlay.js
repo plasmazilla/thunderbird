@@ -250,33 +250,27 @@ function goPreferences(paneID)
                paneID);
 }
 
-function goToggleToolbar( id, elementID )
+function goToggleToolbar(id, elementID)
 {
-  var toolbar = document.getElementById( id );
-  var element = document.getElementById( elementID );
-  if ( toolbar )
-  {
-    var attribValue = toolbar.getAttribute("hidden") ;
+  var toolbar = document.getElementById(id);
+  if (!toolbar)
+    return;
 
-    if ( attribValue == "true" )
-    {
-      toolbar.setAttribute("hidden", "false" );
-      if ( element )
-        element.setAttribute("checked","true")
-    }
-    else
-    {
-      toolbar.setAttribute("hidden", "true" );
-      if ( element )
-        element.setAttribute("checked","false")
-    }
-    document.persist(id, "hidden");
-    document.persist(elementID, "checked");
+  var type = toolbar.getAttribute("type");
+  var toggleAttribute = type == "menubar" ?  "autohide" : "hidden";
+  var hidden = toolbar.getAttribute(toggleAttribute) == "true";
+  var element = document.getElementById(elementID);
 
-    if (toolbar.hasAttribute("customindex"))
-      persistCustomToolbar(toolbar);
+  toolbar.setAttribute(toggleAttribute, !hidden);
+  if (element)
+    element.setAttribute("checked", hidden)
 
-  }
+  document.persist(id, toggleAttribute);
+  document.persist(elementID, "checked");
+
+  if (toolbar.hasAttribute("customindex"))
+    persistCustomToolbar(toolbar);
+
 }
 
 var gCustomizeSheet = false;
@@ -367,19 +361,24 @@ function onViewToolbarsPopupShowing(aEvent, aInsertPoint)
 
   var menubar = toolbox.getElementsByAttribute("type", "menubar").item(0);
   if (!menubar || !toolbars.length) {
-    menusep.hidden = true;
+    if (menusep)
+      menusep.hidden = true;
     return;
   }
-  menusep.hidden = false;
+  if (menusep)
+    menusep.hidden = false;
 
   toolbars.forEach(function(bar) {
+    let type = bar.getAttribute("type");
+    let toggleAttribute = type == "menubar" ?  "autohide" : "hidden";
+    let isHidden = bar.getAttribute(toggleAttribute) == "true";
     let menuItem = document.createElement("menuitem");
     menuItem.setAttribute("id", "toggle_" + bar.id);
     menuItem.setAttribute("toolbarid", bar.id);
     menuItem.setAttribute("type", "checkbox");
     menuItem.setAttribute("label", bar.getAttribute("toolbarname"));
     menuItem.setAttribute("accesskey", bar.getAttribute("accesskey"));
-    menuItem.setAttribute("checked", !bar.hidden);
+    menuItem.setAttribute("checked", !isHidden);
     popup.insertBefore(menuItem, firstMenuItem);
   });
 }
@@ -1227,12 +1226,11 @@ function popupNotificationMenuShowing(event)
   //  Only offer this menu item for the top window.
   //  See bug 280536 for problems with frames and iframes.
   try {
-    // uri.host generates an exception on nsISimpleURIs, but we also
-    // don't want to show this menu item when there is no host.
-    allowPopupsForSite.hidden = !uri.host;
-    var allowString = gUtilityBundle.getFormattedString("popupAllow", [uri.host]);
+    // uri.host generates an exception on nsISimpleURIs.
+    var allowString = gUtilityBundle.getFormattedString("popupAllow", [uri.host || uri.spec]);
     allowPopupsForSite.setAttribute("label", allowString);
     showPopupManager.hostport = uri.hostPort;
+    allowPopupsForSite.hidden = gPrivate;
   } catch (ex) {
     allowPopupsForSite.hidden = true;
     showPopupManager.hostport = "";

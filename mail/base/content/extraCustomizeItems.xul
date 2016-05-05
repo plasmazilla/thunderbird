@@ -30,6 +30,7 @@
                  flex="1"
                  class="chromeclass-toolbar-additional">
         <textbox id="searchInput"
+                 class="searchBox"
                  flex="1"
                  type="glodacomplete"
                  searchbutton="true"
@@ -40,7 +41,7 @@
                  timeout="200"
                  maxlength="192"
                  placeholder=""
-                 emptytextbase="&search.label.base;"
+                 emptytextbase="&search.label.base1;"
                  keyLabelNonMac="&search.keyLabel.nonmac;"
                  keyLabelMac="&search.keyLabel.mac;"
                  >

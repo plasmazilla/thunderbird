@@ -91,6 +91,7 @@
     <menupopup id="messageIdContext"/>
     <menupopup id="emailAddressPopup"/>
     <menupopup id="toolbar-context-menu"/>
+    <menupopup id="remoteContentOptions"/>
     <tooltip id="aHTMLTooltip"
              onpopupshowing="return FillInHTMLTooltip(document.tooltipNode);"/>
     <panel id="customizeToolbarSheetPopup"/>
@@ -115,7 +116,7 @@
                    flex="3"
                    persist="collapsed"
                    ondragover="nsDragAndDrop.dragOver(event, messagepaneObserver);"
-                   ondragdrop="nsDragAndDrop.drop(event, messagepaneObserver);"
+                   ondrop="nsDragAndDrop.drop(event, messagepaneObserver);"
                    ondragexit="nsDragAndDrop.dragExit(event, messagepaneObserver);">
 
     <hbox id="msgHeaderView"/>

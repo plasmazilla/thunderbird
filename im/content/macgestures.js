@@ -5,7 +5,7 @@
 
 // Shamelessly taken from the implementation in browser/base/content/browser.js
 
-let gGestureSupport = {
+var gGestureSupport = {
   _tabs: null,
   _lastSelectedTab: null,
 
@@ -39,7 +39,7 @@ let gGestureSupport = {
     let addRemove = aAddListener ? window.addEventListener :
       window.removeEventListener;
 
-    for each (let event in gestureEvents)
+    for (let event of gestureEvents)
       addRemove("Moz" + event, this, true);
   },
 
@@ -55,7 +55,7 @@ let gGestureSupport = {
     aEvent.stopPropagation();
 
     // Create a preference object with some defaults
-    let def = function(aThreshold, aLatched)
+    let def = (aThreshold, aLatched) =>
       ({ threshold: aThreshold, latched: !!aLatched });
 
     switch (aEvent.type) {
@@ -206,7 +206,7 @@ let gGestureSupport = {
    */
   onSwipe: function GS_onSwipe(aEvent) {
     // Figure out which one (and only one) direction was triggered
-    for each (let dir in ["UP", "RIGHT", "DOWN", "LEFT"]) {
+    for (let dir of ["UP", "RIGHT", "DOWN", "LEFT"]) {
       if (aEvent.direction == aEvent["DIRECTION_" + dir]) {
         this._doAction(aEvent, ["swipe", dir.toLowerCase()]);
         return;

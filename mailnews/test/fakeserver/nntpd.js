@@ -126,9 +126,9 @@ function wildmat2regex(wildmat) {
 }
 
 // NNTP FLAGS
-const NNTP_POSTABLE = 0x0001;
+var NNTP_POSTABLE = 0x0001;
 
-const NNTP_REAL_LENGTH = 0x0100;
+var NNTP_REAL_LENGTH = 0x0100;
 
 function hasFlag(flags, flag) {
   return (flags & flag) == flag;
@@ -387,10 +387,13 @@ function subclass(sub, sup, def) {
 }
 function subconstructor(sub, sup) {
   sup.apply(sub, Array.prototype.slice.call(arguments, 2));
-  sub.parent = new Object();
-  sub.parent.__noSuchMethod__ = function (name, args) {
-    return sup.prototype[name].apply(sub, args);
-  }
+  sub.parent = new Proxy(sub, {
+    get: function (target, name) {
+      let res = sup.prototype[name];
+      if (typeof res === "function")
+        return res.bind(sub);
+      return res;
+    }});
 }
 function NNTP_RFC2980_handler(daemon) {
   subconstructor(this, NNTP_RFC977_handler, daemon);

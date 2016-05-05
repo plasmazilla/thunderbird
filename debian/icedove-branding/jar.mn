@@ -1,3 +1,8 @@
+#filter substitution
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 messenger.jar:
 % content branding %content/branding/
   content/branding/about-logo.png                   (content/about-logo.png)
@@ -6,4 +11,5 @@ messenger.jar:
   content/branding/icon48.png                       (content/icon48.png)
   content/branding/icon64.png                       (content/icon64.png)
   content/branding/featureConfigurator.jpg          (content/featureConfigurator.jpg)
-* content/branding/aboutDialog.css                  (content/aboutDialog.css)
+  content/branding/aboutDialog.css                  (content/aboutDialog.css)
+  ../classic/skin/classic/messenger/icons/new-mail-alert.png       (content/icon48.png)

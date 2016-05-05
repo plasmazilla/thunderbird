@@ -2,15 +2,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+
 // File constants copied from file-utils.js
-const MODE_RDONLY   = 0x01;
-const MODE_WRONLY   = 0x02;
-const MODE_RDWR     = 0x04;
-const MODE_CREATE   = 0x08;
-const MODE_APPEND   = 0x10;
-const MODE_TRUNCATE = 0x20;
-const MODE_SYNC     = 0x40;
-const MODE_EXCL     = 0x80;
+var MODE_RDONLY   = 0x01;
+var MODE_WRONLY   = 0x02;
+var MODE_RDWR     = 0x04;
+var MODE_CREATE   = 0x08;
+var MODE_APPEND   = 0x10;
+var MODE_TRUNCATE = 0x20;
+var MODE_SYNC     = 0x40;
+var MODE_EXCL     = 0x80;
 
 /**
  * Shows a file dialog, reads the selected file(s) and tries to parse events from it.
@@ -152,6 +154,7 @@ function putItemsIntoCal(destCal, aItems, aFilePath) {
     //  quite easy to trigger, so we really should do this)
     var lastError;
     var listener = {
+        QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
         onOperationComplete: function(aCalendar, aStatus, aOperationType, aId, aDetail) {
             count++;
             if (!Components.isSuccessCode(aStatus)) {
@@ -276,7 +279,7 @@ function saveEventsToFile(calendarEventArray, aDefaultFileName) {
                                  .getService(Components.interfaces.calIExporter);
 
         let filePath = fp.file.path;
-        if (filePath.indexOf(".") == -1) {
+        if (!filePath.includes(".")) {
             filePath += "."+exporter.getFileTypes({})[0].defaultExtension;
         }
 
@@ -318,6 +321,7 @@ function saveEventsToFile(calendarEventArray, aDefaultFileName) {
 function exportEntireCalendar(aCalendar) {
     var itemArray = [];
     var getListener = {
+        QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
         onOperationComplete: function(aCalendar, aStatus, aOperationType, aId, aDetail)
         {
             saveEventsToFile(itemArray, aCalendar.name);

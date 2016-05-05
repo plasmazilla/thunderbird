@@ -2,18 +2,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "dom-helpers";
+var MODULE_NAME = "dom-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
+var RELATIVE_ROOT = "../shared-modules";
 // we need this for the main controller
-const MODULE_REQUIRES = ["folder-display-helpers"];
+var MODULE_REQUIRES = ["folder-display-helpers"];
 
 var elib = {};
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
 
-const NORMAL_TIMEOUT = 6000;
-const FAST_TIMEOUT = 1000;
-const FAST_INTERVAL = 100;
+var NORMAL_TIMEOUT = 6000;
+var FAST_TIMEOUT = 1000;
+var FAST_INTERVAL = 100;
 
 var folderDisplayHelper;
 var mc;
@@ -162,7 +162,7 @@ function wait_for_element_enabled(aController, aElement, aEnabled) {
     throw new Error("Element does not appear to have disabled property; id=" +
                     aElement.id);
 
-  aController.waitFor(function() aElement.disabled != aEnabled,
+  aController.waitFor(() => aElement.disabled != aEnabled,
                       "Element should have eventually been " +
                       (aEnabled ? "enabled" : "disabled") +
                       "; id=" + aElement.id);

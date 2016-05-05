@@ -19,22 +19,24 @@ Build-Depends: autoconf2.13,
 	libgnomeui-dev (>= 2.22),
 	libgstreamer-plugins-base1.0-dev,
 	libgstreamer1.0-dev,
-	libgtk2.0-dev (>= 2.18),
+	libgtk-3-dev (>= 3.4),
 	libhunspell-dev (>= 1.2),
 	libidl-dev (>= 0.8.0),
 	libiw-dev [linux-any],
 	libnotify-dev,
-	libnspr4-dev (>= 2:4.10.8~),
-	libnss3-dev (>= 2:3.19.2~),
+	libnspr4-dev (>= 2:4.12~),
+	libnss3-dev (>= 2:3.21.1~),
 	libreadline-dev,
+	libpng-dev,
 	libpulse-dev,
-	libsqlite3-dev (>= 3.8.9~),
+	libsqlite3-dev (>= 3.9.1~),
 	libstartup-notification0-dev,
 	libvpx-dev (>= 1.4.0),
 	libxau-dev,
 	libxft-dev,
 	libxt-dev,
 	mesa-common-dev,
+	mozilla-devscripts,
 	python-minimal (>= 2.6.6-13~),
 	python-ply,
 	python2.7,
@@ -46,7 +48,7 @@ Vcs-Git: https://anonscm.debian.org/cgit/pkg-mozilla/icedove.git
 Vcs-Browser: https://anonscm.debian.org/cgit/pkg-mozilla/icedove.git
 Homepage: http://www.mozilla.org/thunderbird/
 X-Debian-Homepage: http://wiki.debian.org/Icedove
-Standards-Version: 3.9.7
+Standards-Version: 3.9.8
 
 Package: icedove
 Architecture: any
@@ -181,3 +183,1445 @@ Description: Google Calendar support for lightning- and iceowl-extension
  It's a recommended component if you want to connect Icedove to your
  Google calendar.
 
+Package: icedove-l10n-all
+Architecture: all
+Section: localization
+Depends:
+ ${misc:Depends},
+ icedove-l10n-ar,
+ icedove-l10n-ast,
+ icedove-l10n-be,
+ icedove-l10n-bg,
+ icedove-l10n-bn-bd,
+ icedove-l10n-br,
+ icedove-l10n-ca,
+ icedove-l10n-cs,
+ icedove-l10n-da,
+ icedove-l10n-de,
+ icedove-l10n-el,
+ icedove-l10n-en-gb,
+ icedove-l10n-es-ar,
+ icedove-l10n-es-es,
+ icedove-l10n-et,
+ icedove-l10n-eu,
+ icedove-l10n-fi,
+ icedove-l10n-fr,
+ icedove-l10n-fy-nl,
+ icedove-l10n-ga-ie,
+ icedove-l10n-gd,
+ icedove-l10n-gl,
+ icedove-l10n-he,
+ icedove-l10n-hr,
+ icedove-l10n-hu,
+ icedove-l10n-hy-am,
+ icedove-l10n-id,
+ icedove-l10n-is,
+ icedove-l10n-it,
+ icedove-l10n-ja,
+ icedove-l10n-ko,
+ icedove-l10n-lt,
+ icedove-l10n-nb-no,
+ icedove-l10n-nl,
+ icedove-l10n-nn-no,
+ icedove-l10n-pa-in,
+ icedove-l10n-pl,
+ icedove-l10n-pt-br,
+ icedove-l10n-pt-pt,
+ icedove-l10n-rm,
+ icedove-l10n-ro,
+ icedove-l10n-ru,
+ icedove-l10n-si,
+ icedove-l10n-sk,
+ icedove-l10n-sl,
+ icedove-l10n-sq,
+ icedove-l10n-sr,
+ icedove-l10n-sv-se,
+ icedove-l10n-ta-lk,
+ icedove-l10n-tr,
+ icedove-l10n-uk,
+ icedove-l10n-vi,
+ icedove-l10n-zh-cn,
+ icedove-l10n-zh-tw
+Description: All language packages for Icedove (meta)
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package is a metapackage depending on all available localization of
+ Icedove.
+
+Package: icedove-l10n-ar
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:ar
+Recommends: hunspell-ar
+Description: Arabic language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Arabic.
+
+Package: icedove-l10n-ast
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:ast
+Description: Asturian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Asturian.
+
+Package: icedove-l10n-be
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:be
+Description: Belarusian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Belarusian.
+
+Package: icedove-l10n-bg
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:bg
+Recommends: myspell-bg
+Description: Bulgarian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Bulgarian.
+
+Package: icedove-l10n-bn-bd
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:bd-BD
+Description: Bengali language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Bengali.
+
+Package: icedove-l10n-br
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:br
+Description: Breton language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Breton.
+
+Package: icedove-l10n-ca
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:ca
+Recommends: myspell-ca
+Description: Catalan/Valencian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Catalan/Valencian.
+
+Package: icedove-l10n-cs
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:cs
+Recommends: myspell-cs-cz
+Description: Czech language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Czech.
+
+Package: icedove-l10n-da
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:da
+Recommends: myspell-da | hunspell-da
+Description: Danish language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Danish.
+
+Package: icedove-l10n-de
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:de
+Recommends: hunspell-de-de | hunspell-de-at | hunspell-de-ch
+Description: German language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in German.
+
+Package: icedove-l10n-el
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:el
+Recommends: myspell-el-gr
+Description: Greek language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Greek.
+
+Package: icedove-l10n-en-gb
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:en-GB
+Recommends: myspell-en-gb | myspell-en-us | hunspell-en-us
+Description: English (Great Britain) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in English (Great Britain).
+
+Package: icedove-l10n-es-ar
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:es-AR
+Recommends: myspell-es
+Description: Spanish (Argentina) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Spanish (Argentina).
+
+Package: icedove-l10n-es-es
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:es-ES
+Recommends: myspell-es
+Description: Spanish (Spain) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Spanish (Spain).
+
+Package: icedove-l10n-et
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:et
+Recommends: myspell-et
+Description: Estonian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Estonian.
+
+Package: icedove-l10n-eu
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:eu
+Description: Basque language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Basque.
+
+Package: icedove-l10n-fi
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:fi
+Recommends: myspell-fi
+Description: Finnish language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Finnish.
+
+Package: icedove-l10n-fr
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:fr
+Recommends: myspell-fr | myspell-fr-gut | hunspell-fr
+Description: French language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in French.
+
+Package: icedove-l10n-fy-nl
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:fy-NL
+Description: Frisian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Frisian.
+
+Package: icedove-l10n-ga-ie
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:ga-IE
+Description: Irish (Ireland) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Irish (Ireland).
+
+Package: icedove-l10n-gd
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:gd
+Recommends: myspell-gd
+Description: Gaelic (Scottish) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Gaelic (Scottish).
+
+Package: icedove-l10n-gl
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:gl
+Recommends: hunspell-gl-es
+Description: Galician language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Galician.
+
+Package: icedove-l10n-he
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:he
+Recommends: myspell-he
+Description: Hebrew language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Hebrew.
+
+Package: icedove-l10n-hr
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:hr
+Recommends: myspell-hr
+Description: Croatian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Croatian.
+
+Package: icedove-l10n-hu
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:hu
+Recommends: myspell-hu | hunspell-hu
+Description: Hungarian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Hungarian.
+
+Package: icedove-l10n-hy-am
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:hy-AM
+Recommends: myspell-hy
+Description: Armenian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Armenian.
+
+Package: icedove-l10n-id
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:id
+Description: Indonesian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Indonesian.
+
+Package: icedove-l10n-is
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:is
+Description: Icelandic language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Icelandic.
+
+Package: icedove-l10n-it
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:it
+Recommends: myspell-it
+Description: Italian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Italian.
+
+Package: icedove-l10n-ja
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:ja
+Description: Japanese language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Japanese.
+
+Package: icedove-l10n-ko
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:ko
+Recommends: hunspell-ko
+Description: Korean language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Korean.
+
+Package: icedove-l10n-lt
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:lt
+Recommends: myspell-lt
+Description: Lithuanian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Lithuanian.
+
+Package: icedove-l10n-nb-no
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:nb-NO
+Recommends: myspell-nb
+Description: Bokmaal (Norway) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Bokmaal (Norway).
+
+Package: icedove-l10n-nl
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:nl
+Recommends: myspell-nl
+Description: Dutch language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Dutch.
+
+Package: icedove-l10n-nn-no
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:nn-NO
+Recommends: myspell-nn
+Description: Nynorsk (Norway) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Nynorsk (Norway).
+
+Package: icedove-l10n-pa-in
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:pa
+Description: Punjabi (India) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Punjabi (India).
+
+Package: icedove-l10n-pl
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:pl
+Recommends: myspell-pl
+Description: Polish language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Polish.
+
+Package: icedove-l10n-pt-br
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:pt-BR
+Recommends: myspell-pt-br | myspell-pt
+Description: Portuguese (Brazil) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Portuguese (Brazil).
+
+Package: icedove-l10n-pt-pt
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:pt-PT
+Recommends: myspell-pt-pt | myspell-pt
+Description: Portuguese (Portugal) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Portuguese (Portugal).
+
+Package: icedove-l10n-rm
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:rm
+Description: Romansh language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Romansh.
+
+Package: icedove-l10n-ro
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:ro
+Recommends: hunspell-ro
+Description: Romania language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Romania.
+
+Package: icedove-l10n-ru
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:ru
+Recommends: myspell-ru
+Description: Russian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Russian.
+
+Package: icedove-l10n-si
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:si
+Description: Sinhala language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Sinhala.
+
+Package: icedove-l10n-sk
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:sk
+Recommends: myspell-sk
+Description: Slovak language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Slovak.
+
+Package: icedove-l10n-sl
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:sl
+Recommends: myspell-sl
+Description: Slovenian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Slovenian.
+
+Package: icedove-l10n-sq
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:sq
+Description: Albanian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Albanian.
+
+Package: icedove-l10n-sr
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:sr
+Recommends: hunspell-sr
+Description: Serbian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Serbian.
+
+Package: icedove-l10n-sv-se
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:sv-SE
+Recommends: myspell-sv-se
+Description: Swedish (Sweden) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Swedish (Sweden).
+
+Package: icedove-l10n-ta-lk
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:ta-LK
+Description: Tamil language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Tamil.
+
+Package: icedove-l10n-tr
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:tr
+Description: Turkish language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Turkish.
+
+Package: icedove-l10n-uk
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:uk
+Description: Ukrainian language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Ukrainian.
+
+Package: icedove-l10n-vi
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:vi
+Recommends: hunspell-vi
+Description: Vietnamese language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Vietnamese.
+
+Package: icedove-l10n-zh-cn
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:zh-CN
+Description: Chinese (China) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Chinese (China).
+
+Package: icedove-l10n-zh-tw
+Architecture: all
+Section: localization
+Depends: ${misc:Depends}, icedove (>= ${source:Version}), icedove (<< ${source:Version}.1~)
+Homepage: https://wiki.mozilla.org/L10n:Teams:zh-TW
+Description: Chinese (Taiwan) language package for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free distribution.
+ The goal of Thunderbird is to produce a cross platform stand-alone mail
+ application using the XUL user interface language.
+ .
+ This package contains the localization of Icedove in Chinese (Taiwan).
+
+Package: iceowl-l10n-ar
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-ar
+Description: Arabic language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Arabian.
+
+Package: iceowl-l10n-be
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-be
+Description: Belarusian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Belarusian.
+
+Package: iceowl-l10n-bg
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-bg
+Description: Bulgarian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Bulgarian.
+
+Package: iceowl-l10n-bn-bd
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Bengali (Bangladesh) language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in
+ Bengali/Bangladesh.
+
+Package: iceowl-l10n-br
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-br
+Description: Breton language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Breton.
+
+Package: iceowl-l10n-ca
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-ca
+Description: Catalan/Valencian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in
+ Catalan/Valencian.
+
+Package: iceowl-l10n-cs
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-cs-cz
+Description: Czech language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Czech.
+
+Package: iceowl-l10n-cy
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Welsh language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Welsh.
+
+Package: iceowl-l10n-da
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-da
+Description: Danish language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Danish.
+
+Package: iceowl-l10n-de
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-de-de | myspell-de-at | myspell-de-ch
+Description: German language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in German.
+
+Package: iceowl-l10n-el
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-el-gr
+Description: Greek language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Greek.
+
+Package: iceowl-l10n-es-ar
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-es
+Description: Spanish (Argentina) language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in
+ Spanish (Argentina).
+
+Package: iceowl-l10n-es-es
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-es
+Description: Spanish (Spain) language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Spanish (Spain).
+
+Package: iceowl-l10n-et
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Estonian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Estonian.
+
+Package: iceowl-l10n-en-gb
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: British English language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in British English.
+
+Package: iceowl-l10n-eu
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Basque language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Basque.
+
+Package: iceowl-l10n-fi
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Finnish language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Finnish.
+
+Package: iceowl-l10n-fr
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-fr | myspell-fr-gut
+Description: French language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in French.
+
+Package: iceowl-l10n-fy-nl
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Western Frisian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Western Frisian.
+
+Package: iceowl-l10n-ga-ie
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Irish (Ireland) language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Irish (Ireland).
+
+Package: iceowl-l10n-gd
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Scottish Gaelic language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Scottish Gaelic.
+
+Package: iceowl-l10n-gl
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-gl-es
+Description: Galician language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Galician.
+
+Package: iceowl-l10n-he
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-he
+Description: Hebrew language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Hebrew.
+
+Package: iceowl-l10n-hu
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-hu
+Description: Hungarian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Hungarian.
+
+Package: iceowl-l10n-hr
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-hr
+Description: Croatian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Croatian.
+
+Package: iceowl-l10n-hy-am
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-hy
+Description: Armenian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in
+ Armenian (Armenia).
+
+Package: iceowl-l10n-id
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Indonesian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Indonesian.
+
+Package: iceowl-l10n-is
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-is
+Description: Icelandic language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Icelandic.
+
+Package: iceowl-l10n-it
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-it
+Description: Italian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Italian.
+
+Package: iceowl-l10n-ko
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-ko
+Description: Korean language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Korean.
+
+Package: iceowl-l10n-ja
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Japanese language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Japanese.
+
+Package: iceowl-l10n-lt
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-lt
+Description: Lithuanian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Lithuanian.
+
+Package: iceowl-l10n-nb-no
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-nb
+Description: Bokmaal (Norway) language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Bokmaal
+ (Norway).
+
+Package: iceowl-l10n-nl
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-nl
+Description: Dutch language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Dutch.
+
+Package: iceowl-l10n-nn-no
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-nn
+Description: Nynorsk (Norway) language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Nynorsk
+ (Norway).
+
+Package: iceowl-l10n-pa-in
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Punjabi language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Punjabi (India).
+
+Package: iceowl-l10n-pl
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-pl
+Description: Polish language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Polish.
+
+Package: iceowl-l10n-pt-br
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-pt-br | myspell-pt
+Description: Portuguese (Brazil) language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Portuguese
+ (Brazil).
+
+Package: iceowl-l10n-pt-pt
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-pt-pt | myspell-pt
+Description: Portuguese (Portugal) language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Portuguese
+ (Portugal).
+
+Package: iceowl-l10n-rm
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Romansh language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Romansh.
+
+Package: iceowl-l10n-ro
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-ro
+Description: Romanian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Romanian.
+
+Package: iceowl-l10n-ru
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-ru
+Description: Russian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Russian.
+
+Package: iceowl-l10n-sk
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-sk
+Description: Slovak language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Slovak.
+
+Package: iceowl-l10n-si
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Sinhala language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Sinhala.
+
+Package: iceowl-l10n-sl
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-sl
+Description: Slovenian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Slovenian.
+
+Package: iceowl-l10n-sr
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-sr
+Description: Serbian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Serbian.
+
+Package: iceowl-l10n-sq
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Albanian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Albanian.
+
+Package: iceowl-l10n-sv-se
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-sv-se
+Description: Swedish language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Swedish (Sweden).
+
+Package: iceowl-l10n-ta-lk
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Tamil language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in
+ Tamil (Sri Lanka).
+
+Package: iceowl-l10n-tr
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Turkish language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Turkish.
+
+Package: iceowl-l10n-vi
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-vi
+Description: Vietnamese language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Vietnamese.
+
+Package: iceowl-l10n-uk
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-uk
+Description: Ukrainian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Ukrainian.
+
+Package: iceowl-l10n-zh-cn
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Chinese (China) language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Chinese (China).
+
+Package: iceowl-l10n-zh-tw
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Description: Chinese (Taiwan) language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Chinese
+ (Taiwan).

@@ -12,7 +12,7 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 /**
  * Scheduling and iTIP helper code
  */
-EXPORTED_SYMBOLS = ["cal"]; // even though it's defined in calUtils.jsm, import needs this
+this.EXPORTED_SYMBOLS = ["cal"]; // even though it's defined in calUtils.jsm, import needs this
 cal.itip = {
     /**
      * Gets the sequence/revision number, either of the passed item or
@@ -145,11 +145,11 @@ cal.itip = {
         }
         cal.LOG("iTIP method: " + imipMethod);
 
-        function isWritableCalendar(aCalendar) {
+        let isWritableCalendar = function (aCalendar) {
             /* TODO: missing ACL check for existing items (require callback API) */
             return (cal.itip.isSchedulingCalendar(aCalendar)
                     && cal.userCanAddItemsToCalendar(aCalendar));
-        }
+        };
 
         let writableCalendars = cal.getCalendarManager().getCalendars({}).filter(isWritableCalendar);
         if (writableCalendars.length > 0) {
@@ -175,16 +175,18 @@ cal.itip = {
             return cal.calGetString("lightning", strName, param, "lightning");
         }
 
+        let text = "";
         const cIOL = Components.interfaces.calIOperationListener;
         if (Components.isSuccessCode(aStatus)) {
             switch (aOperationType) {
-                case cIOL.ADD: return _gs("imipAddedItemToCal");
-                case cIOL.MODIFY: return _gs("imipUpdatedItem");
-                case cIOL.DELETE: return _gs("imipCanceledItem");
+                case cIOL.ADD: text = _gs("imipAddedItemToCal"); break;
+                case cIOL.MODIFY: text = _gs("imipUpdatedItem"); break;
+                case cIOL.DELETE: text = _gs("imipCanceledItem"); break;
             }
         } else {
-            return _gs("imipBarProcessingFailed", [aStatus.toString(16)]);
+            text = _gs("imipBarProcessingFailed", [aStatus.toString(16)]);
         }
+        return text;
     },
 
     /**
@@ -616,10 +618,36 @@ cal.itip = {
                     if (aItem.hasProperty("X-MS-OLK-SENDER")) {
                         aItem.deleteProperty("X-MS-OLK-SENDER");
                     }
-                    sendMessage(aItem, "REPLY", [aItem.organizer], autoResponse);
+                    // if the event was delegated to the replying attendee, we may also notify also
+                    // the delegator due to chapter 3.2.2.3. of RfC 5546
+                    let replyTo = new Array;
+                    let delegatorIds = invitedAttendee.getProperty("DELEGATED-FROM");
+                    if (delegatorIds &&
+                        Preferences.get("calendar.itip.notifyDelegatorOnReply", false)) {
+                        let getDelegator = function (aDelegatorId) {
+                            let delegator = aOriginalItem.getAttendeeById(aDelegatorId);
+                            if (delegator) {
+                                replyTo.push(delegator);
+                            }
+                        };
+                        // Our backends currently do not support multi-value params. libical just
+                        // swallows any value but the first, while ical.js fails to parse the item
+                        // at all. Single values are handled properly by both backends though.
+                        // Once bug 1206502 lands, ical.js will handle multi-value params, but
+                        // we end up in different return types of getProperty. A native exposure of
+                        // DELEGATED-FROM and DELEGATED-TO in calIAttendee may change this.
+                        if (Array.isArray(delegatorIds)) {
+                            for (let delegatorId of delegatorIds) {
+                                getDelegator(delegatorId);
+                            }
+                        } else if (typeof delegatorIds == "string") {
+                            getDelegator(delegatorIds);
+                        }
+                    }
+                    replyTo.push(aItem.organizer);
+                    sendMessage(aItem, "REPLY", replyTo, autoResponse);
                 }
             }
-
             return;
         }
 
@@ -757,7 +785,7 @@ cal.itip = {
             }
         }
 
-        function hashMajorProps(aItem) {
+        let hashMajorProps = function (aItem) {
             const majorProps = {
                 DTSTART: true,
                 DTEND: true,
@@ -780,7 +808,7 @@ cal.itip = {
             }
             propStrings.sort();
             return propStrings.join("");
-        }
+        };
 
         let h1 = hashMajorProps(newItem);
         let h2 = hashMajorProps(oldItem);
@@ -808,7 +836,7 @@ cal.itip = {
         let itipItem = Components.classes["@mozilla.org/calendar/itip-item;1"]
                                  .createInstance(Components.interfaces.calIItipItem);
         let serializedItems = "";
-        (aItems || []).forEach(function(item) serializedItems += cal.getSerializedItem(item));
+        (aItems || []).forEach(item => serializedItems += cal.getSerializedItem(item));
         itipItem.init(serializedItems);
 
         let props = aProps || {};
@@ -988,7 +1016,7 @@ function sendMessage(aItem, aMethod, aRecipientsList, autoResponse) {
     }
     aTransport = aTransport.QueryInterface(Components.interfaces.calIItipTransport);
 
-    function _sendItem(aSendToList, aSendItem) {
+    let _sendItem = function (aSendToList, aSendItem) {
         let itipItem = Components.classes["@mozilla.org/calendar/itip-item;1"]
                                  .createInstance(Components.interfaces.calIItipItem);
         itipItem.init(cal.getSerializedItem(aSendItem));
@@ -1003,7 +1031,7 @@ function sendMessage(aItem, aMethod, aRecipientsList, autoResponse) {
         itipItem.isSend = true;
 
         return aTransport.sendItems(aSendToList.length, aSendToList, itipItem);
-    }
+    };
 
     // split up transport, if attendee undisclosure is requested
     // and this is a message send by the organizer
@@ -1041,6 +1069,7 @@ function ItipOpListener(opListener, oldItem) {
     this.mOldItem = oldItem;
 }
 ItipOpListener.prototype = {
+    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
     onOperationComplete: function ItipOpListener_onOperationComplete(aCalendar,
                                                                      aStatus,
                                                                      aOperationType,

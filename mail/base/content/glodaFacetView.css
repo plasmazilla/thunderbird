@@ -242,7 +242,7 @@ h2 {
   margin: 5px;
   font-size: 90%;
   text-align: end;
-  display: none; /* $('.date-toggle').show() is run if there are results */
+  display: none;
   width: 46px !important;
   height: 17px !important;
   -moz-margin-end: 2px;
@@ -811,4 +811,18 @@ span.empty {
   border: none;
   font-size: large;
   color: #729fcf;
+}
+
+#facet-date {
+  max-height: 104px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  overflow: visible;
+  transition: all .2s;
+}
+
+#facet-date[hide="true"] {
+  max-height: 0px;
+  padding-top: 0px;
+  padding-bottom: 0px;
 }

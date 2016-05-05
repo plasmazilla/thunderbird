@@ -2,24 +2,24 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["GlodaAttributeDBDef", "GlodaAccount",
+this.EXPORTED_SYMBOLS = ["GlodaAttributeDBDef", "GlodaAccount",
                     "GlodaConversation", "GlodaFolder", "GlodaMessage",
                     "GlodaContact", "GlodaIdentity", "GlodaAttachment"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/mailServices.js");
 
 Cu.import("resource:///modules/gloda/log4moz.js");
-const LOG = Log4Moz.repository.getLogger("gloda.datamodel");
+var LOG = Log4Moz.repository.getLogger("gloda.datamodel");
 
 Cu.import("resource:///modules/gloda/utils.js");
 
 // Make it lazy.
-let gMessenger;
+var gMessenger;
 function getMessenger () {
   if (!gMessenger)
     gMessenger = Cc["@mozilla.org/messenger;1"].createInstance(Ci.nsIMessenger);
@@ -93,7 +93,7 @@ GlodaAttributeDBDef.prototype = {
     let nounDef = this.attrDef.objectNounDef;
     let dbAttributes = [];
     if (nounDef.usesParameter) {
-      for each (let [, instanceValue] in Iterator(aInstanceValues)) {
+      for (let instanceValue of aInstanceValues) {
         let [param, dbValue] = nounDef.toParamAndValue(instanceValue);
         dbAttributes.push([this.bindParameter(param), dbValue]);
       }
@@ -103,7 +103,7 @@ GlodaAttributeDBDef.prototype = {
       // just an informative property on the Gloda Message and has no real
       // indexing purposes.
       if ("toParamAndValue" in nounDef) {
-        for each (let [, instanceValue] in Iterator(aInstanceValues)) {
+        for (let instanceValue of aInstanceValues) {
           dbAttributes.push([this._id,
                              nounDef.toParamAndValue(instanceValue)[1]]);
         }
@@ -117,10 +117,11 @@ GlodaAttributeDBDef.prototype = {
   }
 };
 
-let GlodaHasAttributesMixIn = {
+var GlodaHasAttributesMixIn = {
   enumerateAttributes: function gloda_attrix_enumerateAttributes() {
     let nounDef = this.NOUN_DEF;
-    for each (let [key, value] in Iterator(this)) {
+    for (let key in this) {
+      let value = this[key];
       let attrDef = nounDef.attribsByBoundName[key];
       // we expect to not have attributes for underscore prefixed values (those
       //  are managed by the instance's logic.  we also want to not explode
@@ -143,8 +144,8 @@ let GlodaHasAttributesMixIn = {
 
   domContribute: function gloda_attrix_domContribute(aDomNode) {
     let nounDef = this.NOUN_DEF;
-    for each (let [attrName, attr] in
-        Iterator(nounDef.domExposeAttribsByBoundName)) {
+    for (let attrName in nounDef.domExposeAttribsByBoundName) {
+      let attr = nounDef.domExposeAttribsByBoundName[attrName];
       if (this[attrName])
         aDomNode.setAttribute(attr.domExpose, this[attrName]);
     }

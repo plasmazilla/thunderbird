@@ -1,0 +1,6 @@
+<!ENTITY toAddr.label "Προς:">
+<!ENTITY ccAddr.label "Κοιν:">
+<!ENTITY bccAddr.label "Κρυφή Κοιν:">
+<!ENTITY replyAddr.label "Απάντηση σε:">
+<!ENTITY newsgroupsAddr.label "Ομάδα συζήτησης:">
+<!ENTITY followupAddr.label "Συνέχεια σε:">

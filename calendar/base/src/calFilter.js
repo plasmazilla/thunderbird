@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 Components.utils.import("resource://gre/modules/Preferences.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 
 /**
@@ -354,15 +355,15 @@ calFilter.prototype = {
         }
 
         //XXX TODO: Support specifying which fields to search on
-        for each (let field in ["SUMMARY", "DESCRIPTION", "LOCATION", "URL"]) {
+        for (let field of ["SUMMARY", "DESCRIPTION", "LOCATION", "URL"]) {
             let val = aItem.getProperty(field);
-            if (val && val.toLowerCase().indexOf(searchText) != -1) {
+            if (val && val.toLowerCase().includes(searchText)) {
                 return true;
             }
         }
 
         return aItem.getCategories({}).some(function(cat) {
-            return (cat.toLowerCase().indexOf(searchText) != -1);
+            return cat.toLowerCase().includes(searchText);
         });
     },
 
@@ -420,7 +421,7 @@ calFilter.prototype = {
                 cats = props.category;
             }
             result = cats.some(function(cat) {
-                return aItem.getCategories({}).indexOf(cat) > -1;
+                return aItem.getCategories({}).includes(cat);
             });
         }
 
@@ -865,6 +866,7 @@ calFilter.prototype = {
         // the listener passed in the aListener argument.
         let self = this;
         let listener = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onOperationComplete: aListener.onOperationComplete.bind(aListener),
 
             onGetResult: function(aCalendar, aStatus, aItemType, aDetail, aCount, aItems) {

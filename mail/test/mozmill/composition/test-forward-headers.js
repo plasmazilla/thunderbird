@@ -7,10 +7,10 @@
  * set properly when forwarding messages.
  */
 
-const MODULE_NAME = "test-forward-headers";
+var MODULE_NAME = "test-forward-headers";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers", "compose-helpers", "window-helpers",
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers", "compose-helpers", "window-helpers",
                          "message-helpers"];
 var jumlib = {};
 Components.utils.import("resource://mozmill/modules/jum.js", jumlib);
@@ -34,7 +34,16 @@ var setupModule = function (module) {
   folder = create_folder("Test");
   thread1 = create_thread(10);
   add_sets_to_folders([folder], [thread1]);
+
+  // Don't create paragraphs in the test.
+  // The test checks for the first DOM node and expects a text and not
+  // a paragraph.
+  Services.prefs.setBoolPref("editor.CR_creates_new_p", false);
 };
+
+function teardownModule(module) {
+  Services.prefs.clearUserPref("editor.CR_creates_new_p");
+}
 
 function forward_selected_messages_and_go_to_drafts_folder(f) {
   const kText = "Hey check out this megalol link";

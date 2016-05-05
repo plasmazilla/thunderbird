@@ -44,3 +44,7 @@ MAR_CHANNEL_ID=thunderbird-comm-release
 JSGC_GENERATIONAL=1
 MOZ_PROFILE_MIGRATOR=1
 MOZ_JSDOWNLOADS=1
+MOZ_BINARY_EXTENSIONS=1
+
+# Enable building ./signmar and running libmar signature tests
+MOZ_ENABLE_SIGNMAR=1

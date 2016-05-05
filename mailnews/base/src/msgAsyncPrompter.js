@@ -7,8 +7,8 @@ Components.utils.import("resource://gre/modules/Task.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/gloda/log4moz.js");
 
-const Ci = Components.interfaces;
-const Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cc = Components.classes;
 
 function runnablePrompter(asyncPrompter, hashKey) {
   this._asyncPrompter = asyncPrompter;
@@ -33,7 +33,7 @@ runnablePrompter.prototype = {
 
     delete this._asyncPrompter._pendingPrompts[this._hashKey];
 
-    for each (var consumer in prompter.consumers) {
+    for (var consumer of prompter.consumers) {
       try {
         if (ok)
           consumer.onPromptAuthAvailable();
@@ -123,4 +123,4 @@ msgAsyncPrompter.prototype = {
 };
 
 var components = [msgAsyncPrompter];
-const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

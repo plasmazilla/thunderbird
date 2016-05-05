@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
-const Cr = Components.results;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cu = Components.utils;
+var Cr = Components.results;
 
-const kFormId = "provider-form";
+var kFormId = "provider-form";
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -16,6 +16,7 @@ Cu.import("resource:///modules/cloudFileAccounts.js");
 function createAccountObserver() {};
 
 createAccountObserver.prototype = {
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIRequestObserver]),
   onStartRequest: function(aRequest, aContext) {},
   onStopRequest: function(aRequest, aContext, aStatusCode) {
     if (aStatusCode == Cr.NS_OK
@@ -44,7 +45,7 @@ createAccountObserver.prototype = {
   },
 }
 
-let addAccountDialog = {
+var addAccountDialog = {
   _settings: null,
   _settingsWrap: null,
   _accountType: null,
@@ -71,13 +72,14 @@ let addAccountDialog = {
     this.addAccountTypes();
 
     // Hook up our onInput event handler
-    this._settings.addEventListener("DOMContentLoaded",
-                                    this.onIFrameLoaded.bind(this),
-                                    false);
+    this._settings.addEventListener("DOMContentLoaded", this, false);
 
-    this._settings.addEventListener("overflow", function(e) {
-      addAccountDialog.fitIFrame();
-    });
+    this._settings.addEventListener("overflow", this);
+
+    // Hook up the selection handler.
+    this._accountType.addEventListener("select", this);
+    // Also call it to run it for the default selection.
+    addAccountDialog.accountTypeSelected();
 
     // Hook up the default "Learn More..." link to the appropriate link.
     let learnMore = this._settings
@@ -92,6 +94,32 @@ let addAccountDialog = {
     this.onIFrameLoaded(null);
 
     addAccountDialog.fitIFrame();
+  },
+
+  onUnInit: function() {
+    // Clean-up the event listeners.
+    this._settings.removeEventListener("DOMContentLoaded", this, false);
+    this._settings.removeEventListener("overflow", this);
+    this._accountType.removeEventListener("select", this);
+
+    return true;
+  },
+
+  handleEvent: function(aEvent) {
+    switch (aEvent.type) {
+      case "DOMContentLoaded": {
+        this.onIFrameLoaded();
+        break;
+      }
+      case "overflow": {
+        this.fitIFrame();
+        break;
+      }
+      case "select": {
+        this.accountTypeSelected();
+        break;
+      }
+    }
   },
 
   onIFrameLoaded: function AAD_onIFrameLoaded(aEvent) {
@@ -185,6 +213,8 @@ let addAccountDialog = {
 
     this._messages.selectedPanel = this._authSpinner;
 
+    // Uninitialize the dialog before closing.
+    this.onUnInit();
     return false;
   },
 

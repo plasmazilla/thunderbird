@@ -1,8 +1,6 @@
-%if 0
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-%endif
 
 /*
  * LightweightThemeListener will append the current lightweight theme's header
@@ -30,5 +28,5 @@
   background-position: 0 0, 0 0, right top;
   background-repeat: repeat-x, repeat-x, no-repeat;
   /* Don't stretch the LWT header images */
-  background-size: auto 100%, auto 100%, auto auto;
+  background-size: var(--tab-stroke-background-size), auto 100%, auto auto;
 }

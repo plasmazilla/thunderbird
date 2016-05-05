@@ -8,9 +8,9 @@
  * to false.
  */
 
-let MODULE_NAME = "test-override-main-menu-collapse";
-let RELATIVE_ROOT = "../shared-modules";
-let MODULE_REQUIRES = ["folder-display-helpers",
+var MODULE_NAME = "test-override-main-menu-collapse";
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers",
                        "window-helpers"];
 
 Cu.import("resource://gre/modules/Services.jsm");
@@ -40,7 +40,7 @@ function test_main_menu_not_collapsed() {
   close_window(wizard);
 
   // Spin the event loop until mail-startup-done is fired.
-  mc.waitFor(function () done);
+  mc.waitFor(() => done);
 
   let mainMenu = mc.e("mail-toolbar-menubar2");
   assert_false(mainMenu.hasAttribute("autohide"),

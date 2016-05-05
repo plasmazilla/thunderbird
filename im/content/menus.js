@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const addBuddyWindow = "chrome://instantbird/content/addbuddy.xul";
-const joinChatWindow = "chrome://instantbird/content/joinchat.xul";
-const aboutWindow = "chrome://instantbird/content/aboutDialog.xul";
-const errorConsoleWindow = "chrome://global/content/console.xul";
-const preferencesWindow = "chrome://instantbird/content/preferences/preferences.xul";
+var addBuddyWindow = "chrome://instantbird/content/addbuddy.xul";
+var joinChatWindow = "chrome://instantbird/content/joinchat.xul";
+var aboutWindow = "chrome://instantbird/content/aboutDialog.xul";
+var errorConsoleWindow = "chrome://global/content/console.xul";
+var preferencesWindow = "chrome://instantbird/content/preferences/preferences.xul";
 
 if (!("Services" in window))
   Components.utils.import("resource:///modules/imServices.jsm");
@@ -14,7 +14,7 @@ if (!("Core" in window))
   Components.utils.import("resource:///modules/ibCore.jsm");
 
 var menus = {
-  supportsCommand: function(aCmd)
+  supportsCommand: aCmd =>
     aCmd == "cmd_addbuddy" || aCmd == "cmd_joinchat" || aCmd == "cmd_newtab",
   isCommandEnabled: function(aCmd) {
     let enumerator = Services.accounts.getAccounts();

@@ -10,16 +10,16 @@
  * New checks can be added to it as needed.
  */
 
-const MODULE_NAME = "test-account-settings-infrastructure";
+var MODULE_NAME = "test-account-settings-infrastructure";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers", "window-helpers",
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers", "window-helpers",
                          "account-manager-helpers"];
 
-let elib = {};
+var elib = {};
 Components.utils.import("resource://mozmill/modules/elementslib.js", elib);
 
-let gPopAccount, gImapAccount, gOriginalAccountCount;
+var gPopAccount, gImapAccount, gOriginalAccountCount;
 
 function setupModule(module) {
   collector.getModule("window-helpers").installInto(module);

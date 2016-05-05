@@ -4,12 +4,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/ABQueryUtils.jsm");
+
 function GetAbViewListener()
 {
   // the ab panel doesn't care if the total changes, or if the selection changes
   return null;
 }
-
 
 function contactsListOnClick(event)
 {
@@ -34,6 +35,16 @@ function contactsListOnClick(event)
 
     // ok, go ahead and add the entry
     addSelectedAddresses('addr_to');
+  }
+}
+
+function contactsListOnKeyPress(aEvent)
+{
+  switch (aEvent.key) {
+    case "Enter":
+      if (aEvent.altKey) {
+        goDoCommand("cmd_properties");
+      }
   }
 }
 
@@ -77,7 +88,7 @@ function AddressBookMenuListChange()
 function AbPanelOnComposerClose()
 {
   CloseAbView();
-  onAbClearSearch();
+  onAbClearSearch(false);
 }
 
 function AbPanelOnComposerReOpen()
@@ -174,11 +185,9 @@ function CommandUpdate_AddressBook()
 function onEnterInSearchBar()
 {
   if (!gQueryURIFormat) {
-    gQueryURIFormat = Services.prefs.getComplexValue("mail.addr_book.quicksearchquery.format",
-      Components.interfaces.nsIPrefLocalizedString).data;
-
-    // Remove the preceeding '?' as we have to prefix "?and" to this format.
-    gQueryURIFormat = gQueryURIFormat.slice(1);
+    // Get model query from pref. We don't want the query starting with "?"
+    // as we have to prefix "?and" to this format.
+    gQueryURIFormat = getModelQuery("mail.addr_book.quicksearchquery.format");
   }
 
   var searchURI = GetSelectedDirectory();

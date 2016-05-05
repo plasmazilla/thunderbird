@@ -11,7 +11,7 @@
 
 var MODULE_NAME = 'test-keyboard-interface';
 
-const RELATIVE_ROOT = '../shared-modules';
+var RELATIVE_ROOT = '../shared-modules';
 
 var MODULE_REQUIRES = ['folder-display-helpers', 'window-helpers',
                        'quick-filter-bar-helper'];
@@ -30,7 +30,7 @@ function setupModule(module) {
 }
 
 function wait_for_resize(width) {
-  mc.waitFor(function () (mc.window.outerWidth == width),
+  mc.waitFor(() => (mc.window.outerWidth == width),
              "Timeout waiting for resize (is the screen resolution 1280 x 1024?)", 1000, 50);
 }
 
@@ -96,14 +96,17 @@ function test_buttons_collapse_and_expand() {
   logState("entry");
 
   // -- GIANT!
-  resize_to(1200, 600);
+  resize_to(1260, 600);
   // Right, so resizeTo caps us at the display size limit, so we may end up
   // smaller than we want.  So let's turn off the folder pane too.
   collapse_panes(mc.e("folderpane_splitter"), true);
+
   // spin the event loop once
-  mc.sleep(0);
+  mc.sleep(50);
   logState("giant");
-  assertExpanded(1200);
+  assertExpanded(1260);
+  // NOTE! 1260 is actually not much above what's needed to get the
+  // expanded qfb.
 
   // -- tiny.
   collapse_panes(mc.e("folderpane_splitter"), false);
@@ -114,12 +117,12 @@ function test_buttons_collapse_and_expand() {
   assertCollapsed(600);
 
   // -- GIANT again!
-  resize_to(1200, 600);
+  resize_to(1260, 600);
   collapse_panes(mc.e("folderpane_splitter"), true);
   // spin the event loop once
-  mc.sleep(0);
+  mc.sleep(50);
   logState("giant again!");
-  assertExpanded(1200);
+  assertExpanded(1260);
 }
 
 function test_buttons_collapse_and_expand_on_spawn_in_vertical_mode() {
@@ -141,7 +144,7 @@ function test_buttons_collapse_and_expand_on_spawn_in_vertical_mode() {
   // Now spawn a new 3pane...
   let mc2 = open_folder_in_new_window(folder);
   let qfb = mc2.e("quick-filter-bar-collapsible-buttons");
-  mc2.waitFor(function () (qfb.getAttribute("shrink") == "true"),
+  mc2.waitFor(() => (qfb.getAttribute("shrink") == "true"),
               "New 3pane should have had a collapsed QFB");
   close_window(mc2);
 

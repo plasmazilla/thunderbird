@@ -2,8 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-USE_EXTENSION_MANIFEST = 1
-DIST_FILES = install.rdf
 XPI_PKGNAME = gdata-provider-$(GDATA_VERSION).$(AB_CD).$(MOZ_PKG_PLATFORM)
 XPI_VERSION = $(GDATA_VERSION)
 XPI_NO_UNIVERSAL = 1
@@ -15,8 +13,7 @@ SEAMONKEY_VERSION := $(shell cat $(topsrcdir)/suite/config/version.txt)
 LIGHTNING_VERSION := $(shell $(PYTHON) $(topsrcdir)/calendar/lightning/build/makeversion.py $(word 1,$(MOZ_PKG_VERSION) $(THUNDERBIRD_VERSION)))
 GDATA_VERSION = $(shell $(PYTHON) $(srcdir)/makeversion.py $(LIGHTNING_VERSION))
 
-DEFINES += -DAB_CD=$(AB_CD) \
-           -DLIGHTNING_VERSION=$(LIGHTNING_VERSION) \
+DEFINES += -DLIGHTNING_VERSION=$(LIGHTNING_VERSION) \
            -DSEAMONKEY_VERSION=$(SEAMONKEY_VERSION) \
            -DTHUNDERBIRD_VERSION=$(THUNDERBIRD_VERSION) \
            -DCOMM_BUILD=$(COMM_BUILD) \
@@ -31,11 +28,7 @@ tools repackage::
 endif
 
 # stage the extension for use in packaged tests
-ifndef UNIVERSAL_BINARY
 PKG_STAGE = $(DIST)/test-stage
-else
-PKG_STAGE = $(DIST)/universal/test-stage
-endif
 
 stage-package:
 	$(NSINSTALL) -D $(PKG_STAGE)/extensions/$(XPI_EM_ID)

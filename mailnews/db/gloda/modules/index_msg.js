@@ -12,12 +12,12 @@
  *  benefit readability/size as well.
  */
 
-const EXPORTED_SYMBOLS = ['GlodaMsgIndexer'];
+this.EXPORTED_SYMBOLS = ['GlodaMsgIndexer'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource:///modules/iteratorUtils.jsm");
@@ -38,15 +38,15 @@ Cu.import("resource:///modules/gloda/indexer.js");
 Cu.import("resource:///modules/gloda/mimemsg.js");
 
 // Components.results does not have mailnews error codes!
-const NS_MSG_ERROR_FOLDER_SUMMARY_OUT_OF_DATE = 0x80550005;
+var NS_MSG_ERROR_FOLDER_SUMMARY_OUT_OF_DATE = 0x80550005;
 
-const GLODA_MESSAGE_ID_PROPERTY = "gloda-id";
+var GLODA_MESSAGE_ID_PROPERTY = "gloda-id";
 /**
  * Message header property to track dirty status; one of
  *  |GlodaIndexer.kMessageClean|, |GlodaIndexer.kMessageDirty|,
  *  |GlodaIndexer.kMessageFilthy|.
  */
-const GLODA_DIRTY_PROPERTY = "gloda-dirty";
+var GLODA_DIRTY_PROPERTY = "gloda-dirty";
 
 /**
  * The sentinel GLODA_MESSAGE_ID_PROPERTY value indicating that a message fails
@@ -59,7 +59,7 @@ const GLODA_DIRTY_PROPERTY = "gloda-dirty";
  *
  * When flipping this, be sure to update glodaTestHelper.js's copy.
  */
-const GLODA_BAD_MESSAGE_ID = 2;
+var GLODA_BAD_MESSAGE_ID = 2;
 /**
  * The gloda id we used to use to mark messages as bad, but now should be
  *  treated as eligible for indexing.  This is only ever used for consideration
@@ -68,28 +68,28 @@ const GLODA_BAD_MESSAGE_ID = 2;
  *  event-driven indexing will still treat such messages as unindexed (and
  *  unindexable) until an indexing sweep picks them up.
  */
-const GLODA_OLD_BAD_MESSAGE_ID = 1;
-const GLODA_FIRST_VALID_MESSAGE_ID = 32;
+var GLODA_OLD_BAD_MESSAGE_ID = 1;
+var GLODA_FIRST_VALID_MESSAGE_ID = 32;
 
-const JUNK_SCORE_PROPERTY = "junkscore";
-const JUNK_SPAM_SCORE_STR = Ci.nsIJunkMailPlugin.IS_SPAM_SCORE.toString();
-const JUNK_HAM_SCORE_STR = Ci.nsIJunkMailPlugin.IS_HAM_SCORE.toString();
+var JUNK_SCORE_PROPERTY = "junkscore";
+var JUNK_SPAM_SCORE_STR = Ci.nsIJunkMailPlugin.IS_SPAM_SCORE.toString();
+var JUNK_HAM_SCORE_STR = Ci.nsIJunkMailPlugin.IS_HAM_SCORE.toString();
 
-const nsIArray = Ci.nsIArray;
-const nsIMsgFolder = Ci.nsIMsgFolder;
-const nsIMsgLocalMailFolder = Ci.nsIMsgLocalMailFolder;
-const nsIMsgImapMailFolder = Ci.nsIMsgImapMailFolder;
-const nsIMsgDBHdr = Ci.nsIMsgDBHdr;
-const nsMsgFolderFlags = Ci.nsMsgFolderFlags;
-const nsMsgMessageFlags = Ci.nsMsgMessageFlags;
-const nsMsgProcessingFlags = Ci.nsMsgProcessingFlags;
+var nsIArray = Ci.nsIArray;
+var nsIMsgFolder = Ci.nsIMsgFolder;
+var nsIMsgLocalMailFolder = Ci.nsIMsgLocalMailFolder;
+var nsIMsgImapMailFolder = Ci.nsIMsgImapMailFolder;
+var nsIMsgDBHdr = Ci.nsIMsgDBHdr;
+var nsMsgFolderFlags = Ci.nsMsgFolderFlags;
+var nsMsgMessageFlags = Ci.nsMsgMessageFlags;
+var nsMsgProcessingFlags = Ci.nsMsgProcessingFlags;
 
 /**
  * The processing flags that tell us that a message header has not yet been
  *  reported to us via msgsClassified.  If it has one of these flags, it is
  *  still being processed.
  */
-const NOT_YET_REPORTED_PROCESSING_FLAGS =
+var NOT_YET_REPORTED_PROCESSING_FLAGS =
   nsMsgProcessingFlags.NotReportedClassified |
   nsMsgProcessingFlags.ClassifyJunk;
 
@@ -146,9 +146,10 @@ var PendingCommitTracker = {
     let foldersByURI = {};
     let lastFolder = null;
 
-    for each (let [glodaId, [msgHdr, dirtyState]] in
-              Iterator(
-                PendingCommitTracker._indexedMessagesPendingCommitByGlodaId)) {
+    for (let glodaId in
+         PendingCommitTracker._indexedMessagesPendingCommitByGlodaId) {
+     let [msgHdr, dirtyState] =
+       PendingCommitTracker._indexedMessagesPendingCommitByGlodaId[glodaId];
       // Mark this message as indexed.
       // It's conceivable the database could have gotten blown away, in which
       //  case the message headers are going to throw exceptions when we try
@@ -180,7 +181,8 @@ var PendingCommitTracker = {
     }
 
     // it is vitally important to do this before we forget about the headers!
-    for each (let [, folder] in Iterator(foldersByURI)) {
+    for (let uri in foldersByURI) {
+      let folder = foldersByURI[uri];
       // This will not cause a parse.  The database is in-memory since we have
       //  a header that belongs to it.  This just causes the folder to
       //  re-acquire a reference from the database manager.
@@ -345,7 +347,7 @@ MessagesByMessageIdCallback.prototype = {
       return;
 
     this._log.debug("getting results...");
-    for each (let [, message] in Iterator(aItems)) {
+    for (let message of aItems) {
       this.results[this.msgIDToIndex[message.headerMessageID]].push(message);
     }
   },
@@ -1654,7 +1656,7 @@ var GlodaMsgIndexer = {
     yield this.kWorkAsync;
 
     while (deletedCollection.items.length) {
-      for each (let [, message] in Iterator(deletedCollection.items)) {
+      for (let message of deletedCollection.items) {
         // If it turns out our count is wrong (because some new deletions
         //  happened since we entered this worker), let's issue a new count
         //  and use that to accurately update our goal.
@@ -1879,7 +1881,7 @@ var GlodaMsgIndexer = {
     this._log.info("Queueing all accounts for indexing.");
 
     GlodaDatastore._beginTransaction();
-    let sideEffects = [this.indexAccount(account) for each
+    let sideEffects = [this.indexAccount(account) for
                        (account in fixIterator(MailServices.accounts.accounts,
                                                Ci.nsIMsgAccount))];
     GlodaDatastore._commitTransaction();
@@ -1944,8 +1946,8 @@ var GlodaMsgIndexer = {
    */
   indexMessages: function gloda_index_indexMessages(aFoldersAndMessages) {
     let job = new IndexingJob("message", null);
-    job.items = [[GlodaDatastore._mapFolder(fm[0]).id, fm[1]] for each
-                 ([i, fm] in Iterator(aFoldersAndMessages))];
+    job.items = aFoldersAndMessages.
+      map(fm => [GlodaDatastore._mapFolder(fm[0]).id, fm[1]]);
     GlodaIndexer.indexJob(job);
   },
 
@@ -1962,8 +1964,8 @@ var GlodaMsgIndexer = {
   dirtyAllKnownFolders: function gloda_index_msg_dirtyAllKnownFolders() {
     // Just iterate over the datastore's folder map and tell each folder to
     //  be dirty if its priority is not disabled.
-    for each (let [folderID, glodaFolder] in
-              Iterator(GlodaDatastore._folderByID)) {
+    for (let folderID in GlodaDatastore._folderByID) {
+      let glodaFolder = GlodaDatastore._folderByID[folderID];
       if (glodaFolder.indexingPriority !== glodaFolder.kIndexingNeverPriority)
         glodaFolder._ensureFolderDirty();
     }
@@ -2989,8 +2991,8 @@ var GlodaMsgIndexer = {
 
     // - See if any of the ancestors exist and have a conversationID...
     // (references are ordered from old [0] to new [n-1])
-    let references = [aMsgHdr.getStringReference(i) for each
-                      (i in range(0, aMsgHdr.numReferences))];
+    let references = Array.from(range(0, aMsgHdr.numReferences)).
+      map(i => aMsgHdr.getStringReference(i));
     // also see if we already know about the message...
     references.push(aMsgHdr.messageId);
 
@@ -3125,9 +3127,8 @@ var GlodaMsgIndexer = {
 
     let attachmentNames = null;
     if (aMimeMsg) {
-      attachmentNames = [att.name for each
-                         ([i, att] in Iterator(aMimeMsg.allAttachments))
-                         if (att.isRealAttachment)];
+      attachmentNames = aMimeMsg.allAttachments.
+        filter(att => att.isRealAttachment).map(att => att.name);
     }
 
     let isConceptuallyNew, isRecordNew, insertFulltext;
@@ -3253,7 +3254,7 @@ var GlodaMsgIndexer = {
     //  the last message alive.
     let ghostCount = 0;
     let twinMessageExists = false;
-    for each (let [, convMsg] in Iterator(conversationMsgs)) {
+    for (let convMsg of conversationMsgs) {
       // ignore our own message
       if (convMsg.id == aMessage.id)
         continue;
@@ -3273,7 +3274,7 @@ var GlodaMsgIndexer = {
     //  hit this case if they are all deleted.)
     if ((conversationMsgs.length - 1) == ghostCount) {
       // - Obliterate each message
-      for each (let [, msg] in Iterator(conversationMsgs)) {
+      for (let msg of conversationMsgs) {
         GlodaDatastore.deleteMessageByID(msg.id);
       }
       // - Obliterate the conversation
