@@ -48,7 +48,7 @@ Vcs-Git: https://anonscm.debian.org/cgit/pkg-mozilla/icedove.git
 Vcs-Browser: https://anonscm.debian.org/cgit/pkg-mozilla/icedove.git
 Homepage: http://www.mozilla.org/thunderbird/
 X-Debian-Homepage: http://wiki.debian.org/Icedove
-Standards-Version: 3.9.7
+Standards-Version: 3.9.8
 
 Package: icedove
 Architecture: any
