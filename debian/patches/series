@@ -48,3 +48,5 @@ fixes/Bug-1165654-Cleanup-how-libjpeg-turbo-assembly-build.patch
 jessie-security/decrease-SQLVERSION-to-jessie-version.patch
 porting-mips/Fix-build-error-in-MIPS-SIMD-when-compiling-with-mfp.patch
 debian-hacks/Add-unminified-jquery-and-jquery-ui-files.patch
+fixes/Bug-1194905-Build-libvpx-neon-code-without-mthumb-an.patch
+fixes/Followup-to-bug-1194905-add-mfloat-abi-softfp-when-t.patch
