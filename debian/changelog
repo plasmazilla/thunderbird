@@ -1,3 +1,16 @@
+icedove (38.8.0-1~deb8u1) stable-security; urgency=medium
+
+  [ Guido Günther ]
+  * [ee8dd49] Clarify relation between icedove and the calendar extensions
+    (Closes: #809017)
+
+  [ Christoph Goehre ]
+  * [bac2d5b] Imported Upstream version 38.8.0
+    - MFSA 2016-36 aka CVE-2016-1979
+    - MFSA 2016-39 aka CVE-2016-2807, CVE-2016-2805
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 11 May 2016 19:26:19 -0400
+
 icedove (38.7.0-1~deb8u3) jessie; urgency=medium
 
   * Non-maintainer upload.
