@@ -1,3 +1,11 @@
+icedove (38.8.0-1~deb7u1) oldstable-security; urgency=medium
+
+  * [bac2d5b] Imported Upstream version 38.8.0
+    - MFSA 2016-36 aka CVE-2016-1979
+    - MFSA 2016-39 aka CVE-2016-2807, CVE-2016-2805
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 12 May 2016 19:58:49 -0400
+
 icedove (38.7.0-1~deb7u1) oldstable-security; urgency=medium
 
   * [cb9c003] Imported Upstream version 38.7.0
