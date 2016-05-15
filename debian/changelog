@@ -1,3 +1,13 @@
+icedove (38.8.0-1~deb7u1.1) oldstable-security; urgency=medium
+
+  * Upload by the Debian LTS team
+  * Backport armhf build fixes to oldstable-security as well
+    (Closes: #823430)
+  * Let mozconfig figure out the number of parallel builds to get the proper
+    build ordering when building the internal nspr to unbreak the armhf build.
+
+ -- Guido Günther <agx@sigxcpu.org>  Sun, 15 May 2016 17:48:23 +0200
+
 icedove (38.8.0-1~deb7u1) oldstable-security; urgency=medium
 
   * [bac2d5b] Imported Upstream version 38.8.0
