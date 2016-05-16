@@ -61,8 +61,6 @@ ac_add_options --enable-xft
 ac_add_options --enable-xinerama
 
 # Debian specific things
-PARALLEL_BUILD=$(echo $DEB_BUILD_OPTIONS | sed -e '/parallel=/!s/.*/1/;s/.*parallel=\([0-9]\+\).*/\1/g')
-mk_add_options MOZ_MAKE_FLAGS="-j$PARALLEL_BUILD"
 ac_add_options --with-distribution-id=org.debian
 ac_add_options --with-default-mozilla-five-home=/usr/lib/icedove
 ac_add_options --with-user-appdir=.mozilla
