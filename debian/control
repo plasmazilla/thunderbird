@@ -123,8 +123,6 @@ Depends: icedove (= ${binary:Version}),
 	${misc:Depends},
 	${shlibs:Depends},
 	python,
-	libnspr4-dev,
-	libnss3-dev
 Description: Development files for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free
  distribution. It supports different mail accounts (POP, IMAP, Gmail), has an
