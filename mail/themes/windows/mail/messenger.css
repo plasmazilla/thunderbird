@@ -231,8 +231,9 @@ button[type="menu-button"] > button {
     --toolbarbutton-checkedhover-backgroundcolor: rgba(0, 0, 0, .2);
   }
 
+  #header-view-toolbar[brighttext],
   #ab-toolbox > toolbar[brighttext],
-  #mail-toolbox > toolbar[brighttext],
+  .mail-toolbox > toolbar[brighttext],
   #event-toolbox > toolbar[brighttext],
   #compose-toolbox > toolbar[brighttext] {
     --toolbarbutton-hover-background: rgba(255, 255, 255, .25);
@@ -246,7 +247,7 @@ button[type="menu-button"] > button {
   }
 
   #ab-toolbox > toolbar:-moz-lwtheme,
-  #mail-toolbox > toolbar:-moz-lwtheme,
+  .mail-toolbox > toolbar:-moz-lwtheme,
   #compose-toolbox > toolbar:-moz-lwtheme {
     --toolbarbutton-hover-background: rgba(255, 255, 255, .25);
     --toolbarbutton-hover-bordercolor: rgba(0, 0, 0, .2);
@@ -432,6 +433,15 @@ button[type="menu-button"] > button {
       background-color: var(--toolbarbutton-checkedhover-backgroundcolor);
       transition: background-color .4s;
     }
+  }
+
+  .noIconPopup > menuseparator {
+    -moz-appearance: none;
+    margin-top: 3px;
+    margin-bottom: 3px;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-color: #d7d7d7;
   }
 }
 

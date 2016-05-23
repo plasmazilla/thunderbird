@@ -40,6 +40,7 @@ var gCloudAttachmentLinkManager = {
     switch (gComposeType) {
 
     case Components.interfaces.nsIMsgCompType.New:
+    case Components.interfaces.nsIMsgCompType.ForwardAsAttachment:
       this.NotifyComposeBodyReadyNew();
       return;
 
@@ -57,7 +58,6 @@ var gCloudAttachmentLinkManager = {
       this.NotifyComposeBodyReadyForwardInline();
       return;
 
-    case Components.interfaces.nsIMsgCompType.ForwardAsAttachment:
     case Components.interfaces.nsIMsgCompType.Draft:
     case Components.interfaces.nsIMsgCompType.Template:
     case Components.interfaces.nsIMsgCompType.MailToUrl:
