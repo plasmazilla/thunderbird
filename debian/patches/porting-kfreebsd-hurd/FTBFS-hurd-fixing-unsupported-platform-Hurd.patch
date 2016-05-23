@@ -87,7 +87,7 @@ index c6f5de4..278f569 100644
      else:
          DEFINES['OS_LINUX'] = 1
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index 8b8e4cc..bcb904c 100644
+index 88aaafe..b64c0b0 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
 @@ -161,6 +161,29 @@ if os_bsd or os_linux:
@@ -118,7 +118,7 @@ index 8b8e4cc..bcb904c 100644
 +    ]
 +
  ost = CONFIG['OS_TEST']
- if '86' not in ost and 'arm' not in ost and 'mips' not in ost:
+ if '86' not in ost and 'arm' not in ost and 'aarch64' != ost and 'mips' not in ost:
      SOURCES += [
 diff --git a/mozilla/ipc/chromium/src/base/message_loop.cc b/mozilla/ipc/chromium/src/base/message_loop.cc
 index 7f72412..ffaa939 100644
@@ -156,7 +156,7 @@ index 088b6ff..28c96dd 100644
    static const char kFDDir[] = "/proc/self/fd";
  #elif defined(OS_MACOSX)
 diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
-index e3c81d4..482356b 100644
+index 509cf33..a1c135c 100644
 --- a/mozilla/ipc/chromium/src/build/build_config.h
 +++ b/mozilla/ipc/chromium/src/build/build_config.h
 @@ -21,6 +21,7 @@
