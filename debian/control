@@ -965,7 +965,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-bg
+Recommends: hunspell-bg | myspell-bg
 Description: Bulgarian language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -978,6 +978,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-bn
 Description: Bengali (Bangladesh) language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1004,7 +1005,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-ca
+Recommends: hunspell-ca | myspell-ca
 Description: Catalan/Valencian language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1018,7 +1019,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-cs-cz
+Recommends: hunspell-cs | myspell-cs-cz
 Description: Czech language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1043,7 +1044,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-da
+Recommends: myspell-da | hunspell-da
 Description: Danish language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1056,7 +1057,8 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-de-de | myspell-de-at | myspell-de-ch
+Recommends: hunspell-de-de | hunspell-de-at | hunspell-de-ch |
+ myspell-de-de | myspell-de-at | myspell-de-ch
 Description: German language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1069,7 +1071,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-el-gr
+Recommends: hunspell-el | myspell-el-gr
 Description: Greek language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1082,7 +1084,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-es
+Recommends: hunspell-es | myspell-es
 Description: Spanish (Argentina) language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1096,7 +1098,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-es
+Recommends: hunspell-es | myspell-es
 Description: Spanish (Spain) language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1104,23 +1106,12 @@ Description: Spanish (Spain) language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Spanish (Spain).
 
-Package: iceowl-l10n-et
-Architecture: all
-Section: localization
-Depends: ${misc:Depends},
- iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Description: Estonian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
- It's goal is to integrate a Calendar and Task application using the XUL
- user interface language.
- .
- This package contains the localization of iceowl-extension in Estonian.
-
 Package: iceowl-l10n-en-gb
 Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-en-gb | hunspell-en-au | hunspell-en-ca | hunspell-en-za
 Description: British English language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1128,11 +1119,25 @@ Description: British English language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in British English.
 
+Package: iceowl-l10n-et
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-et
+Description: Estonian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Estonian.
+
 Package: iceowl-l10n-eu
 Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-eu
 Description: Basque language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1145,6 +1150,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: myspell-fi, xul-ext-mozvoikko
 Description: Finnish language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1157,7 +1163,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-fr | myspell-fr-gut
+Recommends: hunspell-fr | myspell-fr | myspell-fr-gut
 Description: French language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1194,6 +1200,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-gd
 Description: Scottish Gaelic language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1206,7 +1213,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: hunspell-gl-es
+Recommends: hunspell-gl | hunspell-gl-es
 Description: Galician language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1219,7 +1226,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-he
+Recommends: hunspell-he | myspell-he
 Description: Hebrew language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1227,31 +1234,31 @@ Description: Hebrew language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Hebrew.
 
-Package: iceowl-l10n-hu
-Architecture: all
-Section: localization
-Depends: ${misc:Depends},
- iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-hu
-Description: Hungarian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
- It's goal is to integrate a Calendar and Task application using the XUL
- user interface language.
- .
- This package contains the localization of iceowl-extension in Hungarian.
-
 Package: iceowl-l10n-hr
 Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-hr
+Recommends: hunspell-hr | myspell-hr
 Description: Croatian language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
  This package contains the localization of iceowl-extension in Croatian.
+
+Package: iceowl-l10n-hu
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-hu | myspell-hu
+Description: Hungarian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Hungarian.
 
 Package: iceowl-l10n-hy-am
 Architecture: all
@@ -1284,7 +1291,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-is
+Recommends: hunspell-is
 Description: Icelandic language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1297,7 +1304,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-it
+Recommends: hunspell-it | myspell-it
 Description: Italian language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1335,7 +1342,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-lt
+Recommends: hunspell-lt | myspell-lt
 Description: Lithuanian language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1348,7 +1355,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-nb
+Recommends: hunspell-no | myspell-nb
 Description: Bokmaal (Norway) language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1362,7 +1369,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-nl
+Recommends: hunspell-nl | myspell-nl
 Description: Dutch language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1375,7 +1382,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-nn
+Recommends: hunspell-no | myspell-nn
 Description: Nynorsk (Norway) language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1401,7 +1408,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-pl
+Recommends: hunspell-pl | myspell-pl
 Description: Polish language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1414,7 +1421,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-pt-br | myspell-pt
+Recommends: hunspell-pt-br | myspell-pt-br | myspell-pt
 Description: Portuguese (Brazil) language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1428,7 +1435,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-pt-pt | myspell-pt
+Recommends: hunspell-pt-br | myspell-pt-pt | myspell-pt
 Description: Portuguese (Portugal) language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1467,7 +1474,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-ru
+Recommends: hunspell-ru | myspell-ru
 Description: Russian language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1475,24 +1482,12 @@ Description: Russian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Russian.
 
-Package: iceowl-l10n-sk
-Architecture: all
-Section: localization
-Depends: ${misc:Depends},
- iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-sk
-Description: Slovak language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
- It's goal is to integrate a Calendar and Task application using the XUL
- user interface language.
- .
- This package contains the localization of iceowl-extension in Slovak.
-
 Package: iceowl-l10n-si
 Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-si
 Description: Sinhala language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1500,12 +1495,25 @@ Description: Sinhala language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Sinhala.
 
+Package: iceowl-l10n-sk
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-sk | myspell-sk
+Description: Slovak language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Slovak.
+
 Package: iceowl-l10n-sl
 Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-sl
+Recommends: hunspell-si | myspell-sl
 Description: Slovenian language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1543,7 +1551,7 @@ Architecture: all
 Section: localization
 Depends: ${misc:Depends},
  iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-sv-se
+Recommends: hunspell-sv | myspell-sv-se
 Description: Swedish language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1576,6 +1584,19 @@ Description: Turkish language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Turkish.
 
+Package: iceowl-l10n-uk
+Architecture: all
+Section: localization
+Depends: ${misc:Depends},
+ iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
+Recommends: hunspell-uk | myspell-uk
+Description: Ukrainian language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Ukrainian.
+
 Package: iceowl-l10n-vi
 Architecture: all
 Section: localization
@@ -1588,19 +1609,6 @@ Description: Vietnamese language package for iceowl-extension
  user interface language.
  .
  This package contains the localization of iceowl-extension in Vietnamese.
-
-Package: iceowl-l10n-uk
-Architecture: all
-Section: localization
-Depends: ${misc:Depends},
- iceowl-extension (>= ${source:Version}), iceowl-extension (<< ${source:Version}.1~)
-Recommends: myspell-uk
-Description: Ukrainian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
- It's goal is to integrate a Calendar and Task application using the XUL
- user interface language.
- .
- This package contains the localization of iceowl-extension in Ukrainian.
 
 Package: iceowl-l10n-zh-cn
 Architecture: all
