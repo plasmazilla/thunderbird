@@ -236,11 +236,11 @@ if [ -n "${DOWNLOAD}" ]; then
         mkdir ${UPSTREAMDIR}
         cd /tmp
         # checking if there is already some download
-        if [ ! -d download.cdn.mozilla.net/pub/mozilla.org/thunderbird/releases/${VERSION}/linux-i686/xpi ]; then
+        if [ ! -d ${MOZILLA_CDN_BASE}releases/${VERSION}/linux-i686/xpi ]; then
             DO_DOWNLOAD="1"
         fi
-        if [ -d download.cdn.mozilla.net/pub/mozilla.org/thunderbird/releases/${VERSION}/linux-i686/xpi ]; then
-            DL_COUNT=`ls -l download.cdn.mozilla.net/pub/mozilla.org/thunderbird/releases/${VERSION}/linux-i686/xpi/*.xpi | wc -l`
+        if [ -d ${MOZILLA_CDN_BASE}releases/${VERSION}/linux-i686/xpi ]; then
+            DL_COUNT=`ls -l ${MOZILLA_CDN_BASE}releases/${VERSION}/linux-i686/xpi/*.xpi | wc -l`
             if [ "${DL_COUNT}" = "0" ]; then
                 debug "found old download folder, but it's empty"
                 DO_DOWNLOAD="1"
@@ -251,10 +251,10 @@ if [ -n "${DOWNLOAD}" ]; then
         fi
         if [ "${DO_DOWNLOAD}" = "1" ]; then
             # getting files for the  stable version
-            wget -m -r -l 1 -A xpi http://download.cdn.mozilla.net/pub/mozilla.org/thunderbird/releases/${VERSION}/linux-i686/xpi/
+            wget -m -r -l 1 -A xpi ${MOZILLA_CDN_PROTO}${MOZILLA_CDN_BASE}releases/${VERSION}/linux-i686/xpi/
         fi
         # finally copy the *.xpi files to $(UPSTREAMDIR})
-        cp download.cdn.mozilla.net/pub/mozilla.org/thunderbird/releases/${VERSION}/linux-i686/xpi/*.xpi ${UPSTREAMDIR}
+        cp ${MOZILLA_CDN_BASE}releases/${VERSION}/linux-i686/xpi/*.xpi ${UPSTREAMDIR}
     fi
 else
     if [ "${FILE}" != "" ]; then
