@@ -8,14 +8,14 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-ca@thunderbird.mozilla.org"
                em:name="Català Language Pack"
-               em:version="45.0"
+               em:version="45.1.0"
                em:type="8"
                em:creator="Mozilla.org / Softcatalà">
     <em:contributor>Softcatalà</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>45.0</em:minVersion>
+        <em:minVersion>45.1.0</em:minVersion>
         <em:maxVersion>45.*</em:maxVersion>
       </Description>
     </em:targetApplication>

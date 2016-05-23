@@ -282,7 +282,7 @@ pref("mailnews.headers.show_n_lines_before_more", 1);
 pref("mail.ui-rdf.version", 0);
 
 /////////////////////////////////////////////////////////////////
-// Overrides of the core mailnews.js prefs
+// Overrides of the core mailnews.js and composer.js prefs
 /////////////////////////////////////////////////////////////////
 pref("mail.showCondensedAddresses", true); // show the friendly display name for people I know
 
@@ -292,6 +292,7 @@ pref("mailnews.attachments.display.view", 0);
 pref("mail.pane_config.dynamic",            0);
 pref("mailnews.reuse_thread_window2",     true);
 pref("editor.singleLine.pasteNewlines", 4);  // substitute commas for new lines in single line text boxes
+pref("editor.CR_creates_new_p", true);
 
 // hidden pref to ensure a certain number of headers in the message pane
 // to avoid the height of the header area from changing when headers are present / not present
@@ -310,6 +311,9 @@ pref("mail.warn_on_shift_delete", true);
 // selected message.
 pref("mail.threadpane.padding.top_percent", 10);
 pref("mail.threadpane.padding.bottom_percent", 10);
+
+// Use correspondents column instead of from/recipient columns.
+pref("mail.threadpane.use_correspondents", false);  // Don't scare TB45 users.
 
 // only affects cookies from RSS articles
 // 0-Accept, 1-dontAcceptForeign, 2-dontUse

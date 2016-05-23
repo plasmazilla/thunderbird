@@ -686,73 +686,173 @@ function onParagraphFormatChange(paraMenuList, commandID)
 function onFontFaceChange(fontFaceMenuList, commandID)
 {
   var commandNode = document.getElementById(commandID);
-  var state = commandNode.getAttribute("state");
+  var editorFont = commandNode.getAttribute("state");
 
-  switch (state) {
+  // Strip quotes in font names. Experiments have shown that we only
+  // ever get double quotes around the font name, never single quotes,
+  // even if they were in the HTML source. Also single or double
+  // quotes within the font name are never returned.
+  editorFont = editorFont.replace(/"/g, "");
+
+  switch (editorFont) {
   case "mixed":
-    //Selection is the "mixed" ( > 1 style) state
+    // Selection is the "mixed" ( > 1 style) state.
     fontFaceMenuList.selectedItem = null;
     fontFaceMenuList.setAttribute("label",GetString('Mixed'));
-    break;
+    return;
   case "":
   case "serif":
   case "sans-serif":
     // Generic variable width.
     fontFaceMenuList.selectedIndex = 0;
-    break;
+    return;
   case "tt":
   case "monospace":
     // Generic fixed width.
     fontFaceMenuList.selectedIndex = 1;
-    break;
+    return;
   default:
-    let menuPopup = fontFaceMenuList.menupopup;
-    let menuItems = menuPopup.childNodes;
+  }
 
-    // Bug 1139524: Normalise before we compare: Make it lower case
-    // and replace ", " with "," so that entries like
-    // "Helvetica, Arial, sans-serif" are always recognised correctly
-    let stateToLower = state.toLowerCase().replace(/, /g, ",");
-    let foundFont = false;
-    let notUsedFont = false;
-    let usedFontsSep = menuPopup.querySelector("menuseparator.fontFaceMenuAfterUsedFonts");
+  let menuPopup = fontFaceMenuList.menupopup;
+  let menuItems = menuPopup.childNodes;
 
-    for (let i = 0; i < menuItems.length; i++)
+  const genericFamilies = [ "serif", "sans-serif", "monospace", "fantasy", "cursive" ];
+  // Bug 1139524: Normalise before we compare: Make it lower case
+  // and replace ", " with "," so that entries like
+  // "Helvetica, Arial, sans-serif" are always recognised correctly
+  let editorFontToLower = editorFont.toLowerCase().replace(/, /g, ",");
+  let foundFont = null;
+  let exactMatch = false;
+  let usedFontsSep = menuPopup.querySelector("menuseparator.fontFaceMenuAfterUsedFonts");
+  let editorFontOptions = editorFontToLower.split(",");
+  let editorOptionsCount = editorFontOptions.length;
+  let matchedFontIndex = editorOptionsCount; // initialise to high invalid value
+
+  // The font menu has this structure:
+  // 0: Variable Width
+  // 1: Fixed Width
+  // 2: Separator
+  // 3: Helvetica, Arial (stored as Helvetica, Arial, sans-serif)
+  // 4: Times (stored as Times New Roman, Times, serif)
+  // 5: Courier (stored as Courier New, Courier, monospace)
+  // 6: Separator, "menuseparator.fontFaceMenuAfterDefaultFonts"
+  // from 7: Used Font Section (for quick selection)
+  // followed by separator, "menuseparator.fontFaceMenuAfterUsedFonts"
+  // followed by all other available fonts.
+  // The following variable keeps track of where we are when we loop over the menu.
+  let afterUsedFontSection = false;
+
+  // The menu items not only have "label" and "value", but also some other attributes:
+  // "value_parsed": Is the toLowerCase() and space-stripped value.
+  // "value_cache":  Is a concatenation of all editor fonts that were ever mapped
+  //                 onto this menu item. This is done for optimization.
+  // "used":         This item is in the used font section.
+
+  for (let i = 0; i < menuItems.length; i++)
+  {
+    let menuItem = menuItems.item(i);
+    if (menuItem.hasAttribute("label") && menuItem.hasAttribute("value_parsed"))
     {
-      let menuItem = menuItems.item(i);
-      if (menuItem.hasAttribute("label") && ("value" in menuItem)) {
-        // The element seems to represent a font <menuitem>.
-        if (menuItem.getAttribute("value_parsed") == stateToLower) {
-          // This menuitem contains the font we are looking for.
-          if (notUsedFont) {
-            // Copy it into the group of used fonts if it isn't there already.
-            let defaultFontsSep = menuPopup.querySelector("menuseparator.fontFaceMenuAfterDefaultFonts");
-            let copyItem = menuItem.cloneNode(true);
-            menuPopup.insertBefore(copyItem, defaultFontsSep.nextSibling);
-            usedFontsSep.hidden = false;
-            menuItem = copyItem;
-          }
-          fontFaceMenuList.selectedItem = menuItem;
-          foundFont = true;
-          break;
+      // The element seems to represent a font <menuitem>.
+      let fontMenuValue = menuItem.getAttribute("value_parsed");
+      if (fontMenuValue == editorFontToLower ||
+          (menuItem.hasAttribute("value_cache") &&
+           menuItem.getAttribute("value_cache").split("|").includes(editorFontToLower)))
+      {
+        // This menuitem contains the font we are looking for.
+        foundFont = menuItem;
+        exactMatch = true;
+        break;
+      }
+      else if (editorOptionsCount > 1 && afterUsedFontSection)
+      {
+        // Once we are in the list of all other available fonts,
+        // we will find the one that best matches one of the options.
+        let matchPos = editorFontOptions.indexOf(fontMenuValue);
+        if (matchPos >= 0 && matchPos < matchedFontIndex)
+        {
+          // This menu font comes earlier in the list of options,
+          // so prefer it.
+          matchedFontIndex = matchPos;
+          foundFont = menuItem;
+          // If we matched the first option, we don't need to look for
+          // a better match.
+          if (matchPos == 0)
+            break;
         }
-      } else {
-        // Some other element type.
-        if (menuItem == usedFontsSep)
-          notUsedFont = true;
       }
     }
-
-    if (!foundFont) {
-      // The text editor encountered a font that is not installed on this system,
-      // so add it to the font menu now.
-      let fontLabel = GetFormattedString("NotInstalled", state);
-      let menuItem = createFontFaceMenuitem(fontLabel, state, menuPopup);
-      usedFontsSep.hidden = false;
-      menuPopup.insertBefore(menuItem, usedFontsSep);
-      fontFaceMenuList.selectedItem = menuItem;
+    else
+    {
+      // Some other element type.
+      if (menuItem == usedFontsSep)
+      {
+        // We have now passed the section of used fonts and are now in the list of all.
+        afterUsedFontSection = true;
+      }
     }
   }
+
+  if (foundFont)
+  {
+    let defaultFontsSep = menuPopup.querySelector("menuseparator.fontFaceMenuAfterDefaultFonts");
+    if (exactMatch)
+    {
+      if (afterUsedFontSection)
+      {
+        // Copy the matched font into the section of used fonts.
+        // We insert after the separator following the default fonts,
+        // so right at the beginning of the used fonts section.
+        let copyItem = foundFont.cloneNode(true);
+        menuPopup.insertBefore(copyItem, defaultFontsSep.nextSibling);
+        usedFontsSep.hidden = false;
+        foundFont = copyItem;
+        foundFont.setAttribute("used", "true");
+      }
+    }
+    else
+    {
+      // Keep only the found font and generic families in the font string.
+      editorFont = editorFont.replace(/, /g, ",").split(",").filter(
+        font => ((font.toLowerCase() == foundFont.getAttribute("value_parsed")) ||
+                 genericFamilies.includes(font))).join(",");
+
+      // Check if such an item is already in the used font section.
+      if (afterUsedFontSection)
+        foundFont = menuPopup.querySelector('menuitem[used="true"][value_parsed="'+
+                    editorFont.toLowerCase()+'"]');
+      // If not, create a new entry which will be inserted into that section.
+      if (!foundFont)
+        foundFont = createFontFaceMenuitem(editorFont, editorFont, menuPopup);
+
+      // Add the editor font string into the 'cache' attribute in the element
+      // so we can later find it quickly without building the reduced string again.
+      let fontCache = "";
+      if (foundFont.hasAttribute("value_cache"))
+        fontCache = foundFont.getAttribute("value_cache");
+      foundFont.setAttribute("value_cache", fontCache + "|" + editorFontToLower);
+
+      // If we created a new item, set it up and insert.
+      if (!foundFont.hasAttribute("used")) {
+        foundFont.setAttribute("used", "true");
+        usedFontsSep.hidden = false;
+        menuPopup.insertBefore(foundFont, defaultFontsSep.nextSibling);
+      }
+    }
+  }
+  else
+  {
+    // The editor encountered a font that is not installed on this system.
+    // Add it to the font menu now, in the used-fonts section right at the
+    // bottom before the separator of the section.
+    let fontLabel = GetFormattedString("NotInstalled", editorFont);
+    foundFont = createFontFaceMenuitem(fontLabel, editorFont, menuPopup);
+    foundFont.setAttribute("used", "true");
+    usedFontsSep.hidden = false;
+    menuPopup.insertBefore(foundFont, usedFontsSep);
+  }
+  fontFaceMenuList.selectedItem = foundFont;
 }
 
 /**
@@ -860,50 +960,91 @@ function initFontFaceMenu(menuPopup)
     if (!children) return;
 
     var mixed = { value: false };
-    var state = GetCurrentEditor().getFontFaceState(mixed);
+    var editorFont = GetCurrentEditor().getFontFaceState(mixed);
+
+    // Strip quotes in font names. Experiments have shown that we only
+    // ever get double quotes around the font name, never single quotes,
+    // even if they were in the HTML source. Also single or double
+    // quotes within the font name are never returned.
+    editorFont = editorFont.replace(/"/g, "");
+
     if (!mixed.value)
     {
-      switch (state)
+      switch (editorFont)
       {
       case "":
       case "serif":
       case "sans-serif":
         // Generic variable width.
-        state = "";
+        editorFont = "";
         break;
       case "tt":
       case "monospace":
         // Generic fixed width.
-        state = "tt";
+        editorFont = "tt";
         break;
       default:
-        state = state.toLowerCase().replace(/, /g, ","); // bug 1139524
+        editorFont = editorFont.toLowerCase().replace(/, /g, ","); // bug 1139524
       }
     }
 
+    var editorFontOptions = editorFont.split(',');
+    var matchedOption = editorFontOptions.length;  // initialise to high invalid value
     for (var i = 0; i < children.length; i++)
     {
       var menuItem = children[i];
       if (menuItem.localName == "menuitem")
       {
+        var matchFound = false;
         if (!mixed.value)
         {
-          var faceType = menuItem.getAttribute("value").toLowerCase().replace(/, /g, ",");
-          if (faceType == state)
+          var menuFont = menuItem.getAttribute("value").toLowerCase().replace(/, /g, ",");
+
+          // First compare the entire font string to match items that contain commas.
+          if (menuFont == editorFont)
           {
             menuItem.setAttribute("checked", "true");
             break;
           }
+
+          // Next compare the individual options.
+          else if (editorFontOptions.length > 1)
+          {
+            var matchPos = editorFontOptions.indexOf(menuFont);
+            if (matchPos >= 0 && matchPos < matchedOption) {
+              // This menu font comes earlier in the list of options,
+              // so prefer it.
+              menuItem.setAttribute("checked", "true");
+
+              // If we matched the first option, we don't need to look for
+              // a better match.
+              if (matchPos == 0)
+                break;
+
+              matchedOption = matchPos;
+              matchFound = true;
+            }
+          }
         }
 
-        // in case none match, make sure we've cleared the checkmark
-        menuItem.removeAttribute("checked");
+        // In case this item doesn't match, make sure we've cleared the checkmark.
+        if (!matchFound)
+          menuItem.removeAttribute("checked");
       }
     }
   }
 }
 
-const kFixedFontFaceMenuItems = 8; // number of fixed font face menuitems
+// Number of fixed font face menuitems, these are:
+// Variable Width
+// Fixed Width
+// ==separator
+// Helvetica, Arial
+// Times
+// Courier
+// ==separator
+// ==separator
+const kFixedFontFaceMenuItems = 8;
 
 function initLocalFontFaceMenu(menuPopup)
 {

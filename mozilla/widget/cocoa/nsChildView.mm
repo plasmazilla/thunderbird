@@ -983,6 +983,9 @@ nsChildView::BackingScaleFactorChanged()
   }
 
   mBackingScaleFactor = newScale;
+  NSRect frame = [mView frame];
+  mBounds = nsCocoaUtils::CocoaRectToGeckoRectDevPix(frame, newScale)
+            .ToUnknownRect();
 
   if (mWidgetListener && !mWidgetListener->GetXULWindow()) {
     nsIPresShell* presShell = mWidgetListener->GetPresShell();
