@@ -157,7 +157,7 @@ function view_init()
 
   var charset_menuitem = document.getElementById("charsetMenu");
   if (charset_menuitem)
-    charset_menuitem.setAttribute("disabled", !msgWindow.mailCharacterSet);
+    charset_menuitem.setAttribute("disabled", !gMessageDisplay.displayedMessage);
 
   // Initialize the Message Body menuitem
   var isFeed = gFolderDisplay.selectedMessageIsFeed;
@@ -2607,14 +2607,24 @@ var gMessageNotificationBar =
     }
   },
 
-  remoteHosts: null,
+  remoteOrigins: null,
 
   setRemoteContentMsg: function(aMsgHdr, aContentURI)
   {
-    // remoteHosts is a Set of all blockable hosts.
-    if (!this.remoteHosts)
-      this.remoteHosts = new Set();
-    this.remoteHosts.add(aContentURI.host);
+    // remoteOrigins is a Set of all blockable Origins.
+    if (!this.remoteOrigins)
+      this.remoteOrigins = new Set();
+
+    var origin = aContentURI.spec;
+    try
+    {
+      origin = aContentURI.scheme + "://" + aContentURI.hostPort;
+    }
+    // No hostport so likely a special url. Try to use the whole url and see
+    // what comes of it.
+    catch (e) { }
+
+    this.remoteOrigins.add(origin);
 
     if (this.mMsgNotificationBar.getNotificationWithValue("remoteContent"))
       return;
@@ -2748,14 +2758,19 @@ function LoadMsgWithRemoteContent()
  */
 function onRemoteContentOptionsShowing(aEvent)
 {
-  var hosts = [...gMessageNotificationBar.remoteHosts];
+  var origins = [...gMessageNotificationBar.remoteOrigins];
 
   var addresses = {};
   MailServices.headerParser.parseHeadersWithArray(
     gMessageDisplay.displayedMessage.author, addresses, {}, {});
   var authorEmailAddress = addresses.value[0];
-  if (authorEmailAddress)
-    hosts.unshift(authorEmailAddress);
+
+  var emailURI = Services.io.newURI(
+    "chrome://messenger/content/?email=" + authorEmailAddress, null, null);
+  var principal = Services.scriptSecurityManager
+                          .createCodebasePrincipal(emailURI, {});
+  // Put author email first in the menu.
+  origins.unshift(principal.origin);
 
   // Out with the old...
   let childNodes = aEvent.target.querySelectorAll(".allow-remote-uri");
@@ -2766,12 +2781,13 @@ function onRemoteContentOptionsShowing(aEvent)
   var separator = document.getElementById("remoteContentSettingsMenuSeparator")
 
   // ... and in with the new.
-  for (let host of hosts)
+  for (let origin of origins)
   {
     let menuitem = document.createElement("menuitem");
-    menuitem.setAttribute("label",
-      messengerBundle.getFormattedString("remoteContentAllow", [host]));
-    menuitem.setAttribute("host", host);
+    let host = origin.replace("chrome://messenger/content/?email=", "");
+    let hostString = messengerBundle.getFormattedString("remoteContentAllow", [host]);
+    menuitem.setAttribute("label", hostString);
+    menuitem.setAttribute("value", origin);
     menuitem.setAttribute("class", "allow-remote-uri");
     aEvent.target.insertBefore(menuitem, separator);
   }
@@ -2779,19 +2795,21 @@ function onRemoteContentOptionsShowing(aEvent)
 
 /**
  * Add privileges to display remote content for the given uri.
- * @param aItem |nsIDOMNode| Item that was selected. The host
+ * @param aItem |nsIDOMNode| Item that was selected. The origin
  *        is extracted and converted to a uri and used to add
  *        permissions for the site.
  */
 function allowRemoteContentForURI(aItem)
 {
-  var host = aItem.getAttribute("host");
-  if (!host)
+
+  var origin = aItem.getAttribute("value");
+
+  if (!origin)
     return;
 
-  var scheme = host.includes("@") ? "mailto:" : "http://";
-  var uri = Services.io.newURI(scheme + host, null, null);
+  let uri = Services.io.newURI(origin, null, null);
   Services.perms.add(uri, "image", Services.perms.ALLOW_ACTION);
+
   ReloadMessage();
 }
 
@@ -2922,9 +2940,9 @@ function OnMsgLoaded(aUrl)
 
     var msgHdr = msgHdrForCurrentMessage();
     gMessageNotificationBar.setJunkMsg(msgHdr);
-    // Reset the blocked hosts so we can populate it again for this message.
+    // Reset the blocked origins so we can populate it again for this message.
     // Reset to null so it's only a Set if there's something in the Set.
-    gMessageNotificationBar.remoteHosts = null;
+    gMessageNotificationBar.remoteOrigins = null;
 
     var markReadAutoMode = Services.prefs.getBoolPref("mailnews.mark_message_read.auto");
 

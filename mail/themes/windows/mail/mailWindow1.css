@@ -62,10 +62,6 @@
   color: -moz-FieldText;
 }
 
-#messengerBox {
-  background-color: -moz-Dialog;
-}
-
 /* ::::: thread decoration ::::: */
 
 treechildren::-moz-tree-row(dummy)  {
@@ -880,15 +876,6 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
   }
 
   @media (-moz-windows-default-theme) {
-    #afterViewPickerUnreadSeparator,
-    #afterViewPickerCustomViewsSeparator {
-      -moz-appearance: none;
-      margin: 3px 0;
-      padding-top: 0;
-      padding-bottom: 0;
-      border-top-color: ThreeDLightShadow;
-    }
-
     menulist {
       -moz-appearance: none;
       min-height: 24px;
