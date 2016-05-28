@@ -1,0 +1,6 @@
+<!ENTITY  closeTab.label           "ট্যাব বন্ধ">
+<!ENTITY  listAllTabs.label        "সকল ট্যাব তালিকাভুক্ত করা হবে">
+
+<!-- LOCALIZATION NOTE(defaultTabTitle.label): This is the default tab
+     title to show when the tab has no title. -->
+<!ENTITY  defaultTabTitle.label    "Home">

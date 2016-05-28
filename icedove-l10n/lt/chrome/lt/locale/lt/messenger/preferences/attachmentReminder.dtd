@@ -1,0 +1,12 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY attachmentReminderDialog.title   "Priminimo apie priedą reikšminiai žodžiai">
+<!ENTITY attachKeywordText.label          "„&brandShortName;“ įspės apie trūkstamus priedus, jei bandysite siųsti laišką, kuriame bus vienas šių žodžių.">
+<!ENTITY addKeywordButton.label           "Naujas">
+<!ENTITY addKeywordButton.accesskey       "N">
+<!ENTITY editKeywordButton.label          "Taisyti">
+<!ENTITY editKeywordButton.accesskey      "T">
+<!ENTITY removeKeywordButton.label        "Pašalinti">
+<!ENTITY removeKeywordButton.accesskey    "š">

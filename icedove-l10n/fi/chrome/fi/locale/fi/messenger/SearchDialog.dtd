@@ -1,0 +1,80 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!-- for SearchDialog.xul -->
+<!ENTITY searchHeading.label          "Etsi kohteesta:">
+<!ENTITY searchHeading.accesskey      "k">
+<!ENTITY searchSubfolders.label       "Etsi alikansioista">
+<!ENTITY searchSubfolders.accesskey   "a">
+<!ENTITY searchOnServer.label        "Suorita haku palvelimella">
+<!ENTITY searchOnServer.accesskey    "u">
+<!ENTITY resetButton.label            "Tyhjennä">
+<!ENTITY resetButton.accesskey        "T">
+<!ENTITY openButton.label             "Avaa">
+<!ENTITY openButton.accesskey         "v">
+<!ENTITY deleteButton.label           "Poista">
+<!ENTITY deleteButton.accesskey       "o">
+<!ENTITY searchDialogTitle.label      "Etsi viesteistä">
+<!ENTITY results.label                "Tulokset">
+<!ENTITY moveButton.label             "Siirrä kohteeseen">
+<!ENTITY moveButton.accesskey         "k">
+<!ENTITY closeCmd.key                 "W">
+<!ENTITY openInFolder.label          "Avaa kansioon">
+<!ENTITY openInFolder.accesskey      "k">
+<!ENTITY saveAsVFButton.label         "Tallenna hakukansiona">
+<!ENTITY saveAsVFButton.accesskey     "h">
+
+<!-- for ABSearchDialog.xul -->
+<!ENTITY abSearchHeading.label        "Etsi kohteesta:">
+<!ENTITY abSearchHeading.accesskey    "k">
+<!ENTITY propertiesButton.label       "Ominaisuudet">
+<!ENTITY propertiesButton.accesskey   "O">
+<!ENTITY composeButton.label          "Kirjoita">
+<!ENTITY composeButton.accesskey      "K">
+<!ENTITY deleteCardButton.label      "Poista">
+<!ENTITY deleteCardButton.accesskey  "P">
+<!ENTITY abSearchDialogTitle.label    "Etsi osoitekirjasta">
+
+<!-- Thread Pane -->
+<!ENTITY threadColumn.label  "Viestiketju">
+<!ENTITY fromColumn.label  "Lähettäjä">
+<!ENTITY recipientColumn.label  "Vastaanottaja">
+<!ENTITY correspondentColumn.label "Keskustelukumppanit">
+<!ENTITY subjectColumn.label  "Aihe">
+<!ENTITY dateColumn.label  "Päiväys">
+<!ENTITY priorityColumn.label  "Tärkeysaste">
+<!ENTITY tagsColumn.label  "Tunnukset">
+<!ENTITY accountColumn.label  "Tili">
+<!ENTITY statusColumn.label  "Tila">
+<!ENTITY sizeColumn.label  "Koko">
+<!ENTITY junkStatusColumn.label  "Roskapostitila">
+<!ENTITY unreadColumn.label  "Lukematta">
+<!ENTITY totalColumn.label  "Yhteensä">
+<!ENTITY readColumn.label  "Luettu">
+<!ENTITY receivedColumn.label "Vastaanotettu">
+<!ENTITY starredColumn.label "Tähti">
+<!ENTITY locationColumn.label  "Sijainti">
+<!ENTITY idColumn.label  "Saapumisjärjestys">
+
+<!-- Thread Pane Tooltips -->
+<!ENTITY columnChooser2.tooltip "Valitse näkyvät sarakkeet">
+<!ENTITY threadColumn2.tooltip "Näytä viestiketjut">
+<!ENTITY fromColumn2.tooltip "Järjestä lähettäjän mukaan">
+<!ENTITY recipientColumn2.tooltip "Järjestä vastaanottajan mukaan">
+<!ENTITY correspondentColumn2.tooltip "Järjestä keskustelukumppaneiden mukaan">
+<!ENTITY subjectColumn2.tooltip "Järjestä aiheen mukaan">
+<!ENTITY dateColumn2.tooltip "Järjestä päiväyksen mukaan">
+<!ENTITY priorityColumn2.tooltip "Järjestä tärkeysasteen mukaan">
+<!ENTITY tagsColumn2.tooltip "Järjestä tunnuksen mukaan">
+<!ENTITY accountColumn2.tooltip "Järjestä tilin mukaan">
+<!ENTITY statusColumn2.tooltip "Järjestä tilan mukaan">
+<!ENTITY sizeColumn2.tooltip "Järjestä koon mukaan">
+<!ENTITY junkStatusColumn2.tooltip "Järjestä roskapostitilan mukaan">
+<!ENTITY unreadColumn2.tooltip "Viestiketjun lukematta olevien viestien määrä">
+<!ENTITY totalColumn2.tooltip "Viestien määrä viestiketjussa">
+<!ENTITY readColumn2.tooltip "Järjestä luettujen mukaan">
+<!ENTITY receivedColumn2.tooltip "Järjestä vastaanottopäivän mukaan">
+<!ENTITY starredColumn2.tooltip "Järjestä tähden olemassaolon mukaan">
+<!ENTITY locationColumn2.tooltip "Järjestä sijainnin mukaan">
+<!ENTITY idColumn2.tooltip "Järjestä saapumisjärjestyksen mukaan">

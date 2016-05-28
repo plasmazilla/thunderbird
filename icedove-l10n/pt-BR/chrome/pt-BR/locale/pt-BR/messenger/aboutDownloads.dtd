@@ -1,0 +1,27 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY aboutDownloads.title                      "Arquivos salvos">
+<!ENTITY aboutDownloads.empty                      "Sem arquivos salvos">
+<!-- LOCALIZATION NOTE (cmd.show.label, cmd.show.accesskey, cmd.showMac.label,
+     cmd.showMac.accesskey):
+     The show and showMac commands are never shown together, thus they can share
+     the same access key (though the two access keys can also be different).
+     -->
+<!ENTITY cmd.show.label                            "Abrir pasta do arquivo">
+<!ENTITY cmd.show.accesskey                        "p">
+<!ENTITY cmd.showMac.label                         "Mostrar no Finder">
+<!ENTITY cmd.showMac.accesskey                     "F">
+<!ENTITY cmd.open.label                            "Abrir">
+<!ENTITY cmd.open.accesskey                        "A">
+<!ENTITY cmd.removeFromHistory.label               "Remover do histórico">
+<!ENTITY cmd.removeFromHistory.accesskey           "e">
+<!ENTITY cmd.clearDownloads.label                  "Limpar Downloads">
+<!ENTITY cmd.clearDownloads.accesskey              "D">
+
+<!ENTITY cmd.clearList.accesskey                   "C">
+<!ENTITY cmd.clearList.label                       "Clear List">
+<!ENTITY cmd.clearList.tooltip                     "Remove all entries from the list of saved files, except ongoing downloads.">
+<!ENTITY cmd.searchDownloads.key                   "F">
+<!ENTITY cmd.searchDownloads.label                 "Search…">

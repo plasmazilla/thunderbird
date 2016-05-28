@@ -1,0 +1,80 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!-- for SearchDialog.xul -->
+<!ENTITY searchHeading.label         "Шукати в повідомленнях у:">
+<!ENTITY searchHeading.accesskey     "і">
+<!ENTITY searchSubfolders.label      "Шукати у вкладених теках">
+<!ENTITY searchSubfolders.accesskey  "к">
+<!ENTITY searchOnServer.label        "Виконати пошук на сервері">
+<!ENTITY searchOnServer.accesskey    "с">
+<!ENTITY resetButton.label           "Очистити">
+<!ENTITY resetButton.accesskey       "О">
+<!ENTITY openButton.label            "Відкрити">
+<!ENTITY openButton.accesskey        "д">
+<!ENTITY deleteButton.label          "Вилучити">
+<!ENTITY deleteButton.accesskey      "ч">
+<!ENTITY searchDialogTitle.label     "Пошук листів…">
+<!ENTITY results.label               "Результати">
+<!ENTITY moveButton.label            "Перемістити">
+<!ENTITY moveButton.accesskey        "П">
+<!ENTITY closeCmd.key                "W"> 
+<!ENTITY openInFolder.label          "Відкрити у теці">
+<!ENTITY openInFolder.accesskey      "т">
+<!ENTITY saveAsVFButton.label        "Зберегти як віртуальну теку">
+<!ENTITY saveAsVFButton.accesskey    "б">
+
+<!-- for ABSearchDialog.xul -->
+<!ENTITY abSearchHeading.label       "Шукати в:">
+<!ENTITY abSearchHeading.accesskey   "Ш">
+<!ENTITY propertiesButton.label      "Властивості">
+<!ENTITY propertiesButton.accesskey  "л">
+<!ENTITY composeButton.label         "Написати">
+<!ENTITY composeButton.accesskey     "Н">
+<!ENTITY deleteCardButton.label      "Видалити">
+<!ENTITY deleteCardButton.accesskey  "В">
+<!ENTITY abSearchDialogTitle.label   "Розширений режим пошуку в адресній книзі">
+
+<!-- Thread Pane -->
+<!ENTITY threadColumn.label "Гілка">
+<!ENTITY fromColumn.label "Відправник">
+<!ENTITY recipientColumn.label "Адресат">
+<!ENTITY correspondentColumn.label "Correspondents">
+<!ENTITY subjectColumn.label "Тема">
+<!ENTITY dateColumn.label "Дата">
+<!ENTITY priorityColumn.label "Важливість">
+<!ENTITY tagsColumn.label "Tags">
+<!ENTITY accountColumn.label "Обліковий запис">
+<!ENTITY statusColumn.label "Стан">
+<!ENTITY sizeColumn.label "Розмір">
+<!ENTITY junkStatusColumn.label "Спам">
+<!ENTITY unreadColumn.label "Не прочитано">
+<!ENTITY totalColumn.label "Всього">
+<!ENTITY readColumn.label "Прочитано">
+<!ENTITY receivedColumn.label "Отримано">
+<!ENTITY starredColumn.label "Помічено зіркою">
+<!ENTITY locationColumn.label "Розташування">
+<!ENTITY idColumn.label "Порядок отримання">
+
+<!-- Thread Pane Tooltips -->
+<!ENTITY columnChooser2.tooltip "Оберіть розмови для відображення">
+<!ENTITY threadColumn2.tooltip "Показати повідомлення розмови">
+<!ENTITY fromColumn2.tooltip "Сортувати за відправником">
+<!ENTITY recipientColumn2.tooltip "Сортувати за отримувачем">
+<!ENTITY correspondentColumn2.tooltip "Сортувати за кореспондентами">
+<!ENTITY subjectColumn2.tooltip "Сотртувати за темою">
+<!ENTITY dateColumn2.tooltip "Сортувати за датою">
+<!ENTITY priorityColumn2.tooltip "Сотрувати за приорітетом">
+<!ENTITY tagsColumn2.tooltip "Сортувати за мітками">
+<!ENTITY accountColumn2.tooltip "Сортувати за обліковим записом">
+<!ENTITY statusColumn2.tooltip "Сортувати за статусом">
+<!ENTITY sizeColumn2.tooltip "Сортувати за роміром">
+<!ENTITY junkStatusColumn2.tooltip "Сортувати за небажаністю">
+<!ENTITY unreadColumn2.tooltip "Кількість непрочитаних повідомлень в темі">
+<!ENTITY totalColumn2.tooltip "Загальна кількість повідомлень в темі">
+<!ENTITY readColumn2.tooltip "Сортувати за прочитанням">
+<!ENTITY receivedColumn2.tooltip "Сотрувати за датою отримання">
+<!ENTITY starredColumn2.tooltip "Сортувати за зірками">
+<!ENTITY locationColumn2.tooltip "Сортувати за місцем знаходження">
+<!ENTITY idColumn2.tooltip "Сортувати в порядку отримання">

@@ -1,0 +1,4 @@
+<!ENTITY window.title             "Ringkasan Pesan">
+<!ENTITY selectedmessages.label   "Pesan Terpilih">
+<!ENTITY archiveButton.label      "Arsipkan">
+<!ENTITY deleteButton.label       "Hapus">

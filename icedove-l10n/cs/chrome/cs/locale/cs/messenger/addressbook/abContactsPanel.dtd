@@ -1,0 +1,27 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY addressbookPicker.label "Složky kontaktů:">
+<!ENTITY addressbookPicker.accesskey "S">
+<!ENTITY searchInput.label "Hledat:">
+<!ENTITY searchInput.accesskey "H">
+<!ENTITY SearchNameOrEmail.label "Jméno nebo e-mail">
+
+<!ENTITY deleteAddrBookCard.label "Smazat">
+<!ENTITY deleteAddrBookCard.accesskey "m">
+<!ENTITY addrBookCardProperties.label "Vlastnosti">
+<!ENTITY addrBookCardProperties.accesskey   "V">
+<!ENTITY addtoToFieldMenu.label "Přidat do Komu">
+<!ENTITY addtoToFieldMenu.accesskey "K">
+<!ENTITY addtoCcFieldMenu.label "Přidat do Kopie">
+<!ENTITY addtoCcFieldMenu.accesskey "p">
+<!ENTITY addtoBccFieldMenu.label "Přidat do Skrytá kopie">
+<!ENTITY addtoBccFieldMenu.accesskey "S">
+
+<!ENTITY toButton.label "Komu">
+<!ENTITY toButton.accesskey "K">
+<!ENTITY ccButton.label "Kopie">
+<!ENTITY ccButton.accesskey "p">
+<!ENTITY bccButton.label "Skrytá kopie">
+<!ENTITY bccButton.accesskey "S">
