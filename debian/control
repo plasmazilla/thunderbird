@@ -224,7 +224,7 @@ Description: Google Calendar support for lightning- and iceowl-extension
 
 Package: icedove-l10n-all
 Architecture: all
-Section: localization
+Section: metapackages
 Depends:
  icedove-l10n-ar,
  icedove-l10n-ast,
