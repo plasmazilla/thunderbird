@@ -1759,7 +1759,7 @@ Copyright: 2013, Tensilica, Inc.
 License: Expat
 
 Files: mozilla/js/src/ctypes/libffi/texinfo.tex
-Copyright: 1985-1986, 1988, 1990-1995, 
+Copyright: 1985-1986, 1988, 1990-1995,
 License: GPL-3
 
 Files: mozilla/js/src/devtools/rootAnalysis/analyze.py
@@ -2629,7 +2629,7 @@ License: BSD-3-clause
 
 Files: mozilla/netwerk/sctp/src/netinet/sctp_sha1.c
 Copyright: 2013, Lally Singh
-           2008-2013, Michael Tuexen 
+           2008-2013, Michael Tuexen
            2008-2012, Randall Stewart
            2001-2007, Cisco Systems, Inc.
 License: BSD-3-clause

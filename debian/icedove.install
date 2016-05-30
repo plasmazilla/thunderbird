@@ -1,21 +1,17 @@
+debian/account-autoconfig/*                   usr/share/icedove/isp
+debian/icedove.desktop                        usr/share/applications
+debian/icedove.js                             etc/icedove/pref
+debian/tmp/usr/lib/icedove/*.ini
 debian/tmp/usr/lib/icedove/blocklist.xml
+debian/tmp/usr/lib/icedove/chrome             usr/share/icedove
+debian/tmp/usr/lib/icedove/defaults/messenger usr/share/icedove/defaults
+debian/tmp/usr/lib/icedove/defaults/pref      usr/share/icedove/defaults
 debian/tmp/usr/lib/icedove/dependentlibs.list
 debian/tmp/usr/lib/icedove/icedove*
+debian/tmp/usr/lib/icedove/isp                usr/share/icedove
 debian/tmp/usr/lib/icedove/lib*
-debian/tmp/usr/lib/icedove/*.ini
+debian/tmp/usr/lib/icedove/omni.ja            usr/share/icedove
 debian/tmp/usr/lib/icedove/plugin-container
 debian/tmp/usr/lib/icedove/removed-files
 debian/tmp/usr/lib/icedove/run-mozilla.sh
-
-debian/tmp/usr/lib/icedove/chrome             usr/share/icedove
-debian/tmp/usr/lib/icedove/isp                usr/share/icedove
-debian/tmp/usr/lib/icedove/omni.ja            usr/share/icedove
-
-debian/tmp/usr/lib/icedove/defaults/pref      usr/share/icedove/defaults
-debian/tmp/usr/lib/icedove/defaults/messenger usr/share/icedove/defaults
-
-debian/icedove.js                             etc/icedove/pref
 debian/vendor.js                              usr/share/icedove/defaults/pref
-debian/icedove.desktop                        usr/share/applications
-
-debian/account-autoconfig/*                   usr/share/icedove/isp
