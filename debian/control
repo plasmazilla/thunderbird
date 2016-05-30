@@ -1115,6 +1115,8 @@ Depends:
  icedove (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:uk
+Recommends:
+ hunspell-uk | myspell-uk
 Description: Ukrainian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
