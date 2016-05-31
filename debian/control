@@ -1797,7 +1797,7 @@ Depends:
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
- hunspell-pt-br | myspell-pt-pt | myspell-pt,
+ hunspell-pt-pt | myspell-pt-pt | myspell-pt,
 Description: Portuguese (Portugal) language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
@@ -1892,7 +1892,7 @@ Depends:
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
- hunspell-si | myspell-sl,
+ hunspell-sl | myspell-sl,
 Description: Slovenian language package for iceowl-extension
  The iceowl-extension is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
