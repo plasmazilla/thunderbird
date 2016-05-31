@@ -1646,6 +1646,20 @@ Description: Italian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Italian.
 
+Package: iceowl-l10n-ja
+Architecture: all
+Section: localization
+Depends:
+ iceowl-extension (<< ${source:Version}.1~),
+ iceowl-extension (>= ${source:Version}),
+ ${misc:Depends},
+Description: Japanese language package for iceowl-extension
+ The iceowl-extension is a Mozilla based calendar extension for Icedove.
+ It's goal is to integrate a Calendar and Task application using the XUL
+ user interface language.
+ .
+ This package contains the localization of iceowl-extension in Japanese.
+
 Package: iceowl-l10n-ko
 Architecture: all
 Section: localization
@@ -1661,20 +1675,6 @@ Description: Korean language package for iceowl-extension
  user interface language.
  .
  This package contains the localization of iceowl-extension in Korean.
-
-Package: iceowl-l10n-ja
-Architecture: all
-Section: localization
-Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
- ${misc:Depends},
-Description: Japanese language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
- It's goal is to integrate a Calendar and Task application using the XUL
- user interface language.
- .
- This package contains the localization of iceowl-extension in Japanese.
 
 Package: iceowl-l10n-lt
 Architecture: all
