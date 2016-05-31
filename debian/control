@@ -330,6 +330,8 @@ Depends:
  icedove (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:be
+Recommends:
+ hunspell-be,
 Description: Belarusian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -346,7 +348,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:bg
 Recommends:
- myspell-bg,
+ hunspell-bg | myspell-bg,
 Description: Bulgarian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -362,6 +364,8 @@ Depends:
  icedove (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:bd-BD
+Recommends:
+ hunspell-bn,
 Description: Bengali language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -377,6 +381,8 @@ Depends:
  icedove (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:br
+Recommends:
+ hunspell-br,
 Description: Breton language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -393,7 +399,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ca
 Recommends:
- myspell-ca,
+ hunspell-ca | myspell-ca,
 Description: Catalan/Valencian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -410,7 +416,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:cs
 Recommends:
- myspell-cs-cz,
+ hunspell-cs | myspell-cs-cz,
 Description: Czech language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -444,7 +450,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:de
 Recommends:
- hunspell-de-de | hunspell-de-at | hunspell-de-ch,
+ hunspell-de-de | hunspell-de-at | hunspell-de-ch | myspell-de-de | myspell-de-at | myspell-de-ch,
 Description: German language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -461,7 +467,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:el
 Recommends:
- myspell-el-gr,
+ hunspell-el | myspell-el-gr,
 Description: Greek language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -478,7 +484,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:en-GB
 Recommends:
- myspell-en-gb | myspell-en-us | hunspell-en-us,
+ hunspell-en-gb | hunspell-en-au | hunspell-en-ca | hunspell-en-za,
 Description: English (Great Britain) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -495,7 +501,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:es-AR
 Recommends:
- myspell-es,
+ hunspell-es | myspell-es,
 Description: Spanish (Argentina) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -512,7 +518,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:es-ES
 Recommends:
- myspell-es,
+ hunspell-es | myspell-es,
 Description: Spanish (Spain) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -545,6 +551,8 @@ Depends:
  icedove (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:eu
+Recommends:
+ hunspell-eu,
 Description: Basque language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -562,6 +570,7 @@ Depends:
 Homepage: https://wiki.mozilla.org/L10n:Teams:fi
 Recommends:
  myspell-fi,
+ xul-ext-mozvoikko,
 Description: Finnish language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -578,7 +587,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:fr
 Recommends:
- myspell-fr | myspell-fr-gut | hunspell-fr,
+ hunspell-fr | myspell-fr | myspell-fr-gut,
 Description: French language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -625,7 +634,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:gd
 Recommends:
- myspell-gd,
+ hunspell-gd | myspell-gd,
 Description: Gaelic (Scottish) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -642,7 +651,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:gl
 Recommends:
- hunspell-gl-es,
+ hunspell-gl | hunspell-gl-es,
 Description: Galician language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -659,7 +668,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:he
 Recommends:
- myspell-he,
+ hunspell-he | myspell-he,
 Description: Hebrew language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -676,7 +685,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:hr
 Recommends:
- myspell-hr,
+ hunspell-hr | myspell-hr,
 Description: Croatian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -693,7 +702,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:hu
 Recommends:
- myspell-hu | hunspell-hu,
+ hunspell-hu | myspell-hu,
 Description: Hungarian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -741,6 +750,8 @@ Depends:
  icedove (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:is
+Recommends:
+ hunspell-is,
 Description: Icelandic language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -757,7 +768,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:it
 Recommends:
- myspell-it,
+ hunspell-it | myspell-it,
 Description: Italian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -806,7 +817,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:lt
 Recommends:
- myspell-lt,
+ hunspell-lt | myspell-lt,
 Description: Lithuanian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -823,7 +834,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:nb-NO
 Recommends:
- myspell-nb,
+ hunspell-no | myspell-nb,
 Description: Bokmaal (Norway) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -840,7 +851,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:nl
 Recommends:
- myspell-nl,
+ hunspell-nl | myspell-nl,
 Description: Dutch language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -857,7 +868,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:nn-NO
 Recommends:
- myspell-nn,
+ hunspell-no | myspell-nn,
 Description: Nynorsk (Norway) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -889,7 +900,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:pl
 Recommends:
- myspell-pl,
+ hunspell-pl | myspell-pl,
 Description: Polish language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -906,7 +917,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:pt-BR
 Recommends:
- myspell-pt-br | myspell-pt,
+ hunspell-pt-br | myspell-pt-br | myspell-pt,
 Description: Portuguese (Brazil) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -923,7 +934,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:pt-PT
 Recommends:
- myspell-pt-pt | myspell-pt,
+ hunspell-pt-pt | myspell-pt-pt | myspell-pt,
 Description: Portuguese (Portugal) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -972,7 +983,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ru
 Recommends:
- myspell-ru,
+ hunspell-ru | myspell-ru,
 Description: Russian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -988,6 +999,8 @@ Depends:
  icedove (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:si
+Recommends:
+ hunspell-si,
 Description: Sinhala language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -1004,7 +1017,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:sk
 Recommends:
- myspell-sk,
+ hunspell-sk | myspell-sk,
 Description: Slovak language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -1021,7 +1034,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:sl
 Recommends:
- myspell-sl,
+ hunspell-sl | myspell-sl,
 Description: Slovenian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
@@ -1070,7 +1083,7 @@ Depends:
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:sv-SE
 Recommends:
- myspell-sv-se,
+ hunspell-sv | myspell-sv-se,
 Description: Swedish (Sweden) language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
