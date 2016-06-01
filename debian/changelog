@@ -1,3 +1,57 @@
+icedove (1:45.2~b1-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [68883af] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-kfreebsd-hurd/adding-missed-HURD-adoptions.patch
+  * [ee509d2] debian/mozconfig.default: switching back to gtk2 as default
+    (Closes: #821744)
+  * [f72fe06] adding helper script create-iceowl-l10n-tarball.sh
+  * [28fba93] debian/README.source: adding additional info for iceowl-l10n
+  * [826af5b] adding iceowl-l10n related patches to the patch queue
+  * [1aa6f37] debian/iceowl-*.in: adding needed base files
+  * [a5946b4] debian/rules: adding iceowl-l10n related rules
+  * [b1da616] debian/control: adding the current iceowl-l10n-* packages
+  * [b359c95] debian/source.filter: some adjustments to the filter
+  * [e45ab44] debian/README.source: use recent version and reformating
+  * [50b3830] debian/control: increase Standards-Version to 3.9.8
+  * [3a767b8] debian/rules: remove no longer needed LDFLAGS
+  * [29a7739] Imported Upstream version 45.2~b1
+  * [15b7797] iceowl-l10n-*: rearrange Recommends field for various packages
+    (Closes: #824727, #824750, #824763, #824764, #824768, #824780)
+  * [3f75b56] debian/vendor.js: adjust to new version related wiki site
+  * [6bd7f89] d/c-id-l10n: adjusting download URL for stable versions
+  * [f15d1a2] icedove-l10n-all: change Section into metapackages
+    (Closes: #824785)
+  * [25c3ba1] debian/README.source: info about import of multitarballs
+  * [3ebcf59] debian/control: adding Recommends to icedove-l10n-uk
+    (Closes: #825806)
+  * [3e57d5e] debian/control: Icedove, adding dependency on libatk-adaptor
+  * [e19c59d] debian/control: rework Recommends for icedove-l10n-*
+  * [4741d80] debian/control: small fixup Recommends on iceowl-l10n-*
+  * [f9f5193] debian/control: sort iceowl-l10n-* alphabetical
+
+  [ Christoph Goehre ]
+  * [ce58560] debian/rules: add option to dh_auto_clean
+  * [8cfbeca] debian/rules: export necessary DEB_ vars into environment
+    (Closes: #819020)
+  * [7512da8] debian/rules: ignore build folder and run 'build' target instead
+    (Closes: #819020)
+  * [354f836] turn the reduce of memory usage of the linker on again
+  * [5e48e17] don't build dbgsym packages on unreleased builds
+  * [09679eb] rebuild patch queue from patch-queue branch
+    added patches:
+    - p-kfree-hurd/CrossProcessMutex.h-fix-build-on-kfreebsd-and-GNU-hu.patch
+    (Closes: #808183)
+
+  [ Guido Günther ]
+  * [24bbee9] Wrap and sort control information (Closes: #825806)
+  * [fcfe4ac] Add minimalistic autopkgtest
+  * [f7a32e8] Add autopkgtest to test header and typelib generation
+  * [189d835] Add autopkgtest to smoke test xpcshell
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 01 Jun 2016 17:56:29 -0400
+
 icedove (1:45.0~b4-2) experimental; urgency=medium
 
   * [fa7bc47] debian/control: fix FTBFS by moving Build-Depends-Indep to
