@@ -1,0 +1,39 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY messengerStartPage.label         "&brandShortName;-startside">
+<!ENTITY enableStartPage.label            "Wannear't &brandShortName; start, de startside yn it berjochtdiel toane">
+<!ENTITY enableStartPage.accesskey        "W">
+<!ENTITY location.label                   "Lokaasje:">
+<!ENTITY location1.accesskey              "L">
+<!ENTITY useDefault.label                 "Standertynstelling tebeksette">
+<!ENTITY useDefault.accesskey             "S">
+
+<!ENTITY changeDockIconOptions.label      "Wizigje eigenskippen fan it programmasymboal">
+<!ENTITY dockOptions.label                "Opsjes programmasymboal…">
+<!ENTITY dockOptions.accesskey            "p">
+
+<!ENTITY newMessagesArrive.label          "As nije berjochten oankomme:">
+<!ENTITY playSound.label                  "In lûd ôfspylje">
+<!ENTITY playSound1.accesskey             "l">
+<!ENTITY showAnimatedAlert.label          "In melding toane">
+<!ENTITY showAnimatedAlert.accesskey      "t">
+<!ENTITY customizeMailAlert.label         "Oanpasse…">
+<!ENTITY customizeMailAlert.accesskey     "O">
+
+<!ENTITY showTrayIcon.label               "Taakbalkikoantsje toane">
+<!ENTITY showTrayIcon.accesskey           "t">
+
+<!ENTITY play.label                       "Ofspylje">
+<!ENTITY play.accesskey                   "f">
+<!ENTITY systemsound.label                "Standert systeemlûd foar nije e-mail">
+<!ENTITY systemsoundMac.label             "Systeemalarmlûd">
+<!ENTITY systemsoundMac.accesskey         "y">
+<!ENTITY systemsound.accesskey            "y">
+<!ENTITY customsound.label                "It folgjende lûdsbestân brûke">
+<!ENTITY customsound.accesskey            "l">
+<!ENTITY browse.label                     "Blêdzje…">
+<!ENTITY browse.accesskey                 "B">
+
+<!ENTITY defaultSearchEngine.label        "Standertsykmasine">

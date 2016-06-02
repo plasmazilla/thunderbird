@@ -1,0 +1,32 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY securityTitle.label "Sigurnost">
+<!ENTITY securityTab.label "Sigurnost">
+<!ENTITY securityHeading.label "Da biste slali i primali potpisane ili kriptirane poruke, trebate odrediti certifikat za digitalni potpis i certifikat za kriptiranje.">
+<!ENTITY encryptionGroupTitle.label "Kriptiranje">
+<!ENTITY encryptionChoiceLabel.label "Zadane postavke kriptiranja prilikom slanja poruka:">
+<!ENTITY neverEncrypt.label "Nikada (ne koristi kriptiranje)">
+<!ENTITY neverEncrypt.accesskey "N">
+<!ENTITY alwaysEncryptMessage.label "Obavezno (poruka se ne može poslati ukoliko svi primatelji nemaju certifikate)">
+<!ENTITY alwaysEncryptMessage.accesskey "u">
+<!ENTITY encryptionCert.message "Koristi ovaj certifikat za kriptiranje i dekriptiranje poruka poslanih vama:">
+<!ENTITY digitalSign.certificate.button "Odaberi…">
+<!ENTITY digitalSign.certificate.accesskey "a">
+<!ENTITY digitalSign.certificate_clear.button "Očisti">
+<!ENTITY digitalSign.certificate_clear.accesskey "O">
+<!ENTITY encryption.certificate.button "Odaberi…">
+<!ENTITY encryption.certificate.accesskey "e">
+<!ENTITY encryption.certificate_clear.button "Očisti">
+<!ENTITY encryption.certificate_clear.accesskey "i">
+<!ENTITY signingGroupTitle.label "Digitalno potpisivanje">
+<!ENTITY signMessage.label "Digitalno potpiši poruke (zadano)">
+<!ENTITY signMessage.accesskey "D">
+<!ENTITY signingCert.message "Koristi ovaj certifikat za digitalno potpisivanje poruka koje šaljete:">
+
+<!ENTITY certificates.label "Certifikati">
+<!ENTITY manageCerts.label "Prikaz certifikata">
+<!ENTITY manageCerts.accesskey "k">
+<!ENTITY manageDevices.label "Sigurnosni uređaji">
+<!ENTITY manageDevices.accesskey "g">

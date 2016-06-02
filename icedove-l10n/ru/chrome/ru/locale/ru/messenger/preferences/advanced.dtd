@@ -1,0 +1,86 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY itemGeneral.label "Основные">
+<!ENTITY dataChoicesTab.label "Выбор данных">
+<!ENTITY itemUpdate.label "Обновления">
+<!ENTITY itemNetworking.label "Сеть и дисковое пространство">
+<!ENTITY itemCertificates.label "Сертификаты">
+<!ENTITY enableGlodaSearch.label "Включить глобальный поиск и индексацию сообщений">
+<!ENTITY enableGlodaSearch.accesskey "и">
+<!ENTITY allowHWAccel.label "По возможности использовать аппаратное ускорение">
+<!ENTITY allowHWAccel.accesskey "м">
+<!ENTITY storeType.label "Тип хранилища сообщений для новых учётных записей:">
+<!ENTITY storeType.accesskey "п">
+<!ENTITY mboxStore2.label "Каждая папка в отдельном файле (mbox)">
+<!ENTITY maildirStore.label "Каждое сообщение в отдельном файле (maildir)">
+<!ENTITY scrolling.label "Прокрутка">
+<!ENTITY useAutoScroll.label "Использовать автоматическую прокрутку">
+<!ENTITY useAutoScroll.accesskey "в">
+<!ENTITY useSmoothScrolling.label "Использовать плавную прокрутку">
+<!ENTITY useSmoothScrolling.accesskey "л">
+<!ENTITY systemIntegration.label "Интеграция с системой">
+<!ENTITY alwaysCheckDefault.label "Всегда проверять при запуске, является ли &brandShortName; почтовым клиентом по умолчанию">
+<!ENTITY alwaysCheckDefault.accesskey "п">
+<!ENTITY searchIntegration.label "Разрешить &searchIntegration.engineName; производить поиск сообщений">
+<!ENTITY searchIntegration.accesskey "з">
+<!ENTITY checkDefaultsNow.label "Проверить сейчас…">
+<!ENTITY checkDefaultsNow.accesskey "с">
+<!ENTITY configEditDesc.label "Дополнительные настройки">
+<!ENTITY configEdit.label "Редактор настроек…">
+<!ENTITY configEdit.accesskey "д">
+<!ENTITY returnReceiptsInfo.label "Определите, как &brandShortName; должен обрабатывать уведомления о прочтении">
+<!ENTITY showReturnReceipts.label "Уведомления о прочтении…">
+<!ENTITY showReturnReceipts.accesskey "ч">
+<!ENTITY telemetrySection.label "Телеметрия">
+<!ENTITY telemetryDesc.label "Поделиться сведениями о производительности, использовании, аппаратном обеспечении и настройках вашего почтового клиента с &vendorShortName;, чтобы помочь нам сделать &brandShortName; ещё лучше">
+<!ENTITY enableTelemetry.label "Включить телеметрию">
+<!ENTITY enableTelemetry.accesskey "ю">
+<!ENTITY telemetryLearnMore.label "Подробнее">
+<!ENTITY crashReporterSection.label "Сообщения о падениях">
+<!ENTITY crashReporterDesc.label "&brandShortName; отправляет сообщения о падении, чтобы помочь &vendorShortName; сделать ваш почтовый клиент более стабильным и безопасным">
+<!ENTITY enableCrashReporter.label "Включить отправку сообщений о падении">
+<!ENTITY enableCrashReporter.accesskey "л">
+<!ENTITY crashReporterLearnMore.label "Подробнее">
+<!ENTITY updateApp.label "Обновления &brandShortName;:">
+<!ENTITY updateAuto.label "Автоматически устанавливать обновления (рекомендовано: повышает безопасность)">
+<!ENTITY updateAuto.accesskey "м">
+<!ENTITY updateCheck.label "Проверять наличие обновлений, но позволять мне решать, устанавливать ли их или нет">
+<!ENTITY updateCheck.accesskey "в">
+<!ENTITY updateManual.label "Никогда не проверять наличие обновлений (не рекомендовано: ставит безопасность под угрозу)">
+<!ENTITY updateManual.accesskey "и">
+<!ENTITY updateAutoAddonWarn.label "Предупреждать меня, если при этом будут отключены какие-либо дополнения">
+<!ENTITY updateAutoAddonWarn.accesskey "е">
+<!ENTITY updateHistory.label "Показать журнал обновлений">
+<!ENTITY updateHistory.accesskey "ж">
+<!ENTITY useService.label "Использовать фоновую службу для установки обновлений">
+<!ENTITY useService.accesskey "ф">
+<!ENTITY showSettings.label "Настроить…">
+<!ENTITY showSettings.accesskey "с">
+<!ENTITY proxiesConfigure.label "Настройка параметров соединения &brandShortName; с Интернетом">
+<!ENTITY connectionsInfo.caption "Соединение">
+<!ENTITY offlineInfo.caption "Автономная работа">
+<!ENTITY offlineInfo.label "Настройка параметров автономной работы">
+<!ENTITY showOffline.label "Автономная работа…">
+<!ENTITY showOffline.accesskey "в">
+<!ENTITY Diskspace "Дисковое пространство">
+<!ENTITY offlineCompactFolders.label "Сжимать все папки, если при этом высвободится всего более">
+<!ENTITY offlineCompactFolders.accesskey "м">
+<!ENTITY offlineCompactFoldersMB.label "МБ">
+<!ENTITY useCacheBefore.label "Использовать до">
+<!ENTITY useCacheBefore.accesskey "п">
+<!ENTITY useCacheAfter.label "МБ на диске для кэша">
+<!ENTITY clearCacheNow.label "Очистить сейчас">
+<!ENTITY clearCacheNow.accesskey "ч">
+<!ENTITY certSelection.description "Когда сервер запрашивает личный сертификат:">
+<!ENTITY certs.auto "Отправлять автоматически">
+<!ENTITY certs.auto.accesskey "п">
+<!ENTITY certs.ask "Спрашивать каждый раз">
+<!ENTITY certs.ask.accesskey "ш">
+<!ENTITY enableOCSP.label "Запрашивать у OCSP-серверов подтверждение текущего статуса сертификатов">
+<!ENTITY enableOCSP.accesskey "и">
+<!ENTITY viewCertificates.label "Просмотр сертификатов">
+<!ENTITY viewCertificates.accesskey "м">
+<!ENTITY viewSecurityDevices.label "Устройства защиты">
+<!ENTITY viewSecurityDevices.accesskey "о">

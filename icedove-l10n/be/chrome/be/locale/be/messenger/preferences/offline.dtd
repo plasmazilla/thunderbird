@@ -1,0 +1,37 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY offlineDialog.title "Наладжванні працы па-за сеткаю">
+<!ENTITY textStartUp "Пры запуску:">
+<!ENTITY radioRememberPrevState.label "Памятаць папярэдні стан злучэння з сеткаю">
+<!ENTITY radioRememberPrevState.accesskey "П">
+<!ENTITY radioAskMe.label "Спытаць мяне пра стан злучэння з сеткаю пасля запуску">
+<!ENTITY radioAskMe.accesskey "с">
+<!ENTITY radioAlwaysOnline.label "Заўсёды ўваходзіць у сетку пры запуску">
+<!ENTITY radioAlwaysOnline.accesskey "З">
+<!ENTITY textGoingOnline "Дасылаць неадпраўленыя лісты пасля ўваходу ў сетку?">
+<!ENTITY radioAutoSend.label "Так">
+<!ENTITY radioAutoSend.accesskey "Т">
+<!ENTITY radioNotSend.label "Не">
+<!ENTITY radioNotSend.accesskey "Н">
+<!ENTITY radioAskUnsent.label "Спытаць мяне">
+<!ENTITY radioAskUnsent.accesskey "ы">
+<!ENTITY textGoingOffline "Загружаць лісты для карыстання па-за сеткаю перад выхадам з сеткі?">
+<!ENTITY radioAutoDownload.label "Так">
+<!ENTITY radioAutoDownload.accesskey "а">
+<!ENTITY radioNotDownload.label "Не">
+<!ENTITY radioNotDownload.accesskey "е">
+<!ENTITY radioAskDownload.label "Спытаць мяне">
+<!ENTITY radioAskDownload.accesskey "С">
+
+<!ENTITY checkAutoDetect.accesskey "d">
+
+<!ENTITY checkAutoDetect.label "Automatically follow detected online state">
+<!ENTITY radioAlwaysOffline.accesskey "f">
+<!ENTITY radioAlwaysOffline.label "Offline">
+<!ENTITY radioAlwaysOnlineState.accesskey "l">
+<!ENTITY radioAlwaysOnlineState.label "Online">
+<!ENTITY radioAskState.accesskey "k">
+<!ENTITY radioAskState.label "Ask me for online state">
+<!ENTITY titleStartUp "Manual state when starting up:">

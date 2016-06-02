@@ -1,0 +1,27 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY addressbookPicker.label            "Adres Defteri:">
+<!ENTITY addressbookPicker.accesskey        "t">
+<!ENTITY searchInput.label                  "Aranacak:">
+<!ENTITY searchInput.accesskey              "A">
+<!ENTITY SearchNameOrEmail.label            "Ad veya E-posta">
+
+<!ENTITY deleteAddrBookCard.label           "Sil">
+<!ENTITY deleteAddrBookCard.accesskey       "S">
+<!ENTITY addrBookCardProperties.label       "Özellikler">
+<!ENTITY addrBookCardProperties.accesskey   "Ö">
+<!ENTITY addtoToFieldMenu.label             "Kime alanına ekle">
+<!ENTITY addtoToFieldMenu.accesskey         "e">
+<!ENTITY addtoCcFieldMenu.label             "Bilgi alanına ekle">
+<!ENTITY addtoCcFieldMenu.accesskey         "B">
+<!ENTITY addtoBccFieldMenu.label            "Gizli Alıcı alanına ekle">
+<!ENTITY addtoBccFieldMenu.accesskey        "G">
+
+<!ENTITY toButton.label                     "Kime alanına ekle:">
+<!ENTITY toButton.accesskey                 "e">
+<!ENTITY ccButton.label                     "Bilgi alanına ekle:">
+<!ENTITY ccButton.accesskey                 "B">
+<!ENTITY bccButton.label                    "Gizli Alıcı alanına ekle:">
+<!ENTITY bccButton.accesskey                "G">

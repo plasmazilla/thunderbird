@@ -1,0 +1,25 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY sanitizeDialog2.title "Знішчэнне нядаўняй гісторыі">
+<!ENTITY clearTimeDuration.label "Дыяпазон часу для ачышчэння:">
+<!ENTITY clearTimeDuration.accesskey "Д">
+<!ENTITY clearTimeDuration.lastHour "Апошняя гадзіна">
+<!ENTITY clearTimeDuration.last2Hours "Апошнія дзве гадзіны">
+<!ENTITY clearTimeDuration.last4Hours "Апошнія чатыры гадзіны">
+<!ENTITY clearTimeDuration.today "Сёння">
+<!ENTITY clearTimeDuration.everything "Усё">
+<!ENTITY clearTimeDuration.suffix "">
+<!ENTITY detailsProgressiveDisclosure.label "Падрабязнасці">
+<!ENTITY detailsProgressiveDisclosure.accesskey "П">
+<!ENTITY itemCookies.label "Біркі">
+<!ENTITY itemCookies.accesskey "Б">
+<!ENTITY itemCache.label "Запаснік">
+<!ENTITY itemCache.accesskey "З">
+<!ENTITY sanitizeEverythingUndoWarning "Гэтае дзеянне немагчыма адмяніць.">
+<!ENTITY dialog.width "35em">
+
+<!ENTITY itemHistory.accesskey             "B">
+
+<!ENTITY itemHistory.label                 "Browsing History">

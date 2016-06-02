@@ -1,0 +1,13 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY matchAll.label "Выполнении всех условий">
+<!ENTITY matchAll.accesskey "ы">
+<!ENTITY matchAny.label "Выполнении любого из условий">
+<!ENTITY matchAny.accesskey "л">
+<!ENTITY matchAllMsgs.label "Без каких-либо условий">
+<!ENTITY matchAllMsgs.accesskey "е">
+<!ENTITY searchTermListAttributesFlexValue "1">
+<!ENTITY searchTermListOperatorsFlexValue "1">
+<!ENTITY searchTermListValueFlexValue "3">

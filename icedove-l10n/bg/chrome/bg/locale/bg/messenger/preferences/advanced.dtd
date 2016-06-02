@@ -1,0 +1,113 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY itemGeneral.label       "Основни">
+<!ENTITY dataChoicesTab.label    "Възможности за данни">
+<!ENTITY itemUpdate.label        "Обновяване">
+<!ENTITY itemNetworking.label    "Мрежа и дисково място">
+<!ENTITY itemCertificates.label  "Сертификати">
+<!-- General Settings -->
+
+<!ENTITY enableGlodaSearch.label       "Разрешаване на глобално търсене и индексиране">
+<!ENTITY enableGlodaSearch.accesskey   "Р">
+<!ENTITY allowHWAccel.label            "Използване на хардуерно ускоряване, когато е налично">
+<!ENTITY allowHWAccel.accesskey        "х">
+<!ENTITY storeType.label               "Вид на съхранение на писмата за нови регистрации:">
+<!ENTITY storeType.accesskey           "T">
+<!ENTITY mboxStore2.label              "Файл в папка (mbox)">
+<!ENTITY maildirStore.label            "Файл за всяко писмо (maildir)">
+
+<!ENTITY scrolling.label               "Плъзгане">
+<!ENTITY useAutoScroll.label           "Използване на автоматично плъзгане">
+<!ENTITY useAutoScroll.accesskey       "И">
+<!ENTITY useSmoothScrolling.label      "Използване на плавно плъзгане">
+<!ENTITY useSmoothScrolling.accesskey  "п">
+
+<!ENTITY systemIntegration.label       "Системно интегриране">
+<!ENTITY alwaysCheckDefault.label      "Винаги при стартиране се извършва проверка дали &brandShortName; е подразбиращият се пощенски клиент.">
+<!ENTITY alwaysCheckDefault.accesskey  "В">
+<!ENTITY searchIntegration.label       "Разрешаване на &searchIntegration.engineName; да търси съобщения">
+<!ENTITY searchIntegration.accesskey   "т">
+<!ENTITY checkDefaultsNow.label        "Проверка сега…">
+<!ENTITY checkDefaultsNow.accesskey    "е">
+<!ENTITY configEditDesc.label          "Разширена конфигурация">
+<!ENTITY configEdit.label              "Редактор конфигурация…">
+<!ENTITY configEdit.accesskey          "к">
+<!ENTITY returnReceiptsInfo.label      "Определяне как &brandShortName; обработва обратните разписки">
+<!ENTITY showReturnReceipts.label      "Обратни разписки…">
+<!ENTITY showReturnReceipts.accesskey  "б">
+<!-- Data Choices -->
+
+<!ENTITY telemetrySection.label          "Телеметрия">
+<!ENTITY telemetryDesc.label             "Изпраща данни за производителността, използването, хардуера и персонализирането на вашия пощенски клиент на &vendorShortName;, за да спомогне за подобряването на &brandShortName;">
+<!ENTITY enableTelemetry.label           "Включване на Телеметрия">
+<!ENTITY enableTelemetry.accesskey       "Т">
+<!ENTITY telemetryLearnMore.label        "Научете повече">
+
+<!ENTITY crashReporterSection.label      "Отчети за сривове">
+<!ENTITY crashReporterDesc.label         "&brandShortName; изпраща отчети за сривове, за да спомогне &vendorShortName; да увеличи стабилността и сигурността на пощенския клиент.">
+<!ENTITY enableCrashReporter.label       "Включване на отчетите">
+<!ENTITY enableCrashReporter.accesskey   "о">
+<!ENTITY crashReporterLearnMore.label    "Научете повече">
+<!-- Update -->
+
+<!ENTITY updateApp.label                 "Обновявания на &brandShortName;:">
+<!ENTITY updateAuto.label                "Автоматично инсталиране на обновявания (препоръчва се: подобрява безопасността)">
+<!ENTITY updateAuto.accesskey            "А">
+<!ENTITY updateCheck.label               "Проверка за обновявания, но пита преди да ги инсталира">
+<!ENTITY updateCheck.accesskey           "П">
+<!ENTITY updateManual.label              "Никога не проверява за обновявания (не се препоръчва: риск по безопасността)">
+<!ENTITY updateManual.accesskey          "Н">
+<!ENTITY updateAutoAddonWarn.label       "Предупреждаване, ако това изключи коя да е от добавките">
+<!ENTITY updateAutoAddonWarn.accesskey   "П">
+<!ENTITY updateHistory.label             "Показване хронологията на обновяванията">
+<!ENTITY updateHistory.accesskey         "о">
+
+<!ENTITY useService.label                "Използване на фонова услуга за инсталиране на обновявания">
+<!ENTITY useService.accesskey            "ф">
+<!-- Networking and Disk Space -->
+
+<!ENTITY showSettings.label            "Настройки…">
+<!ENTITY showSettings.accesskey        "й">
+<!ENTITY proxiesConfigure.label        "Определяне как &brandShortName; се свързва с Интернет.">
+<!ENTITY connectionsInfo.caption       "Връзка">
+<!ENTITY offlineInfo.caption           "Без връзка">
+<!ENTITY offlineInfo.label             "Конфигуриране настройките за работа без връзка">
+<!ENTITY showOffline.label             "Без връзка…">
+<!ENTITY showOffline.accesskey         "Б">
+
+<!ENTITY Diskspace                       "Дисково място">
+<!ENTITY offlineCompactFolders.label     "Уплътняване на папките, когато ще се спести над">
+<!ENTITY offlineCompactFolders.accesskey "У">
+<!ENTITY offlineCompactFoldersMB.label   "MB общо">
+<!-- LOCALIZATION NOTE:
+  The entities useCacheBefore.label and useCacheAfter.label appear on a single
+  line in preferences as follows:
+
+  &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
+-->
+
+<!ENTITY useCacheBefore.label            "Използване не повече от">
+<!ENTITY useCacheBefore.accesskey        "п">
+<!ENTITY useCacheAfter.label             "МБ място за кеша">
+<!ENTITY clearCacheNow.label             "Изчистване">
+<!ENTITY clearCacheNow.accesskey         "ч">
+<!-- Certificates -->
+
+<!ENTITY certSelection.description       "Когато сървъра поиска личния ми сертификат:">
+<!ENTITY certs.auto                      "Автоматичен избор">
+<!ENTITY certs.auto.accesskey            "ч">
+<!ENTITY certs.ask                       "Запитване всеки път">
+<!ENTITY certs.ask.accesskey             "З">
+<!ENTITY enableOCSP.label                "Заявяване OCSP сървърите да потвърждават текущата валидност на сертификатите">
+<!ENTITY enableOCSP.accesskey            "З">
+
+<!ENTITY manageCertificates.label "Управление на сертификати">
+<!ENTITY manageCertificates.accesskey "У">
+<!ENTITY viewSecurityDevices.label "Защитни устройства">
+<!ENTITY viewSecurityDevices.accesskey "З">
+
+<!ENTITY viewCertificates.accesskey     "C">
+
+<!ENTITY viewCertificates.label         "View Certificates">

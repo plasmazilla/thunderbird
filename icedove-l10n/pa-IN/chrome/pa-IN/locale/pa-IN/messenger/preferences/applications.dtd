@@ -1,0 +1,35 @@
+<!ENTITY  typeColumn.label            "ਸਮੱਗਰੀ ਟਾਈਪ">
+<!ENTITY  typeColumn.accesskey        "T">
+
+<!ENTITY  actionColumn2.label         "ਐਕਸ਼ਨ">
+<!ENTITY  actionColumn2.accesskey     "A">
+
+<!ENTITY  focusSearch1.key            "f">
+<!ENTITY  focusSearch2.key            "k">
+
+<!ENTITY  filter.placeholder          "ਖੋਜ">
+
+<!ENTITY saveTo.label                 "ਫਾਇਲਾਂ ਇੱਥੇ ਸੰਭਾਲੋ">
+<!ENTITY saveTo.accesskey             "S">
+<!ENTITY alwaysAsk.label              "ਮੈਨੂੰ ਹਮੇਸ਼ਾ ਪੁੱਛੋ ਕਿ ਕਿੱਥੇ ਸੰਭਾਲਣਾ ਹੈ">
+<!ENTITY alwaysAsk.accesskey          "A">
+<!ENTITY chooseFolderWin.label        "…ਝਲਕ">
+<!ENTITY chooseFolderWin.accesskey    "B">
+<!ENTITY chooseFolderMac.label        "ਚੁਣੋ…">
+<!ENTITY chooseFolderMac.accesskey    "C">
+
+<!ENTITY addCloudFileAccount.accesskey    "A">
+<!ENTITY addCloudFileAccount.description  "Add a new Filelink storage service">
+
+<!ENTITY addCloudFileAccount.label        "Add">
+
+<!ENTITY attachments.incoming.label   "Incoming">
+<!ENTITY attachments.outgoing.label   "Outgoing">
+<!ENTITY authRequired.button.accesskey    "U">
+<!ENTITY authRequired.button.label        "Authorize">
+<!ENTITY authRequired.description         "Your authorization is required in order to see the settings for this storage service.">
+
+<!ENTITY enableCloudFileAccountOffer.label "Offer to share for files larger than">
+<!ENTITY enableCloudFileAccountOffer.mb "MB">
+<!ENTITY removeCloudFileAccount.accesskey "R">
+<!ENTITY removeCloudFileAccount.label     "Remove">

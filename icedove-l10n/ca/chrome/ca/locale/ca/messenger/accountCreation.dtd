@@ -1,0 +1,88 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY autoconfigWizard.title          "Configuració del compte de correu">
+<!ENTITY name.label                      "El vostre nom:">
+<!ENTITY name.accesskey                  "n">
+<!ENTITY name.placeholder                "Nom i cognoms">
+<!ENTITY name.text                       "El vostre nom, com voleu que es vegi">
+<!ENTITY email.label                     "Adreça electrònica:">
+<!ENTITY email.accesskey                 "A">
+<!ENTITY email.placeholder               "email@exemple.com">
+<!ENTITY password.label                  "Contrasenya:">
+<!ENTITY password.accesskey              "C">
+<!ENTITY password.placeholder            "Contrasenya">
+<!ENTITY password.text                   "Opcional, només es farà servir per validar el vostre usuari">
+<!ENTITY rememberPassword.label          "Recorda la contrasenya">
+<!ENTITY rememberPassword.accesskey      "R">
+
+<!ENTITY imapLong.label                  "IMAP (carpetes remotes)">
+<!ENTITY pop3Long.label                  "POP3 (conserva el correu al vostre ordinador)">
+
+<!ENTITY incoming.label                  "Entrada:">
+<!ENTITY outgoing.label                  "Sortida:">
+<!ENTITY username.label                  "Nom d'usuari:">
+<!ENTITY hostname.label                  "Nom del servidor">
+<!ENTITY port.label                      "Port">
+<!ENTITY ssl.label                       "SSL">
+<!ENTITY auth.label                      "Autenticació">
+<!ENTITY imap.label                      "IMAP">
+<!ENTITY pop3.label                       "POP3">
+<!ENTITY smtp.label                      "SMTP">
+<!ENTITY autodetect.label                "Detecta automàticament">
+<!-- LOCALIZATION NOTE(noEncryption.label): Neither SSL/TLS nor STARTTLS.
+     Transmission of emails in cleartext over the Internet. -->
+<!ENTITY noEncryption.label              "Cap">
+<!ENTITY starttls.label                  "STARTTLS">
+<!ENTITY sslTls.label                    "SSL/TLS">
+
+<!ENTITY advancedSetup.label             "Configuració avançada">
+<!ENTITY advancedSetup.accesskey         "g">
+<!ENTITY cancel.label                    "Cancel·la">
+<!ENTITY cancel.accesskey                "n">
+<!ENTITY continue.label                  "Continua">
+<!ENTITY continue.accesskey              "C">
+<!ENTITY stop.label                      "Atura">
+<!ENTITY stop.accesskey                  "A">
+<!-- LOCALIZATION NOTE (half-manual-test.label): This is the text that is
+     displayed on the button in manual edit mode which will re-guess
+     the account configuration, taking into account the settings that
+     the user has manually changed. -->
+<!ENTITY half-manual-test.label          "Prova-la">
+<!ENTITY half-manual-test.accesskey      "P">
+<!ENTITY manual-edit.label               "Configuració manual">
+<!ENTITY manual-edit.accesskey           "m">
+<!ENTITY switch-to-provisioner.label     "Obtén un compte nou">
+<!ENTITY switch-to-provisioner.accesskey "O">
+
+
+<!ENTITY warning.label                   "Atenció!">
+<!ENTITY incomingSettings.label          "Paràmetres d'entrada:">
+<!ENTITY outgoingSettings.label          "Paràmetres de sortida:">
+<!ENTITY technicaldetails.label          "Detalls tècnics">
+<!-- LOCALIZATION NOTE (confirmWarning.label): If there is a security
+     warning on the outgoing server, then the user will need to check a
+     checkbox beside this text before continuing. -->
+<!ENTITY confirmWarning.label            "Comprenc els riscs.">
+<!ENTITY confirmWarning.accesskey        "r">
+<!-- LOCALIZATION NOTE (doneAccount.label): If there is a security warning
+     on the incoming or outgoing servers, then the page that pops up will
+     have this text in a button to continue by creating the account. -->
+<!ENTITY doneAccount.label               "Fet">
+<!ENTITY doneAccount.accesskey           "F">
+<!-- LOCALIZATION NOTE (changeSettings.label): If there is a security warning on
+     the incoming or outgoing servers, then the page that pops up will have
+     this text in a button to take you back to the previous page to change
+     the settings and try again. -->
+<!ENTITY changeSettings.label            "Canvia els paràmetres">
+<!ENTITY changeSettings.accesskey        "m">
+
+<!ENTITY contactYourProvider.description "El &brandShortName; us podrà donar accés al vostre correu amb les opcions que heu configurat. Tot i així, hauríeu de comentar a l'administrador o al proveïdor de correu que les connexions no estan bé així. Per a més informació consulteu les PMF del Thunderbird.">
+
+<!ENTITY insecureServer.tooltip.title    "Atenció! Aquest servidor no és segur.">
+<!ENTITY insecureServer.tooltip.details  "Per a més informació feu clic al cercle.">
+
+<!ENTITY insecureUnencrypted.description "El correu s'envia desencriptat, per tant la vostra contrasenya (i el vostre missatge) es poden llegir fàcilment. El &brandShortName; us deixarà que utilitzeu el vostre correu, però hauríeu de contactar amb el vostre proveïdor perquè configuri una connexió segura al servidor.">
+<!ENTITY insecureSelfSigned.description  "El servidor utilitza un certificat que no és de confiança, per tant no podem estar segurs que ningú estigui interceptant les comunicacions entre el &brandShortName; i el vostre servidor. El &brandShortName; us permetrà accedir al vostre correu, però hauríeu de comentar al vostre proveïdor que configuri el servidor amb un certificat que sigui de confiança.">
+<!ENTITY secureServer.description        "Felicitats! Aquest servidor és segur.">
