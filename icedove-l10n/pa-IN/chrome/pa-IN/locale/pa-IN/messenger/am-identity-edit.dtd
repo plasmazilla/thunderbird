@@ -1,7 +1,0 @@
-<!ENTITY identityDialog.style "width: 67ch;">
-<!ENTITY identityTitle.label "ਪਛਾਣ ਸੈਟਿੰਗ">
-<!ENTITY identityListDesc.label "ਇਸ ਪਛਾਣ ਲਈ ਸੈਟਿੰਗ ਸੰਰਚਨਾ:">
-
-<!ENTITY settingsTab.label       "ਸੈਟਿੰਗ">
-<!ENTITY copiesFoldersTab.label "ਕਾਪੀ ਤੇ ਫੋਲਡਰ">
-<!ENTITY addressingTab.label    "ਲਿਖਣ ਤੇ ਐਡਰੈੱਸ">

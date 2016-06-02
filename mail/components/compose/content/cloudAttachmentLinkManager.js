@@ -36,10 +36,11 @@ var gCloudAttachmentLinkManager = {
 
   NotifyComposeBodyReady: function() {
 
-    // Look all the possible compose typed (nsIMsgComposeParams.idl):
+    // Look all the possible compose types (nsIMsgComposeParams.idl):
     switch (gComposeType) {
 
     case Components.interfaces.nsIMsgCompType.New:
+    case Components.interfaces.nsIMsgCompType.NewsPost:
     case Components.interfaces.nsIMsgCompType.ForwardAsAttachment:
       this.NotifyComposeBodyReadyNew();
       return;
@@ -114,6 +115,8 @@ var gCloudAttachmentLinkManager = {
         dump("Unexpected selection in NotifyComposeBodyReadyReply\n");
         return;
       }
+
+      editor.enableUndo(false);
 
       // Delete a <br> if we see one.
       let currentNode = mailBody.childNodes[start];
