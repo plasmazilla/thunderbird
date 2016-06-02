@@ -9,13 +9,13 @@
 
 // make SOLO_TEST=migration-to-rdf-ui-2/test-migrate-to-rdf-ui-2.js mozmill-one
 
-let MODULE_NAME = "test-migrate-to-rdf-ui-2";
-let RELATIVE_ROOT = "../shared-modules";
-let MODULE_REQUIRES = ["folder-display-helpers"];
+var MODULE_NAME = "test-migrate-to-rdf-ui-2";
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers"];
 
-let Cc = Components.classes;
-let Ci = Components.interfaces;
-let Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
 
@@ -62,6 +62,6 @@ function test_throbber_removed() {
   else
     currentSet = mc.e("mail-toolbar-menubar2").getAttribute("currentset");
 
-  assert_false(currentSet.contains("throbber-box"),
+  assert_false(currentSet.includes("throbber-box"),
                "We found a throbber-box where we shouldn't have.");
 }

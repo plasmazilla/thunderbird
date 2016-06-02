@@ -12,10 +12,10 @@
  *  get it wrong and it may eventually want to migrate.
  */
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/gloda/log4moz.js");
 Cu.import("resource:///modules/StringBundle.js");
@@ -26,7 +26,7 @@ Cu.import("resource:///modules/templateUtils.js");
 Cu.import("resource:///modules/gloda/public.js");
 Cu.import("resource:///modules/gloda/facet.js");
 
-const glodaFacetStrings =
+var glodaFacetStrings =
   new StringBundle("chrome://messenger/locale/glodaFacetView.properties");
 
 /**
@@ -100,7 +100,7 @@ ActiveSingularConstraint.prototype = {
     if (aInclusive != this.inclusive)
       throw new Error("You can't relax a constraint that isn't possible.");
 
-    for each (let [, groupValue] in Iterator(aGroupValues)) {
+    for (let groupValue of aGroupValues) {
       let index = this.groupValues.indexOf(groupValue);
       if (index == -1)
         throw new Error("Tried to relax a constraint that was not in force.");
@@ -135,22 +135,17 @@ ActiveSingularConstraint.prototype = {
   sieve: function(aItems) {
     let query = this.query;
     let expectedResult = !this.invertQuery;
-    let outItems = [];
-    for each (let [, item] in Iterator(aItems)) {
-      if (query.test(item) == expectedResult)
-        outItems.push(item);
-    }
-    return outItems;
+    return aItems.filter(item => query.test(item) == expectedResult);
   },
   isIncludedGroup: function(aGroupValue) {
     if (!this.inclusive)
       return false;
-    return this.groupValues.indexOf(aGroupValue) > -1;
+    return this.groupValues.contains(aGroupValue);
   },
   isExcludedGroup: function(aGroupValue) {
     if (this.inclusive)
       return false;
-    return this.groupValues.indexOf(aGroupValue) > -1;
+    return this.groupValues.contains(aGroupValue);
   }
 };
 
@@ -199,7 +194,7 @@ ActiveNonSingularConstraint.prototype = {
                            : this.excludedGroupIds;
     let valList = aInclusive ? this.includedGroupValues
                              : this.excludedGroupValues;
-    for each (let [, groupValue] in Iterator(aGroupValues)) {
+    for (let groupValue of aGroupValues) {
       let valId = (groupIdAttr !== null && groupValue != null) ?
                     groupValue[groupIdAttr] : groupValue;
       idMap[valId] = true;
@@ -227,7 +222,7 @@ ActiveNonSingularConstraint.prototype = {
                            : this.excludedGroupIds;
     let valList = aInclusive ? this.includedGroupValues
                              : this.excludedGroupValues;
-    for each (let [, groupValue] in Iterator(aGroupValues)) {
+    for (let groupValue of aGroupValues) {
       let valId = (groupIdAttr !== null && groupValue != null) ?
                     groupValue[groupIdAttr] : groupValue;
       if (!(valId in idMap))
@@ -276,14 +271,10 @@ ActiveNonSingularConstraint.prototype = {
    * Filter the items against our constraint.
    */
   sieve: function(aItems) {
-    let includeQuery = this.includeQuery, excludeQuery = this.excludeQuery;
-    let outItems = [];
-    for each (let [, item] in Iterator(aItems)) {
-      if ((!includeQuery || includeQuery.test(item)) &&
-          (!excludeQuery || !excludeQuery.test(item)))
-        outItems.push(item);
-    }
-    return outItems;
+    let includeQuery = this.includeQuery;
+    let excludeQuery = this.excludeQuery;
+    return aItems.filter(item => (!includeQuery || includeQuery.test(item)) &&
+                                 (!excludeQuery || !excludeQuery.test(item)));
   },
   isIncludedGroup: function(aGroupValue) {
     let valId = aGroupValue[this.facetDef.groupIdAttr];
@@ -351,14 +342,12 @@ var FacetContext = {
       scores = this.searcher.scores;
     else
       scores = Gloda.scoreNounItems(items);
-    let scoredItems = [[scores[i], item] for each
-                        ([i, item] in Iterator(items))];
-    scoredItems.sort(function(a,b) b[0]-a[0]);
-    this._relevantSortedItems = [scoredItem[1] for each
-                                  ([, scoredItem] in Iterator(scoredItems))];
+    let scoredItems = items.map(function(item, index) { return [scores[index], item]; });
+    scoredItems.sort((a, b) => b[0]-a[0]);
+    this._relevantSortedItems = scoredItems.map(scoredItem => scoredItem[1]);
 
     this._dateSortedItems =
-      this._relevantSortedItems.concat().sort(function(a,b) b.date-a.date);
+      this._relevantSortedItems.concat().sort((a, b) => b.date-a.date);
   },
 
   initialBuild: function() {
@@ -400,7 +389,7 @@ var FacetContext = {
   _removeDupes: function(aItems) {
     let deduped = [];
     let msgIdsSeen = {};
-    for each (let [, item] in Iterator(aItems)) {
+    for (let item of aItems) {
       if (item.headerMessageID in msgIdsSeen)
         continue;
       deduped.push(item);
@@ -437,7 +426,7 @@ var FacetContext = {
    * Clean up the UI in preparation for a new query to come in.
    */
   _resetUI: function() {
-    for each (let [, faceter] in Iterator(this.faceters)) {
+    for (let faceter of this.faceters) {
       if (faceter.xblNode && !faceter.xblNode.explicit)
         faceter.xblNode.remove();
       faceter.xblNode = null;
@@ -460,7 +449,7 @@ var FacetContext = {
     if (!this.everFaceted) {
       this.everFaceted = true;
       this.faceters.sort(this._groupCountComparator);
-      for each (let [, faceter] in Iterator(this.faceters)) {
+      for (let faceter of this.faceters) {
         let attrName = faceter.attrDef.attributeName;
         let explicitBinding = document.getElementById("facet-" + attrName);
 
@@ -473,7 +462,7 @@ var FacetContext = {
           explicitBinding.orderedGroups = faceter.orderedGroups;
           // explicit booleans should always be displayed for consistency
           if (faceter.groupCount >= 1 ||
-              (explicitBinding.getAttribute("type").contains("boolean"))) {
+              (explicitBinding.getAttribute("type").includes("boolean"))) {
             try {
               explicitBinding.build(true);
             } catch (e) {
@@ -502,7 +491,7 @@ var FacetContext = {
       }
     }
     else {
-      for each (let [, faceter] in Iterator(this.faceters)) {
+      for (let faceter of this.faceters) {
         // Do not bother with un-displayed facets, or that are locked by a
         //  constraint.  But do bother if the widget can be updated without
         //  losing important data.
@@ -514,12 +503,12 @@ var FacetContext = {
         //  explicit
         if (faceter.groupCount <= 1 && !faceter.constraint &&
             (!faceter.xblNode.explicit || faceter.type == "date"))
-          $(faceter.xblNode).hide();
+          faceter.xblNode.style.display = "none";
         // otherwise, update
         else {
           faceter.xblNode.orderedGroups = faceter.orderedGroups;
           faceter.xblNode.build(false);
-          $(faceter.xblNode).show();
+          faceter.xblNode.style.display = "block";
         }
       }
     }
@@ -544,25 +533,25 @@ var FacetContext = {
     results.setMessages(this._activeSet.slice(0, numMessageToShow));
 
     let showLoading = document.getElementById("showLoading");
-    $(showLoading).hide(); /* hide spinner, we're done thinking */
+    showLoading.style.display = "none"; /* hide spinner, we're done thinking */
 
     let showEmpty = document.getElementById("showEmpty");
     let dateToggle = document.getElementById("date-toggle");
     /* check for no messages at all */
     if (this._activeSet.length == 0) {
-      $(showEmpty).show();
-      $(dateToggle).hide();
+      showEmpty.style.display = "block";
+      dateToggle.style.display = "none";
     }
     else {
-      $(showEmpty).hide();
-      $(dateToggle).show();
+      showEmpty.style.display = "none";
+      dateToggle.style.display = "block";
     }
 
     let showMore = document.getElementById("showMore");
     if (this._activeSet.length > numMessageToShow)
-      $(showMore).show();
+      showMore.style.display = "block";
     else
-      $(showMore).hide();
+      showMore.style.display = "none";
   },
 
   showMore: function() {
@@ -591,17 +580,33 @@ var FacetContext = {
   },
 
   _showTimeline: function() {
-    $("#facet-date").slideDown();
-    $("#date-toggle").removeAttr("tucked");
+    let facetDate = document.getElementById("facet-date");
+    if (facetDate.style.display == "none") {
+      facetDate.style.display = "inherit";
+      // Force binding attachment so the transition to the
+      // visible state actually happens.
+      facetDate.getBoundingClientRect();
+    }
+    let listener = () => {
+      // Need to set overflow to visible so that the zoom button
+      // is not cut off at the top, and overflow=hidden causes
+      // the transition to not work as intended.
+      facetDate.removeAttribute("style");
+      facetDate.removeEventListener("transitionend", listener);
+    };
+    facetDate.addEventListener("transitionend", listener);
+    facetDate.removeAttribute("hide");
+    document.getElementById("date-toggle").removeAttribute("tucked");
     Application.prefs.setValue('gloda.facetview.hidetimeline', false);
   },
 
   _hideTimeline: function(immediate) {
+    let facetDate = document.getElementById("facet-date");
     if (immediate)
-      $("#facet-date").hide();
-    else
-      $("#facet-date").slideUp();
-    $("#date-toggle").attr("tucked", "true");
+      facetDate.style.display = "none";
+    facetDate.style.overflow = "hidden";
+    facetDate.setAttribute("hide", "true");
+    document.getElementById("date-toggle").setAttribute("tucked", "true");
     Application.prefs.setValue('gloda.facetview.hidetimeline', true);
   },
 
@@ -635,7 +640,7 @@ var FacetContext = {
   },
   _timeoutHover: function() {
     this._brushTimeout = null;
-    for each (let [, faceter] in Iterator(this.faceters)) {
+    for (let faceter of this.faceters) {
       if (faceter == this._brushedFacet || !faceter.xblNode)
         continue;
 
@@ -770,8 +775,8 @@ var FacetContext = {
   _sieveAll: function() {
     let items = this.fullSet;
 
-    for each (let [, constraint] in Iterator(this._activeConstraints)) {
-      items = constraint.sieve(items);
+    for (let elem in this._activeConstraints) {
+      items = this._activeConstraints[elem].sieve(items);
     }
 
     return items;
@@ -873,7 +878,7 @@ function reachOutAndTouchFrame() {
                     .getInterface(Ci.nsIDOMWindow);
   let aTab = FacetContext.tab = parentWin.tab;
   parentWin.tab = null;
-  $(window).resize(function() {
+  window.addEventListener("resize", function() {
     document.getElementById("facet-date").build(true);
   });
   // we need to hook the context up as a listener in all cases since

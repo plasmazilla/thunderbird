@@ -4,8 +4,8 @@
 
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
 
-const PREF_EXTENSIONS_GETMOREMESSAGESTYLESURL = "extensions.getMoreMessageStylesURL";
-const PREF_EXTENSIONS_GETMOREEMOTICONSURL     = "extensions.getMoreEmoticonsURL";
+var PREF_EXTENSIONS_GETMOREMESSAGESTYLESURL = "extensions.getMoreMessageStylesURL";
+var PREF_EXTENSIONS_GETMOREEMOTICONSURL     = "extensions.getMoreEmoticonsURL";
 
 var gThemePane = {
   init: function (){
@@ -56,7 +56,7 @@ var gThemePane = {
     let extensionTypeRegExp = new RegExp("^" + aThemeType + "-");
     let themeList =
       this.getExtensionList()
-          .filter(function(item) extensionTypeRegExp.test(item.id))
+          .filter(item => extensionTypeRegExp.test(item.id))
           .sort(function(item1, item2) {
             let name1 = item1.name.toLowerCase();
             let name2 = item2.name.toLowerCase();

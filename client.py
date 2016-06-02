@@ -10,33 +10,31 @@
 # Repo Defaults
 # 'REV' controls the default rev for All the various repo's
 # Define x_REV to override. Where x can be one of:
-#  "COMM", "MOZILLA", "CHATZILLA", "INSPECTOR", "LDAPSDKS"
+#  "COMM", "MOZILLA", "CHATZILLA", "INSPECTOR"
 DEFAULTS = {
     # Global Default Revision
     'REV': "default",
 
-    # LDAPSDKS
-    'LDAPSDKS_REPO': 'https://hg.mozilla.org/projects/ldap-sdks/',
-    'LDAPSDKS_REV': 'LDAPCSDK_6_0_7H_RTM',
-
     # URL of the default hg repository to clone for ChatZilla.
     'CHATZILLA_REPO': 'https://hg.mozilla.org/chatzilla/',
     # The stable revision to use
-      'CHATZILLA_REV':  'SEA2_32_RELBRANCH',
+    'CHATZILLA_REV':  'SEA2_42_RELBRANCH',
 
     # URL of the default hg repository to clone for DOM Inspector.
     'INSPECTOR_REPO': 'https://hg.mozilla.org/dom-inspector/',
     # The stable revision to use
-      'INSPECTOR_REV':  'DOMI_LATEST_RELEASE',
+      'INSPECTOR_REV':  'DOMI_2_0_16_GECKO_45',
 
     # URL of the default hg repository to clone for Mozilla.
-    'MOZILLA_REPO': 'https://hg.mozilla.org/releases/mozilla-esr38/',
+    'MOZILLA_REPO': 'https://hg.mozilla.org/releases/mozilla-esr45/',
+
+    # Branch to use from the Mozilla repository.
+    'MOZILLA_REV': 'THUNDERBIRD_45_VERBRANCH',
 }
 
 REPO_SHORT_NAMES = {
     'mozilla-central':  'moz',
     'dom-inspector':    'dom',
-    'ldap-sdks':        'ldap',
 }
 
 
@@ -425,7 +423,6 @@ def do_apply_patches(topsrcdir, hg):
         'mozilla': 'mozilla',
         'chatzilla': os.path.join('mozilla', 'extensions', 'irc'),
         'inspector': os.path.join('mozilla', 'extensions', 'inspector'),
-        'ldap':      os.path.join('ldap', 'sdks'),
     }
 
     for prefix in prefix_map.keys():
@@ -470,16 +467,6 @@ o.add_option("--skip-inspector", dest="skip_inspector",
 o.add_option("--inspector-rev", dest="inspector_rev",
              default=None,
              help="Revision of DOM Inspector repository to update to. Default: \"" + get_DEFAULT_tag('INSPECTOR_REV') + "\"")
-
-o.add_option("--ldap-repo", dest="ldap_repo",
-             default=None,
-             help="URL of LDAP repository to pull from (default: use hg default in ldap/sdks/.hg/hgrc; or if that file doesn't exist use \"" + DEFAULTS['LDAPSDKS_REPO'] + "\".)")
-o.add_option("--skip-ldap", dest="skip_ldap",
-             action="store_true", default=False,
-             help="Skip pulling the LDAP repository.")
-o.add_option("--ldap-rev", dest="ldap_rev",
-             default=None,
-             help="Revision of LDAP repository to update to. Default: \"" + get_DEFAULT_tag('LDAPSDKS_REV') + "\"")
 
 o.add_option("--chatzilla-repo", dest="chatzilla_repo",
              default=None,
@@ -635,21 +622,6 @@ def fixup_inspector_repo_options(options):
         options.inspector_rev = get_DEFAULT_tag("INSPECTOR_REV")
 
 
-def fixup_ldap_repo_options(options):
-    """Handle special case: initial checkout of LDAP.
-
-    See fixup_comm_repo_options().
-    """
-
-    # No cvs backup needed as LDAP directory name changed when it moved to hg
-    if options.ldap_repo is None and \
-            not os.path.exists(os.path.join(topsrcdir, 'ldap', 'sdks')):
-        options.ldap_repo = DEFAULTS['LDAPSDKS_REPO']
-
-    if options.ldap_rev is None:
-        options.ldap_rev = get_DEFAULT_tag("LDAPSDKS_REV")
-
-
 def get_last_known_good_mozilla_rev():
     kg_url = "http://build.mozillamessaging.com/buildbot/production/known-good-revisions/mozilla-central.txt"
     try:
@@ -671,8 +643,7 @@ except ValueError:
 if options.default_rev:
     # We now wish to override all the DEFAULTS.
     DEFAULTS['REV'] = options.default_rev
-    for index in ['CHATZILLA', 'INSPECTOR', 'COMM', 'MOZILLA',
-                  'LDAPSDKS']:
+    for index in ['CHATZILLA', 'INSPECTOR', 'COMM', 'MOZILLA']:
         index += "_REV"
         # Clear the rest from file-defaults
         if index in DEFAULTS:
@@ -712,11 +683,6 @@ if action in ('checkout', 'co'):
         fixup_inspector_repo_options(options)
         do_hg_pull(os.path.join('mozilla', 'extensions', 'inspector'),
                    options.inspector_repo, options.hg, options.inspector_rev)
-
-    if not options.skip_ldap:
-        fixup_ldap_repo_options(options)
-        do_hg_pull(os.path.join('ldap', 'sdks'), options.ldap_repo, options.hg,
-                   options.ldap_rev)
 
     if options.apply_patches:
         do_apply_patches(topsrcdir, options.hg)

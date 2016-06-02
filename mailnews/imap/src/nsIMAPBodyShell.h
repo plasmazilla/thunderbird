@@ -14,7 +14,7 @@ nsIMAPBodyShell and associated classes
 #include "nsImapCore.h"
 #include "nsStringGlue.h"
 #include "nsRefPtrHashtable.h"
-#include "nsVoidArray.h"
+#include "nsTArray.h"
 
 class nsImapProtocol;
 
@@ -115,7 +115,7 @@ class nsIMAPMessageHeaders : public nsIMAPBodypart
 {
 public:
     nsIMAPMessageHeaders(char *partNum, nsIMAPBodypart *parentPart);
-	virtual nsIMAPBodypartType	GetType() override;
+    virtual nsIMAPBodypartType	GetType() override;
     // Generates an HTML representation of this part.  Returns content length generated, -1 if failed.
     virtual int32_t Generate(nsIMAPBodyShell *aShell, bool stream,
                              bool prefetch) override;
@@ -143,7 +143,7 @@ public:
     void SetBodySubType(char *bodySubType);
 
 protected:
-	nsVoidArray			*m_partList;			// An ordered list of top-level body parts for this shell
+    nsTArray<nsIMAPBodypart*>  *m_partList;  // An ordered list of top-level body parts for this shell
 };
 
 
@@ -156,7 +156,7 @@ public:
                      char *bodySubType, char *bodyID, char *bodyDescription,
                      char *bodyEncoding, int32_t partLength,
                      bool preferPlainText);
-	virtual nsIMAPBodypartType	GetType() override;
+    virtual nsIMAPBodypartType	GetType() override;
     // Generates an HTML representation of this part.  Returns content length generated, -1 if failed.
     virtual int32_t Generate(nsIMAPBodyShell *aShell, bool stream, bool prefetch) override;
     // returns true if this part should be fetched inline for generation.
@@ -321,9 +321,9 @@ protected:
   // cache, clearing up a new space.  Returns true if it found an entry
   // to eject, false otherwise.
   bool EjectEntry();
-  uint32_t GetSize() { return m_shellList->Count(); }
+  uint32_t GetSize() { return m_shellList->Length(); }
   uint32_t GetMaxSize() { return 20; }
-  nsVoidArray *m_shellList; // For maintenance
+  nsTArray<nsIMAPBodyShell*> *m_shellList; // For maintenance
   // For quick lookup based on UID
   nsRefPtrHashtable <nsCStringHashKey, nsIMAPBodyShell> m_shellHash;
 };
@@ -344,17 +344,17 @@ protected:
 };
 
 
-class nsIMAPMessagePartIDArray : public nsVoidArray {
+class nsIMAPMessagePartIDArray : public nsTArray<nsIMAPMessagePartID*> {
 public:
 	nsIMAPMessagePartIDArray();
 	~nsIMAPMessagePartIDArray();
 
 	void				RemoveAndFreeAll();
-	int					GetNumParts() {return Count();}
+	int					GetNumParts() {return Length();}
 	nsIMAPMessagePartID	*GetPart(int i) 
 	{
-		NS_ASSERTION(i >= 0 && i < Count(), "invalid message part #");
-		return (nsIMAPMessagePartID *) ElementAt(i);
+		NS_ASSERTION(i >= 0 && i < Length(), "invalid message part #");
+		return ElementAt(i);
 	}
 };
 

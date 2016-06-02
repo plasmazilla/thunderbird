@@ -13,16 +13,16 @@ load("../../../resources/messageGenerator.js");
 load("../../../resources/messageModifier.js");
 load("../../../resources/messageInjection.js");
 
-let gMessenger = Cc["@mozilla.org/messenger;1"]
+var gMessenger = Cc["@mozilla.org/messenger;1"]
                    .createInstance(Ci.nsIMessenger);
 
 // Create a message generator
-const msgGen = gMessageGenerator = new MessageGenerator();
+var msgGen = gMessageGenerator = new MessageGenerator();
 
-let messages = [
+var messages = [
   // a message whose body is itself a message
   { bodyPart: msgGen.makeMessage(),
-    attachmentCount: function(inline) 1,
+    attachmentCount: inline => 1,
   },
   // a message whose body is itself a message, and which has an attachment
   { bodyPart: msgGen.makeMessage({
@@ -30,11 +30,11 @@ let messages = [
                       filename: "attachment.txt",
                       format: "" }]
     }),
-    attachmentCount: function(inline) inline ? 2 : 1,
+    attachmentCount: inline => inline ? 2 : 1,
   },
 ];
 
-let gStreamListener = {
+var gStreamListener = {
   stream: null,
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIStreamListener]),
 
@@ -57,7 +57,7 @@ let gStreamListener = {
   }
 };
 
-let gMessageHeaderSink = {
+var gMessageHeaderSink = {
   attachmentCount: 0,
 
   handleAttachment: function(aContentType, aUrl, aDisplayName, aUri,
@@ -82,7 +82,7 @@ let gMessageHeaderSink = {
   },
 };
 
-let msgWindow = Cc["@mozilla.org/messenger/msgwindow;1"]
+var msgWindow = Cc["@mozilla.org/messenger/msgwindow;1"]
                   .createInstance(Ci.nsIMsgWindow);
 msgWindow.msgHeaderSink = gMessageHeaderSink;
 
@@ -119,12 +119,12 @@ function test_rfc822_body_no_display_inline(info) {
 
 /* ===== Driver ===== */
 
-let tests = [
+var tests = [
   parameterizeTest(test_rfc822_body_display_inline, messages),
   parameterizeTest(test_rfc822_body_no_display_inline, messages),
 ];
 
-let gInbox;
+var gInbox;
 
 function run_test() {
   gInbox = configure_message_injection({mode: "local"});

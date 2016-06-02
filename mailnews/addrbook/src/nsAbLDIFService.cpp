@@ -7,6 +7,7 @@
 #include "nsAbLDIFService.h"
 #include "nsIFile.h"
 #include "nsILineInputStream.h"
+#include "nsIInputStream.h"
 #include "nsNetUtil.h"
 #include "nsISeekableStream.h"
 #include "mdb.h"
@@ -14,6 +15,7 @@
 #include "prmem.h"
 #include "prprf.h"
 #include "nsCRTGlue.h"
+#include "nsTArray.h"
 
 #include <ctype.h>
 
@@ -375,7 +377,7 @@ void nsAbLDIFService::AddLdifRowToDatabase(nsIAddrDatabase *aDatabase,
     else
       continue; // parse error: continue with next loop iteration
   }
-  nsMemory::Free(saveCursor);
+  free(saveCursor);
   aDatabase->AddCardRowToDB(newRow);    
 
   if (bIsList)
@@ -634,10 +636,7 @@ void nsAbLDIFService::AddLdifColToDatabase(nsIAddrDatabase *aDatabase,
   case 'r':
     if (colType.EqualsLiteral("region"))
     {
-      if (mStoreLocAsHome)
-        aDatabase->AddWorkState(newRow, column.get());
-      else
-        aDatabase->AddWorkState(newRow, column.get());
+      aDatabase->AddWorkState(newRow, column.get());
     }
 
     break; // 'r'

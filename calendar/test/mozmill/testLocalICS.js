@@ -2,17 +2,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "testLocalICS";
-const RELATIVE_ROOT = "./shared-modules";
-const MODULE_REQUIRES = ["calendar-utils", "window-helpers"];
+var MODULE_NAME = "testLocalICS";
+var RELATIVE_ROOT = "./shared-modules";
+var MODULE_REQUIRES = ["calendar-utils", "window-helpers"];
 
 var calUtils = require("./shared-modules/calendar-utils");
 var modalDialog; // Initialized in setupModule
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
-const sleep = 500;
-const TIMEOUT_MODAL_DIALOG = 30000;
+var sleep = 500;
+var TIMEOUT_MODAL_DIALOG = 30000;
 var hour = 8;
 var calendar;
 var uri;
@@ -63,7 +63,7 @@ var testLocalICS = function () {
   // HACK - Wait for the value to be selected. This is needed for platforms
   // like mac where selecting the menuitem is an asynchronous process, it might
   // be fixed in a later version of mozmill.
-  event.waitFor(function() itemCalendar.getNode().value == calendar);
+  event.waitFor(() => itemCalendar.getNode().value == calendar);
   
   // save
   event.click(new elementslib.ID(event.window.document, "button-save"));
@@ -93,7 +93,7 @@ var testLocalICS = function () {
   cstream.readString(-1, str);
   cstream.close();
 
-  controller.assertJS(str.value.indexOf("SUMMARY:" + title) != -1);
+  controller.assertJS(str.value.includes("SUMMARY:" + title));
 }
 
 var teardownTest = function(module) {

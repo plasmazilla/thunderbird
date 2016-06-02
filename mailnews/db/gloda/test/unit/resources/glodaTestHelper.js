@@ -40,9 +40,9 @@ registerFolderEventLogHelper();
 
 
 // Create a message generator
-const msgGen = gMessageGenerator = new MessageGenerator();
+var msgGen = gMessageGenerator = new MessageGenerator();
 // Create a message scenario generator using that message generator
-const scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
+var scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
 
 Components.utils.import("resource:///modules/errUtils.js");
 
@@ -70,7 +70,7 @@ Services.prefs.setBoolPref("mailnews.database.global.indexer.perform_initial_swe
 // yes to debug output
 Services.prefs.setBoolPref("mailnews.database.global.logging.dump", true);
 
-const ENVIRON_MAPPINGS = [
+var ENVIRON_MAPPINGS = [
   {
     envVar: "GLODA_DATASTORE_EXPLAIN_TO_PATH",
     prefName: "mailnews.database.global.datastore.explainToPath"
@@ -78,9 +78,9 @@ const ENVIRON_MAPPINGS = [
 ];
 
 // -- Propagate environment variables to prefs as appropriate:
-let environ = Cc["@mozilla.org/process/environment;1"]
+var environ = Cc["@mozilla.org/process/environment;1"]
                 .getService(Ci.nsIEnvironment);
-for each (let [, {envVar, prefName}] in Iterator(ENVIRON_MAPPINGS)) {
+for (let {envVar, prefName} of ENVIRON_MAPPINGS) {
  if (environ.exists(envVar)) {
    Services.prefs.setCharPref(prefName, environ.get(envVar));
  }
@@ -99,14 +99,14 @@ Components.utils.import("resource:///modules/gloda/mimemsg.js");
 
 // -- Add a logger listener that throws when we give it a warning/error.
 Components.utils.import("resource:///modules/gloda/log4moz.js");
-let throwingAppender = new Log4Moz.ThrowingAppender(do_throw);
+var throwingAppender = new Log4Moz.ThrowingAppender(do_throw);
 throwingAppender.level = Log4Moz.Level.Warn;
 Log4Moz.repository.rootLogger.addAppender(throwingAppender);
 
 var LOG = Log4Moz.repository.getLogger("gloda.test");
 
 // index_msg does not export this, so we need to provide it.
-const GLODA_BAD_MESSAGE_ID = 2,
+var GLODA_BAD_MESSAGE_ID = 2,
       GLODA_OLD_BAD_MESSAGE_ID = 1;
 
 // -- Add a hook that makes folders not filthy when we first see them.
@@ -247,7 +247,7 @@ if (logHelperHasInterestedListeners) {
   }
 }
 
-const _wait_for_gloda_indexer_defaults = {
+var _wait_for_gloda_indexer_defaults = {
   verifier: null,
   augment: false,
   deleted: null,
@@ -471,10 +471,10 @@ var _indexMessageState = {
     let previousValue = undefined;
 
     // - Check we have a gloda message for every syn message and verify
-    for each (let [, msgSet] in Iterator(this.synMessageSets)) {
+    for (let msgSet of this.synMessageSets) {
       if (this.augmentSynSets)
         msgSet.glodaMessages = [];
-      for each (let [iSynMsg, synMsg] in Iterator(msgSet.synMessages)) {
+      for (let [iSynMsg, synMsg] of msgSet.synMessages.entries()) {
         if (!(synMsg.messageId in this._glodaMessagesByMessageId)) {
           let msgHdr = msgSet.getMsgHdr(iSynMsg);
           mark_failure(
@@ -507,7 +507,8 @@ var _indexMessageState = {
     }
 
     // - Check that we don't have any extra gloda messages (lacking syn msgs)
-    for each (let [, glodaMsg] in Iterator(this._glodaMessagesByMessageId)) {
+    for (let messageId in this._glodaMessagesByMessageId) {
+      let glodaMsg = this._glodaMessagesByMessageId[messageId];
       if (glodaMsg != null) {
         // logObject is too verbose right now
         dump("gloda message: " + glodaMsg + "\n");
@@ -518,8 +519,8 @@ var _indexMessageState = {
     }
 
     if (this.deletionSynSets) {
-      for each (let [, msgSet] in Iterator(this.deletionSynSets)) {
-        for each (let [iSynMsg, synMsg] in Iterator(msgSet.synMessages)) {
+      for (let msgSet of this.deletionSynSets) {
+        for (let synMsg of msgSet.synMessages) {
           if (!(synMsg.messageId in this._glodaDeletionsByMessageId)) {
             do_throw("Synthetic message " + synMsg + " did not get deleted!");
           }
@@ -532,8 +533,8 @@ var _indexMessageState = {
     }
 
     // - Check that we don't have unexpected deletions
-    for each (let [messageId, glodaMsg] in
-              Iterator(this._glodaDeletionsByMessageId)) {
+    for (let messageId in this._glodaDeletionsByMessageId) {
+      let  glodaMsg = this._glodaDeletionsByMessageId[messageId];
       if (glodaMsg != null) {
         logObject(glodaMsg, "glodaMsg");
         do_throw("Gloda message with message id " + messageId + " was " +
@@ -593,7 +594,7 @@ var _indexMessageState = {
   onItemsAdded: function(aItems) {
     mark_action("glodaEvent", "itemsAdded", aItems);
 
-    for each (let [, item] in Iterator(aItems)) {
+    for (let item of aItems) {
       if (item.headerMessageID in this._glodaMessagesByMessageId)
         mark_failure(
           ["Gloda message", item.folderMessage,
@@ -612,7 +613,7 @@ var _indexMessageState = {
   onItemsModified: function(aItems) {
     mark_action("glodaEvent", "itemsModified", aItems);
 
-    for each (let [, item] in Iterator(aItems)) {
+    for (let item of aItems) {
       if (item.headerMessageID in this._glodaMessagesByMessageId)
         mark_failure(
           ["Gloda message", item, "already indexed once since the last" +
@@ -625,7 +626,7 @@ var _indexMessageState = {
   onItemsRemoved: function(aItems) {
     mark_action("glodaEvent", "removed", aItems);
 
-    for each (let [, item] in Iterator(aItems)) {
+    for (let item of aItems) {
       if (item.headerMessageID in this._glodaDeletionsByMessageId)
         mark_failure(
           ["Gloda message", item, "already deleted once since the last" +
@@ -832,7 +833,7 @@ function QueryExpectationListener(aExpectedSet, aGlodaExtractor,
 
 QueryExpectationListener.prototype = {
   onItemsAdded: function query_expectation_onItemsAdded(aItems, aCollection) {
-    for each (let [, item] in Iterator(aItems)) {
+    for (let item of aItems) {
       let glodaStringRep;
       try {
         glodaStringRep = this.glodaExtractor(item);
@@ -858,7 +859,7 @@ QueryExpectationListener.prototype = {
           // if the order was wrong, we could probably go for an output of what
           //  we actually got...
           dump("!!! ORDER PROBLEM, SO ORDER DUMP!\n");
-          for each (let [iThing, thing] in Iterator(aItems)) {
+          for (let [iThing, thing] of aItems.entries()) {
             dump(iThing + ": " + thing +
                  (aCollection.stashedColumns ?
                   (". " + aCollection.stashedColumns[thing.id].join(", ")) :
@@ -889,7 +890,8 @@ QueryExpectationListener.prototype = {
     aCollection.becomeExplicit();
 
     // expectedSet should now be empty
-    for each (let [key, value] in Iterator(this.expectedSet)) {
+    for (let key in this.expectedSet) {
+      let value = this.expectedSet[key];
       dump("I have seen " + this.nextIndex + " results, but not:\n");
       do_throw("Query should have returned " + key + " (" + value + ")");
     }
@@ -968,7 +970,7 @@ function queryExpect(aQuery, aExpectedSet, aGlodaExtractor,
 
   // - build the expected set
   let expectedSet = {};
-  for each (let [, item] in Iterator(aExpectedSet)) {
+  for (let item of aExpectedSet) {
     try {
       expectedSet[aExpectedExtractor(item)] = item;
     }
@@ -1095,8 +1097,8 @@ function wait_for_gloda_db_flush() {
   return false;
 }
 
-let _gloda_simulate_hang_data = null;
-let _gloda_simulate_hang_waiting_for_hang = false;
+var _gloda_simulate_hang_data = null;
+var _gloda_simulate_hang_waiting_for_hang = false;
 
 function _simulate_hang_on_MsgHdrToMimeMessage() {
   _gloda_simulate_hang_data = [MsgHdrToMimeMessage, null, arguments];
@@ -1287,7 +1289,8 @@ function nukeGlodaCachesAndCollections() {
   //  caches, so we need to create new ones from the ashes of the old ones.
   let oldCaches = GlodaCollectionManager._cachesByNoun;
   GlodaCollectionManager._cachesByNoun = {};
-  for each (let cache in oldCaches) {
+  for (let nounId in oldCaches) {
+    let cache = oldCaches[nounId];
     GlodaCollectionManager.defineCache(cache._nounDef, cache._maxCacheSize);
   }
 }

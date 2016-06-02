@@ -3,18 +3,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["glodaIndexerActivity"];
+this.EXPORTED_SYMBOLS = ["glodaIndexerActivity"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
-const nsActProcess = Components.Constructor("@mozilla.org/activity-process;1",
+var nsActProcess = Components.Constructor("@mozilla.org/activity-process;1",
                                             "nsIActivityProcess", "init");
-const nsActEvent   = Components.Constructor("@mozilla.org/activity-event;1",
+var nsActEvent   = Components.Constructor("@mozilla.org/activity-event;1",
                                             "nsIActivityEvent", "init");
-const nsActWarning = Components.Constructor("@mozilla.org/activity-warning;1",
+var nsActWarning = Components.Constructor("@mozilla.org/activity-warning;1",
                                             "nsIActivityWarning", "init");
 
 Cu.import("resource://gre/modules/Services.jsm");
@@ -27,7 +27,7 @@ Cu.import("resource:///modules/gloda/indexer.js");
 /**
  * Gloda message indexer feedback.
  */
-let glodaIndexerActivity =
+var glodaIndexerActivity =
 {
   get log() {
     delete this.log;
@@ -216,7 +216,7 @@ let glodaIndexerActivity =
 
       // Transfer subjects.
       let subjects = this.currentJob.process.getSubjects({});
-      for each (let [, subject] in Iterator(subjects))
+      for (let subject of subjects)
         event.addSubject(subject);
 
       this.activityMgr.addActivity(event);

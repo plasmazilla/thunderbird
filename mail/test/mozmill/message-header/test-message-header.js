@@ -224,7 +224,7 @@ function test_clicking_star_opens_inline_contact_editor()
   // Click on the star, and ensure that the inline contact
   // editing panel opens
   mc.click(mc.aid(lastAddr, {class: 'emailStar'}));
-  mc.waitFor(function() contactPanel.state == "open",
+  mc.waitFor(() => contactPanel.state == "open",
              "Timeout waiting for contactPanel to open; state=" +
              contactPanel.state);
   contactPanel.hidePopup();
@@ -764,7 +764,7 @@ function test_toolbar_collapse_and_expand() {
     mc.window.resizeTo(1200, 600);
     // spin the event loop once
     mc.sleep(0);
-    mc.waitFor(function() expandedHeadersTopBox.clientHeight == shortHeight,
+    mc.waitFor(() => expandedHeadersTopBox.clientHeight == shortHeight,
                "The header box should have returned to its wide size!")
   }
   finally {
@@ -875,7 +875,7 @@ function subtest_addresses_in_tooltip_text(aRecipients, aHeaderBox,
 
   for (let i = aShownAddrsNum; (i < numAddresses) &&
                                (i < maxTooltipAddrsNum + aShownAddrsNum); i++) {
-    assert_true(tooltipText.contains(fullNames.value[i]), fullNames.value[i]);
+    assert_true(tooltipText.includes(fullNames.value[i]), fullNames.value[i]);
     addrsNumInTooltip += 1;
   }
 
@@ -1029,10 +1029,14 @@ if ("nsIAccessibleRole" in Ci) {
   function test_a11y_attrs() {
     be_in_folder(folder);
 
-    // select and open the interesting message
+    // Convert the SyntheticMessage gInterestingMessage into an actual
+    // nsIMsgDBHdr XPCOM message.
+    let hdr = folder.msgDatabase
+                    .getMsgHdrForMessageID(gInterestingMessage.messageId);
 
-    let curMessage = select_click_row(mc.dbView.findIndexOfMsgHdr(
-                                        gInterestingMessage, false));
+    // select and open the interesting message
+    let curMessage = select_click_row(mc.dbView
+                                        .findIndexOfMsgHdr(hdr, false));
 
     // make sure it loads
     assert_selected_and_displayed(mc, curMessage);

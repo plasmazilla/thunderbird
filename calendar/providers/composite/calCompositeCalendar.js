@@ -12,7 +12,7 @@ Components.utils.import("resource://calendar/modules/calUtils.jsm");
 /**
  * Calendar specific utility functions
  */
-const calIOperationListener = Components.interfaces.calIOperationListener;
+var calIOperationListener = Components.interfaces.calIOperationListener;
 
 function calCompositeCalendarObserverHelper (compCalendar) {
     this.compCalendar = compCalendar;
@@ -81,8 +81,8 @@ function calCompositeCalendar () {
     this.mStatusObserver = null;
 }
 
-const calCompositeCalendarClassID = Components.ID("{aeff788d-63b0-4996-91fb-40a7654c6224}");
-const calCompositeCalendarInterfaces = [
+var calCompositeCalendarClassID = Components.ID("{aeff788d-63b0-4996-91fb-40a7654c6224}");
+var calCompositeCalendarInterfaces = [
     Components.interfaces.calICalendarProvider,
     Components.interfaces.calICalendar,
     Components.interfaces.calICompositeCalendar,
@@ -98,15 +98,10 @@ calCompositeCalendar.prototype = {
     }),
 
     //
-    // private members
-    //
-    mDefaultCalendar: null,
-
-    //
     // calICalendarProvider interface
     //
-    get prefChromeOverlay() null,
-    get displayName() cal.calGetString("calendar", "compositeName"),
+    get prefChromeOverlay() { return null; },
+    get displayName() { return cal.calGetString("calendar", "compositeName"); },
 
     createCalendar: function comp_createCal() {
         throw NS_ERROR_NOT_IMPLEMENTED;
@@ -390,7 +385,7 @@ calCompositeCalendar.prototype = {
                                            calIOperationListener.GET,
                                            null,
                                            null);
-            return;
+            return null;
         }
         if (this.mStatusObserver) {
             if (this.mStatusObserver.spinning == Components.interfaces.calIStatusObserver.NO_PROGRESS) {
@@ -456,20 +451,18 @@ calCompositeGetListenerHelper.prototype = {
 
     get opGroup() {
         if (!this.mOpGroup) {
-            let this_ = this;
-            function cancelFunc() { // operation group has been cancelled
-                let listener = this_.mRealListener;
-                this_.mRealListener = null;
+            this.mOpGroup = new cal.calOperationGroup(() => {
+                let listener = this.mRealListener;
+                this.mRealListener = null;
                 if (listener) {
                     listener.onOperationComplete(
-                        this_, Components.interfaces.calIErrors.OPERATION_CANCELLED,
+                        this, Components.interfaces.calIErrors.OPERATION_CANCELLED,
                         calIOperationListener.GET, null, null);
-                    if (this_.mCompositeCalendar.statusDisplayed) {
-                        this_.mCompositeCalendar.mStatusObserver.stopMeteors();
+                    if (this.mCompositeCalendar.statusDisplayed) {
+                        this.mCompositeCalendar.mStatusObserver.stopMeteors();
                     }
                 }
-            }
-            this.mOpGroup = new cal.calOperationGroup(cancelFunc);
+            });
         }
         return this.mOpGroup;
     },

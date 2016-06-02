@@ -1,0 +1,5 @@
+<!--LOCALIZATION NOTE shown while obtaining certificates from a directory -->
+
+<!ENTITY title.label "සහතික බාගතකිරීම">
+<!ENTITY info.message "නාමාවලිය තුළ ලබන්නාගේ සහතික සොයයි. මේ සඳහා විනාඩි කිහිපයක් ගතවනු ඇත.">
+<!ENTITY stop.label "සෙවීම කවතන්න">

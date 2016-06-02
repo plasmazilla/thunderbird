@@ -9,11 +9,11 @@ load("../../../resources/passwordStorage.js");
 
 var server;
 
-const kSender = "from@foo.invalid";
-const kTo = "to@foo.invalid";
-const kUsername = "testsmtp";
+var kSender = "from@foo.invalid";
+var kTo = "to@foo.invalid";
+var kUsername = "testsmtp";
 // This is the same as in the signons file.
-const kPassword = "smtptest";
+var kPassword = "smtptest";
 
 add_task(function *() {
   function createHandler(d) {
@@ -59,7 +59,7 @@ add_task(function *() {
     var transaction = server.playTransaction();
     do_check_transaction(transaction, ["EHLO test",
                                        "AUTH PLAIN " + AuthPLAIN.encodeLine(kUsername, kPassword),
-                                       "MAIL FROM:<" + kSender + "> SIZE=155",
+                                       "MAIL FROM:<" + kSender + "> BODY=8BITMIME SIZE=155",
                                        "RCPT TO:<" + kTo + ">",
                                        "DATA"]);
 

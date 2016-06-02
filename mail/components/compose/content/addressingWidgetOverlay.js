@@ -794,7 +794,7 @@ function awRecipientKeyPress(event, element)
   case KeyEvent.DOM_VK_RETURN:
   case KeyEvent.DOM_VK_TAB:
     // if the user text contains a comma or a line return, ignore
-    if (element.value.contains(','))
+    if (element.value.includes(','))
     {
       var addresses = element.value;
       element.value = ""; // clear out the current line so we don't try to autocomplete it..
@@ -828,7 +828,6 @@ function awKeyDown(event, listboxElement)
   case KeyEvent.DOM_VK_DELETE:
   case KeyEvent.DOM_VK_BACK_SPACE:
     /* Warning, the listboxElement.selectedItems will change everytime we delete a row */
-    var selItems = listboxElement.selectedItems;
     var length = listboxElement.selectedItems.length;
     for (var i = 1; i <= length; i++) {
       var inputs = listboxElement.selectedItems[0].getElementsByTagName(awInputElementName());
@@ -1034,7 +1033,7 @@ AutomatedAutoCompleteHandler.prototype =
     {
       /* XXX This is used to work, until switching to the new toolkit broke it
          We should fix it see bug 456550.
-      if (!this.namesToComplete[this.indexIntoNames].contains('@')) // don't autocomplete if address has an @ sign in it
+      if (!this.namesToComplete[this.indexIntoNames].includes('@')) // don't autocomplete if address has an @ sign in it
       {
         // make sure total session count is updated before we kick off ANY actual searches
         if (gAutocompleteSession)

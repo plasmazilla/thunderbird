@@ -3,12 +3,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ['appIdleManager'];
+this.EXPORTED_SYMBOLS = ['appIdleManager'];
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
 
 // This module provides a mechanism to turn window focus and blur events
 // into app idle notifications. If we get a blur notification that is not

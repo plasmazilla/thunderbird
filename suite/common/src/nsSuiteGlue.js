@@ -7,13 +7,9 @@ const XULNS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
-Components.utils.import("resource://gre/modules/LoginManagerContent.jsm");
 Components.utils.import("resource://gre/modules/LoginManagerParent.jsm");
 Components.utils.import("resource:///modules/Sanitizer.jsm");
 Components.utils.import("resource:///modules/mailnewsMigrator.js");
-
-var onFormPassword = LoginManagerContent.onFormPassword.bind(LoginManagerContent);
-var onUsernameInput = LoginManagerContent.onUsernameInput.bind(LoginManagerContent);
 
 XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
                                   "resource://gre/modules/NetUtil.jsm");
@@ -39,8 +35,11 @@ XPCOMUtils.defineLazyModuleGetter(this, "BookmarkJSONUtils",
 XPCOMUtils.defineLazyModuleGetter(this, "Task",
                                   "resource://gre/modules/Task.jsm");
 
-XPCOMUtils.defineLazyModuleGetter(this, "DebuggerServer",
-                                  "resource://gre/modules/devtools/dbg-server.jsm");
+XPCOMUtils.defineLazyGetter(this, "DebuggerServer", () => {
+  var tmp = {};
+  Components.utils.import("resource://devtools/shared/Loader.jsm", tmp);
+  return tmp.require("devtools/server/main").DebuggerServer;
+});
 
 // We try to backup bookmarks at idle times, to avoid doing that at shutdown.
 // Number of idle seconds before trying to backup bookmarks.  15 minutes.
@@ -53,6 +52,7 @@ const BOOKMARKS_BACKUP_MAX_BACKUPS = 10;
 const DEBUGGER_REMOTE_ENABLED = "devtools.debugger.remote-enabled";
 const DEBUGGER_REMOTE_PORT = "devtools.debugger.remote-port";
 const DEBUGGER_FORCE_LOCAL = "devtools.debugger.force-local";
+const DEBUGGER_WIFI_VISIBLE = "devtools.remote.wifi.visible";
 
 // Constructor
 
@@ -141,6 +141,12 @@ SuiteGlue.prototype = {
             if (this.dbgIsEnabled)
               this.dbgRestart();
             break;
+          case DEBUGGER_WIFI_VISIBLE:
+            // Wifi visibility has changed, we need to restart the debugger
+            // server.
+            if (this.dbgIsEnabled && !Services.prefs.getBoolPref(DEBUGGER_FORCE_LOCAL))
+              this.dbgRestart();
+            break;
         }
         break;
       case "profile-before-change":
@@ -155,6 +161,9 @@ SuiteGlue.prototype = {
         this._checkForNewAddons();
         Services.search.init();
         LoginManagerParent.init();
+        Components.classes["@mozilla.org/globalmessagemanager;1"]
+                  .getService(Components.interfaces.nsIMessageListenerManager)
+                  .loadFrameScript("chrome://navigator/content/content.js", true);
         Components.utils.import("resource://gre/modules/Webapps.jsm");
         Components.utils.import("resource://gre/modules/NotificationDB.jsm");
         break;
@@ -245,6 +254,12 @@ SuiteGlue.prototype = {
         else
           ss.currentEngine = ss.defaultEngine;
         break;
+      case "notifications-open-settings":
+        // Since this is a web notification, there's probably a browser window.
+        var mostRecentBrowserWindow = Services.wm.getMostRecentWindow("navigator:browser");
+        if (mostRecentBrowserWindow)
+          mostRecentBrowserWindow.toDataManager("|permissions");
+        break;
       case "timer-callback":
         // Load the Login Manager data from disk off the main thread, some time
         // after startup.  If the data is required before the timeout, for example
@@ -288,12 +303,6 @@ SuiteGlue.prototype = {
     }
   },
 
-  onStateChange: function(aWebProgress, aRequest, aStateFlags, aStatus) {
-    aWebProgress.DOMWindow.addEventListener("DOMFormHasPassword", onFormPassword, true);
-    aWebProgress.DOMWindow.addEventListener("DOMAutoComplete", onUsernameInput, true);
-    aWebProgress.DOMWindow.addEventListener("change", onUsernameInput, true);
-  },
-
   // initialization (called on application startup)
   _init: function()
   {
@@ -316,10 +325,11 @@ SuiteGlue.prototype = {
     Services.obs.addObserver(this, "places-database-locked", true);
     Services.obs.addObserver(this, "places-shutdown", true);
     Services.obs.addObserver(this, "browser-search-engine-modified", true);
+    Services.obs.addObserver(this, "notifications-open-settings", true);
     Services.prefs.addObserver("devtools.debugger.", this, true);
     Components.classes['@mozilla.org/docloaderservice;1']
               .getService(Components.interfaces.nsIWebProgress)
-              .addProgressListener(this, Components.interfaces.nsIWebProgress.NOTIFY_LOCATION | Components.interfaces.nsIWebProgress.NOTIFY_STATE_DOCUMENT);
+              .addProgressListener(this, Components.interfaces.nsIWebProgress.NOTIFY_LOCATION);
   },
 
   // profile is available
@@ -336,6 +346,7 @@ SuiteGlue.prototype = {
   _onProfileStartup: function()
   {
     this._updatePrefs();
+    this._migrateDownloadPrefs();
     migrateMailnews(); // mailnewsMigrator.js
 
     Sanitizer.checkSettings();
@@ -366,7 +377,7 @@ SuiteGlue.prototype = {
         cookies = aHttpChannel.getRequestHeader("Cookie");
       } catch (e) { /* no cookie sent */ }
 
-      if (cookies && cookies.contains("MoodleSession"))
+      if (cookies && cookies.includes("MoodleSession"))
         return aOriginalUA.replace(/Gecko\/[^ ]*/, "Gecko/20100101");
       return null;
     }
@@ -666,7 +677,9 @@ SuiteGlue.prototype = {
     var maxAge = 90 * 86400; // 90 days
     var now = Math.round(Date.now() / 1000);
     // If there was an automated update tried in the interval, don't worry.
-    var lastUpdateTime = Services.prefs.getIntPref("app.update.lastUpdateTime.background-update-timer");
+    const PREF_APP_UPDATE_LASTUPDATETIME = "app.update.lastUpdateTime.background-update-timer";
+    var lastUpdateTime = Services.prefs.prefHasUserValue(PREF_APP_UPDATE_LASTUPDATETIME) ?
+                         Services.prefs.getIntPref(PREF_APP_UPDATE_LASTUPDATETIME) : 0;
     if (lastUpdateTime + maxAge > now)
       return false;
 
@@ -945,6 +958,33 @@ SuiteGlue.prototype = {
       }
     } catch (ex) {}
 
+    // try to get dictionary preference and initialize with blank if not set
+    var prefName = "spellchecker.dictionary";
+    var prefValue = "";
+
+    try {
+      prefValue = Services.prefs.getCharPref(prefName);
+    } catch (ex) {}
+
+    // replace underscore with dash if found in language
+    if (/_/.test(prefValue)) {
+      prefValue = prefValue.replace(/_/g, "-");
+      Services.prefs.setCharPref(prefName, prefValue);
+    }
+
+    var spellChecker = Components.classes["@mozilla.org/spellchecker/engine;1"]
+                                 .getService(Components.interfaces.mozISpellCheckingEngine);
+    var o1 = {};
+    spellChecker.getDictionaryList(o1, {});
+    var dictList = o1.value;
+    // If the preference contains an invalid dictionary, set it to a valid
+    // dictionary, any dictionary will do.
+    if (dictList.length && dictList.indexOf(prefValue) < 0)
+      Services.prefs.setCharPref(prefName, dictList[0]);
+  },
+
+  _migrateDownloadPrefs: function()
+  {
     // Migration of download-manager preferences
     if (Services.prefs.getPrefType("browser.download.dir") == Services.prefs.PREF_INVALID ||
         Services.prefs.getPrefType("browser.download.lastDir") != Services.prefs.PREF_INVALID)
@@ -989,6 +1029,10 @@ SuiteGlue.prototype = {
   dbgStart: function()
   {
     var port = Services.prefs.getIntPref(DEBUGGER_REMOTE_PORT);
+
+    // Make sure chrome debugging is enabled, no sense in starting otherwise.
+    DebuggerServer.allowChromeProcess = true;
+
     if (!DebuggerServer.initialized) {
       DebuggerServer.init();
       DebuggerServer.addBrowserActors();
@@ -996,6 +1040,13 @@ SuiteGlue.prototype = {
     try {
       let listener = DebuggerServer.createListener();
       listener.portOrPath = port;
+
+      // Expose this listener via wifi discovery, if enabled.
+      if (Services.prefs.getBoolPref(DEBUGGER_WIFI_VISIBLE) &&
+          !Services.prefs.getBoolPref(DEBUGGER_FORCE_LOCAL)) {
+        listener.discoverable = true;
+      }
+
       listener.open();
     } catch(e) {}
   },

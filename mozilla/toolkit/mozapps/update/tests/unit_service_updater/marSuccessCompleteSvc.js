@@ -13,20 +13,19 @@ function run_test() {
   setupTestCommon();
   gTestFiles = gTestFilesCompleteSuccess;
   gTestDirs = gTestDirsCompleteSuccess;
+  preventDistributionFiles();
   setupUpdaterTest(FILE_COMPLETE_MAR);
-
-// This is commented out on mozilla-esr38 since it doesn't have the test updater
-//  createUpdaterINI();
-
-  // For Mac OS X set the last modified time for the root directory to a date in
-  // the past to test that the last modified time is updated on a successful
-  // update (bug 600098).
   if (IS_MACOSX) {
-    let now = Date.now();
-    let yesterday = now - (1000 * 60 * 60 * 24);
-    let applyToDir = getApplyDirFile();
-    applyToDir.lastModifiedTime = yesterday;
+    // Create files in the old distribution directory location to verify that
+    // the directory and its contents are moved to the new location on update.
+    let testFile = getApplyDirFile(DIR_MACOS + "distribution/testFile", true);
+    writeFile(testFile, "test\n");
+    testFile = getApplyDirFile(DIR_MACOS + "distribution/test/testFile", true);
+    writeFile(testFile, "test\n");
   }
+
+  createUpdaterINI();
+  setAppBundleModTime();
 
   setupAppFilesAsync();
 }
@@ -40,14 +39,12 @@ function setupAppFilesFinished() {
  * support launching post update process.
  */
 function checkUpdateFinished() {
-// This is commented out on mozilla-esr38 since it doesn't have the test updater
-//  if (IS_WIN || IS_MACOSX) {
-//    gCheckFunc = finishCheckUpdateFinished;
-//    checkPostUpdateAppLog();
-//  } else {
-//    finishCheckUpdateFinished();
-//  }
-  do_timeout(TEST_HELPER_TIMEOUT, finishCheckUpdateFinished);
+  if (IS_WIN || IS_MACOSX) {
+    gCheckFunc = finishCheckUpdateFinished;
+    checkPostUpdateAppLog();
+  } else {
+    finishCheckUpdateFinished();
+  }
 }
 
 /**
@@ -55,16 +52,29 @@ function checkUpdateFinished() {
  * the test.
  */
 function finishCheckUpdateFinished() {
+  let distributionDir = getApplyDirFile(DIR_RESOURCES + "distribution", true);
   if (IS_MACOSX) {
-    logTestInfo("testing last modified time on the apply to directory has " +
-                "changed after a successful update (bug 600098)");
-    let now = Date.now();
-    let applyToDir = getApplyDirFile();
-    let timeDiff = Math.abs(applyToDir.lastModifiedTime - now);
-    do_check_true(timeDiff < MAC_MAX_TIME_DIFFERENCE);
+    Assert.ok(distributionDir.exists(), MSG_SHOULD_EXIST);
+
+    let testFile = getApplyDirFile(DIR_RESOURCES + "distribution/testFile", true);
+    Assert.ok(testFile.exists(), MSG_SHOULD_EXIST);
+
+    testFile = getApplyDirFile(DIR_RESOURCES + "distribution/test/testFile", true);
+    Assert.ok(testFile.exists(), MSG_SHOULD_EXIST);
+
+    distributionDir = getApplyDirFile(DIR_MACOS + "distribution", true);
+    Assert.ok(!distributionDir.exists(), MSG_SHOULD_NOT_EXIST);
+
+    checkUpdateLogContains("Moving old distribution directory to new location");
+  } else {
+    debugDump("testing that files aren't added with an add-if instruction " +
+              "when the file's destination directory doesn't exist");
+    Assert.ok(!distributionDir.exists(), MSG_SHOULD_NOT_EXIST);
   }
 
+  checkAppBundleModTime();
   checkFilesAfterUpdateSuccess(getApplyDirFile, false, false);
-  checkUpdateLogContents(LOG_COMPLETE_SUCCESS);
+  checkUpdateLogContents(LOG_COMPLETE_SUCCESS, true);
+  standardInit();
   checkCallbackServiceLog();
 }

@@ -140,6 +140,9 @@
                      hidden="true" swappedhidden="false"
                      label="&recipientColumn.label;" tooltiptext="&recipientColumn2.tooltip;"/>
             <splitter class="tree-splitter"/>
+            <treecol id="correspondentCol" persist="hidden ordinal width" flex="4"
+                     label="&correspondentColumn.label;" tooltiptext="&correspondentColumn2.tooltip;"/>
+            <splitter class="tree-splitter"/>
             <treecol id="unreadButtonColHeader" persist="hidden ordinal" fixed="true" cycler="true"
                      class="treecol-image readColumnHeader"
                      label="&readColumn.label;" tooltiptext="&readColumn2.tooltip;"/>
@@ -175,7 +178,7 @@
             <treecol id="idCol" persist="hidden ordinal width" flex="1" hidden="true"
                      label="&idColumn.label;" tooltiptext="&idColumn2.tooltip;"/>
           </treecols>
-          <treechildren ondraggesture="ThreadPaneOnDragStart(event);"/>
+          <treechildren ondragstart="ThreadPaneOnDragStart(event);"/>
         </tree>
       </vbox>
       <hbox align="start">

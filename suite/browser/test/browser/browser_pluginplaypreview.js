@@ -100,7 +100,11 @@ function registerPlayPreview(mimeType, targetUrl) {
 
       // Create a new channel that is viewer loaded as a resource.
       var ioService = Services.io;
-      var channel = ioService.newChannel(targetUrl, null, null);
+      var channel = ios.newChannel2(targetUrl, null, null, null,
+                                    Services.scriptSecurityManager.getSystemPrincipal(),
+                                    null,
+                                    Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                    Components.interfaces.nsIContentPolicy.TYPE_OTHER);
       channel.asyncOpen(this.listener, aContext);
     },
 
@@ -214,7 +218,7 @@ function test1a() {
   var e = overlay.ownerDocument.createEvent("CustomEvent");
   e.initCustomEvent("MozPlayPlugin", true, true, null);
   overlay.dispatchEvent(e);
-  var condition = function() objLoadingContent.activated;
+  var condition = () => objLoadingContent.activated;
   waitForCondition(condition, test1b, "Test 1a, Waited too long for plugin to stop play preview");
 }
 
@@ -270,7 +274,7 @@ function test4a() {
   var e = overlay.ownerDocument.createEvent("CustomEvent");
   e.initCustomEvent("MozPlayPlugin", true, true, true);
   overlay.dispatchEvent(e);
-  var condition = function() objLoadingContent.pluginFallbackType == Components.interfaces.nsIObjectLoadingContent.PLUGIN_CLICK_TO_PLAY;
+  var condition = () => objLoadingContent.pluginFallbackType == Components.interfaces.nsIObjectLoadingContent.PLUGIN_CLICK_TO_PLAY;
   waitForCondition(condition, test4b, "Test 4a, Waited too long for plugin to stop play preview");
 }
 
@@ -298,7 +302,7 @@ function test5a() {
   var e = overlay.ownerDocument.createEvent("CustomEvent");
   e.initCustomEvent("MozPlayPlugin", true, true, false);
   overlay.dispatchEvent(e);
-  var condition = function() objLoadingContent.activated;
+  var condition = () => objLoadingContent.activated;
   waitForCondition(condition, test5b, "Test 5a, Waited too long for plugin to stop play preview");
 }
 

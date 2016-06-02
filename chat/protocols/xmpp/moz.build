@@ -3,6 +3,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+XPCSHELL_TESTS_MANIFESTS += ['test/xpcshell.ini']
+
 EXTRA_COMPONENTS += [
     'xmpp.js',
     'xmpp.manifest',
@@ -10,6 +12,7 @@ EXTRA_COMPONENTS += [
 
 EXTRA_JS_MODULES += [
     'xmpp-authmechs.jsm',
+    'xmpp-commands.jsm',
     'xmpp-session.jsm',
     'xmpp-xml.jsm',
     'xmpp.jsm',

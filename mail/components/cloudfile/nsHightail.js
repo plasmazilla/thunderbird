@@ -8,7 +8,7 @@
  * nsIMsgCloudFileProvider interface.
  */
 
-const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -18,14 +18,14 @@ Cu.import("resource:///modules/cloudFileAccounts.js");
 var gServerUrl = "https://dpi.yousendit.com"; // Production url
 // test url var gServerUrl = "https://test2-api.yousendit.com";
 
-const kApiKey = "7spvjdt7m4kycr7jyhywrdn2";
-const kAuthPath = "/dpi/v1/auth";
-const kUserInfoPath = "/dpi/v2/user";
-const kFolderPath = "/dpi/v1/folder/";
-const kFolderFilePath = "/dpi/v1/folder/file/";
-const kFolderInitUploadPath = kFolderPath + "file/initUpload";
-const kFolderCommitUploadPath = kFolderPath + "file/commitUpload";
-const kUrlTail = "s=4001583&cid=pm-4001583";
+var kApiKey = "7spvjdt7m4kycr7jyhywrdn2";
+var kAuthPath = "/dpi/v1/auth";
+var kUserInfoPath = "/dpi/v2/user";
+var kFolderPath = "/dpi/v1/folder/";
+var kFolderFilePath = "/dpi/v1/folder/file/";
+var kFolderInitUploadPath = kFolderPath + "file/initUpload";
+var kFolderCommitUploadPath = kFolderPath + "file/commitUpload";
+var kUrlTail = "s=4001583&cid=pm-4001583";
 
 function nsHightail() {
   this.log = Log4Moz.getConfiguredLogger("Hightail");
@@ -37,14 +37,14 @@ nsHightail.prototype = {
 
   classID: Components.ID("{dd2bce44-ca71-42ce-b806-6fa4e073919c}"),
 
-  get type() "YouSendIt", // Saved in prefs, cannot change!
-  get displayName() "Hightail",
-  get serviceURL() "https://www.hightail.com",
-  get iconClass() "chrome://messenger/skin/icons/hightail.png",
-  get accountKey() this._accountKey,
-  get lastError() this._lastErrorText,
-  get settingsURL() "chrome://messenger/content/cloudfile/Hightail/settings.xhtml",
-  get managementURL() "chrome://messenger/content/cloudfile/Hightail/management.xhtml",
+  get type() { return "YouSendIt"; }, // Saved in prefs, cannot change!
+  get displayName() { return "Hightail"; },
+  get serviceURL() { return "https://www.hightail.com"; },
+  get iconClass() { return "chrome://messenger/skin/icons/hightail.png"; },
+  get accountKey() { return this._accountKey; },
+  get lastError() { return this._lastErrorText; },
+  get settingsURL() { return "chrome://messenger/content/cloudfile/Hightail/settings.xhtml"; },
+  get managementURL() { return "chrome://messenger/content/cloudfile/Hightail/management.xhtml"; },
 
   _accountKey: false,
   _prefBranch: null,
@@ -650,16 +650,16 @@ nsHightail.prototype = {
    * there's a url we can load in a content tab that will allow the user
    * to create an account.
    */
-  get createNewAccountUrl() "",
+  get createNewAccountUrl() { return ""; },
 
   /**
    * If we don't know the limit, this will return -1.
    */
-  get fileUploadSizeLimit() this._maxFileSize,
+  get fileUploadSizeLimit() { return this._maxFileSize; },
 
-  get remainingFileSpace() this._availableStorage,
+  get remainingFileSpace() { return this._availableStorage; },
 
-  get fileSpaceUsed() this._fileSpaceUsed,
+  get fileSpaceUsed() { return this._fileSpaceUsed; },
 
   /**
    * Attempts to delete an uploaded file.
@@ -759,7 +759,7 @@ nsHightail.prototype = {
 
     let passwordURI = gServerUrl;
     let logins = Services.logins.findLogins({}, passwordURI, null, passwordURI);
-    for each (let loginInfo in logins) {
+    for (let loginInfo of logins) {
       if (loginInfo.username == aUsername)
         return loginInfo.password;
     }
@@ -796,7 +796,7 @@ nsHightail.prototype = {
    */
   clearPassword: function() {
     let logins = Services.logins.findLogins({}, gServerUrl, null, gServerUrl);
-    for each (let loginInfo in logins)
+    for (let loginInfo of logins)
       if (loginInfo.username == this._userName)
         Services.logins.removeLogin(loginInfo);
   },
@@ -1217,4 +1217,4 @@ nsHightailFileUploader.prototype = {
   },
 };
 
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([nsHightail]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([nsHightail]);

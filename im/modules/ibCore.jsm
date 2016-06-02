@@ -2,9 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["Core"];
+this.EXPORTED_SYMBOLS = ["Core"];
 
-const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 Cu.import("resource:///modules/imServices.jsm");
 Cu.import("resource:///modules/imWindows.jsm");
 Cu.import("resource:///modules/ibNotifications.jsm");
@@ -16,16 +16,17 @@ var Core = {
     "account-disconnected",
     "browser-request",
     "handle-xul-text-link",
-    "quit-application-requested"
+    "quit-application-requested",
+    "quit-application-granted"
   ],
 
-  get bundle() l10nHelper("chrome://instantbird/locale/core.properties"),
+  get bundle() { return l10nHelper("chrome://instantbird/locale/core.properties"); },
 
   initLibpurpleOverrides: function() {
     let forcePurple = Services.prefs.getCharPref("chat.prpls.forcePurple")
                               .split(",")
                               .map(String.trim)
-                              .filter(function(aPrplId) !!aPrplId);
+                              .filter(aPrplId => !!aPrplId);
     if (!forcePurple.length)
       return;
 
@@ -97,7 +98,7 @@ var Core = {
     let self = this;
     Services.cmd.registerCommand({
       name: "about",
-      get helpString() self.bundle("aboutCommand.help"),
+      get helpString() { return self.bundle("aboutCommand.help"); },
       usageContext: Ci.imICommand.CMD_CONTEXT_ALL,
       priority: Ci.imICommand.CMD_PRIORITY_DEFAULT,
       run: function (aMsg, aConv) {
@@ -122,7 +123,7 @@ var Core = {
 
     Services.cmd.registerCommand({
       name: "debug",
-      get helpString() self.bundle("debugCommand.help"),
+      get helpString() { return self.bundle("debugCommand.help"); },
       usageContext: Ci.imICommand.CMD_CONTEXT_ALL,
       priority: Ci.imICommand.CMD_PRIORITY_DEFAULT,
       run: (aMsg, aConv) => {
@@ -230,7 +231,7 @@ var Core = {
     while (aEnumerator.hasMoreElements())
       yield aEnumerator.getNext();
   },
-  getAccounts: function() this.getIter(Services.accounts.getAccounts()),
+  getAccounts: function() { return this.getIter(Services.accounts.getAccounts()); },
 
   /* This function pops up the account manager if no account is
    * connected or connecting.
@@ -264,11 +265,21 @@ var Core = {
       this.showAccounts();
   },
 
+  _pendingShowAccountManager: null,
   observe: function(aSubject, aTopic, aData) {
     if (aTopic == "account-disconnected") {
+      if (this._pendingShowAccountManager)
+        return;
       let account = aSubject.QueryInterface(Ci.imIAccount);
-      if (!account.reconnectAttempt)
+      if (account.reconnectAttempt)
+        return;
+      // Automatic reconnections (e.g. if the computer just woke up from
+      // sleep) might not have been triggered yet, wait 300ms for these
+      // before attempting to show the account manager.
+      this._pendingShowAccountManager = setTimeout(() => {
         this._showAccountManagerIfNeeded(false);
+        delete this._pendingShowAccountManager;
+      }, 300);
       return;
     }
 
@@ -291,6 +302,14 @@ var Core = {
       this._onQuitRequest(aSubject, aData);
       return;
     }
+
+    if (aTopic == "quit-application-granted") {
+      // Don't try to pop up the account manager during shutdown
+      // when the accounts disconnect (it would fail anyway).
+      clearTimeout(this._pendingShowAccountManager);
+      this._pendingShowAccountManager = true;
+      return;
+    }
   },
 
   _onQuitRequest: function (aCancelQuit, aQuitType) {
@@ -304,7 +323,7 @@ var Core = {
 
     let unreadConvsCount =
       Services.conversations.getUIConversations()
-              .filter(function(c) c.unreadTargetedMessageCount)
+              .filter(c => c.unreadTargetedMessageCount)
               .length;
     if (unreadConvsCount == 0)
       return;

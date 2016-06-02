@@ -10,16 +10,16 @@
  * or was never used in the old version.
  */
 
-const EXPORTED_SYMBOLS = [ "migrateMailnews" ];
+this.EXPORTED_SYMBOLS = [ "migrateMailnews" ];
 
 Components.utils.import("resource:///modules/errUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
-const Ci = Components.interfaces;
-const kServerPrefVersion = 1;
-const kSmtpPrefVersion = 1;
-const kABRemoteContentPrefVersion = 1;
-const kDefaultCharsetsPrefVersion = 1;
+var Ci = Components.interfaces;
+var kServerPrefVersion = 1;
+var kSmtpPrefVersion = 1;
+var kABRemoteContentPrefVersion = 1;
+var kDefaultCharsetsPrefVersion = 1;
 
 function migrateMailnews()
 {
@@ -131,7 +131,8 @@ function MigrateABRemoteContentSettings()
   while (enumerator.hasMoreElements())
   {
     let migrateAddress = function(aEmail) {
-      let uri = Services.io.newURI("mailto:" + aEmail, null, null);
+      let uri = Services.io.newURI(
+        "chrome://messenger/content/?email=" + aEmail, null, null);
       Services.perms.add(uri, "image", Services.perms.ALLOW_ACTION);
     }
 

@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 
 Cu.import("resource://gre/modules/Http.jsm");
 Cu.import("resource:///modules/imServices.jsm");
@@ -10,21 +10,34 @@ Cu.import("resource:///modules/imXPCOMUtils.jsm");
 Cu.import("resource:///modules/jsProtoHelper.jsm");
 Cu.import("resource:///modules/twitter-text.jsm");
 
-const NS_PREFBRANCH_PREFCHANGE_TOPIC_ID = "nsPref:changed";
-const kMaxMessageLength = 140;
+var NS_PREFBRANCH_PREFCHANGE_TOPIC_ID = "nsPref:changed";
+var kMaxMessageLength = 140;
 
-XPCOMUtils.defineLazyGetter(this, "_", function()
+XPCOMUtils.defineLazyGetter(this, "_", () =>
   l10nHelper("chrome://chat/locale/twitter.properties")
 );
-XPCOMUtils.defineLazyGetter(this, "_lang", function()
+XPCOMUtils.defineLazyGetter(this, "_lang", () =>
   l10nHelper("chrome://global/locale/languageNames.properties")
 );
 initLogModule("twitter", this);
 
-function ChatBuddy(aName) {
+function ChatBuddy(aName, aAccount) {
   this._name = aName;
+  this._account = aAccount;
 }
-ChatBuddy.prototype = GenericConvChatBuddyPrototype;
+ChatBuddy.prototype = {
+  __proto__: GenericConvChatBuddyPrototype,
+  get buddyIconFilename() {
+    let userInfo = this._account._userInfo.get(this.name);
+    if (userInfo)
+      return userInfo.profile_image_url;
+    return undefined;
+  },
+  set buddyIconFilename(aName) {
+    // Prevent accidental removal of the getter.
+    throw("Don't set chatBuddy.buddyIconFilename directly for Twitter.");
+  }
+}
 
 function Tweet(aTweet, aWho, aMessage, aObject)
 {
@@ -107,7 +120,7 @@ function Action(aLabel, aAction, aTweet)
 }
 Action.prototype = {
   __proto__: ClassInfo("prplIMessageAction", "generic message action object"),
-  get run() this._action.bind(this._tweet)
+  get run() { return this._action.bind(this._tweet); }
 };
 
 function Conversation(aAccount)
@@ -142,14 +155,14 @@ Conversation.prototype = {
     let nicks = [aTweet.user.screen_name];
     if ("user_mentions" in entities && Array.isArray(entities.user_mentions)) {
       nicks = nicks.concat(entities.user_mentions
-                                   .map(function(um) um.screen_name));
+                                   .map(um => um.screen_name));
     }
     // Ignore duplicates and the user's nick.
     let prompt =
       nicks.filter(function(aNick, aPos) {
              return nicks.indexOf(aNick) == aPos && aNick != this._account.name;
            }, this)
-           .map(function(aNick) "@" + aNick)
+           .map(aNick => "@" + aNick)
            .join(" ") + " ";
 
     this.notifyObservers(null, "replying-to-prompt", prompt);
@@ -237,7 +250,7 @@ Conversation.prototype = {
       if ("entities" in aTweet) {
         for (let type in aTweet.entities) {
           let filteredEntities =
-            aTweet.entities[type].filter(function(e) e.indices[0] < offset);
+            aTweet.entities[type].filter(e => e.indices[0] < offset);
           if (filteredEntities.length)
             entities[type] = filteredEntities;
         }
@@ -255,7 +268,7 @@ Conversation.prototype = {
             retweet.entities[type].map(function(aEntity) {
               let entity = Object.create(aEntity);
               // Add the offset to the indices to account for the prefix.
-              entity.indices = entity.indices.map(function(i) i + offset);
+              entity.indices = entity.indices.map(i => i + offset);
               return entity;
             })
           );
@@ -280,14 +293,14 @@ Conversation.prototype = {
        */
       let entArray = [];
       if ("hashtags" in entities && Array.isArray(entities.hashtags)) {
-        entArray = entArray.concat(entities.hashtags.map(function(h) ({
+        entArray = entArray.concat(entities.hashtags.map(h => ({
           start: h.indices[0],
           end: h.indices[1],
           str: "#" + h.text,
           href: "https://twitter.com/#!/search?q=%23" + h.text})));
       }
       if ("urls" in entities && Array.isArray(entities.urls)) {
-        entArray = entArray.concat(entities.urls.map(function(u) ({
+        entArray = entArray.concat(entities.urls.map(u => ({
           start: u.indices[0],
           end: u.indices[1],
           str: u.url,
@@ -296,14 +309,15 @@ Conversation.prototype = {
       }
       if ("user_mentions" in entities &&
           Array.isArray(entities.user_mentions)) {
-        entArray = entArray.concat(entities.user_mentions.map(function(um) ({
+        entArray = entArray.concat(entities.user_mentions.map(um => ({
           start: um.indices[0],
           end: um.indices[1],
           str: "@" + um.screen_name,
+          text: '@<span class="ib-person">' + um.screen_name + "</span>",
           title: um.name,
           href: "https://twitter.com/" + um.screen_name})));
       }
-      entArray.sort(function(a, b) a.start - b.start);
+      entArray.sort((a, b) => a.start - b.start);
       let offset = 0;
       for each (let entity in entArray) {
         let str = text.substring(offset + entity.start, offset + entity.end);
@@ -335,7 +349,11 @@ Conversation.prototype = {
       name == this._account.name ? {outgoing: true} : {incoming: true};
     flags.time = Math.round(new Date(aTweet.created_at) / 1000);
     flags._iconURL = aTweet.user.profile_image_url;
-    if (text.contains("@" + this.nick))
+    if (aTweet.delayed)
+      flags.delayed = true;
+    if (aTweet.entities && aTweet.entities.user_mentions &&
+        Array.isArray(aTweet.entities.user_mentions) &&
+        aTweet.entities.user_mentions.some(mention => mention.screen_name == this.nick))
       flags.containsNick = true;
 
     (new Tweet(aTweet, name, text, flags)).conversation = this;
@@ -344,17 +362,17 @@ Conversation.prototype = {
     if (this._participants.has(aNick))
       return;
 
-    let chatBuddy = new ChatBuddy(aNick);
+    let chatBuddy = new ChatBuddy(aNick, this._account);
     this._participants.set(aNick, chatBuddy);
     this.notifyObservers(new nsSimpleEnumerator([chatBuddy]),
                          "chat-buddy-add");
   },
-  get name() this.nick + " timeline",
-  get title() _("timeline", this.nick),
-  get nick() this._account.name,
+  get name() { return this.nick + " timeline"; },
+  get title() { return _("timeline", this.nick); },
+  get nick() { return this._account.name; },
   set nick(aNick) {},
-  get topicSettable() this.nick == this._account.name,
-  get topic() this._topic, // can't add a setter without redefining the getter
+  get topicSettable() { return this.nick == this._account.name; },
+  get topic() { return this._topic; }, // can't add a setter without redefining the getter
   set topic(aTopic) {
     if (this.topicSettable)
       this._account.setUserDescription(aTopic);
@@ -374,7 +392,7 @@ Account.prototype = {
   // The correct normalization for twitter would be just toLowerCase().
   // Unfortunately, for backwards compatibility we retain this normalization,
   // which can cause edge cases for usernames with underscores.
-  normalize: function(aString) aString.replace(/[^a-z0-9]/gi, "").toLowerCase(),
+  normalize: aString => aString.replace(/[^a-z0-9]/gi, "").toLowerCase(),
 
   consumerKey: Services.prefs.getCharPref("chat.twitter.consumerKey"),
   consumerSecret: Services.prefs.getCharPref("chat.twitter.consumerSecret"),
@@ -469,7 +487,7 @@ Account.prototype = {
     if (queryIndex != -1) {
       urlSpec = url.slice(0, queryIndex);
       dataParams = url.slice(queryIndex + 1).split("&")
-                      .map(function(p) p.split("=").map(percentEncode));
+                      .map(p => p.split("=").map(percentEncode));
     }
     let method = "GET";
     if (aPOSTData) {
@@ -483,8 +501,8 @@ Account.prototype = {
     let signatureBase =
       method + "&" + encodeURIComponent(urlSpec) + "&" +
       params.concat(dataParams)
-            .sort(function(a,b) (a[0] < b[0]) ? -1 : (a[0] > b[0]) ? 1 : 0)
-            .map(function(p) p.map(encodeURIComponent).join("%3D"))
+            .sort((a, b) => (a[0] < b[0]) ? -1 : (a[0] > b[0]) ? 1 : 0)
+            .map(p => p.map(encodeURIComponent).join("%3D"))
             .join("%26");
 
     let keyFactory = Cc["@mozilla.org/security/keyobjectfactory;1"]
@@ -501,7 +519,7 @@ Account.prototype = {
     params.push(["oauth_signature", encodeURIComponent(signature)]);
 
     let authorization =
-      "OAuth " + params.map(function (p) p[0] + "=\"" + p[1] + "\"").join(", ");
+      "OAuth " + params.map(p => p[0] + "=\"" + p[1] + "\"").join(", ");
 
     let options = {
       headers: (aHeaders || []).concat([["Authorization", authorization]]),
@@ -552,6 +570,7 @@ Account.prototype = {
       if (!("id_str" in user))
         return; // Unexpected response...
       this._friends.delete(user.id_str);
+      this.timeline.removeParticipant(user.screen_name);
       let date = aXHR.getResponseHeader("Date");
       this.timeline.systemMessage(_("event.unfollow", user.screen_name), false,
                                   new Date(date) / 1000);
@@ -598,7 +617,7 @@ Account.prototype = {
     }
   },
 
-  get timeline() this._timeline || (this._timeline = new Conversation(this)),
+  get timeline() { return this._timeline || (this._timeline = new Conversation(this)); },
   displayMessages: function(aMessages) {
     let lastMsgId = this._lastMsgId;
     for each (let tweet in aMessages) {
@@ -636,7 +655,7 @@ Account.prototype = {
 
   _doneWithTimelineRequest: function(aRequest) {
     this._pendingRequests =
-      this._pendingRequests.filter(function (r) r !== aRequest);
+      this._pendingRequests.filter(r => r !== aRequest);
 
     // If we are still waiting for more data, return early
     if (this._pendingRequests.length != 0)
@@ -667,6 +686,7 @@ Account.prototype = {
       this._timeline.notifyObservers(this._timeline, "update-buddy-status");
 
     this._timelineBuffer.sort(this.sortByDate);
+    this._timelineBuffer.forEach(aTweet => aTweet.delayed = true);
     this.displayMessages(this._timelineBuffer);
 
     // Fetch userInfo for the user if we don't already have it.
@@ -680,7 +700,7 @@ Account.prototype = {
     this.openStream();
   },
 
-  sortByDate: function(a, b)
+  sortByDate: (a, b) =>
     (new Date(a["created_at"])) - (new Date(b["created_at"])),
 
   _streamingRequest: null,
@@ -738,7 +758,7 @@ Account.prototype = {
         for each (let userInfo in this._userInfo)
           userInfoIds.add(userInfo.id_str);
         let ids = msg.friends.filter(
-          function(aId) !userInfoIds.has(aId.toString()), this);
+          aId => !userInfoIds.has(aId.toString()));
 
         while (ids.length) {
           // Take the first 100 elements, turn them into a comma separated list.
@@ -750,16 +770,18 @@ Account.prototype = {
         }
 
         // Overwrite the existing _friends list (if any).
-        this._friends = new Set(msg.friends.map(function(aId) aId.toString()));
+        this._friends = new Set(msg.friends.map(aId => aId.toString()));
       }
       else if ("event" in msg) {
         let user, event;
         switch(msg.event) {
           case "follow":
             if (msg.source.screen_name == this.name) {
-              this._friends.add(msg.target.id_str);
               user = msg.target;
               event = "follow";
+              this.setUserInfo(user);
+              this._friends.add(user.id_str);
+              this.timeline._ensureParticipantExists(user.screen_name);
             }
             else if (msg.target.screen_name == this.name) {
               user = msg.source;
@@ -808,7 +830,7 @@ Account.prototype = {
       "screen_name=" + this.name + "&" + // prefill the user name input box
       "oauth_token=" + this.token;
     this._browserRequest = {
-      get promptText() _("authPrompt"),
+      get promptText() { return _("authPrompt"); },
       account: this,
       url: url,
       _active: true,
@@ -922,7 +944,7 @@ Account.prototype = {
 
     this.LOG("Fixing the case of the account name: " +
              this.name + " -> " + aAuthResult.screen_name);
-    this.__defineGetter__("name", function() aAuthResult.screen_name);
+    this.__defineGetter__("name", () => aAuthResult.screen_name);
     return true;
   },
 
@@ -1021,7 +1043,7 @@ Account.prototype = {
     // List of the names of the info to actually show in the tooltip and
     // optionally a transform function to apply to the value.
     // See https://dev.twitter.com/docs/api/1/get/users/show for the options.
-    let normalizeBool = function(isFollowing) _(isFollowing ? "yes" : "no");
+    let normalizeBool = isFollowing => _(isFollowing ? "yes" : "no");
     const kFields = {
       name: null,
       following: normalizeBool,
@@ -1038,7 +1060,7 @@ Account.prototype = {
       },
       time_zone: null,
       protected: normalizeBool,
-      created_at: function(aDate) (new Date(aDate)).toLocaleDateString(),
+      created_at: aDate => (new Date(aDate)).toLocaleDateString(),
       statuses_count: null,
       friends_count: null,
       followers_count: null,
@@ -1055,6 +1077,8 @@ Account.prototype = {
         tooltipInfo.push(new TooltipInfo(_("tooltip." + field), value));
       }
     }
+    tooltipInfo.push(new TooltipInfo(null, userInfo.profile_image_url,
+                                     Ci.prplITooltipInfo.icon));
 
     Services.obs.notifyObservers(new nsSimpleEnumerator(tooltipInfo),
                                  "user-info-received", aBuddyName);
@@ -1075,7 +1099,7 @@ Account.prototype = {
   },
 
   // Allow us to reopen the timeline via the join chat menu.
-  get canJoinChat() true,
+  get canJoinChat() { return true; },
   joinChat: function(aComponents) {
     // The 'timeline' getter opens a timeline conversation if none exists.
     this.timeline;
@@ -1083,26 +1107,26 @@ Account.prototype = {
 };
 
 // Shortcut to get the JavaScript account object.
-function getAccount(aConv) aConv.wrappedJSObject._account;
+function getAccount(aConv) { return aConv.wrappedJSObject._account; }
 
 function TwitterProtocol() {
   this.registerCommands();
 }
 TwitterProtocol.prototype = {
   __proto__: GenericProtocolPrototype,
-  get normalizedName() "twitter",
-  get name() _("twitter.protocolName"),
-  get iconBaseURI() "chrome://prpl-twitter/skin/",
-  get noPassword() true,
+  get normalizedName() { return "twitter"; },
+  get name() { return _("twitter.protocolName"); },
+  get iconBaseURI() { return "chrome://prpl-twitter/skin/"; },
+  get noPassword() { return true; },
   options: {
-    "track": {get label() _("options.track"), default: ""}
+    "track": {get label() { return _("options.track"); }, default: ""}
   },
   // Replace the command name in the help string so translators do not attempt
   // to translate it.
   commands: [
     {
       name: "follow",
-      get helpString() _("command.follow", "follow"),
+      get helpString() { return _("command.follow", "follow"); },
       run: function(aMsg, aConv) {
         aMsg = aMsg.trim();
         if (!aMsg)
@@ -1114,7 +1138,7 @@ TwitterProtocol.prototype = {
     },
     {
       name: "unfollow",
-      get helpString() _("command.unfollow", "unfollow"),
+      get helpString() { return _("command.unfollow", "unfollow"); },
       run: function(aMsg, aConv) {
         aMsg = aMsg.trim();
         if (!aMsg)
@@ -1125,8 +1149,8 @@ TwitterProtocol.prototype = {
       }
     }
   ],
-  getAccount: function(aImAccount) new Account(this, aImAccount),
+  getAccount: function(aImAccount) { return new Account(this, aImAccount); },
   classID: Components.ID("{31082ff6-1de8-422b-ab60-ca0ac0b2af13}")
 };
 
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([TwitterProtocol]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([TwitterProtocol]);

@@ -8,16 +8,16 @@
 
 // make SOLO_TEST=message-header/test-return-receipt.js mozmill-one
 
-const MODULE_NAME = "test-return-receipt";
+var MODULE_NAME = "test-return-receipt";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers", "window-helpers",
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers", "window-helpers",
                         "notificationbox-helpers"];
 
 var folder;
 
-const kBoxId = "msgNotificationBar";
-const kNotificationValue = "mdnRequested";
+var kBoxId = "msgNotificationBar";
+var kNotificationValue = "mdnRequested";
 
 function setupModule(module) {
   collector.getModule("folder-display-helpers").installInto(module);
@@ -96,10 +96,10 @@ function assert_mdn_shown(shouldShow) {
 function assert_mdn_text_contains(text, shouldContain) {
   let nb = mc.window.document.getElementById(kBoxId);
   let notificationText = nb.currentNotification.label;
-  if (shouldContain && !notificationText.contains(text))
+  if (shouldContain && !notificationText.includes(text))
     throw new Error("mdnBar should contain text=" + text +
                     "; notificationText=" + notificationText);
-  if (!shouldContain && notificationText.contains(text))
+  if (!shouldContain && notificationText.includes(text))
     throw new Error("mdnBar shouldn't contain text=" + text +
                     "; notificationText=" + notificationText);
 }

@@ -14,8 +14,8 @@ function calTransactionManager() {
     }
 }
 
-const calTransactionManagerClassID = Components.ID("{40a1ccf4-5f54-4815-b842-abf06f84dbfd}");
-const calTransactionManagerInterfaces = [Components.interfaces.calITransactionManager];
+var calTransactionManagerClassID = Components.ID("{40a1ccf4-5f54-4815-b842-abf06f84dbfd}");
+var calTransactionManagerInterfaces = [Components.interfaces.calITransactionManager];
 calTransactionManager.prototype = {
 
     classID: calTransactionManagerClassID,
@@ -51,26 +51,14 @@ calTransactionManager.prototype = {
     },
 
     checkWritable: function cTM_checkWritable(transaction) {
-        if (transaction) {
-            transaction = transaction.wrappedJSObject;
-            if (transaction) {
-                function checkItem(item) {
-                    if (item) {
-                        var calendar = item.calendar;
-                        if (calendar && (!isCalendarWritable(calendar) || !userCanAddItemsToCalendar(calendar))) {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-
-                if (!checkItem(transaction.mItem) ||
-                    !checkItem(transaction.mOldItem)) {
-                    return false;
-                }
-            }
+        function checkItem(item) {
+            return item && item.calendar &&
+                   isCalendarWritable(item.calendar) &&
+                   userCanAddItemsToCalendar(item.calendar);
         }
-        return true;
+
+        let trans = transaction && transaction.wrappedJSObject;
+        return trans && checkItem(trans.mItem) && checkItem(trans.mOldItem);
     },
 
     undo: function cTM_undo() {
@@ -101,8 +89,8 @@ function calTransaction(aAction, aItem, aCalendar, aOldItem, aListener) {
     this.mListener = aListener;
 }
 
-const calTransactionClassID = Components.ID("{fcb54c82-2fb9-42cb-bf44-1e197a55e520}");
-const calTransactionInterfaces = [
+var calTransactionClassID = Components.ID("{fcb54c82-2fb9-42cb-bf44-1e197a55e520}");
+var calTransactionInterfaces = [
     Components.interfaces.nsITransaction,
     Components.interfaces.calIOperationListener
 ];

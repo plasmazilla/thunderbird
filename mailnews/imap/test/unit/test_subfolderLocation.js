@@ -16,7 +16,7 @@ load("../../../resources/alertTestUtils.js");
 // Globals
 
 // Messages to load must have CRLF line endings, that is Windows style
-const gMessage = "bugmail10"; // message file used as the test message
+var gMessage = "bugmail10"; // message file used as the test message
 
 add_task(function () {
   Services.prefs.setBoolPref("mail.server.server1.autosync_offline_stores", false);
@@ -43,8 +43,8 @@ add_task(function* downloadOffline() {
   yield promiseUrlListener.promise;
 });
 
-let folderName1 = "sub1";
-let folderName2 = "sub2";
+var folderName1 = "sub1";
+var folderName2 = "sub2";
 
 // use a folder method to add a subfolder
 add_task(function* addSubfolder() {

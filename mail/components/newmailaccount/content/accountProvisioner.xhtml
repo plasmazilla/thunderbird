@@ -21,12 +21,6 @@
         href="chrome://messenger/skin/newmailaccount/accountProvisioner.css" />
 
   <script type="text/javascript;version=1.8"
-          src="chrome://messenger/content/jquery.js">
-  </script>
-  <script type="text/javascript;version=1.8"
-          src="chrome://messenger/content/jquery-ui.js">
-  </script>
-  <script type="text/javascript;version=1.8"
           src="chrome://messenger/content/accountcreation/util.js">
   </script>
   <script type="text/javascript;version=1.8"
@@ -43,12 +37,6 @@
   </script>
   <script type="text/javascript;version=1.8"
           src="chrome://communicator/content/utilityOverlay.js">
-  </script>
-  <script type="text/javascript;version=1.8"
-          src="chrome://messenger/content/newmailaccount/jquery.scrollTo.js">
-  </script>
-  <script type="text/javascript;version=1.8"
-          src="chrome://messenger/content/newmailaccount/jquery.tmpl.js">
   </script>
   <script type="text/javascript;version=1.8"
           src="chrome://messenger/content/newmailaccount/accountProvisioner.js">
@@ -158,26 +146,18 @@
     <button id="closeWindow" class="close">&successful.close;</button>
   </div>
 
-</body>
-
-  <!-- Templates!  Woo! -->
-
-  <script id="result_tmpl" type="text/html"><![CDATA[
+  <template id="result_tmpl">
     <div class="hbox row selection">
       <div class="boxFlex address">${address}</div>
-      <div class="pricing">
-        <button class="create"
+      <div class="pricing hideWithFade">
+        <button class="create" disabled="true"
           address="${address}">${priceStr}</button>
         <span class="create"
           address="${address}">${priceStr}</span>
       </div>
     </div>
-  ]]></script>
+  </template>
 
-  <script id="more_results_tmpl" type="text/html"><![CDATA[
-    <div class="more">
-      ${moreStr}
-    </div>
-  ]]></script>
+</body>
 
 </html>

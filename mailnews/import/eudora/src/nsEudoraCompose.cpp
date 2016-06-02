@@ -508,7 +508,7 @@ nsresult nsEudoraCompose::GetLocalAttachments(nsIArray **aArray)
   NS_IF_ADDREF(*aArray = attachments);
   int32_t count = 0;
   if (m_pAttachments)
-    count = m_pAttachments->Count();
+    count = m_pAttachments->Length();
   if (!count)
     return NS_OK;
 
@@ -521,7 +521,7 @@ nsresult nsEudoraCompose::GetLocalAttachments(nsIArray **aArray)
     // nsMsgNewURL(&url, "file://C:/boxster.jpg");
     // a[i].orig_url = url;
 
-    pAttach = (ImportAttachment *) m_pAttachments->ElementAt(i);
+    pAttach = m_pAttachments->ElementAt(i);
     nsCOMPtr<nsIFile> tmpFile = do_QueryInterface(pAttach->pAttachment);
     a->SetTmpFile(tmpFile);
     urlStr.Adopt(0);

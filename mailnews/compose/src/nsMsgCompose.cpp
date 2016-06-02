@@ -76,8 +76,10 @@
 #include "nsCRT.h"
 #include "mozilla/Services.h"
 #include "mozilla/mailnews/MimeHeaderParser.h"
+#include "nsStreamConverter.h"
 #include "nsISelection.h"
 #include "nsJSEnvironment.h"
+#include "nsIObserverService.h"
 
 using namespace mozilla::mailnews;
 
@@ -526,7 +528,6 @@ nsMsgCompose::InsertDivWrappedTextAtSelection(const nsAString &aText,
 
   nsCOMPtr<nsIDOMElement> divElem;
   nsCOMPtr<nsIHTMLEditor> htmlEditor(do_QueryInterface(m_editor));
-  nsCOMPtr<nsIPlaintextEditor> textEditor(do_QueryInterface(m_editor));
 
   nsresult rv = htmlEditor->CreateElementWithDefaults(NS_LITERAL_STRING("div"),
                                                       getter_AddRefs(divElem));
@@ -679,7 +680,7 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
     if (!aBuf.IsEmpty() && mailEditor)
     {
       // This leaves the caret at the right place to insert a bottom signature.
-      if (aHTMLEditor && !mCiteReference.IsEmpty())
+      if (aHTMLEditor)
         mailEditor->InsertAsCitedQuotation(aBuf,
                                            mCiteReference,
                                            true,
@@ -718,7 +719,23 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
     if (aHTMLEditor && htmlEditor)
     {
       mInsertingQuotedContent = true;
-      htmlEditor->RebuildDocumentFromSource(aBuf);
+      if (isForwarded && Substring(aBuf, 0, sizeof(MIME_FORWARD_HTML_PREFIX)-1)
+                         .EqualsLiteral(MIME_FORWARD_HTML_PREFIX)) {
+        // We assign the opening tag inside "<HTML><BODY><BR><BR>" before the
+        // two <br> elements.
+        // This is a bit hacky but we know that the MIME code prepares the
+        // forwarded content like this:
+        // <HTML><BODY><BR><BR> + forwarded header + header table.
+        // Note: We only do this when we prepare the message to be forwarded,
+        // a re-opened saved draft of a forwarded message does not repeat this.
+        nsString newBody(aBuf);
+        nsString divTag;
+        divTag.AssignLiteral("<div class=\"moz-forward-container\">");
+        newBody.Insert(divTag, sizeof(MIME_FORWARD_HTML_PREFIX)-1-8);
+        htmlEditor->RebuildDocumentFromSource(newBody);
+      } else {
+        htmlEditor->RebuildDocumentFromSource(aBuf);
+      }
       mInsertingQuotedContent = false;
 
       // when forwarding a message as inline, tag any embedded objects
@@ -729,10 +746,15 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
 
       if (!aSignature.IsEmpty())
       {
-        if (isForwarded && sigOnTop)
-          m_editor->BeginningOfDocument();
-        else
-          m_editor->EndOfDocument();
+        if (isForwarded && sigOnTop) {
+          // Use our own function, nsEditor::BeginningOfDocument() would position
+          // into the <div class="moz-forward-container"> we've just created.
+          MoveToBeginningOfDocument();
+        } else {
+          // Use our own function, nsEditor::EndOfDocument() would position
+          // into the <div class="moz-forward-container"> we've just created.
+          MoveToEndOfDocument();
+        }
         htmlEditor->InsertHTML(aSignature);
         if (isForwarded && sigOnTop)
           m_editor->EndOfDocument();
@@ -742,21 +764,90 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
     }
     else if (htmlEditor)
     {
+      bool sigOnTopInserted = false;
       if (isForwarded && sigOnTop && !aSignature.IsEmpty())
       {
         textEditor->InsertLineBreak();
         InsertDivWrappedTextAtSelection(aSignature,
                                         NS_LITERAL_STRING("moz-signature"));
         m_editor->EndOfDocument();
+        sigOnTopInserted = true;
       }
 
       if (!aBuf.IsEmpty())
       {
-        if (mailEditor)
-          mailEditor->InsertTextWithQuotations(aBuf);
-        else
-          textEditor->InsertText(aBuf);
-        m_editor->EndOfDocument();
+        nsresult rv;
+        nsCOMPtr<nsIDOMElement> divElem;
+        nsCOMPtr<nsIDOMNode> extraBr;
+
+        if (isForwarded) {
+          // Special treatment for forwarded messages: Part 1.
+          // Create a <div> of the required class.
+          rv = htmlEditor->CreateElementWithDefaults(NS_LITERAL_STRING("div"),
+                                                     getter_AddRefs(divElem));
+          NS_ENSURE_SUCCESS(rv, rv);
+
+          nsAutoString attributeName;
+          nsAutoString attributeValue;
+          attributeName.AssignLiteral("class");
+          attributeValue.AssignLiteral("moz-forward-container");
+          divElem->SetAttribute(attributeName, attributeValue);
+
+          // We can't insert an empty <div>, so fill it with something.
+          nsCOMPtr<nsIDOMElement> brElem;
+          rv = htmlEditor->CreateElementWithDefaults(NS_LITERAL_STRING("br"),
+                                                     getter_AddRefs(brElem));
+          NS_ENSURE_SUCCESS(rv, rv);
+          rv = divElem->AppendChild(brElem, getter_AddRefs(extraBr));
+          NS_ENSURE_SUCCESS(rv, rv);
+
+          // Insert the non-empty <div> into the DOM.
+          rv = htmlEditor->InsertElementAtSelection(divElem, false);
+          NS_ENSURE_SUCCESS(rv, rv);
+
+          // Position into the div, so out content goes there.
+          nsCOMPtr<nsISelection> selection;
+          m_editor->GetSelection(getter_AddRefs(selection));
+          rv = selection->Collapse(divElem, 0);
+          NS_ENSURE_SUCCESS(rv, rv);
+        }
+
+        if (mailEditor) {
+          rv = mailEditor->InsertTextWithQuotations(aBuf);
+        } else {
+          // Will we ever get here?
+          rv = textEditor->InsertText(aBuf);
+        }
+        NS_ENSURE_SUCCESS(rv, rv);
+
+        if (isForwarded) {
+          // Special treatment for forwarded messages: Part 2.
+          if (sigOnTopInserted) {
+            // Sadly the M-C editor inserts a <br> between the <div> for the signature
+            // and this <div>, so remove the <br> we don't want.
+            nsCOMPtr<nsIDOMNode> brBeforeDiv;
+            nsAutoString tagLocalName;
+            rv = divElem->GetPreviousSibling(getter_AddRefs(brBeforeDiv));
+            if (NS_SUCCEEDED(rv) && brBeforeDiv) {
+              brBeforeDiv->GetLocalName(tagLocalName);
+              if (tagLocalName.EqualsLiteral("br")) {
+                rv = m_editor->DeleteNode(brBeforeDiv);
+                NS_ENSURE_SUCCESS(rv, rv);
+              }
+            }
+          }
+
+          // Clean up the <br> we inserted.
+          rv = m_editor->DeleteNode(extraBr);
+          NS_ENSURE_SUCCESS(rv, rv);
+        }
+
+        // Use our own function instead of nsEditor::EndOfDocument() because
+        // we don't want to position at the end of the div we've just created.
+        // It's OK to use, even if we're not forwarding and didn't create a
+        // <div>.
+        rv = MoveToEndOfDocument();
+        NS_ENSURE_SUCCESS(rv, rv);
       }
 
       if ((!isForwarded || !sigOnTop) && !aSignature.IsEmpty()) {
@@ -1038,8 +1129,9 @@ NS_IMETHODIMP nsMsgCompose::RemoveMsgSendListener( nsIMsgSendListener *aMsgSendL
   return mExternalSendListeners.RemoveElement(aMsgSendListener) ? NS_OK : NS_ERROR_FAILURE;
 }
 
-nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *identity,
-                                const char *accountKey)
+NS_IMETHODIMP
+nsMsgCompose::SendMsgToServer(MSG_DeliverMode deliverMode, nsIMsgIdentity *identity,
+                              const char *accountKey)
 {
   nsresult rv = NS_OK;
 
@@ -1069,7 +1161,41 @@ nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *ide
     }
 
     m_compFields->SetOrganization(organization);
-    mMsgSend = do_CreateInstance(NS_MSGSEND_CONTRACTID);
+
+    // We need an nsIMsgSend instance to send the message. Allow extensions
+    // to override the default SMTP sender by observing mail-set-sender.
+    mMsgSend = nullptr;
+    mDeliverMode = deliverMode;  // save for possible access by observer.
+
+    // Allow extensions to specify an outgoing server.
+    nsCOMPtr<nsIObserverService> observerService =
+      mozilla::services::GetObserverService();
+    NS_ENSURE_STATE(observerService);
+
+    // Assemble a string with sending parameters.
+    nsAutoString sendParms;
+
+    // First parameter: account key. This may be null.
+    sendParms.AppendASCII(accountKey && *accountKey ? accountKey : "");
+    sendParms.AppendLiteral(",");
+
+    // Second parameter: deliverMode.
+    sendParms.AppendInt(deliverMode);
+    sendParms.AppendLiteral(",");
+
+    // Third parameter: identity (as identity key).
+    nsAutoCString identityKey;
+    identity->GetKey(identityKey);
+    sendParms.AppendASCII(identityKey.get());
+
+    observerService->NotifyObservers(
+      NS_ISUPPORTS_CAST(nsIMsgCompose*, this),
+      "mail-set-sender",
+      sendParms.get());
+
+    if (!mMsgSend)
+      mMsgSend = do_CreateInstance(NS_MSGSEND_CONTRACTID);
+
     if (mMsgSend)
     {
       nsCString bodyString(m_compFields->GetBody());
@@ -1086,7 +1212,7 @@ nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *ide
       if (deliverMode == nsIMsgCompDeliverMode::AutoSaveAsDraft)
         deliverMode = nsIMsgCompDeliverMode::SaveAsDraft;
 
-      nsRefPtr<nsIMsgCompose> msgCompose(this);
+      RefPtr<nsIMsgCompose> msgCompose(this);
       composeSendListener->SetMsgCompose(msgCompose);
       composeSendListener->SetDeliverMode(deliverMode);
 
@@ -1141,8 +1267,9 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
   nsCOMPtr<nsIPrompt> prompt;
 
   // i'm assuming the compose window is still up at this point...
-  if (!prompt && m_window)
-     m_window->GetPrompter(getter_AddRefs(prompt));
+  nsCOMPtr<nsPIDOMWindow> window(do_QueryInterface(m_window));
+  if (window)
+    window->GetPrompter(getter_AddRefs(prompt));
 
   // Set content type based on which type of compose window we had.
   nsString contentType = (m_composeHTML) ? NS_LITERAL_STRING("text/html"):
@@ -1156,11 +1283,25 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
     m_compFields->SetBody((const char *)nullptr);
 
     const char *charset = m_compFields->GetCharacterSet();
-    uint32_t flags = nsIDocumentEncoder::OutputFormatted |
-                     nsIDocumentEncoder::OutputCRLineBreak |
+
+    uint32_t flags = nsIDocumentEncoder::OutputCRLineBreak |
                      nsIDocumentEncoder::OutputLFLineBreak;
-    if (UseFormatFlowed(charset))
+
+    if (m_composeHTML) {
+      flags |= nsIDocumentEncoder::OutputFormatted |
+               nsIDocumentEncoder::OutputDisallowLineBreaking;
+    } else {
+      bool flowed, delsp, formatted, disallowBreaks;
+      GetSerialiserFlags(charset, &flowed, &delsp, &formatted, &disallowBreaks);
+      if (flowed)
         flags |= nsIDocumentEncoder::OutputFormatFlowed;
+      if (delsp)
+        flags |= nsIDocumentEncoder::OutputFormatDelSp;
+      if (formatted)
+        flags |= nsIDocumentEncoder::OutputFormatted;
+      if (disallowBreaks)
+        flags |= nsIDocumentEncoder::OutputDisallowLineBreaking;
+    }
     rv = m_editor->OutputToString(contentType, flags, msgBody);
     NS_ENSURE_SUCCESS(rv, rv);
   }
@@ -1172,13 +1313,10 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
   {
     // Convert body to mail charset
     nsCString outCString;
-    nsCString fallbackCharset;
-    bool isAsciiOnly;
-    // Check if the body text is covered by the current charset.
-    rv = nsMsgI18NSaveAsCharset(NS_ConvertUTF16toUTF8(contentType).get(),
-                                m_compFields->GetCharacterSet(),
-                                msgBody.get(), getter_Copies(outCString),
-                                getter_Copies(fallbackCharset), &isAsciiOnly);
+    rv = nsMsgI18NConvertFromUnicode(m_compFields->GetCharacterSet(),
+      msgBody, outCString, false, true);
+    bool isAsciiOnly = NS_IsAscii(outCString.get()) &&
+      !nsMsgI18Nstateful_charset(m_compFields->GetCharacterSet());
     if (m_compFields->GetForceMsgEncoding())
       isAsciiOnly = false;
     if (NS_SUCCEEDED(rv) && !outCString.IsEmpty())
@@ -1186,7 +1324,7 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
       // If the body contains characters outside the repertoire of the current
       // charset, just convert to UTF-8 and be done with it
       // unless disable_fallback_to_utf8 is set for this charset.
-      if (NS_ERROR_UENC_NOMAPPING == rv && m_editor)
+      if (NS_ERROR_UENC_NOMAPPING == rv)
       {
         bool needToCheckCharset;
         m_compFields->GetNeedToCheckCharset(&needToCheckCharset);
@@ -1208,20 +1346,14 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
           }
         }
       }
-      else if (!fallbackCharset.IsEmpty())
-      {
-        // re-label to the fallback charset
-        m_compFields->SetCharacterSet(fallbackCharset.get());
-        SetDocumentCharset(fallbackCharset.get());
-      }
       m_compFields->SetBodyIsAsciiOnly(isAsciiOnly);
       m_compFields->SetBody(outCString.get());
     }
     else
     {
-      m_compFields->SetBody(NS_LossyConvertUTF16toASCII(msgBody).get());
-      m_compFields->SetCharacterSet("US-ASCII");
-      SetDocumentCharset("US-ASCII");
+      m_compFields->SetBody(NS_ConvertUTF16toUTF8(msgBody).get());
+      m_compFields->SetCharacterSet("UTF-8");
+      SetDocumentCharset("UTF-8");
     }
   }
 
@@ -1314,7 +1446,7 @@ NS_IMETHODIMP nsMsgCompose::SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity 
   // Save the identity being sent for later use.
   m_identity = identity;
 
-  rv = _SendMsg(deliverMode, identity, accountKey);
+  rv = SendMsgToServer(deliverMode, identity, accountKey);
   if (NS_FAILED(rv))
   {
     nsCOMPtr<nsIMsgSendReport> sendReport;
@@ -1561,6 +1693,12 @@ NS_IMETHODIMP nsMsgCompose::InitEditor(nsIEditor* aEditor, nsIDOMWindow* aConten
   }
 }
 
+NS_IMETHODIMP nsMsgCompose::GetBodyRaw(nsACString& aBodyRaw)
+{
+  aBodyRaw.Assign((char *)m_compFields->GetBody());
+  return NS_OK;
+}
+
 nsresult nsMsgCompose::GetBodyModified(bool * modified)
 {
   nsresult rv;
@@ -1778,8 +1916,10 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
   nsCOMPtr<nsIPrefBranch> prefs (do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // If we are forwarding inline, mime did already setup the compose fields therefore we should stop now
-  if (type == nsIMsgCompType::ForwardInline )
+  // If we are forwarding inline or replying with template, mime did already
+  // setup the compose fields therefore we should stop now.
+  if (type == nsIMsgCompType::ForwardInline ||
+      type == nsIMsgCompType::ReplyWithTemplate)
   {
     bool replyInDefault = false;
     prefs->GetBoolPref("mailnews.reply_in_default_charset",
@@ -1807,14 +1947,32 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
       msgHdr->GetMessageId(getter_Copies(messageId));
 
       nsAutoCString reference;
-      reference.Append(NS_LITERAL_CSTRING("<"));
+      // When forwarding we only use the original message for "References:" -
+      // recipients don't have the other messages anyway.
+      // For reply with template we want to preserve all the references.
+      if (type == nsIMsgCompType::ReplyWithTemplate)
+      {
+        uint16_t numReferences = 0;
+        msgHdr->GetNumReferences(&numReferences);
+        for (int32_t i = 0; i < numReferences; i++)
+        {
+          nsAutoCString ref;
+          msgHdr->GetStringReference(i, ref);
+          if (!ref.IsEmpty())
+          {
+            reference.AppendLiteral("<");
+            reference.Append(ref);
+            reference.AppendLiteral("> ");
+          }
+        }
+        reference.Trim(" ", false, true);
+      }
+      msgHdr->GetMessageId(getter_Copies(messageId));
+      reference.AppendLiteral("<");
       reference.Append(messageId);
-      reference.Append(NS_LITERAL_CSTRING(">"));
-      // We're forwarding, which means we're composing a message that has no
-      // references yet, so we can set the value safely
+      reference.AppendLiteral(">");
       m_compFields->SetReferences(reference.get());
     }
-
     return NS_OK;
   }
 
@@ -1877,11 +2035,6 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
         if (NS_FAILED(rv)) return rv;
       }
 
-      // save the charset of a message being replied to because
-      // we need to use it when decoding RFC-2047-encoded author name
-      // with |charsetOverride|.
-      nsAutoCString originCharset(charset);
-
       bool replyInDefault = false;
       prefs->GetBoolPref("mailnews.reply_in_default_charset",
                           &replyInDefault);
@@ -1893,6 +2046,13 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
                                                     EmptyString(), str);
         if (!str.IsEmpty())
           LossyCopyUTF16toASCII(str, charset);
+      }
+
+      // ReplyWithTemplate needs to always use the charset of the template,
+      // nothing else. That is passed in through the compFields.
+      if (type == nsIMsgCompType::ReplyWithTemplate) {
+         rv = compFields->GetCharacterSet(getter_Copies(charset));
+         NS_ENSURE_SUCCESS(rv,rv);
       }
 
       // No matter what, we should block x-windows-949 (our internal name)
@@ -2109,6 +2269,12 @@ NS_IMETHODIMP nsMsgCompose::GetMessageSend(nsIMsgSend **_retval)
   return NS_OK;
 }
 
+NS_IMETHODIMP nsMsgCompose::SetMessageSend(nsIMsgSend* aMsgSend)
+{
+  mMsgSend = aMsgSend;
+  return NS_OK;
+}
+
 NS_IMETHODIMP nsMsgCompose::ClearMessageSend()
 {
   mMsgSend = nullptr;
@@ -2148,7 +2314,7 @@ NS_IMETHODIMP nsMsgCompose::GetOriginalMsgURI(char ** originalMsgURI)
 QuotingOutputStreamListener::~QuotingOutputStreamListener()
 {
   if (mUnicodeConversionBuffer)
-    nsMemory::Free(mUnicodeConversionBuffer);
+    free(mUnicodeConversionBuffer);
 }
 
 QuotingOutputStreamListener::QuotingOutputStreamListener(const char * originalMsgURI,
@@ -2314,11 +2480,20 @@ QuotingOutputStreamListener::QuotingOutputStreamListener(const char * originalMs
  * disturbing the plain text.
  */
 nsresult
-QuotingOutputStreamListener::ConvertToPlainText(bool formatflowed /* = false */)
+QuotingOutputStreamListener::ConvertToPlainText(bool formatflowed,
+                                                bool delsp,
+                                                bool formatted,
+                                                bool disallowBreaks)
 {
-  nsresult rv = ConvertBufToPlainText(mMsgBody, formatflowed, true);
+  nsresult rv = ConvertBufToPlainText(mMsgBody, formatflowed,
+                                                delsp,
+                                                formatted,
+                                                disallowBreaks);
   NS_ENSURE_SUCCESS (rv, rv);
-  return ConvertBufToPlainText(mSignature, formatflowed, true);
+  return ConvertBufToPlainText(mSignature, formatflowed,
+                                           delsp,
+                                           formatted,
+                                           disallowBreaks);
 }
 
 NS_IMETHODIMP QuotingOutputStreamListener::OnStartRequest(nsIRequest *request, nsISupports * /* ctxt */)
@@ -2655,9 +2830,10 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
         // Handle "followup-to: poster" magic keyword here
         if (followUpTo.EqualsLiteral("poster"))
         {
-          nsCOMPtr<nsIDOMWindow> composeWindow;
+          nsCOMPtr<nsIDOMWindow> domWindow;
           nsCOMPtr<nsIPrompt> prompt;
-          compose->GetDomWindow(getter_AddRefs(composeWindow));
+          compose->GetDomWindow(getter_AddRefs(domWindow));
+          nsCOMPtr<nsPIDOMWindow> composeWindow(do_QueryInterface(domWindow));
           if (composeWindow)
             composeWindow->GetPrompter(getter_AddRefs(prompt));
           nsMsgDisplayMessageByName(prompt, MOZ_UTF16("followupToSenderMessage"));
@@ -2793,11 +2969,19 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
   compose->GetComposeHTML(&composeHTML);
   if (!composeHTML)
   {
-    // Downsampling. The charset should only consist of ascii.
+    // Downsampling.
 
-    bool formatflowed =
-      UseFormatFlowed(NS_LossyConvertUTF16toASCII(aCharset).get());
-    ConvertToPlainText(formatflowed);
+    // In plain text quotes we always allow line breaking to not end up with
+    // long lines. The quote is inserted into a span with style
+    // "white-space: pre;" which isn't be wrapped.
+    // Note that the body of the plain text message is wrapped since it uses
+    // "white-space: pre-wrap; width: 72ch;".
+    // Look at it in the DOM Inspector to see it.
+    //
+    // Also, delsp makes no sense in this context. Equally flowing (that means adding
+    // adding a space at the end) makes no sense in a quote, since the quote
+    // will never be re-assembled to a long line. All we need is formatted output.
+    ConvertToPlainText(false, false, true, false);
   }
 
   compose->ProcessSignature(mIdentity, true, &mSignature);
@@ -2883,8 +3067,8 @@ NS_IMETHODIMP QuotingOutputStreamListener::AppendToMsgBody(const nsCString &inSt
               unicharLength > mUnicodeBufferCharacterLength)
           {
             if (mUnicodeConversionBuffer)
-              nsMemory::Free(mUnicodeConversionBuffer);
-            mUnicodeConversionBuffer = (char16_t *) nsMemory::Alloc(unicharLength * sizeof(char16_t));
+              free(mUnicodeConversionBuffer);
+            mUnicodeConversionBuffer = (char16_t *) moz_xmalloc(unicharLength * sizeof(char16_t));
             if (!mUnicodeConversionBuffer)
             {
               mUnicodeBufferCharacterLength = 0;
@@ -3963,7 +4147,7 @@ nsMsgCompose::ConvertHTMLToText(nsIFile *aSigFile, nsString &aSigData)
   nsresult rv = LoadDataFromFile(aSigFile, origBuf);
   NS_ENSURE_SUCCESS (rv, rv);
 
-  ConvertBufToPlainText(origBuf, false, true);
+  ConvertBufToPlainText(origBuf, false, false, true, true);
   aSigData = origBuf;
   return NS_OK;
 }
@@ -4251,7 +4435,7 @@ nsMsgCompose::ProcessSignature(nsIMsgIdentity *identity, bool aQuoted, nsString 
     if (!m_composeHTML)
     {
       if (htmlSig)
-        ConvertBufToPlainText(prefSigText, false, true);
+        ConvertBufToPlainText(prefSigText, false, false, true, true);
       sigData.Append(prefSigText);
     }
     else
@@ -4354,12 +4538,12 @@ nsMsgCompose::BuildBodyMessageAndSignature()
 
   /* Some time we want to add a signature and sometime we wont. Let's figure that now...*/
   bool addSignature;
-  bool addDashes = false;
+  bool isQuoted = false;
   switch (mType)
   {
     case nsIMsgCompType::ForwardInline :
       addSignature = true;
-      addDashes = true;
+      isQuoted = true;
       break;
     case nsIMsgCompType::New :
     case nsIMsgCompType::MailToUrl :    /* same as New */
@@ -4387,7 +4571,7 @@ nsMsgCompose::BuildBodyMessageAndSignature()
 
   nsAutoString tSignature;
   if (addSignature)
-    ProcessSignature(m_identity, addDashes, &tSignature);
+    ProcessSignature(m_identity, isQuoted, &tSignature);
 
   // if type is new, but we have body, this is probably a mapi send, so we need to
   // replace '\n' with <br> so that the line breaks won't be lost by html.
@@ -4401,7 +4585,7 @@ nsMsgCompose::BuildBodyMessageAndSignature()
   // by removing the end of line char(s).
   int32_t wrapping_enabled = 0;
   GetWrapLength(&wrapping_enabled);
-  if (!m_composeHTML && !addSignature && wrapping_enabled)
+  if (!m_composeHTML && wrapping_enabled)
   {
     bool quote = false;
     for (uint32_t i = 0; i < body.Length(); i ++)
@@ -4875,34 +5059,64 @@ nsMsgCompose::ExpandMailingLists()
   return NS_OK;
 }
 
+/**
+ * This function implements the decision logic for delivery format 'Auto-Detect',
+ * including optional 'Auto-Downgrade' behaviour for HTML messages considered
+ * convertible (silent, "lossless" conversion to plain text).
+ * @param aConvertible  the result of analysing message body convertibility:
+ *                      nsIMsgCompConvertible::Plain | Yes | Altering | No
+ * @return              nsIMsgCompSendFormat::AskUser | PlainText | HTML | Both
+ */
 NS_IMETHODIMP
 nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
 {
   NS_ENSURE_ARG_POINTER(result);
+  nsresult rv;
+
+  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // *** Message-centric Auto-Downgrade ***
+  // If the message has practically no HTML formatting,
+  // AND if user accepts auto-downgrading (send options pref),
+  // bypass auto-detection of recipients' preferences and just
+  // send the message as plain text (silent, "lossless" conversion);
+  // which will also avoid asking for newsgroups for this typical scenario.
+  bool autoDowngrade = true;
+  rv = prefBranch->GetBoolPref("mailnews.sendformat.auto_downgrade", &autoDowngrade);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (autoDowngrade && (aConvertible == nsIMsgCompConvertible::Plain))
+  {
+    *result = nsIMsgCompSendFormat::PlainText;
+    return NS_OK;
+  }
+
+  // *** Newsgroups ***
+  // Right now, we don't have logic for newsgroups for intelligent send
+  // preferences. Therefore, bail out early and save us a lot of work if there
+  // are newsgroups.
 
   nsAutoString newsgroups;
   m_compFields->GetNewsgroups(newsgroups);
 
-  // Right now, we don't have logic for newsgroups for intelligent send
-  // preferences. Therefore, bail out early and save us a lot of work if there
-  // are newsgroups.
   if (!newsgroups.IsEmpty())
   {
     *result = nsIMsgCompSendFormat::AskUser;
     return NS_OK;
   }
 
+  // *** Recipient-Centric Auto-Detect ***
+
   RecipientsArray recipientsList;
-  nsresult rv = LookupAddressBook(recipientsList);
+  rv = LookupAddressBook(recipientsList);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // Finally return the list of non HTML recipient if requested and/or rebuilt
+  // Finally return the list of non-HTML recipients if requested and/or rebuilt
   // the recipient field. Also, check for domain preference when preferFormat
-  // is unknown
+  // is unknown.
   nsString plaintextDomains;
   nsString htmlDomains;
 
-  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
   if (prefBranch)
   {
     NS_GetUnicharPreferenceWithDefault(prefBranch, "mailnews.plaintext_domains",
@@ -4911,9 +5125,14 @@ nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
                                        EmptyString(), htmlDomains);
   }
 
-  // If allHtml is true, then everyone has specifically requested to receive
-  // HTML according to the address book.
+  // allHTML and allPlain are summary recipient scopes of format preference
+  // according to address book and send options for recipient-centric Auto-Detect,
+  // used by Auto-Detect to determine the appropriate message delivery format.
+
+  // allHtml: All recipients prefer HTML.
   bool allHtml = true;
+
+  // allPlain: All recipients prefer Plain Text.
   bool allPlain = true;
 
   // Exit the loop early if allHtml and allPlain both decay to false to save us
@@ -4948,6 +5167,8 @@ nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
           preferFormat = nsIAbPreferMailFormat::html;
       }
 
+      // Determine the delivery format preference of this recipient and adjust
+      // the summary recipient scopes of the message accordingly.
       switch (preferFormat)
       {
       case nsIAbPreferMailFormat::html:
@@ -4966,32 +5187,38 @@ nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
     }
   }
 
-  // If everyone supports HTML, then return HTML.
+  // Here's the final part of recipient-centric Auto-Detect logic where we set
+  // the actual send format (aka delivery format) after analysing recipients'
+  // format preferences above.
+
+  // If all recipients prefer HTML, then return HTML.
   if (allHtml)
   {
     *result = nsIMsgCompSendFormat::HTML;
     return NS_OK;
   }
 
-  // If we can guarantee that converting to plaintext is not lossy, send the
-  // email as plaintext. Also send it if everyone prefers plaintext.
-  if (aConvertible == nsIMsgCompConvertible::Plain || allPlain)
+  // If all recipients prefer plaintext, silently strip *all* HTML formatting,
+  // regardless of (non-)convertibility, and send the message as plaintext.
+  // **ToDo: UX-error-prevention, UX-wysiwyg: warn against dataloss potential.**
+  if (allPlain)
   {
     *result = nsIMsgCompSendFormat::PlainText;
     return NS_OK;
   }
 
   // Otherwise, check the preference to see what action we should default to.
-  nsCOMPtr<nsIPrefBranch> prefService(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
-
+  // This pref covers all recipient scopes involving prefers-plain (except allplain)
+  // and prefers-unknown. So we are mixing format conflict resolution options for
+  // prefers-plain with default format setting for prefers-unknown; not ideal.
   int32_t action = nsIMsgCompSendFormat::AskUser;
-  rv = prefService->GetIntPref("mail.default_html_action", &action);
+  rv = prefBranch->GetIntPref("mail.default_html_action", &action);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // If the action is a known action, return that value. Otherwise, ask the
-  // user. Note that the preference defaults to 0, which is not a valid value
-  // for the enum.
+  // If the action is a known send format, return the value to send in that format.
+  // Otherwise, ask the user.
+  // Note that the preference may default to 0 (Ask), which is not a valid value
+  // for the following enum.
   if (action == nsIMsgCompSendFormat::PlainText ||
       action == nsIMsgCompSendFormat::HTML ||
       action == nsIMsgCompSendFormat::Both)
@@ -5008,7 +5235,7 @@ nsMsgCompose::DetermineHTMLAction(int32_t aConvertible, int32_t *result)
 /* Decides which tags trigger which convertible mode, i.e. here is the logic
    for BodyConvertible */
 // Helper function. Parameters are not checked.
-nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
+nsresult nsMsgCompose::TagConvertible(nsIDOMElement *node,  int32_t *_retval)
 {
     nsresult rv;
 
@@ -5025,14 +5252,42 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
       return rv;
 
     nsCOMPtr<nsIDOMNode> pItem;
-    if      (
-              nodeType == nsIDOMNode::TEXT_NODE ||
+
+    // style attribute on any element can change layout in any way, so that is not convertible.
+    nsAutoString attribValue;
+    if (NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("style"), attribValue)) &&
+        !attribValue.IsEmpty())
+    {
+      *_retval = nsIMsgCompConvertible::No;
+      return NS_OK;
+    }
+    // moz-txt classes are used internally by the editor, those can be discarded.
+    // But any other ones are unconvertible. Style can be attached to them or any
+    // other context (e.g. in microformats).
+    if (NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("class"), attribValue)) &&
+        !attribValue.IsEmpty() &&
+        !StringBeginsWith(attribValue, NS_LITERAL_STRING("moz-txt"), nsCaseInsensitiveStringComparator()) &&
+        !StringBeginsWith(attribValue, NS_LITERAL_STRING("moz-cite"), nsCaseInsensitiveStringComparator()))
+    {
+      *_retval = nsIMsgCompConvertible::No;
+      return NS_OK;
+    }
+    // ID attributes can contain attached style/context or be target of links
+    // so we should preserve them.
+    if (NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("id"), attribValue)) &&
+        !attribValue.IsEmpty())
+    {
+      *_retval = nsIMsgCompConvertible::No;
+      return NS_OK;
+    }
+    if      ( // some "simple" elements without "style" attribute
               element.LowerCaseEqualsLiteral("br") ||
               element.LowerCaseEqualsLiteral("p") ||
               element.LowerCaseEqualsLiteral("pre") ||
               element.LowerCaseEqualsLiteral("tt") ||
               element.LowerCaseEqualsLiteral("html") ||
               element.LowerCaseEqualsLiteral("head") ||
+              element.LowerCaseEqualsLiteral("meta") ||
               element.LowerCaseEqualsLiteral("title")
             )
     {
@@ -5079,46 +5334,38 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
     {
       *_retval = nsIMsgCompConvertible::Plain;
 
-      nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(node);
-      if (domElement)
-      {
         bool hasAttribute;
         nsAutoString color;
-        if (NS_SUCCEEDED(domElement->HasAttribute(NS_LITERAL_STRING("background"), &hasAttribute))
+        if (NS_SUCCEEDED(node->HasAttribute(NS_LITERAL_STRING("background"), &hasAttribute))
             && hasAttribute)  // There is a background image
           *_retval = nsIMsgCompConvertible::No;
-        else if (NS_SUCCEEDED(domElement->HasAttribute(NS_LITERAL_STRING("text"), &hasAttribute)) &&
+        else if (NS_SUCCEEDED(node->HasAttribute(NS_LITERAL_STRING("text"), &hasAttribute)) &&
                  hasAttribute &&
-                 NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("text"), color)) &&
+                 NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("text"), color)) &&
                  !color.EqualsLiteral("#000000")) {
           *_retval = nsIMsgCompConvertible::Altering;
         }
-        else if (NS_SUCCEEDED(domElement->HasAttribute(NS_LITERAL_STRING("bgcolor"), &hasAttribute)) &&
+        else if (NS_SUCCEEDED(node->HasAttribute(NS_LITERAL_STRING("bgcolor"), &hasAttribute)) &&
                  hasAttribute &&
-                 NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("bgcolor"), color)) &&
+                 NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("bgcolor"), color)) &&
                  !color.LowerCaseEqualsLiteral("#ffffff")) {
           *_retval = nsIMsgCompConvertible::Altering;
         }
-        else if (NS_SUCCEEDED(domElement->HasAttribute(NS_LITERAL_STRING("dir"), &hasAttribute))
+        else if (NS_SUCCEEDED(node->HasAttribute(NS_LITERAL_STRING("dir"), &hasAttribute))
             && hasAttribute)  // dir=rtl attributes should not downconvert
           *_retval = nsIMsgCompConvertible::No;
 
         //ignore special color setting for link, vlink and alink at this point.
-      }
-
     }
     else if (element.LowerCaseEqualsLiteral("blockquote"))
     {
       // Skip <blockquote type="cite">
       *_retval = nsIMsgCompConvertible::Yes;
 
-      nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(node);
-      if (domElement)
+      if (NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("type"), attribValue)) &&
+          attribValue.LowerCaseEqualsLiteral("cite"))
       {
-        nsString typeValue;
-        if (NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("type"), typeValue)) &&
-            typeValue.LowerCaseEqualsLiteral("cite"))
-          *_retval = nsIMsgCompConvertible::Plain;
+        *_retval = nsIMsgCompConvertible::Plain;
       }
     }
     else if (
@@ -5129,17 +5376,6 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
     {
       /* Do some special checks for these tags. They are inside this |else if|
          for performance reasons */
-      nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(node);
-      if (domElement)
-      {
-        nsString classValue;
-        if (NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("class"), classValue)) &&
-            StringBeginsWith(classValue, NS_LITERAL_STRING("moz-txt"), nsCaseInsensitiveStringComparator()))
-        {
-          *_retval = nsIMsgCompConvertible::Plain;
-          return rv;  // Inconsistent :-(
-        }
-      }
 
       // Maybe, it's an <a> element inserted by another recognizer (e.g. 4.x')
       if (element.LowerCaseEqualsLiteral("a"))
@@ -5148,12 +5384,9 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
            (as inserted by recognizers) */
         *_retval = nsIMsgCompConvertible::Altering;
 
-        nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(node);
-        if (domElement)
-        {
-          nsString hrefValue;
+          nsAutoString hrefValue;
           bool hasChild;
-          if (NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("href"), hrefValue)) &&
+          if (NS_SUCCEEDED(node->GetAttribute(NS_LITERAL_STRING("href"), hrefValue)) &&
               NS_SUCCEEDED(node->HasChildNodes(&hasChild)) && hasChild)
           {
             nsCOMPtr<nsIDOMNodeList> children;
@@ -5168,7 +5401,6 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
                 *_retval = nsIMsgCompConvertible::Plain;
             }
           }
-        }
       }
 
       // Lastly, test, if it is just a "simple" <div> or <span>
@@ -5177,24 +5409,14 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  int32_t *_retval)
                 element.LowerCaseEqualsLiteral("span")
               )
       {
-        /* skip only if no style attribute */
         *_retval = nsIMsgCompConvertible::Plain;
-
-        nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(node);
-        if (domElement)
-        {
-          nsAutoString styleValue;
-          if (NS_SUCCEEDED(domElement->GetAttribute(NS_LITERAL_STRING("style"), styleValue)) &&
-              !styleValue.IsEmpty())
-            *_retval = nsIMsgCompConvertible::No;
-        }
       }
     }
 
     return rv;
 }
 
-nsresult nsMsgCompose::_BodyConvertible(nsIDOMNode *node, int32_t *_retval)
+nsresult nsMsgCompose::_NodeTreeConvertible(nsIDOMElement *node, int32_t *_retval)
 {
     NS_ENSURE_TRUE(node && _retval, NS_ERROR_NULL_POINTER);
 
@@ -5222,10 +5444,16 @@ nsresult nsMsgCompose::_BodyConvertible(nsIDOMNode *node, int32_t *_retval)
           if (NS_SUCCEEDED(children->Item(i, getter_AddRefs(pItem)))
               && pItem)
           {
-            int32_t curresult;
-            rv = _BodyConvertible(pItem, &curresult);
-            if (NS_SUCCEEDED(rv) && curresult > result)
-              result = curresult;
+            // We assume all nodes that are not elements are convertible,
+            // so only test elements.
+            nsCOMPtr<nsIDOMElement> domElement = do_QueryInterface(pItem);
+            if (domElement) {
+              int32_t curresult;
+              rv = _NodeTreeConvertible(domElement, &curresult);
+
+              if (NS_SUCCEEDED(rv) && curresult > result)
+                result = curresult;
+            }
           }
         }
       }
@@ -5235,25 +5463,24 @@ nsresult nsMsgCompose::_BodyConvertible(nsIDOMNode *node, int32_t *_retval)
     return rv;
 }
 
-nsresult nsMsgCompose::BodyConvertible(int32_t *_retval)
+NS_IMETHODIMP
+nsMsgCompose::BodyConvertible(int32_t *_retval)
 {
-    NS_ENSURE_TRUE(_retval, NS_ERROR_NULL_POINTER);
+    NS_ENSURE_ARG_POINTER(_retval);
+    NS_ENSURE_STATE(m_editor);
 
-    nsresult rv;
-
-    if (!m_editor)
-      return NS_ERROR_FAILURE;
-
-    nsCOMPtr<nsIDOMElement> rootElement;
-    rv = m_editor->GetRootElement(getter_AddRefs(rootElement));
-    if (NS_FAILED(rv) || nullptr == rootElement)
+    nsCOMPtr<nsIDOMDocument> rootDocument;
+    nsresult rv = m_editor->GetDocument(getter_AddRefs(rootDocument));
+    if (NS_FAILED(rv) || !rootDocument)
       return rv;
 
-    nsCOMPtr<nsIDOMNode> node = do_QueryInterface(rootElement);
-    if (nullptr == node)
-      return NS_ERROR_FAILURE;
+    // get the top level element, which contains <html>
+    nsCOMPtr<nsIDOMElement> rootElement;
+    rv = rootDocument->GetDocumentElement(getter_AddRefs(rootElement));
+    if (NS_FAILED(rv) || !rootElement)
+      return rv;
 
-    return _BodyConvertible(node, _retval);
+    return _NodeTreeConvertible(rootElement, _retval);
 }
 
 NS_IMETHODIMP
@@ -5262,6 +5489,136 @@ nsMsgCompose::GetIdentity(nsIMsgIdentity **aIdentity)
   NS_ENSURE_ARG_POINTER(aIdentity);
   NS_IF_ADDREF(*aIdentity = m_identity);
   return NS_OK;
+}
+
+/**
+ * Position above the quote, that is either <blockquote> or
+ * <div class="moz-cite-prefix"> or <div class="moz-forward-container">
+ * in an inline-forwarded message.
+ */
+nsresult
+nsMsgCompose::MoveToAboveQuote(void)
+{
+  nsCOMPtr<nsIDOMElement> rootElement;
+  nsresult rv = m_editor->GetRootElement(getter_AddRefs(rootElement));
+  if (NS_FAILED(rv) || !rootElement) {
+    return rv;
+  }
+
+  nsCOMPtr<nsIDOMNode> node;
+  nsAutoString attributeName;
+  nsAutoString attributeValue;
+  nsAutoString tagLocalName;
+  attributeName.AssignLiteral("class");
+
+  rv = rootElement->GetFirstChild(getter_AddRefs(node));
+  while (NS_SUCCEEDED(rv) && node) {
+    nsCOMPtr<nsIDOMElement> element = do_QueryInterface(node);
+    if (element) {
+      // First check for <blockquote>. This will most likely not trigger
+      // since well-behaved quotes are preceded by a cite prefix.
+      node->GetLocalName(tagLocalName);
+      if (tagLocalName.EqualsLiteral("blockquote")) {
+        break;
+      }
+
+      // Get the class value.
+      element->GetAttribute(attributeName, attributeValue);
+
+      // Now check for the cite prefix, so an element with
+      // class="moz-cite-prefix".
+      if (attributeValue.Find("moz-cite-prefix", true) != kNotFound) {
+        break;
+      }
+
+      // Next check for forwarded content.
+      // The forwarded part is inside an element with
+      // class="moz-forward-container".
+      if (attributeValue.Find("moz-forward-container", true) != kNotFound) {
+        break;
+      }
+    }
+
+    rv = node->GetNextSibling(getter_AddRefs(node));
+    if (NS_FAILED(rv) || !node) {
+      // No further siblings found, so we didn't find what we were looking for.
+      rv = NS_OK;
+      node = nullptr;
+      break;
+    }
+  }
+
+  // Now position. If no quote was found, we position to the very front.
+  int32_t offset = 0;
+  if (node) {
+    rv = GetChildOffset(node, rootElement, offset);
+    if (NS_FAILED(rv)) {
+      return rv;
+    }
+  }
+  nsCOMPtr<nsISelection> selection;
+  m_editor->GetSelection(getter_AddRefs(selection));
+  if (selection)
+    rv = selection->Collapse(rootElement, offset);
+
+  return rv;
+}
+
+/**
+ * nsEditor::BeginningOfDocument() will position to the beginning of the document
+ * before the first editable element. It will position into a container.
+ * We need to be at the very front.
+ */
+nsresult
+nsMsgCompose::MoveToBeginningOfDocument(void)
+{
+  nsCOMPtr<nsIDOMElement> rootElement;
+  nsresult rv = m_editor->GetRootElement(getter_AddRefs(rootElement));
+  if (NS_FAILED(rv) || !rootElement) {
+    return rv;
+  }
+
+  nsCOMPtr<nsISelection> selection;
+  m_editor->GetSelection(getter_AddRefs(selection));
+  if (selection)
+    rv = selection->Collapse(rootElement, 0);
+
+  return rv;
+}
+
+/**
+ * M-C's nsEditor::EndOfDocument() will position to the end of the document
+ * but it will position into a container. We really need to position
+ * after the last container so we don't accidentally position into a
+ * <blockquote>. That's why we use our own function.
+ */
+nsresult
+nsMsgCompose::MoveToEndOfDocument(void)
+{
+  int32_t offset;
+  nsCOMPtr<nsIDOMElement> rootElement;
+  nsCOMPtr<nsIDOMNode> lastNode;
+  nsresult rv = m_editor->GetRootElement(getter_AddRefs(rootElement));
+  if (NS_FAILED(rv) || !rootElement) {
+    return rv;
+  }
+
+  rv = rootElement->GetLastChild(getter_AddRefs(lastNode));
+  if (NS_FAILED(rv) || !lastNode) {
+    return rv;
+  }
+
+  rv = GetChildOffset(lastNode, rootElement, offset);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  nsCOMPtr<nsISelection> selection;
+  m_editor->GetSelection(getter_AddRefs(selection));
+  if (selection)
+    rv = selection->Collapse(rootElement, offset + 1);
+
+  return rv;
 }
 
 NS_IMETHODIMP
@@ -5278,7 +5635,7 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
 
   nsCOMPtr<nsIDOMElement> rootElement;
   rv = m_editor->GetRootElement(getter_AddRefs(rootElement));
-  if (NS_FAILED(rv) || nullptr == rootElement)
+  if (NS_FAILED(rv) || !rootElement)
     return rv;
 
   //First look for the current signature, if we have one
@@ -5288,7 +5645,7 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
   nsAutoString tagLocalName;
 
   rv = rootElement->GetLastChild(getter_AddRefs(lastNode));
-  if (NS_SUCCEEDED(rv) && nullptr != lastNode)
+  if (NS_SUCCEEDED(rv) && lastNode)
   {
     node = lastNode;
     // In html, the signature is inside an element with
@@ -5326,7 +5683,7 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
         return rv;
       }
 
-      //Also, remove the <br> right before the signature.
+      // Also, remove the <br> right before the signature.
       if (tempNode)
       {
         tempNode->GetLocalName(tagLocalName);
@@ -5344,21 +5701,21 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
   nsAutoString aSignature;
 
   // No delimiter needed if not a compose window
-  bool noDelimiter;
+  bool isQuoted;
   switch (mType)
   {
     case nsIMsgCompType::New :
     case nsIMsgCompType::NewsPost :
     case nsIMsgCompType::MailToUrl :
     case nsIMsgCompType::ForwardAsAttachment :
-      noDelimiter = false;
+      isQuoted = false;
       break;
     default :
-      noDelimiter = true;
+      isQuoted = true;
       break;
   }
 
-  ProcessSignature(aIdentity, noDelimiter, &aSignature);
+  ProcessSignature(aIdentity, isQuoted, &aSignature);
 
   if (!aSignature.IsEmpty())
   {
@@ -5370,23 +5727,23 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
     aIdentity->GetReplyOnTop(&reply_on_top);
     aIdentity->GetSigBottom(&sig_bottom);
     bool sigOnTop = (reply_on_top == 1 && !sig_bottom);
-    if (sigOnTop && noDelimiter)
-      m_editor->BeginningOfDocument();
-    else
-      m_editor->EndOfDocument();
-
-    nsCOMPtr<nsIHTMLEditor> htmlEditor (do_QueryInterface(m_editor));
-    nsCOMPtr<nsIPlaintextEditor> textEditor (do_QueryInterface(m_editor));
-
-    if (m_composeHTML)
-      rv = htmlEditor->InsertHTML(aSignature);
-    else {
-      rv = textEditor->InsertLineBreak();
-      InsertDivWrappedTextAtSelection(aSignature, NS_LITERAL_STRING("moz-signature"));
+    if (sigOnTop && isQuoted) {
+      rv = MoveToAboveQuote();
+    } else {
+      // Note: New messages aren't quoted so we always move to the end.
+      rv = MoveToEndOfDocument();
     }
 
-    if (sigOnTop && noDelimiter)
-      m_editor->EndOfDocument();
+    if (NS_SUCCEEDED(rv)) {
+      if (m_composeHTML) {
+        nsCOMPtr<nsIHTMLEditor> htmlEditor (do_QueryInterface(m_editor));
+        rv = htmlEditor->InsertHTML(aSignature);
+      } else {
+        nsCOMPtr<nsIPlaintextEditor> textEditor (do_QueryInterface(m_editor));
+        rv = textEditor->InsertLineBreak();
+        InsertDivWrappedTextAtSelection(aSignature, NS_LITERAL_STRING("moz-signature"));
+      }
+    }
     m_editor->EndTransaction();
   }
 
@@ -5404,6 +5761,13 @@ NS_IMETHODIMP nsMsgCompose::CheckCharsetConversion(nsIMsgIdentity *identity, cha
   if (fallbackCharset)
     *fallbackCharset = nullptr;
   *_retval = true;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgCompose::GetDeliverMode(MSG_DeliverMode* aDeliverMode)
+{
+  NS_ENSURE_ARG_POINTER(aDeliverMode);
+  *aDeliverMode = mDeliverMode;
   return NS_OK;
 }
 

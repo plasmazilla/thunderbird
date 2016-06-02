@@ -35,7 +35,9 @@ public:
 private:
 	virtual ~nsAbManager();
   nsresult GetRootDirectory(nsIAbDirectory **aResult);
-  nsresult ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const char *aDelim, uint32_t aDelimLen, nsIFile *aLocalFile);
+  nsresult ExportDirectoryToDelimitedText(nsIAbDirectory *aDirectory, const char *aDelim,
+                                          uint32_t aDelimLen, nsIFile *aLocalFile, bool useUTF8);
+  nsresult ExportDirectoryToVCard(nsIAbDirectory *aDirectory, nsIFile *aLocalFile);
   nsresult ExportDirectoryToLDIF(nsIAbDirectory *aDirectory, nsIFile *aLocalFile);
   nsresult AppendLDIFForMailList(nsIAbCard *aCard, nsIAbLDAPAttributeMap *aAttrMap, nsACString &aResult);
   nsresult AppendDNForCard(const char *aProperty, nsIAbCard *aCard, nsIAbLDAPAttributeMap *aAttrMap, nsACString &aResult);

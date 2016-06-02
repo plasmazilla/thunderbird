@@ -65,7 +65,7 @@ function addToFolder(aSubject, aBody, aFolder) {
   return aFolder.msgDatabase.getMsgHdrForMessageID(msgId);
 }
 
-const jsMsgBody = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">\n' +
+var jsMsgBody = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">\n' +
 '<html>\n' +
 '<head>\n' +
 '\n' +
@@ -85,7 +85,7 @@ const jsMsgBody = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN
 '</body>\n' +
 '</html>\n';
 
-let gMsgNo = 0;
+var gMsgNo = 0;
 
 function checkJsInMail() {
   let msgDbHdr = addToFolder("JS test message " + gMsgNo, jsMsgBody, folder);
@@ -156,9 +156,9 @@ function checkJsInFeedContent() {
   // for the remote content to load too before we check anything.
   let mc = mozmill.getMail3PaneController();
   let feedUrl = url + "remote-noscript.html";
-  mc.waitFor(function() mc.window.content.wrappedJSObject.location.href == feedUrl && 
-                        mc.window.content.wrappedJSObject.document &&
-                        mc.window.content.wrappedJSObject.document.querySelector("body") != null,
+  mc.waitFor(() => mc.window.content.wrappedJSObject.location.href == feedUrl &&
+                   mc.window.content.wrappedJSObject.document &&
+                   mc.window.content.wrappedJSObject.document.querySelector("body") != null,
              "Timeout waiting for remote feed doc to load; url=" + mc.window.content.wrappedJSObject.location);
 
   if (!mc.window.content.wrappedJSObject.jsIsTurnedOn)

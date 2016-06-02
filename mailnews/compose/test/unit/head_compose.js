@@ -11,6 +11,10 @@ var Ci = Components.interfaces;
 var Cr = Components.results;
 var CC = Components.Constructor;
 
+// WebApps.jsm called by ProxyAutoConfig (PAC) requires a valid nsIXULAppInfo.
+Components.utils.import("resource://testing-common/AppInfo.jsm");
+updateAppInfo();
+
 // Ensure the profile directory is set up
 do_get_profile();
 
@@ -143,7 +147,8 @@ function createMessage(aAttachment) {
   return richCreateMessage(fields, attachments);
 }
 
-function richCreateMessage(fields, attachments=[], identity=null) {
+function richCreateMessage(fields, attachments=[], identity=null,
+                           account=null) {
   let params = Cc["@mozilla.org/messengercompose/composeparams;1"]
                  .createInstance(Ci.nsIMsgComposeParams);
   params.composeFields = fields;
@@ -181,7 +186,8 @@ function richCreateMessage(fields, attachments=[], identity=null) {
     progressListener.reject = reject;
   });
   progress.registerListener(progressListener);
-  msgCompose.SendMsg(Ci.nsIMsgSend.nsMsgSaveAsDraft, identity, "", null,
+  msgCompose.SendMsg(Ci.nsIMsgSend.nsMsgSaveAsDraft, identity,
+                     account ? account.key : "", null,
                      progress);
   return promise;
 }

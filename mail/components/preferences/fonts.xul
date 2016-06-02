@@ -69,6 +69,7 @@
             <menuitem value="ko"              label="&font.langGroup.korean;"/>
             <menuitem value="x-western"       label="&font.langGroup.latin;"/>
             <menuitem value="x-mlym"          label="&font.langGroup.malayalam;"/>
+            <menuitem value="x-math"          label="&font.langGroup.math;"/>
             <menuitem value="x-orya"          label="&font.langGroup.oriya;"/>
             <menuitem value="x-sinh"          label="&font.langGroup.sinhala;"/>
             <menuitem value="x-tamil"         label="&font.langGroup.tamil;"/>
@@ -272,9 +273,9 @@
     </groupbox>
 
     <groupbox align="start">
-      <caption label="&languagesTitle1.label;"/>
+      <caption label="&languagesTitle2.label;"/>
 
-      <label value="&composingDescription.label;"/>
+      <label value="&composingDescription2.label;"/>
 
       <separator class="thin"/>
       <grid>
@@ -306,9 +307,9 @@
 
       <separator class="thin"/>
 
-      <checkbox id="replyInDefaultCharset" label="&replyInDefaultCharset2.label;"
+      <checkbox id="replyInDefaultCharset" label="&replyInDefaultCharset3.label;"
                 preference="mailnews.reply_in_default_charset"
-                accesskey="&replyInDefaultCharset2.accesskey;"/>
+                accesskey="&replyInDefaultCharset3.accesskey;"/>
     </groupbox>
     <separator/>
   </prefpane>

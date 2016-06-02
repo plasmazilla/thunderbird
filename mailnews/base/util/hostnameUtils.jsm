@@ -7,7 +7,7 @@
  * Generic shared utility code for checking of IP and hostname validity.
  */
 
-const EXPORTED_SYMBOLS = [ "isLegalHostNameOrIP",
+this.EXPORTED_SYMBOLS = [ "isLegalHostNameOrIP",
                            "isLegalHostName",
                            "isLegalIPv4Address",
                            "isLegalIPv6Address",
@@ -17,8 +17,8 @@ const EXPORTED_SYMBOLS = [ "isLegalHostNameOrIP",
                            "kMinPort",
                            "kMaxPort" ];
 
-const kMinPort = 1;
-const kMaxPort = 65535;
+var kMinPort = 1;
+var kMaxPort = 65535;
 
 /**
  * Check if aHostName is an IP address or a valid hostname.

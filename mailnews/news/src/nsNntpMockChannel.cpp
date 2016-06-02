@@ -9,6 +9,8 @@
 #include "nsILoadInfo.h"
 #include "nsNNTPProtocol.h"
 #include "nsNetUtil.h"
+#include "nsIInputStream.h"
+#include "nsContentSecurityManager.h"
 
 NS_IMPL_ISUPPORTS(nsNntpMockChannel, nsIChannel, nsIRequest)
 
@@ -200,7 +202,7 @@ NS_IMETHODIMP nsNntpMockChannel::GetContentType(nsACString &aContentType)
 NS_IMETHODIMP nsNntpMockChannel::SetContentType(const nsACString &aContentType)
 {
   FORWARD_CALL(SetContentType, aContentType)
-  return NS_ParseContentType(aContentType, m_contentType, m_contentCharset);
+  return NS_ParseResponseContentType(aContentType, m_contentType, m_contentCharset);
 }
 
 NS_IMETHODIMP nsNntpMockChannel::GetContentCharset(nsACString &aCharset)
@@ -271,6 +273,14 @@ NS_IMETHODIMP nsNntpMockChannel::Open(nsIInputStream **_retval)
   return NS_ImplementChannelOpen(this, _retval);
 }
 
+NS_IMETHODIMP nsNntpMockChannel::Open2(nsIInputStream **_retval)
+{
+  nsCOMPtr<nsIStreamListener> listener;
+  nsresult rv = nsContentSecurityManager::doContentSecurityCheck(this, listener);
+  NS_ENSURE_SUCCESS(rv, rv);
+  return Open(_retval);
+}
+
 NS_IMETHODIMP nsNntpMockChannel::AsyncOpen(nsIStreamListener *listener,
                                            nsISupports *ctxt)
 {
@@ -278,6 +288,14 @@ NS_IMETHODIMP nsNntpMockChannel::AsyncOpen(nsIStreamListener *listener,
   m_channelListener = listener;
   m_context = ctxt;
   return NS_OK;
+}
+
+NS_IMETHODIMP nsNntpMockChannel::AsyncOpen2(nsIStreamListener *aListener)
+{
+    nsCOMPtr<nsIStreamListener> listener = aListener;
+    nsresult rv = nsContentSecurityManager::doContentSecurityCheck(this, listener);
+    NS_ENSURE_SUCCESS(rv, rv);
+    return AsyncOpen(listener, nullptr);
 }
 
 nsresult

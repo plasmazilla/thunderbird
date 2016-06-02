@@ -17,7 +17,7 @@ Components.utils.import("resource:///modules/mailServices.js");
 
 // IMAP pump
 
-const kAttachFileName = 'bob.txt';
+var kAttachFileName = 'bob.txt';
 
 setupIMAPPump();
 
@@ -110,7 +110,7 @@ function testDetach()
   let msgHdr = IMAPPump.inbox.GetMessageHeader(2);
   do_check_neq(msgHdr, null);
   let messageContent = getContentFromMessage(msgHdr);
-  do_check_true(messageContent.contains("AttachmentDetached"));
+  do_check_true(messageContent.includes("AttachmentDetached"));
 }
 
 // Cleanup
@@ -129,7 +129,7 @@ SaveAttachmentCallback.prototype = {
     async_driver();
   }
 }
-let gCallbackObject = new SaveAttachmentCallback();
+var gCallbackObject = new SaveAttachmentCallback();
 
 function run_test()
 {

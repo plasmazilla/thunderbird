@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ['GlodaABIndexer', 'GlodaABAttrs'];
+this.EXPORTED_SYMBOLS = ['GlodaABIndexer', 'GlodaABAttrs'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/gloda/collection.js");
 Cu.import("resource:///modules/gloda/datastore.js");
@@ -274,7 +274,7 @@ var GlodaABAttrs = {
       this._log.error("Problem accessing property: " + ex);
     }
     if (tags) {
-      for each (let [iTagName, tagName] in Iterator(tags.split(","))) {
+      for (let tagName of tags.split(",")) {
         tagName = tagName.trim();
         if (tagName) {
           aContact.freeTags.push(FreeTagNoun.getFreeTag(tagName));

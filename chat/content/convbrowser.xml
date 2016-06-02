@@ -84,6 +84,19 @@
                 onget="return this._docShell || (this._docShell = this.boxObject.docShell);"
                 readonly="true"/>
 
+      <property name="messageManager"
+                readonly="true">
+        <getter>
+          <![CDATA[
+            var owner = this.QueryInterface(Components.interfaces.nsIFrameLoaderOwner);
+            if (!owner.frameLoader) {
+              return null;
+            }
+            return owner.frameLoader.messageManager;
+          ]]>
+        </getter>
+      </property>
+
       <field name="_webNavigation">null</field>
 
       <property name="webNavigation"
@@ -138,6 +151,10 @@
       <property name="contentWindow"
                 readonly="true"
                 onget="return this._contentWindow || (this._contentWindow = this.docShell.QueryInterface(Components.interfaces.nsIInterfaceRequestor).getInterface(Components.interfaces.nsIDOMWindow));"/>
+
+      <property name="contentWindowAsCPOW"
+                readonly="true"
+                onget="return this.contentWindow;"/>
 
       <property name="contentDocument"
                 onget="return this.webNavigation.document;"
@@ -494,7 +511,9 @@
             if (aFirstUnread)
               this.setUnreadRuler();
 
-            let msg = aMsg.displayMessage;
+            // Right trim before displaying. This removes any OTR related
+            // whitespace when the extension isn't enabled.
+            let msg = aMsg.displayMessage.trimRight();
 
             // The slash of a leading '/me' should not be used to
             // format as italic, so we remove the '/me' text before
@@ -673,7 +692,7 @@
               continue;
             sections.push([y, y - Math.round(this.clientHeight / 2)]);
           }
-          sections.sort(function(a, b) a[0] - b[0]);
+          sections.sort((a, b) => a[0] - b[0]);
           return sections;
         ]]>
         </body>
@@ -859,6 +878,10 @@
                 // message styles.
                 this.contentWindow.scrollToElement = this._scrollToElement.bind(this);
                 this.contentWindow.autoScrollEnabled = this.autoScrollEnabled.bind(this);
+                // A common use case is to click somewhere in the conversation and
+                // start typing a command (often /me). If quick find is enabled, it
+                // will pick up the "/" keypress and open the findbar. See bug 1161930.
+                this.contentWindow.document.documentElement.setAttribute("disablefastfind", "true");
                 return;
               }
               this.removeProgressListener(this);

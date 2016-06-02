@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
-const Cr = Components.results;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cu = Components.utils;
+var Cr = Components.results;
 
-const kFormId = "provider-form";
+var kFormId = "provider-form";
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -45,7 +45,7 @@ createAccountObserver.prototype = {
   },
 }
 
-let addAccountDialog = {
+var addAccountDialog = {
   _settings: null,
   _settingsWrap: null,
   _accountType: null,
@@ -102,7 +102,7 @@ let addAccountDialog = {
     this._settings.removeEventListener("overflow", this);
     this._accountType.removeEventListener("select", this);
 
-    return false;
+    return true;
   },
 
   handleEvent: function(aEvent) {
@@ -214,7 +214,8 @@ let addAccountDialog = {
     this._messages.selectedPanel = this._authSpinner;
 
     // Uninitialize the dialog before closing.
-    return this.onUnInit()
+    this.onUnInit();
+    return false;
   },
 
   getExtraArgs: function AAD_getExtraArgs() {

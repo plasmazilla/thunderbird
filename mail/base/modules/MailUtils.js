@@ -4,8 +4,8 @@
 
 var EXPORTED_SYMBOLS = ["MailUtils"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
 
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource:///modules/MailConsts.js");
@@ -13,7 +13,7 @@ Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
 
-const MC = MailConsts;
+var MC = MailConsts;
 
 /**
  * This module has several utility functions for use by both core and
@@ -189,7 +189,7 @@ var MailUtils =
                                "openTabWarningConfirmation",
                                "mailnews.open_tab_warning"))
           return;
-        for each (let [i, msgHdr] in Iterator(aMsgHdrs))
+        for (let [i, msgHdr] of aMsgHdrs.entries())
           // Open all the tabs in the background, except for the last one
           aTabmail.openTab("message", {msgHdr: msgHdr,
               viewWrapperToClone: aViewWrapperToClone,
@@ -262,7 +262,7 @@ var MailUtils =
                            "mailnews.open_window_warning"))
       return;
 
-    for each (let [, msgHdr] in Iterator(aMsgHdrs))
+    for (let msgHdr of aMsgHdrs)
       this.openMessageInNewWindow(msgHdr, aViewWrapperToClone);
   },
 

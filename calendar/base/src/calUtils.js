@@ -22,25 +22,25 @@ function _calIcalCreator(cid, iid) {
     };
 }
 
-let createEvent = _calIcalCreator("@mozilla.org/calendar/event;1",
+var createEvent = _calIcalCreator("@mozilla.org/calendar/event;1",
                                   Components.interfaces.calIEvent);
-let createTodo = _calIcalCreator("@mozilla.org/calendar/todo;1",
+var createTodo = _calIcalCreator("@mozilla.org/calendar/todo;1",
                                  Components.interfaces.calITodo);
-let createDateTime  = _calIcalCreator("@mozilla.org/calendar/datetime;1",
+var createDateTime  = _calIcalCreator("@mozilla.org/calendar/datetime;1",
                                       Components.interfaces.calIDateTime);
-let createDuration = _calIcalCreator("@mozilla.org/calendar/duration;1",
+var createDuration = _calIcalCreator("@mozilla.org/calendar/duration;1",
                                      Components.interfaces.calIDuration);
-let createAttendee = _calIcalCreator("@mozilla.org/calendar/attendee;1",
+var createAttendee = _calIcalCreator("@mozilla.org/calendar/attendee;1",
                                      Components.interfaces.calIAttendee);
-let createAttachment = _calIcalCreator("@mozilla.org/calendar/attachment;1",
+var createAttachment = _calIcalCreator("@mozilla.org/calendar/attachment;1",
                                        Components.interfaces.calIAttachment);
-let createAlarm = _calIcalCreator("@mozilla.org/calendar/alarm;1",
+var createAlarm = _calIcalCreator("@mozilla.org/calendar/alarm;1",
                                   Components.interfaces.calIAlarm);
-let createRelation = _calIcalCreator("@mozilla.org/calendar/relation;1",
+var createRelation = _calIcalCreator("@mozilla.org/calendar/relation;1",
                                      Components.interfaces.calIRelation);
-let createRecurrenceDate = _calIcalCreator("@mozilla.org/calendar/recurrence-date;1",
+var createRecurrenceDate = _calIcalCreator("@mozilla.org/calendar/recurrence-date;1",
                                            Components.interfaces.calIRecurrenceDate);
-let createRecurrenceRule = _calIcalCreator("@mozilla.org/calendar/recurrence-rule;1",
+var createRecurrenceRule = _calIcalCreator("@mozilla.org/calendar/recurrence-rule;1",
                                            Components.interfaces.calIRecurrenceRule);
 
 /* Returns a clean new calIRecurrenceInfo */
@@ -128,7 +128,7 @@ function saveRecentTimezone(aTzid) {
     const MAX_RECENT_TIMEZONES = 5; // We don't need a pref for *everything*.
 
     if (aTzid != calendarDefaultTimezone().tzid &&
-        recentTimezones.indexOf(aTzid) < 0) {
+        !recentTimezones.includes(aTzid)) {
         // Add the timezone if its not already the default timezone
         recentTimezones.unshift(aTzid);
         recentTimezones.splice(MAX_RECENT_TIMEZONES);
@@ -601,7 +601,7 @@ function hashColor(str) {
                           "#000000", "#330000", "#663300", "#663333", "#333300",
                           "#003300", "#003333", "#000066", "#330099", "#330033"];
 
-    let sum = Array.map(str || " ", function(e) e.charCodeAt(0)).reduce(function(a,b) a + b);
+    let sum = Array.map(str || " ", e => e.charCodeAt(0)).reduce((a, b) => a + b);
     return colorPalette[sum % colorPalette.length];
 }
 
@@ -1167,7 +1167,7 @@ calInterfaceBag.prototype = {
     mInterfaces: null,
 
     // Iterating the inteface bag iterates the interfaces it contains
-    [Symbol.iterator]: function() this.mInterfaces[Symbol.iterator](),
+    [Symbol.iterator]: function() { return this.mInterfaces[Symbol.iterator](); },
 
     /// internal:
     init: function calInterfaceBag_init(iid) {
@@ -1186,25 +1186,22 @@ calInterfaceBag.prototype = {
 
     add: function calInterfaceBag_add(iface) {
         if (iface) {
-            var iid = this.mIid;
-            function eq(obj) {
-                return compareObjects(obj, iface, iid);
-            }
-            if (!this.mInterfaces.some(eq)) {
+            let existing = this.mInterfaces.some(obj => {
+                return compareObjects(obj, iface, this.mIid);
+            });
+            if (!existing) {
                 this.mInterfaces.push(iface);
-                return true;
             }
+            return !existing;
         }
         return false;
     },
 
     remove: function calInterfaceBag_remove(iface) {
         if (iface) {
-            var iid = this.mIid;
-            function neq(obj) {
-                return !compareObjects(obj, iface, iid);
-            }
-            this.mInterfaces = this.mInterfaces.filter(neq);
+            this.mInterfaces = this.mInterfaces.filter((obj) => {
+                return !compareObjects(obj, iface, this.mIid);
+            });
         }
     },
 
@@ -1287,10 +1284,7 @@ calOperationGroup.prototype = {
 
     remove: function calOperationGroup_remove(op) {
         if (op) {
-            function filterFunc(op_) {
-                return (op.id != op_.id);
-            }
-            this.mSubOperations = this.mSubOperations.filter(filterFunc);
+            this.mSubOperations = this.mSubOperations.filter(op_ => op.id != op_.id);
         }
     },
 
@@ -1338,10 +1332,9 @@ calOperationGroup.prototype = {
             }
             var subOperations = this.mSubOperations;
             this.mSubOperations = [];
-            function forEachFunc(op) {
+            for (let op of subOperations) {
                 op.cancel(Components.interfaces.calIErrors.OPERATION_CANCELLED);
             }
-            subOperations.forEach(forEachFunc);
         }
     }
 };
@@ -1813,7 +1806,7 @@ function binaryInsertNode(parentNode, insertNode, aItem, comptor, discardDuplica
     }
     return newIndex;
 }
-binaryInsertNode.defaultAccessor = function(n) n.item;
+binaryInsertNode.defaultAccessor = n => n.item;
 
 /**
  * Insert an item into the given array, using binary search. See binarySearch

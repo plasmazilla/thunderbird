@@ -15,7 +15,7 @@
  *   http://ircv3.atheme.org/extensions/multi-prefix-3.1
  */
 
-const EXPORTED_SYMBOLS = ["isupportNAMESX", "capMultiPrefix"];
+this.EXPORTED_SYMBOLS = ["isupportNAMESX", "capMultiPrefix"];
 
 Components.utils.import("resource:///modules/ircHandlers.jsm");
 
@@ -23,7 +23,7 @@ var isupportNAMESX = {
   name: "ISUPPORT NAMESX",
   // Slightly above default ISUPPORT priority.
   priority: ircHandlers.DEFAULT_PRIORITY + 10,
-  isEnabled: function() true,
+  isEnabled: () => true,
 
   commands: {
     "NAMESX": function(aMessage) {
@@ -37,7 +37,7 @@ var capMultiPrefix = {
   name: "CAP multi-prefix",
   // Slightly above default ISUPPORT priority.
   priority: ircHandlers.HIGH_PRIORITY,
-  isEnabled: function() true,
+  isEnabled: () => true,
 
   commands: {
     "multi-prefix": function(aMessage) {

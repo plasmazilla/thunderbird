@@ -12,9 +12,9 @@
  *  https://github.com/atheme/charybdis/blob/master/include/numeric.h
  *  http://hg.unrealircd.com/hg/unreal/raw-file/tip/include/numeric.h
  */
-const EXPORTED_SYMBOLS = ["ircNonStandard"];
+this.EXPORTED_SYMBOLS = ["ircNonStandard"];
 
-const {interfaces: Ci, utils: Cu} = Components;
+var {interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/ircHandlers.jsm");
 Cu.import("resource:///modules/ircUtils.jsm");
@@ -22,33 +22,11 @@ Cu.import("resource:///modules/ircUtils.jsm");
 var ircNonStandard = {
   name: "Non-Standard IRC Extensions",
   priority: ircHandlers.DEFAULT_PRIORITY + 1,
-  isEnabled: function() true,
+  isEnabled: () => true,
 
   commands: {
     "NOTICE": function(aMessage) {
       // NOTICE <msgtarget> <text>
-
-      // Try to avoid the stupid case where the user's nick is AUTH. If this
-      // happens, it is ambiguous if it is an AUTH message or a NOTICE to the
-      // user. Generally AUTH messages start with ***, but this could pretty
-      // easily be faked.
-      // Freenode simply sends * for the target. Moznet sends Auth (used to send
-      // AUTH); in this case, check if the user's nickname is not auth, or the
-      // the message starts with ***.
-      let target = aMessage.params[0].toLowerCase();
-      let nickname = aMessage.origin ? aMessage.origin.toLowerCase() : "";
-      let isAuth = target == "*" ||
-        (target == "auth" && (nickname != "auth" ||
-                              aMessage.params[1].startsWith("***")));
-
-      // Some servers , e.g. irc.umich.edu, use NOTICE before connection to give
-      // directions to users.
-      if (!this.connected && !isAuth) {
-        this.getConversation(aMessage.origin)
-            .writeMessage(aMessage.origin, aMessage.params[1],
-                          {incoming: true});
-        return true;
-      }
 
       if (aMessage.params[1].startsWith("*** You cannot list within the first")) {
         // SECURELIST: "You cannot list within the first N seconds of connecting.
@@ -62,25 +40,51 @@ var ircNonStandard = {
         return true;
       }
 
+      // If the user is connected, fallback to normal processing, everything
+      // past this points deals with NOTICE messages that occur before 001 is
+      // received.
+      if (this.connected)
+        return false;
+
+      let target = aMessage.params[0].toLowerCase();
+
       // If we receive a ZNC error message requesting a password, the
       // serverPassword preference was not set by the user. Attempt to log into
       // ZNC using the account password.
-      if (!isAuth ||
-          aMessage.params[1] != "*** You need to send your password. Try /quote PASS <username>:<password>")
-        return false;
+      if (target == "auth" &&
+          aMessage.params[1].startsWith("*** You need to send your password.")) {
+        if (this.imAccount.password) {
+          // Send the password now, if it is available.
+          this.shouldAuthenticate = false;
+          this.sendMessage("PASS", this.imAccount.password,
+                           "PASS <password not logged>");
+        }
+        else {
+          // Otherwise, put the account in an error state.
+          this.gotDisconnected(Ci.prplIAccount.ERROR_AUTHENTICATION_IMPOSSIBLE,
+                               _("connection.error.passwordRequired"));
+        }
 
-      if (this.imAccount.password) {
-        // Send the password now, if it is available.
-        this.shouldAuthenticate = false;
-        this.sendMessage("PASS", this.imAccount.password,
-                         "PASS <password not logged>");
+        // All done for ZNC.
+        return true;
       }
-      else {
-        // Otherwise, put the account in an error state.
-        this.gotDisconnected(Ci.prplIAccount.ERROR_AUTHENTICATION_IMPOSSIBLE,
-                             _("connection.error.passwordRequired"));
+
+      // Some servers, e.g. irc.umich.edu, use NOTICE during connection
+      // negotation to give directions to users, these MUST be shown to the
+      // user. If the message starts with ***, we assume it is probably an AUTH
+      // message, which falls through to normal NOTICE processing.
+      // Note that if the user's nick is auth this COULD be a notice directed at
+      // them. For reference: moznet sends Auth (previously sent AUTH), freenode
+      // sends *.
+      let isAuth = target == "auth" && this._nickname.toLowerCase() != "auth";
+      if (!aMessage.params[1].startsWith("***") && !isAuth) {
+        this.getConversation(aMessage.origin)
+            .writeMessage(aMessage.origin, aMessage.params[1],
+                          {incoming: true});
+        return true;
       }
-      return true;
+
+      return false;
     },
 
     "042": function(aMessage) { // RPL_YOURID (IRCnet)
@@ -152,6 +156,12 @@ var ircNonStandard = {
       // <nick> :is connecting from <host> <ip>
       let [host, ip] = aMessage.params[2].split(" ").slice(-2);
       return this.setWhois(aMessage.params[1], {host: host, ip: ip});
+    },
+
+    "379": function(aMessage) { // RPL_WHOISMODES (Unreal, Inspircd)
+      // <nick> :is using modes <modes>
+      // Sent in response to a WHOIS on the user.
+      return true;
     },
 
     "396": function(aMessage) {

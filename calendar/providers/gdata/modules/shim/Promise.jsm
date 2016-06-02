@@ -4,9 +4,9 @@
 
 var EXPORTED_SYMBOLS = ["Promise"];
 
-const STATUS_PENDING = 0;
-const STATUS_RESOLVED = 1;
-const STATUS_REJECTED = 2;
+var STATUS_PENDING = 0;
+var STATUS_RESOLVED = 1;
+var STATUS_REJECTED = 2;
 
 function log(msg) {
     // Enable this to debug promises
@@ -149,8 +149,8 @@ Promise.resolve = function(aValue) {
     if (aValue instanceof Promise) {
         return aValue;
     }
-    return new Promise(function(aResolve) aResolve(aValue));
+    return new Promise(function(aResolve) { return aResolve(aValue); });
 };
 Promise.reject = function(aReason) {
-    return new Promise(function(_, aReject) aReject(aReason));
+    return new Promise(function(_, aReject) { return aReject(aReason); });
 }

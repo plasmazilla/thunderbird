@@ -19,14 +19,13 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 // RELATIVE_ROOT messes with the collector, so we have to bring the path back
 // so we get the right path for the resources.
 var url = collector.addHttpResource('../content-tabs/html', 'content-tabs');
-var siteRegExp = new RegExp("^" + url);
 
 var gNewTab;
 var gNotificationBox;
 
-const ALERT_TIMEOUT = 10000;
+var ALERT_TIMEOUT = 50000;
 
-let AlertWatcher = {
+var AlertWatcher = {
   planForAlert: function(aController) {
     this.alerted = false;
     aController.window.document.addEventListener("AlertActive",
@@ -34,8 +33,8 @@ let AlertWatcher = {
   },
   waitForAlert: function(aController) {
     if (!this.alerted) {
-      aController.waitFor(function () this.alerted, "Timeout waiting for alert",
-                          ALERT_TIMEOUT, 100, this);
+      aController.waitFor(() => this.alerted, "Timeout waiting for alert",
+                          ALERT_TIMEOUT, 100);
     }
     aController.window.document.removeEventListener("AlertActive",
                                                     this.alertActive, false);
@@ -83,13 +82,13 @@ function click_install_link_and_wait_for_alert(link) {
   AlertWatcher.waitForAlert(mc);
 
   // Just give other events time to clear
-  mc.sleep(55);
+  mc.sleep(1000);
 }
 
 function test_setup() {
   gNewTab =
     open_content_tab_with_url(url + "installxpi.html",
-                              "specialTabs.siteClickHandler(event, siteRegExp);");
+      "specialTabs.siteClickHandler(event, new RegExp('^" + url + "'));");
 
   // make the animation only take one frame
   gNotificationBox =
@@ -122,7 +121,7 @@ function test_install_xpi_offer() {
   // which we want to click on!
   plan_for_modal_dialog("Addons:Install", close_xpinstall_dialog);
   click_notification_box_action_in_current_tab();
-  wait_for_modal_dialog("Addons:Install");
+  wait_for_modal_dialog("Addons:Install", 50000);
 
   // After closing the dialog we need to give just a little extra time
   // before we do things.
@@ -148,7 +147,7 @@ function test_xpinstall_actually_install() {
   // and this time we get an alert as well.
   AlertWatcher.planForAlert(mc);
   click_notification_box_action_in_current_tab();
-  wait_for_modal_dialog("Addons:Install");
+  wait_for_modal_dialog("Addons:Install", 50000);
 
   AlertWatcher.waitForAlert(mc);
   close_notification_box();

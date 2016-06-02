@@ -26,6 +26,7 @@
 #include "nsCRTGlue.h"
 #include "nsComponentManagerUtils.h"
 #include "nsUnicharUtils.h"
+#include "nsIFileStreams.h"
 //
 // International functions necessary for composition
 //
@@ -33,16 +34,18 @@
 nsresult nsMsgI18NConvertFromUnicode(const char* aCharset,
                                      const nsString& inString,
                                      nsACString& outString,
-                                     bool aIsCharsetCanonical)
+                                     bool aIsCharsetCanonical,
+                                     bool aReportUencNoMapping)
 {
   if (inString.IsEmpty()) {
     outString.Truncate();
     return NS_OK;
   }
-  // Note: this will hide a possible error when the unicode text may contain more than one charset.
-  // (e.g. Latin1 + Japanese). Use nsMsgI18NSaveAsCharset instead to avoid that problem.
-  else if (!*aCharset || !PL_strcasecmp(aCharset, "us-ascii") ||
-           !PL_strcasecmp(aCharset, "ISO-8859-1")) {
+  // Note: This will hide a possible error if the Unicode contains more than one
+  // charset, e.g. Latin1 + Japanese.
+  else if (!aReportUencNoMapping && (!*aCharset ||
+             !PL_strcasecmp(aCharset, "us-ascii") ||
+             !PL_strcasecmp(aCharset, "ISO-8859-1"))) {
     LossyCopyUTF16toASCII(inString, outString);
     return NS_OK;
   }
@@ -62,7 +65,11 @@ nsresult nsMsgI18NConvertFromUnicode(const char* aCharset,
   else
     rv = ccm->GetUnicodeEncoder(aCharset, getter_AddRefs(encoder));
   NS_ENSURE_SUCCESS(rv, rv);
-  rv = encoder->SetOutputErrorBehavior(nsIUnicodeEncoder::kOnError_Replace, nullptr, '?');
+  // Must set behavior to kOnError_Signal if we want to receive the
+  // NS_ERROR_UENC_NOMAPPING signal, should it occur.
+  int32_t behavior = aReportUencNoMapping ? nsIUnicodeEncoder::kOnError_Signal:
+    nsIUnicodeEncoder::kOnError_Replace;
+  rv = encoder->SetOutputErrorBehavior(behavior, nullptr, '?');
   NS_ENSURE_SUCCESS(rv, rv);
 
   const char16_t *originalSrcPtr = inString.get();
@@ -70,15 +77,28 @@ nsresult nsMsgI18NConvertFromUnicode(const char* aCharset,
   int32_t originalUnicharLength = inString.Length();
   int32_t srcLength;
   int32_t dstLength;
-  char localbuf[512];
+  char localbuf[512+10]; // We have seen cases were the buffer was overrun
+                         // by two (!!) bytes (Bug 1255863).
+                         // So give it ten bytes more for now to avoid a crash.
   int32_t consumedLen = 0;
 
+  bool mappingFailure = false;
   outString.Truncate();
   // convert
   while (consumedLen < originalUnicharLength) {
     srcLength = originalUnicharLength - consumedLen;  
     dstLength = 512;
     rv = encoder->Convert(currentSrcPtr, &srcLength, localbuf, &dstLength);
+#ifdef DEBUG
+    if (dstLength > 512) {
+      char warning[100];
+      sprintf(warning, "encoder->Convert() returned %d bytes. Limit = 512", dstLength);
+      NS_WARNING(warning);
+    }
+#endif
+    if (rv == NS_ERROR_UENC_NOMAPPING) {
+      mappingFailure = true;
+    }
     if (NS_FAILED(rv) || dstLength == 0)
       break;
     outString.Append(localbuf, dstLength);
@@ -86,9 +106,13 @@ nsresult nsMsgI18NConvertFromUnicode(const char* aCharset,
     currentSrcPtr += srcLength;
     consumedLen = currentSrcPtr - originalSrcPtr; // src length used so far
   }
+  dstLength = 512; // Reset available buffer size.
   rv = encoder->Finish(localbuf, &dstLength);
-  if (NS_SUCCEEDED(rv))
-    outString.Append(localbuf, dstLength);
+  if (NS_SUCCEEDED(rv)) {
+    if (dstLength)
+      outString.Append(localbuf, dstLength);
+    return !mappingFailure ? rv: NS_ERROR_UENC_NOMAPPING;
+  }
   return rv;
 }
 
@@ -111,7 +135,7 @@ nsresult nsMsgI18NConvertToUnicode(const char* aCharset,
     if (MsgIsUTF8(inString)) {
       nsAutoString tmp;
       CopyUTF8toUTF16(inString, tmp);
-      if (!tmp.IsEmpty() && tmp.get()[0] == char16_t(0xFEFF))
+      if (!tmp.IsEmpty() && tmp.First() == char16_t(0xFEFF))
         tmp.Cut(0, 1);
       outString.Assign(tmp);
       return NS_OK;
@@ -288,8 +312,8 @@ bool nsMsgI18Ncheck_data_in_charset_range(const char *charset, const char16_t* i
   // if the conversion was not successful then try fallback to other charsets
   if (!result && fallbackCharset) {
     nsCString convertedString;
-    res = nsMsgI18NSaveAsCharset("text/plain", charset, inString, 
-                                 getter_Copies(convertedString), fallbackCharset);
+    res = nsMsgI18NConvertFromUnicode(*fallbackCharset,
+      nsDependentString(inString), convertedString, false, true);
     result = (NS_SUCCEEDED(res) && NS_ERROR_UENC_NOMAPPING != res);
   }
 
@@ -361,98 +385,6 @@ nsMsgI18NParseMetaCharset(nsIFile* file)
   } 
 
   return charset; 
-} 
-
-nsresult nsMsgI18NSaveAsCharset(const char* contentType, const char *charset, 
-                                const char16_t* inString, char** outString, 
-                                char **fallbackCharset, bool *isAsciiOnly)
-{
-  NS_ENSURE_ARG_POINTER(contentType);
-  NS_ENSURE_ARG_POINTER(charset);
-  NS_ENSURE_ARG_POINTER(inString);
-  NS_ENSURE_ARG_POINTER(outString);
-
-  *outString = nullptr;
-
-  if (NS_IsAscii(inString)) {
-    if (isAsciiOnly)
-      *isAsciiOnly = true;
-    *outString = ToNewCString(NS_LossyConvertUTF16toASCII(inString));
-    return (nullptr != *outString) ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
-  }
-  if (isAsciiOnly)
-    *isAsciiOnly = false;
-
-  bool bTEXT_HTML = false;
-  nsresult res;
-
-  if (!PL_strcasecmp(contentType, TEXT_HTML)) {
-    bTEXT_HTML = true;
-  }
-  else if (PL_strcasecmp(contentType, TEXT_PLAIN)) {
-    return NS_ERROR_ILLEGAL_VALUE;  // not supported type
-  }
-
-  nsCOMPtr <nsICharsetConverterManager> ccm =
-    do_GetService(NS_CHARSETCONVERTERMANAGER_CONTRACTID, &res);
-  NS_ENSURE_SUCCESS(res, res);
-
-  nsAutoCString charsetName;
-  res = ccm->GetCharsetAlias(charset, charsetName);
-  NS_ENSURE_SUCCESS(res, res);
-
-  nsCOMPtr <nsISaveAsCharset> conv = do_CreateInstance(NS_SAVEASCHARSET_CONTRACTID, &res);
-  NS_ENSURE_SUCCESS(res, res);
-
-  // First try to transliterate, if that fails use '?' for "bad" chars.
-  res = conv->Init(charsetName.get(),
-                   nsISaveAsCharset::attr_FallbackQuestionMark +
-                     nsISaveAsCharset::attr_EntityNone,
-                   nsIEntityConverter::transliterate);
-  NS_ENSURE_SUCCESS(res, res);
-
-  const char16_t *input = inString;
-
-  // Convert to charset
-  res = conv->Convert(input, outString);
-
-  // If the converer cannot encode to the charset,
-  // then fallback to pref sepcified charsets.
-  if (NS_ERROR_UENC_NOMAPPING == res && !bTEXT_HTML && fallbackCharset) {
-    nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &res));
-    NS_ENSURE_SUCCESS(res, res);
-
-    nsAutoCString prefString("intl.fallbackCharsetList.");
-    prefString.Append(charset);
-    nsCString fallbackList;
-    res = prefBranch->GetCharPref(prefString.get(), getter_Copies(fallbackList));
-    // do the fallback only if there is a pref for the charset
-    if (NS_FAILED(res) || fallbackList.IsEmpty())
-      return NS_ERROR_UENC_NOMAPPING;
-
-    res = conv->Init(fallbackList.get(), 
-                     nsISaveAsCharset::attr_FallbackQuestionMark + 
-                     nsISaveAsCharset::attr_EntityAfterCharsetConv +
-                     nsISaveAsCharset::attr_CharsetFallback, 
-                     nsIEntityConverter::transliterate);
-    NS_ENSURE_SUCCESS(res, res);
-
-    // free whatever we have now
-    PR_FREEIF(*outString);  
-
-    res = conv->Convert(input, outString);
-    NS_ENSURE_SUCCESS(res, res);
-
-    // get the actual charset used for the conversion
-    if (NS_FAILED(conv->GetCharset(fallbackCharset)))
-      *fallbackCharset = nullptr;
-  }
-  // Exclude stateful charset which is 7 bit but not ASCII only.
-  else if (isAsciiOnly && *outString &&
-           !nsMsgI18Nstateful_charset(charsetName.get()))
-    *isAsciiOnly = NS_IsAscii(*outString);
-
-  return res;
 }
 
 nsresult nsMsgI18NShrinkUTF8Str(const nsCString &inString,

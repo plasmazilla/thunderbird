@@ -154,6 +154,7 @@
                        flex="1"
                        class="chromeclass-toolbar-additional">
             <textbox id="IMSearchInput"
+                     class="searchBox"
                      flex="1"
                      type="glodacomplete"
                      searchbutton="true"
@@ -164,7 +165,7 @@
                      timeout="200"
                      maxlength="192"
                      placeholder=""
-                     emptytextbase="&search.label.base;"
+                     emptytextbase="&search.label.base1;"
                      keyLabelNonMac="&search.keyLabel.nonmac;"
                      keyLabelMac="&search.keyLabel.mac;"
                      >
@@ -189,7 +190,7 @@
         <toolbarset id="customChatToolbars" context="chat-toolbar-context-menu"/>
       </toolbox>
 
-      <notificationbox id="chatTabPanel" flex="1">
+      <notificationbox id="chatTabPanel" flex="1" notificationside="top">
         <hbox flex="1">
           <vbox id="listPaneBox" minwidth="125" width="200" persist="width">
             <richlistbox id="contactlistbox"
@@ -205,24 +206,27 @@
           <deck id="conversationsDeck" flex="1">
             <vbox flex="1" id="noConvScreen" class="im-placeholder-screen" align="center" pack="center">
               <hbox id="noConvBox" class="im-placeholder-box" align="top">
-                <image id="noConvImage" class="im-placeholder-image"/>
                 <vbox id="noConvInnerBox" class="im-placeholder-innerbox" flex="1">
-                  <label id="noConvTitle" class="im-placeholder-title" value="&chat.noConv.title;"/>
-                  <description id="noConvDesc" class="im-placeholder-desc">&chat.noConv.description;</description>
+                  <label id="noConvTitle" class="im-placeholder-title">&chat.noConv.title;</label>
+                  <description id="noConvDesc"
+                               class="im-placeholder-desc">&chat.noConv.description;</description>
                 </vbox>
-                <vbox id="noAccountInnerBox" hidden="true">
-                  <label id="noAccountTitle" class="im-placeholder-title" value="&chat.noAccount.title;"/>
-                  <description id="noAccountDesc" class="im-placeholder-desc">&chat.noAccount.description;</description>
-                  <hbox flex="1">
+                <vbox id="noAccountInnerBox" class="im-placeholder-innerbox" flex="1" hidden="true">
+                  <label id="noAccountTitle" class="im-placeholder-title">&chat.noAccount.title;</label>
+                  <description id="noAccountDesc"
+                               class="im-placeholder-desc">&chat.noAccount.description;</description>
+                  <hbox class="im-placeholder-button-box" flex="1">
                     <spacer flex="1"/>
                     <button id="openIMAccountWizardButton" label="&chat.accountWizard.button;"
                             oncommand="openIMAccountWizard();"/>
                   </hbox>
                 </vbox>
-                <vbox id="noConnectedAccountInnerBox" hidden="true">
-                  <label id="noConnectedAccountTitle" class="im-placeholder-title" value="&chat.noConnectedAccount.title;"/>
-                  <description id="noConnectedAccountDesc" class="im-placeholder-desc">&chat.noConnectedAccount.description;</description>
-                  <hbox flex="1">
+                <vbox id="noConnectedAccountInnerBox" class="im-placeholder-innerbox" flex="1" hidden="true">
+                  <label id="noConnectedAccountTitle"
+                         class="im-placeholder-title">&chat.noConnectedAccount.title;</label>
+                  <description id="noConnectedAccountDesc"
+                               class="im-placeholder-desc">&chat.noConnectedAccount.description;</description>
+                  <hbox class="im-placeholder-button-box" flex="1">
                     <spacer flex="1"/>
                     <button id="openIMAccountManagerButton" label="&chat.showAccountManager.button;"
                             oncommand="openIMAccountMgr();"/>
@@ -235,7 +239,8 @@
                 <vbox flex="1" id="noPreviousConvScreen" class="im-placeholder-screen" align="center" pack="center">
                   <hbox id="noPreviousConvBox" class="im-placeholder-box" align="top">
                     <vbox id="noPreviousConvInnerBox" class="im-placeholder-innerbox" flex="1">
-                      <description id="noPreviousConvDesc" class="im-placeholder-desc">&chat.noPreviousConv.description;</description>
+                      <description id="noPreviousConvDesc"
+                                   class="im-placeholder-desc">&chat.noPreviousConv.description;</description>
                     </vbox>
                   </hbox>
                 </vbox>
@@ -276,7 +281,7 @@
                       context="logTreeContext" onselect="chatHandler.onLogSelect();">
                   <treecols>
                     <treecol id="logCol" flex="1" primary="true" hideheader="true"
-                             crop="center" ignorecolumnpicker="true"/>
+                             crop="center" ignoreincolumnpicker="true"/>
                   </treecols>
                   <treechildren/>
                 </tree>

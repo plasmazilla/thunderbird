@@ -167,10 +167,23 @@ FeedWriter.prototype = {
     return "";
   },
 
+  /**
+   * @param   element
+   *          The element to add the text content to.
+   * @param   text
+   *          An nsIFeedTextConstruct
+   */
   _setContentText: function setContentText(element, text) {
     if (typeof element == "string")
       element = this._document.getElementById(element);
-    element.textContent = text.plainText();
+
+    // Takes the content of the nsIFeedTextConstruct and creates a
+    // sanitized documentFragment.
+    var docFragment = text.createDocumentFragment(element);
+    element.innerHTML = "";
+    element.appendChild(docFragment);
+    if (text.base)
+      element.setAttributeNS(XML_NS, "base", text.base.spec);
   },
 
   /**
@@ -307,7 +320,7 @@ FeedWriter.prototype = {
   /**
    * Writes the feed title into the preview document.
    * @param   container
-   *          The feed container
+   *          The feed container, an nsIFeedContainer
    */
   _setTitleText: function setTitleText(container) {
     if (container.title) {
@@ -317,7 +330,7 @@ FeedWriter.prototype = {
 
     var feed = container.QueryInterface(Components.interfaces.nsIFeed);
     if (feed && feed.subtitle)
-      this._setContentText(SUBTITLE_ID, container.subtitle);
+      this._setContentText(SUBTITLE_ID, feed.subtitle);
   },
 
   /**
@@ -374,7 +387,9 @@ FeedWriter.prototype = {
       // If the entry has a title, make it a link
       if (entry.title) {
         let a = this._document.createElementNS(HTML_NS, "a");
-        this._setContentText(a, entry.title);
+        let span = this._document.createElementNS(HTML_NS, "span");
+        a.appendChild(span);
+        this._setContentText(span, entry.title);
 
         // Entries are not required to have links, so entry.link can be null.
         if (entry.link)
@@ -959,8 +974,13 @@ FeedWriter.prototype = {
                       .getInterface(Components.interfaces.nsIWebNavigation)
                       .QueryInterface(Components.interfaces.nsIDocShell)
                       .currentDocumentChannel;
-
-    var resolvedURI = Services.io.newChannel(FEEDHANDLER_URI, null, null).URI;
+    var ios = Services.io;
+    var channel = ios.newChannel2(FEEDHANDLER_URI, null, null, null,
+                                  this._feedprincipal,
+                                  null,
+                                  Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                  Components.interfaces.nsIContentPolicy.TYPE_OTHER);
+    var resolvedURI = channel.URI;
 
     if (resolvedURI.equals(chan.URI))
       return chan.originalURI;

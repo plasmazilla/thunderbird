@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["Stanza", "XMPPParser"];
+this.EXPORTED_SYMBOLS = ["Stanza", "XMPPParser"];
 
-const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 
-const NS = {
+var NS = {
   xml                       : "http://www.w3.org/XML/1998/namespace",
   xhtml                     : "http://www.w3.org/1999/xhtml",
   xhtml_im                  : "http://jabber.org/protocol/xhtml-im",
@@ -45,6 +45,9 @@ const NS = {
   address                   : "http://jabber.org/protocol/address",
 
   muc_user                  : "http://jabber.org/protocol/muc#user",
+  muc_owner                 : "http://jabber.org/protocol/muc#owner",
+  muc_admin                 : "http://jabber.org/protocol/muc#admin",
+  conference                : "jabber:x:conference",
   muc                       : "http://jabber.org/protocol/muc",
   register                  : "jabber:iq:register",
   delay                     : "urn:xmpp:delay",
@@ -65,6 +68,7 @@ const NS = {
   nick_notify               : "http://jabber.org/protocol/nick+notify",
   activity                  : "http://jabber.org/protocol/activity",
   last                      : "jabber:iq:last",
+  version                   : "jabber:iq:version",
   avatar_data               : "urn:xmpp:avatar:data",
   avatar_data_notify        : "urn:xmpp:avatar:data+notify",
   avatar_metadata           : "urn:xmpp:avatar:metadata",
@@ -87,11 +91,11 @@ var TOP_LEVEL_ELEMENTS = {
 };
 
 /* Stanza Builder */
-const Stanza = {
+var Stanza = {
   NS: NS,
 
   /* Create a presence stanza */
-  presence: function(aAttr, aData) Stanza.node("presence", null, aAttr, aData),
+  presence: (aAttr, aData) => Stanza.node("presence", null, aAttr, aData),
 
   /* Create a message stanza */
   message: function(aTo, aMsg, aState, aAttr = {}, aData = []) {
@@ -144,26 +148,30 @@ function TextNode(aText) {
   this.text = aText;
 }
 TextNode.prototype = {
-  get type() "text",
+  get type() { return "text"; },
 
   append: function(aText) {
     this.text += aText;
   },
 
   /* For debug purposes, returns an indented (unencoded) string */
-  convertToString: function(aIndent) aIndent + this.text + "\n",
+  convertToString: function(aIndent) { return aIndent + this.text + "\n"; },
 
   /* Returns the encoded XML */
-  getXML: function()
-    Cc["@mozilla.org/txttohtmlconv;1"]
-      .getService(Ci.mozITXTToHTMLConv)
-      .scanTXT(this.text, Ci.mozITXTToHTMLConv.kEntities),
+  getXML: function() {
+    return Cc["@mozilla.org/txttohtmlconv;1"]
+           .getService(Ci.mozITXTToHTMLConv)
+           .scanTXT(this.text, Ci.mozITXTToHTMLConv.kEntities);
+  },
 
   /* To read the unencoded data. */
-  get innerText() this.text
+  get innerText() { return this.text; }
 };
 
 /* XML node */
+/* aUri is the namespace. */
+/* Example: <f:a xmlns:f='g' d='1'> is parsed to
+   uri/namespace='g', localName='a', qName='f:a', attributes={d='1'} */
 function XMLNode(aParentNode, aUri, aLocalName, aQName, aAttr) {
   this._parentNode = aParentNode; // Used only for parsing
   this.uri = aUri;
@@ -178,7 +186,7 @@ function XMLNode(aParentNode, aUri, aLocalName, aQName, aAttr) {
   }
 }
 XMLNode.prototype = {
-  get type() "node",
+  get type() { return "node"; },
 
   /* Add a new child node */
   addChild: function(aNode) {
@@ -195,17 +203,20 @@ XMLNode.prototype = {
   },
 
   /* Get child elements by namespace */
-  getChildrenByNS: function(aNS)
-    this.children.filter(function(c) c.uri == aNS),
+  getChildrenByNS: function(aNS) {
+    return this.children.filter(c => c.uri == aNS);
+  },
 
-  /* Get the first element inside the node that matches a query. */
+  /* Get the first element anywhere inside the node (including child nodes)
+     that matches the query.
+     A query consists of an array of localNames. */
   getElement: function(aQuery) {
     if (aQuery.length == 0)
       return this;
 
     let nq = aQuery.slice(1);
     for (let child of this.children) {
-      if (child.type == "text" || child.qName != aQuery[0])
+      if (child.type == "text" || child.localName != aQuery[0])
         continue;
       let n = child.getElement(nq);
       if (n)
@@ -215,7 +226,8 @@ XMLNode.prototype = {
     return null;
   },
 
-  /* Get all elements matching the query */
+  /* Get all elements of the node (including child nodes) that match the query.
+     A query consists of an array of localNames. */
   getElements: function(aQuery) {
     if (aQuery.length == 0)
       return [this];
@@ -232,8 +244,9 @@ XMLNode.prototype = {
   },
 
   /* Get immediate children by the node name */
-  getChildren: function(aName)
-    this.children.filter((c) => (c.type != "text" && c.qName == aName)),
+  getChildren: function(aName) {
+    return this.children.filter((c) => (c.type != "text" && c.localName == aName));
+  },
 
   /* Test if the node is a stanza */
   isXmppStanza: function() {
@@ -260,11 +273,11 @@ XMLNode.prototype = {
     return s + (innerXML ? ">" + innerXML + "</" + this.qName : "/") + ">";
   },
 
-  get innerXML() this.children.map(function(c) c.getXML()).join(""),
-  get innerText() this.children.map(function(c) c.innerText).join(""),
+  get innerXML() { return this.children.map(c => c.getXML()).join(""); },
+  get innerText() { return this.children.map(c => c.innerText).join(""); },
 
   /* Private methods */
-  _getXmlns: function() this.uri ? " xmlns=\"" + this.uri + "\"" : "",
+  _getXmlns: function() { return this.uri ? " xmlns=\"" + this.uri + "\"" : ""; },
   _getAttributeText: function() {
     let s = "";
     for (let name in this.attributes)

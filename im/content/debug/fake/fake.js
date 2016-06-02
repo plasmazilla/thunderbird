@@ -7,11 +7,11 @@
 Components.utils.import("resource:///modules/imXPCOMUtils.jsm");
 Components.utils.import("resource:///modules/jsProtoHelper.jsm");
 
-const away = Ci.imIStatusInfo.STATUS_AWAY;
-const idle = Ci.imIStatusInfo.STATUS_IDLE;
-const mobile = Ci.imIStatusInfo.STATUS_MOBILE;
+var away = Ci.imIStatusInfo.STATUS_AWAY;
+var idle = Ci.imIStatusInfo.STATUS_IDLE;
+var mobile = Ci.imIStatusInfo.STATUS_MOBILE;
 
-const flo_img_url = 'data:image/jpeg;base64,' +
+var flo_img_url = 'data:image/jpeg;base64,' +
   '/9j/4AAQSkZJRgABAQAAAQABAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBF' +
   'RyB2NjIpLCBxdWFsaXR5ID0gOTUK/9sAQwACAQEBAQECAQEBAgICAgIEAwICAgIFBAQDBAYFBgYGBQYG' +
   'BgcJCAYHCQcGBggLCAkKCgoKCgYICwwLCgwJCgoK/9sAQwECAgICAgIFAwMFCgcGBwoKCgoKCgoKCgoK' +
@@ -56,7 +56,7 @@ const flo_img_url = 'data:image/jpeg;base64,' +
   'eJdfvdRvFvJUW7vrp5pQqyYUBnJOAOAM8UUV+icD/wDIxl6Hm8Uf7kj0K0dzaxEuf9Wvf2ooor9gWx+Z' +
   'dT//2Q==';
 
-const ib_icon_url = 'data:image/png;base64,' +
+var ib_icon_url = 'data:image/png;base64,' +
   'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAC' +
   '9AAAAvQBgK2sVQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAABzCSURBVHic5Zt5' +
   'lFXF1fZ/dc65c8/QI3Q3Q9MNNINMigIKiERNUDQYjWMwxjfLKZo4JfGLcYrRT6PGaIzmRaMmryZRHAIa' +
@@ -211,7 +211,7 @@ var fake = {
                                  "prpl-jabber"),
                      new Account("tom.smith@yahoo.com", "prpl-yahoo"),
                      new Account("tom@irc.mozilla.org", "prpl-irc")];
-    for each (let account in this.accounts)
+    for (let account of this.accounts)
       Services.obs.notifyObservers(account, "account-added", null);
 
     var win = Components.classes["@mozilla.org/appshell/window-mediator;1"]
@@ -224,7 +224,7 @@ var fake = {
       "Contacts",
       "Friends",
       "Colleagues"
-    ].map(function(name) Services.tags.createTag(name));
+    ].map(name => Services.tags.createTag(name));
 
     this.buddies = [
       new AccountBuddy("Michael", this.accounts[2], this.groups[0], {_statusType: idle, _statusText: "I'm currently away from the computer."}),
@@ -241,7 +241,7 @@ var fake = {
       new AccountBuddy("Elizabeth", this.accounts[1], this.groups[2]),
       new AccountBuddy("William", this.accounts[2], this.groups[2])
     ];
-    for each (let buddy in this.buddies)
+    for (let buddy of this.buddies)
       Services.contacts.accountBuddyAdded(buddy);
 
     this.convs = [
@@ -340,7 +340,7 @@ function Account(aName, aProto)
 }
 Account.prototype = {
   __proto__: ClassInfo("imIAccount", "generic account object"),
-  get imAccount() this,
+  get imAccount() { return this; },
   protocol: null,
   password: "",
   autoLogin: true,
@@ -355,7 +355,7 @@ Account.prototype = {
   disconnected: false,
   connected: true,
   connecting: false,
-  normalize: function(aStr) aStr
+  normalize: aStr => aStr
 
   //FIXME: PurpleConnectionFlags
 };

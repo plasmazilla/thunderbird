@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const {classes: Cc, interfaces: Ci, utils: Cu, Constructor: CC} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu, Constructor: CC} = Components;
 
 Cu.import("resource:///modules/hiddenWindow.jsm");
 Cu.import("resource:///modules/imServices.jsm");
@@ -12,18 +12,18 @@ Cu.import("resource:///modules/jsProtoHelper.jsm");
 Cu.import("resource://gre/modules/Task.jsm")
 XPCOMUtils.defineLazyModuleGetter(this, "OS", "resource://gre/modules/osfile.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "_", function()
+XPCOMUtils.defineLazyGetter(this, "_", () =>
   l10nHelper("chrome://chat/locale/logger.properties")
 );
 
-const kLineBreak = "@mozilla.org/windows-registry-key;1" in Cc ? "\r\n" : "\n";
+var kLineBreak = "@mozilla.org/windows-registry-key;1" in Cc ? "\r\n" : "\n";
 
 /*
  * Maps file paths to promises returned by ongoing OS.File operations on them.
  * This is so that a file can be read after a pending write operation completes
  * and vice versa (opening a file multiple times concurrently may fail on Windows).
  */
-let gFilePromises = new Map();
+var gFilePromises = new Map();
 
 // Uses above map to queue operations on a file.
 function queueFileOperation(aPath, aOperation) {
@@ -104,7 +104,7 @@ function encodeName(aName) {
 
   // Reserved characters are replaced by %[hex value]. encodeURIComponent() is
   // not sufficient, nevertheless decodeURIComponent() can be used to decode.
-  function encodeReservedChars(match) "%" + match.charCodeAt(0).toString(16);
+  function encodeReservedChars(match) { return "%" + match.charCodeAt(0).toString(16); }
   return aName.replace(/[<>:"\/\\|?*&%]/g, encodeReservedChars);
 }
 
@@ -114,17 +114,19 @@ function getLogFolderPathForAccount(aAccount) {
                       encodeName(aAccount.normalizedName));
 }
 
-function getLogFilePathForConversation(aConv, aFormat) {
+function getLogFilePathForConversation(aConv, aFormat, aStartTime) {
+  if (!aStartTime)
+    aStartTime = aConv.startDate / 1000;
   let path = getLogFolderPathForAccount(aConv.account);
   let name = aConv.normalizedName;
   if (convIsRealMUC(aConv))
     name += ".chat";
   return OS.Path.join(path, encodeName(name),
-                      getNewLogFileName(aFormat, aConv.startDate));
+                      getNewLogFileName(aFormat, aStartTime));
 }
 
-function getNewLogFileName(aFormat, aDate) {
-  let date = aDate ? new Date(aDate / 1000) : new Date();
+function getNewLogFileName(aFormat, aStartTime) {
+  let date = aStartTime ? new Date(aStartTime) : new Date();
   let dateTime = date.toLocaleFormat("%Y-%m-%d.%H%M%S");
   let offset = date.getTimezoneOffset();
   if (offset < 0) {
@@ -135,8 +137,9 @@ function getNewLogFileName(aFormat, aDate) {
     dateTime += "-";
   let minutes = offset % 60;
   offset = (offset - minutes) / 60;
-  function twoDigits(aNumber)
-    aNumber == 0 ? "00" : aNumber < 10 ? "0" + aNumber : aNumber;
+  function twoDigits(aNumber) {
+    return aNumber == 0 ? "00" : aNumber < 10 ? "0" + aNumber : aNumber;
+  }
   if (!aFormat)
     aFormat = "txt";
   return dateTime + twoDigits(offset) + twoDigits(minutes) + "." + aFormat;
@@ -149,37 +152,61 @@ function LogWriter(aConversation) {
   this._conv = aConversation;
   if (Services.prefs.getCharPref("purple.logging.format") == "json")
     this.format = "json";
-  this.path = getLogFilePathForConversation(aConversation, this.format);
-  this._initialized =
-    appendToFile(this.path, this.encoder.encode(this._getHeader()), true);
-  // Catch the error separately so that _initialized will stay rejected if
-  // writing the header failed.
-  this._initialized.catch(aError =>
-                          Cu.reportError("Failed to initialize log file:\n" + aError));
+  this.paths = [];
+  this.startNewFile(this._conv.startDate / 1000);
 }
 LogWriter.prototype = {
-  path: null,
+  // All log file paths used by this LogWriter.
+  paths: [],
+  // Path of the log file that is currently being written to.
+  get currentPath() { return this.paths[this.paths.length - 1]; },
   // Constructor sets this to a promise that will resolve when the log header
   // has been written.
   _initialized: null,
+  _startTime: null,
+  _lastMessageTime: null,
+  _messageCount: 0,
   format: "txt",
   encoder: new TextEncoder(),
-  _getHeader: function cl_getHeader() {
+  startNewFile: function lw_startNewFile(aStartTime, aContinuedSession) {
+    // We start a new log file every 1000 messages. The start time of this new
+    // log file is the time of the next message. Since message times are in seconds,
+    // if we receive 1000 messages within a second after starting the new file,
+    // we will create another file, using the same start time - and so the same
+    // file name. To avoid this, ensure the new start time is at least one second
+    // greater than the current one. This is ugly, but should rarely be needed.
+    aStartTime = Math.max(aStartTime, this._startTime + 1000);
+    this._startTime = this._lastMessageTime = aStartTime;
+    this._messageCount = 0;
+    this.paths.push(getLogFilePathForConversation(this._conv, this.format, aStartTime));
     let account = this._conv.account;
+    let header;
     if (this.format == "json") {
-      return JSON.stringify({date: new Date(this._conv.startDate / 1000),
-                             name: this._conv.name,
-                             title: this._conv.title,
-                             account: account.normalizedName,
-                             protocol: account.protocol.normalizedName,
-                             isChat: this._conv.isChat,
-                             normalizedName: this._conv.normalizedName
-                            }) + "\n";
+      header = {
+        date: new Date(this._startTime),
+        name: this._conv.name,
+        title: this._conv.title,
+        account: account.normalizedName,
+        protocol: account.protocol.normalizedName,
+        isChat: this._conv.isChat,
+        normalizedName: this._conv.normalizedName
+      };
+      if (aContinuedSession)
+        header.continuedSession = true;
+      header = JSON.stringify(header) + "\n";
     }
-    return "Conversation with " + this._conv.name +
-           " at " + (new Date(this._conv.startDate / 1000)).toLocaleString() +
-           " on " + account.name +
-           " (" + account.protocol.normalizedName + ")" + kLineBreak;
+    else {
+      header = "Conversation with " + this._conv.name +
+               " at " + (new Date(this._conv.startDate / 1000)).toLocaleString() +
+               " on " + account.name +
+               " (" + account.protocol.normalizedName + ")" + kLineBreak;
+    }
+    this._initialized =
+      appendToFile(this.currentPath, this.encoder.encode(header), true);
+    // Catch the error separately so that _initialized will stay rejected if
+    // writing the header failed.
+    this._initialized.catch(aError =>
+                            Cu.reportError("Failed to initialize log file:\n" + aError));
   },
   _serialize: function cl_serialize(aString) {
     // TODO cleanup once bug 102699 is fixed
@@ -203,17 +230,43 @@ LogWriter.prototype = {
     }});
     return encoder.encodeToString();
   },
+  // We start a new log file in the following cases:
+  // - If it has been 30 minutes since the last message.
+  kInactivityLimit: 30 * 60 * 1000,
+  // - If at midnight, it's been longer than 3 hours since we started the file.
+  kDayOverlapLimit: 3 * 60 * 60 * 1000,
+  // - After every 1000 messages.
+  kMessageCountLimit: 1000,
   logMessage: function cl_logMessage(aMessage) {
+    // aMessage.time is in seconds, we need it in milliseconds.
+    let messageTime = aMessage.time * 1000;
+    let messageMidnight = new Date(messageTime).setHours(0, 0, 0, 0);
+
+    let inactivityLimitExceeded =
+      !aMessage.delayed && messageTime - this._lastMessageTime > this.kInactivityLimit;
+    let dayOverlapLimitExceeded =
+      !aMessage.delayed && messageMidnight - this._startTime > this.kDayOverlapLimit;
+
+    if (inactivityLimitExceeded || dayOverlapLimitExceeded ||
+        this._messageCount == this.kMessageCountLimit) {
+      // We start a new session if the inactivity limit was exceeded.
+      this.startNewFile(messageTime, !inactivityLimitExceeded);
+    }
+    ++this._messageCount;
+
+    if (!aMessage.delayed)
+      this._lastMessageTime = messageTime;
+
     let lineToWrite;
     if (this.format == "json") {
       let msg = {
-        date: new Date(aMessage.time * 1000),
+        date: new Date(messageTime),
         who: aMessage.who,
         text: aMessage.displayMessage,
         flags: ["outgoing", "incoming", "system", "autoResponse",
                 "containsNick", "error", "delayed",
                 "noFormat", "containsImages", "notification",
-                "noLinkification"].filter(function(f) aMessage[f])
+                "noLinkification"].filter(f => aMessage[f])
       };
       let alias = aMessage.alias;
       if (alias && alias != msg.who)
@@ -222,7 +275,7 @@ LogWriter.prototype = {
     }
     else {
       // Text log.
-      let date = new Date(aMessage.time * 1000);
+      let date = new Date(messageTime);
       let line = "(" + date.toLocaleTimeString() + ") ";
       let msg = this._serialize(aMessage.displayMessage);
       if (aMessage.system)
@@ -242,19 +295,20 @@ LogWriter.prototype = {
     }
     lineToWrite = this.encoder.encode(lineToWrite);
     this._initialized.then(() => {
-      appendToFile(this.path, lineToWrite)
+      appendToFile(this.currentPath, lineToWrite)
         .catch(aError => Cu.reportError("Failed to log message:\n" + aError));
     });
   }
 };
 
-const dummyLogWriter = {
-  path: null,
+var dummyLogWriter = {
+  paths: null,
+  currentPath: null,
   logMessage: function() {}
 };
 
 
-let gLogWritersById = new Map();
+var gLogWritersById = new Map();
 function getLogWriter(aConversation) {
   let id = aConversation.id;
   if (!gLogWritersById.has(id)) {
@@ -304,13 +358,13 @@ SystemLogWriter.prototype = {
   }
 };
 
-const dummySystemLogWriter = {
+var dummySystemLogWriter = {
   path: null,
   logEvent: function() {}
 };
 
 
-let gSystemLogWritersById = new Map();
+var gSystemLogWritersById = new Map();
 function getSystemLogWriter(aAccount, aCreate) {
   let id = aAccount.id;
   if (aCreate) {
@@ -375,7 +429,7 @@ function LogMessage(aData, aConversation) {
 LogMessage.prototype = {
   __proto__: GenericMessagePrototype,
   _interfaces: [Ci.imIMessage, Ci.prplIMessage],
-  get displayMessage() this.originalMessage
+  get displayMessage() { return this.originalMessage; }
 };
 
 
@@ -386,19 +440,19 @@ function LogConversation(aMessages, aProperties) {
 }
 LogConversation.prototype = {
   __proto__: ClassInfo("imILogConversation", "Log conversation object"),
-  get isChat() this._isChat,
-  get buddy() null,
-  get account() ({
+  get isChat() { return this._isChat; },
+  get buddy() { return null; },
+  get account() { return {
     alias: "",
     name: this._accountName,
     normalizedName: this._accountName,
     protocol: {name: this._protocolName},
     statusInfo: Services.core.globalUserStatus
-  }),
+  }; },
   getMessages: function(aMessageCount) {
     if (aMessageCount)
       aMessageCount.value = this._messages.length;
-    return this._messages.map(function(m) new LogMessage(m, this), this);
+    return this._messages.map(m => new LogMessage(m, this));
   },
   getMessagesEnumerator: function(aMessageCount) {
     if (aMessageCount)
@@ -407,8 +461,8 @@ LogConversation.prototype = {
       _index: 0,
       _conv: this,
       _messages: this._messages,
-      hasMoreElements: function() this._index < this._messages.length,
-      getNext: function() new LogMessage(this._messages[this._index++], this._conv),
+      hasMoreElements: function() { return this._index < this._messages.length; },
+      getNext: function() { return new LogMessage(this._messages[this._index++], this._conv); },
       QueryInterface: XPCOMUtils.generateQI([Ci.nsISimpleEnumerator])
     };
     return enumerator;
@@ -452,7 +506,7 @@ function Log(aEntries) {
 
   // Assume aEntries is an array of objects.
   // Sort our list of entries for this day in increasing order.
-  aEntries.sort(function(aLeft, aRight) aLeft.time - aRight.time);
+  aEntries.sort((aLeft, aRight) => aLeft.time - aRight.time);
 
   this._entryPaths = [entry.path for (entry of aEntries)];
   // Calculate the timestamp for the first entry down to the day.
@@ -495,24 +549,29 @@ Log.prototype = {
       }
       let nextLine = lines.shift();
       let filename = OS.Path.basename(path);
-      let sessionMsg = {
-        who: "sessionstart",
-        date: getDateFromFilename(filename)[0],
-        text: "",
-        flags: ["noLog", "notification"]
-      };
 
       let data;
       try {
         // This will fail if either nextLine is undefined, or not valid JSON.
         data = JSON.parse(nextLine);
       } catch (aError) {
-        sessionMsg.text = _("badLogFile", filename);
-        sessionMsg.flags.push("error", "system");
-        messages.push(sessionMsg);
+        messages.push({
+          who: "sessionstart",
+          date: getDateFromFilename(filename)[0],
+          text: _("badLogfile", filename),
+          flags: ["noLog", "notification", "error", "system"]
+        });
         continue;
       }
-      messages.push(sessionMsg);
+
+      if (firstFile || !data.continuedSession) {
+        messages.push({
+          who: "sessionstart",
+          date: getDateFromFilename(filename)[0],
+          text: "",
+          flags: ["noLog", "notification"]
+        });
+      }
 
       if (firstFile) {
         properties.startDate = new Date(data.date) * 1000;
@@ -600,7 +659,7 @@ DailyLogEnumerator.prototype = {
   _entries: {},
   _days: [],
   _index: 0,
-  hasMoreElements: function() this._index < this._days.length,
+  hasMoreElements: function() { return this._index < this._days.length; },
   getNext: function() {
     let dayID = this._days[this._index++];
     return new Log(this._entries[dayID]);
@@ -687,18 +746,19 @@ Logger.prototype = {
     let enumerator = aGroupByDay ? DailyLogEnumerator : LogEnumerator;
     return aLogArray.length ? new enumerator(aLogArray) : EmptyEnumerator;
   },
-  getLogPathForConversation: function logger_getLogPathForConversation(aConversation) {
+  getLogPathsForConversation: Task.async(function* (aConversation) {
     let writer = gLogWritersById.get(aConversation.id);
     // Resolve to null if we haven't created a LogWriter yet for this conv, or
-    // if logging is disabled (path will be null).
-    if (!writer || !writer.path)
-      return Promise.resolve(null);
-    let path = writer.path;
-    // Wait for any pending file operations to finish, then resolve to the path
+    // if logging is disabled (paths will be null).
+    if (!writer || !writer.paths)
+      return null;
+    let paths = writer.paths;
+    // Wait for any pending file operations to finish, then resolve to the paths
     // regardless of whether these operations succeeded.
-    return (gFilePromises.get(path) || Promise.resolve()).then(
-      () => path, () => path);
-  },
+    for (let path of paths)
+      yield gFilePromises.get(path);
+    return paths;
+  }),
   getLogsForAccountAndName: function logger_getLogsForAccountAndName(aAccount,
                                        aNormalizedName, aGroupByDay) {
     return this._getLogArray(aAccount, aNormalizedName)
@@ -734,8 +794,9 @@ Logger.prototype = {
       name += ".chat";
     return this.getLogsForAccountAndName(aConversation.account, name, aGroupByDay);
   },
-  getSystemLogsForAccount: function logger_getSystemLogsForAccount(aAccount)
-    this.getLogsForAccountAndName(aAccount, ".system"),
+  getSystemLogsForAccount: function logger_getSystemLogsForAccount(aAccount) {
+    return this.getLogsForAccountAndName(aAccount, ".system");
+  },
   getSimilarLogs: Task.async(function* (aLog, aGroupByDay) {
     let iterator = new OS.File.DirectoryIterator(OS.Path.dirname(aLog.path));
     let entries;
@@ -856,4 +917,4 @@ Logger.prototype = {
   contractID: "@mozilla.org/chat/logger;1"
 };
 
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([Logger]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([Logger]);

@@ -2,6 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "AppConstants",
+                                  "resource://gre/modules/AppConstants.jsm");
 
 var TAB_DROP_TYPE = "application/x-moz-tabbrowser-tab";
 
@@ -62,11 +66,11 @@ var convWindow = {
   }
 };
 
-function getConvWindowURL() "chrome://instantbird/content/instantbird.xul"
+function getConvWindowURL() { return "chrome://instantbird/content/instantbird.xul"; }
 
-function getTabBrowser() document.getElementById("conversations")
+function getTabBrowser() { return document.getElementById("conversations"); }
 
-function getBrowser() getTabBrowser().selectedBrowser
+function getBrowser() { return getTabBrowser().selectedBrowser; }
 
 // Copied from mozilla/browser/base/content/utilityOverlay.js
 function trimURL(aURL) {
@@ -151,6 +155,11 @@ var XULBrowserWindow = {
       let field = this.statusTextField;
       field.setAttribute("previoustype", field.getAttribute("type"));
       field.setAttribute("type", type);
+      // Show IB typing notifications on the opposite side.
+      if (this.status)
+        field.setAttribute("flipped", "true");
+      else
+        field.removeAttribute("flipped");
       field.label = text;
       field.setAttribute("crop", type == "overLink" ? "center" : "end");
       this.statusText = text;
@@ -164,7 +173,7 @@ var LinkTargetDisplay = {
   DELAY_HIDE: 250,
   _timer: 0,
 
-  get _isVisible () XULBrowserWindow.statusTextField.label != "",
+  get _isVisible () { return XULBrowserWindow.statusTextField.label != ""; },
 
   update: function () {
     clearTimeout(this._timer);

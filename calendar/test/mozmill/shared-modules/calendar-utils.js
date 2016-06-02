@@ -10,10 +10,10 @@ var frame = {};      Components.utils.import('resource://mozmill/modules/frame.j
 
 var modalDialog = require("test-window-helpers");
 
-const sleep = 500;
-const EVENT_BOX = 0; // Use when you need an event box
-const CANVAS_BOX = 1; // Use when you need a calendar canvas box
-const ALLDAY = 2; // Use when you need an allday canvas or event box
+var sleep = 500;
+var EVENT_BOX = 0; // Use when you need an event box
+var CANVAS_BOX = 1; // Use when you need a calendar canvas box
+var ALLDAY = 2; // Use when you need an allday canvas or event box
 
 /**
  *  Accept to send notification email with event to attendees
@@ -423,7 +423,7 @@ function setData(controller, data) {
     + 'anon({"anonid":"input"})');
   let dateService = Components.classes["@mozilla.org/intl/scriptabledateformat;1"]
                               .getService(Components.interfaces.nsIScriptableDateFormat);
-  let mac = utils.appInfo.os.toLowerCase().indexOf("darwin") != -1;
+  let mac = utils.appInfo.os.toLowerCase().includes("darwin");
   // wait for input elements' values to be populated
   controller.sleep(sleep);
   

@@ -15,8 +15,8 @@ Components.utils.import("resource://gre/modules/Preferences.jsm");
 // Getting the service here will load if its not already loaded
 Components.classes["@mozilla.org/calendar/backend-loader;1"].getService();
 
-EXPORTED_SYMBOLS = ["cal"];
-let cal = {
+this.EXPORTED_SYMBOLS = ["cal"];
+var cal = {
     // new code should land here,
     // and more code should be moved from calUtils.js into this object to avoid
     // clashes with other extensions
@@ -254,23 +254,57 @@ let cal = {
     validateRecipientList: function (aRecipients) {
         let compFields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
                                    .createInstance(Components.interfaces.nsIMsgCompFields);
-        // Resolve the list considering also configured display names
-        let result = compFields.splitRecipients(aRecipients, false, {});
-        // Malformed e-mail addresses with display name in list will result in "Display name <>".
-        // So, we need an additional check on the e-mail address itself and sort out malformed
-        // entries from the previous list (both objects have always the same length)
-        if (result.length > 0) {
-            let resultAddress = compFields.splitRecipients(aRecipients, true, {});
-            result = result.filter((v, idx) => !!resultAddress[idx]);
+        // Resolve the list considering also configured common names
+        let members = compFields.splitRecipients(aRecipients, false, {});
+        let list = [];
+        let prefix = "";
+        for (let member of members) {
+            if (prefix != "") {
+                // the previous member had no email address - this happens if a recipients CN
+                // contains a ',' or ';' (splitRecipients(..) behaves wrongly here and produces an
+                // additional member with only the first CN part of that recipient and no email
+                // address while the next has the second part of the CN and the according email
+                // address) - we still need to identify the original delimiter to append it to the
+                // prefix
+                let memberCnPart = member.match(/(.*) <.*>/);
+                if (memberCnPart) {
+                    let pattern = new RegExp(prefix + "([;,] *)" + memberCnPart[1]);
+                    let delimiter = aRecipients.match(pattern);
+                    if (delimiter) {
+                        prefix = prefix + delimiter[1];
+                    }
+                }
+            }
+            let parts = (prefix + member).match(/(.*)( <.*>)/);
+            if (parts) {
+                if (parts[2] == " <>") {
+                    // CN but no email address - we keep the CN part to prefix the next member's CN
+                    prefix = parts[1];
+                } else {
+                    // CN with email address
+                    let cn = parts[1].trim();
+                    // in case of any special characters in the CN string, we make sure to enclose
+                    // it with dquotes - simple spaces don't require dquotes
+                    if (cn.match(/[\-\[\]{}()*+?.,;\\\^$|#\f\n\r\t\v]/)) {
+                        cn = '"' + cn.replace(/\\"|"/, "").trim() + '"';
+                    }
+                    list.push(cn + parts[2]);
+                    prefix = "";
+                }
+            } else if (member.length) {
+                // email address only
+                list.push(member);
+                prefix = "";
+            }
         }
-        return result.join(",");
+        return list.join(", ");
     },
 
     /**
      * Shortcut function to check whether an item is an invitation copy and
      * has a participation status of either NEEDS-ACTION or TENTATIVE.
      *
-     * @param aItem either calIAttendee or calIItemBase 
+     * @param aItem either calIAttendee or calIItemBase
      */
     isOpenInvitation: function cal_isOpenInvitation(aItem) {
         let wrappedItem = cal.wrapInstance(aItem, Components.interfaces.calIAttendee);
@@ -308,6 +342,44 @@ let cal = {
     },
 
     /**
+     * Resolves delegated-to/delegated-from calusers for a given attendee to also include the
+     * respective CNs if available in a given set of attendees
+     *
+     * @param aAttendee  {calIAttendee}  The attendee to resolve the delegation information for
+     * @param aAttendees {Array}         An array of calIAttendee objects to look up
+     * @return           {Object}        An object with string attributes for delegators and delegatees
+     */
+    resolveDelegation: function (aAttendee, aAttendees) {
+        let attendees = aAttendees || [aAttendee];
+
+        // this will be replaced by a direct property getter in calIAttendee
+        let delegators = [];
+        let delegatees = [];
+        let delegatorProp = aAttendee.getProperty("DELEGATED-FROM");
+        if (delegatorProp) {
+            delegators = typeof delegatorProp == "string" ? [delegatorProp] : delegatorProp;
+        }
+        let delegateeProp = aAttendee.getProperty("DELEGATED-TO");
+        if (delegateeProp) {
+            delegatees = typeof delegateeProp == "string" ? [delegateeProp] : delegateeProp;
+        }
+
+        for (let att of attendees) {
+            let resolveDelegation = function (e, i, a) {
+                if (e == att.id) {
+                    a[i] = att.toString();
+                }
+            };
+            delegators.forEach(resolveDelegation);
+            delegatees.forEach(resolveDelegation);
+        }
+        return {
+            delegatees: delegatees.join(", "),
+            delegators: delegators.join(", ")
+        };
+    },
+
+    /**
      * Shortcut function to get the invited attendee of an item.
      */
     getInvitedAttendee: function cal_getInvitedAttendee(aItem, aCalendar) {
@@ -320,6 +392,53 @@ let cal = {
             invitedAttendee = calendar.getInvitedAttendee(aItem);
         }
         return invitedAttendee;
+    },
+
+    /**
+     * Returns a wellformed email string like 'attendee@example.net',
+     * 'Common Name <attendee@example.net>' or '"Name, Common" <attendee@example.net>'
+     *
+     * @param  {calIAttendee}  aAttendee - the attendee to check
+     * @param  {boolean}       aIncludeCn - whether or not to return also the CN if available
+     * @return {string}        valid email string or an empty string in case of error
+     */
+    getAttendeeEmail: function (aAttendee, aIncludeCn) {
+        // If the recipient id is of type urn, we need to figure out the email address, otherwise
+        // we fall back to the attendee id
+        let email = aAttendee.id.match(/^urn:/i) ? aAttendee.getProperty("EMAIL") || "" : aAttendee.id;
+        // Strip leading "mailto:" if it exists.
+        email = email.replace(/^mailto:/i, "");
+        // We add the CN if requested and available
+        let cn = aAttendee.commonName;
+        if (aIncludeCn && email.length > 0 && cn && cn.length > 0) {
+            if (cn.match(/[,;]/)) {
+                cn = '"' + cn + '"';
+            }
+            cn = cn + " <" + email + ">";
+            if (cal.validateRecipientList(cn) == cn) {
+                email = cn;
+            }
+        }
+        return email;
+    },
+
+    /**
+     * Provides a string to use in email "to" header for given attendees
+     *
+     * @param  {array}   aAttendees - array of calIAttendee's to check
+     * @return {string}  Valid string to use in a 'to' header of an email
+     */
+    getRecipientList: function (aAttendees) {
+        let cbEmail = function (aVal, aInd, aArr) {
+            let email = cal.getAttendeeEmail(aVal, true);
+            if (!email.length) {
+                cal.LOG("Dropping invalid recipient for email transport: " + aVal.toString());
+            }
+            return email;
+        }
+        return aAttendees.map(cbEmail)
+                         .filter(aVal => aVal.length > 0)
+                         .join(', ');
     },
 
     /**
@@ -385,21 +504,19 @@ let cal = {
     sortEntryComparer: function cal_sortEntryComparer(sortType, modifier) {
       switch (sortType) {
         case "number":
-          function compareNumbers(sortEntryA, sortEntryB) {
+          return function compareNumbers(sortEntryA, sortEntryB) {
             let nsA = cal.sortEntryKey(sortEntryA);
             let nsB = cal.sortEntryKey(sortEntryB);
             return cal.compareNumber(nsA, nsB) * modifier;
-          }
-          return compareNumbers;
+          };
         case "date":
-          function compareTimes(sortEntryA, sortEntryB) {
+          return function compareTimes(sortEntryA, sortEntryB) {
             let nsA = cal.sortEntryKey(sortEntryA);
             let nsB = cal.sortEntryKey(sortEntryB);
             return cal.compareNativeTime(nsA, nsB) * modifier;
-          }
-          return compareTimes;
+          };
         case "date_filled":
-          function compareTimesFilled(sortEntryA, sortEntryB) {
+          return function compareTimesFilled(sortEntryA, sortEntryB) {
             let nsA = cal.sortEntryKey(sortEntryA);
             let nsB = cal.sortEntryKey(sortEntryB);
             if (modifier == 1) {
@@ -407,11 +524,9 @@ let cal = {
             } else {
               return cal.compareNativeTimeFilledDesc(nsA, nsB);
             }
-          }
-          return compareTimesFilled
+          };
         case "string":
-          let collator = cal.createLocaleCollator();
-          function compareStrings(sortEntryA, sortEntryB) {
+          return function compareStrings(sortEntryA, sortEntryB) {
             let sA = cal.sortEntryKey(sortEntryA);
             let sB = cal.sortEntryKey(sortEntryB);
             if (sA.length == 0 || sB.length == 0) {
@@ -420,16 +535,14 @@ let cal = {
               // column without scrolling past all the empty values).
               return -(sA.length - sB.length) * modifier;
             }
+            let collator = cal.createLocaleCollator();
             let comparison = collator.compareString(0, sA, sB);
             return comparison * modifier;
-          }
-          return compareStrings;
-
+          };
         default:
-          function compareOther(sortEntryA, sortEntryB) {
+          return function compareOther(sortEntryA, sortEntryB) {
             return 0;
-          }
-          return compareOther;
+          };
       }
     },
 
@@ -499,6 +612,8 @@ let cal = {
         case "percentComplete":
         case "status":
           return "number";
+        default:
+          return "unknown";
       }
     },
 

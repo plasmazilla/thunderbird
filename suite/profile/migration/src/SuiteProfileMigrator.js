@@ -115,7 +115,7 @@ ProfileMigrator.prototype = {
     // make sure to check it before any other browser, by moving it to the head
     // of the array.
     if (defaultBrowser)
-      migratorsOrdered.sort(function(a, b) b == defaultBrowser ? 1 : 0);
+      migratorsOrdered.sort((a, b) => b == defaultBrowser ? 1 : 0);
 #endif
     for (let key of migratorsOrdered) {
       let migrator = this._getMigratorIfSourceExists(key);
@@ -132,4 +132,4 @@ ProfileMigrator.prototype = {
   classID: Components.ID("{d5148b7c-ba4e-4f7a-a80b-1ae48b90b910}"),
 };
 
-let NSGetFactory = XPCOMUtils.generateNSGetFactory([ProfileMigrator]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([ProfileMigrator]);

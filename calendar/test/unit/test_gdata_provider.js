@@ -84,7 +84,7 @@ function GDataServer(calendarId, tasksId) {
 GDataServer.prototype = {
     items: null,
 
-    get baseUri() "http://localhost:" + this.server.identity.primaryPort + "/",
+    get baseUri() { return "http://localhost:" + this.server.identity.primaryPort + "/"; },
 
     start: function() {
         this.server.start(-1);
@@ -435,6 +435,40 @@ function run_test() {
     }});
 }
 
+add_task(function* test_migrate_cache() {
+    let uriString = "googleapi://xpcshell/?calendar=xpcshell%40example.com";
+    let uri = Services.io.newURI(uriString, null, null);
+    let client = cal.getCalendarManager().createCalendar("gdata", uri);
+    let unwrapped = client.wrappedJSObject;
+    let migrateStorageCache = unwrapped.migrateStorageCache.bind(unwrapped);
+
+    monkeyPatch(unwrapped, "resetSync", function(protofunc) {
+        return Promise.resolve();
+    });
+
+    // No version, should not reset
+    equal((yield migrateStorageCache()), false);
+    equal(client.getProperty("cache.version"), 3);
+
+    // Check migrate 1 -> 2
+    unwrapped.CACHE_DB_VERSION = 2;
+    client.setProperty("cache.version", 1);
+    equal((yield migrateStorageCache()), true);
+    equal(client.getProperty("cache.version"), 2);
+
+    // Check migrate 2 -> 3 normal calendar
+    unwrapped.CACHE_DB_VERSION = 3;
+    client.setProperty("cache.version", 2);
+    equal((yield migrateStorageCache()), false);
+
+    // Check migrate 2 -> 3 birthday calendar
+    unwrapped.CACHE_DB_VERSION = 3;
+    uri = "googleapi://xpcshell/?calendar=%23contacts%40group.v.calendar.google.com";
+    unwrapped.uri = Services.io.newURI(uri, null, null);
+    client.setProperty("cache.version", 2);
+    equal((yield migrateStorageCache()), true);
+});
+
 add_test(function test_migrate_uri() {
     function checkMigrate(fromUri, session, calendarId, tasksId) {
         let uri = Services.io.newURI(fromUri, null, null);
@@ -464,6 +498,144 @@ add_test(function test_migrate_uri() {
     checkMigrate("googleapi://session/?calendar=calendarId&tasksId=tasksId");
 
     run_next_test();
+});
+
+add_task(function* test_dateToJSON() {
+    function _createDateTime(tzid, offset=0) {
+        let offsetFrom = offset <= 0 ? "-0" + (offset - 1) : "+0" + (offset - 1) + "00";
+        let offsetTo = "+0" + offset + "00";
+        let ics = ["BEGIN:VCALENDAR",
+            "BEGIN:VTIMEZONE",
+            "TZID:ThirdPartyZone",
+            "BEGIN:STANDARD",
+            "DTSTART:20071104T020000",
+            "RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;INTERVAL=1",
+            "TZOFFSETFROM:" + offsetFrom,
+            "TZOFFSETTO:" + offsetTo,
+            "TZNAME:TPT",
+            "END:STANDARD",
+            "BEGIN:DAYLIGHT",
+            "DTSTART:20070311T020000",
+            "RRULE:FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;INTERVAL=1",
+            "TZOFFSETFROM:" + offsetTo,
+            "TZOFFSETTO:" + offsetFrom,
+            "TZNAME:TPDT",
+            "END:DAYLIGHT",
+            "END:VTIMEZONE",
+            "BEGIN:VEVENT",
+            "UID:123",
+            "DTSTART;TZID=" + tzid + ":20150130T120000",
+            "END:VEVENT",
+            "END:VCALENDAR"].join("\r\n");
+
+        let parser = Components.classes["@mozilla.org/calendar/ics-parser;1"]
+                               .createInstance(Components.interfaces.calIIcsParser);
+        parser.parseString(ics);
+        let items = parser.getItems({});
+        return items[0].startDate;
+    }
+
+    let tzProvider = cal.getTimezoneService();
+    let dt, vtimezone;
+
+    // no timezone
+    dt = _createDateTime(cal.floating());
+    deepEqual(dateToJSON(dt), { "dateTime": "2015-01-30T12:00:00-00:00" });
+
+    // valid non-Olson tz name
+    dt = _createDateTime("Eastern Standard Time");
+    deepEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00", "timeZone": "America/New_York"});
+
+    // valid continent/city Olson tz
+    dt = _createDateTime("America/New_York");
+    deepEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00", "timeZone": "America/New_York"});
+
+    // valid continent/region/city Olson tz
+    dt = _createDateTime("America/Argentina/Buenos_Aires");
+    deepEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00", "timeZone": "America/Argentina/Buenos_Aires"});
+
+    // ical.js and libical currently have slightly different timezone handling.
+    if (Preferences.get("calendar.icaljs", false)) {
+        // unknown but formal valid Olson tz. ical.js assumes floating
+        dt = _createDateTime("Unknown/Olson/Timezone");
+        deepEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00-00:00" });
+
+        // Etc with offset. ical.js doesn't understand third party zones and uses floating
+        dt = _createDateTime("ThirdPartyZone", 5);
+        deepEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00-00:00" });
+
+        // Etc with zero offset. ical.js doesn't understand third party zones and uses floating
+        dt = _createDateTime("ThirdPartyZone", 0);
+        deepEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00-00:00" });
+    } else {
+        // unknown but formal valid Olson tz
+        dt = _createDateTime("Unknown/Olson/Timezone");
+        deepEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00", "timeZone": "Unknown/Olson/Timezone"});
+
+        // Etc with offset
+        dt = _createDateTime("ThirdPartyZone", 5);
+        deepEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00", "timeZone": "Etc/GMT-5"});
+
+        // Etc with zero offset
+        dt = _createDateTime("ThirdPartyZone", 0);
+        deepEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00Z", "timeZone": "UTC"});
+    }
+
+    // invalid non-Olson tz
+    dt = _createDateTime("InvalidTimeZone");
+    notEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00", "timeZone": "InvalidTimeZone"});
+
+    // Zone with 0 offset but not UTC
+    dt = _createDateTime("Europe/London");
+    deepEqual(dateToJSON(dt), {"dateTime": "2015-01-30T12:00:00", "timeZone": "Europe/London"});
+
+    // date only
+    dt.isDate = true;
+    deepEqual(dateToJSON(dt), {"date": "2015-01-30"});
+});
+
+add_task(function* test_JSONToDate() {
+    function convert(aEntry, aTimezone="Europe/Berlin") {
+        let tzs = cal.getTimezoneService();
+        let calendarTz = tzs.getTimezone(aTimezone);
+        let dt = JSONToDate(aEntry, calendarTz);
+        return dt ? dt.icalString + " in " + dt.timezone.tzid : null;
+    }
+
+    // A date, using the passed in default timezone
+    equal(convert({ "date": "2015-01-02" }), "20150102 in Europe/Berlin");
+
+    // A date, with a timezone that has zero offset
+    equal(convert({ "date": "2015-01-02", "timeZone": "Africa/Accra" }), "20150102 in Africa/Accra");
+
+    // A date, using a timezone with a nonzero offset that is not the default timezone
+    equal(convert({ "date": "2015-01-02", "timeZone": "Asia/Baku" }), "20150102 in Asia/Baku");
+
+    // UTC date with and without timezone specified, with a calendar in a timezone without DST
+    equal(convert({ "dateTime": "2015-01-02T03:04:05Z", "timeZone": "UTC" }, "Africa/Accra"), "20150102T030405Z in UTC");
+    equal(convert({ "dateTime": "2015-01-02T03:04:05Z" }, "Africa/Accra"), "20150102T030405 in Africa/Accra");
+
+    // An America/Los_Angeles date-time viewed in Europe/Berlin
+    equal(convert({ "dateTime": "2015-12-01T21:13:14+01:00", "timeZone": "America/Los_Angeles" }), "20151201T121314 in America/Los_Angeles");
+    equal(convert({ "dateTime": "2015-07-01T21:13:14+02:00", "timeZone": "America/Los_Angeles" }), "20150701T121314 in America/Los_Angeles");
+
+    // A timezone that is sometimes in GMT, get ready for: Europe/London!
+    equal(convert({ "dateTime": "2015-12-01T12:13:14Z", "timeZone": "Europe/London"}, "Europe/London"), "20151201T121314 in Europe/London");
+    equal(convert({ "dateTime": "2015-07-01T12:13:14+01:00", "timeZone": "Europe/London" }, "Europe/London"), "20150701T121314 in Europe/London");
+
+    // An event in Los Angeles, with a calendar set to Asia/Baku
+    equal(convert({ "dateTime": "2015-07-01T12:13:14+05:00", "timeZone": "America/Los_Angeles" }, "Asia/Baku"), "20150701T001314 in America/Los_Angeles");
+    equal(convert({ "dateTime": "2015-12-01T12:13:14+04:00", "timeZone": "America/Los_Angeles" }, "Asia/Baku"), "20151201T001314 in America/Los_Angeles");
+
+    // An event without specified timezone, with a calendar set to Asia/Baku
+    equal(convert({ "dateTime": "2015-07-01T12:13:14+04:00" }, "Asia/Baku"), "20150701T121314 in Asia/Baku");
+
+    // An offset matching the passed in calendar timezone. This should NOT be Africa/Algiers
+    equal(convert({ "dateTime": "2015-01-02T03:04:05+01:00" }), "20150102T030405 in Europe/Berlin");
+
+    // An offset that doesn't match the calendar timezone, will use the first timezone in that offset
+    do_print("The following warning is expected: 2015-01-02T03:04:05+04:00 does not match timezone offset for Europe/Berlin");
+    equal(convert({ "dateTime": "2015-01-02T03:04:05+05:00" }), "20150102T030405 in Antarctica/Mawson");
 });
 
 add_task(function* test_organizerCN() {
@@ -871,6 +1043,75 @@ add_task(function* test_recurring_event() {
     occ = event.recurrenceInfo.getNextOccurrence(event.startDate);
     equal(occ.title, "changed");
     equal(gServer.events.length, 2);
+
+    gServer.resetClient(client);
+});
+
+add_task(function* test_recurring_exception() {
+    gServer.syncs = [{
+        token: "1",
+        events: [{
+            "kind": "calendar#event",
+            "etag": "\"1\"",
+            "id": "go6ijb0b46hlpbu4eeu92njevo",
+            "created": "2006-06-08T21:04:52.000Z",
+            "updated": "2006-06-08T21:05:49.138Z",
+            "summary": "New Event",
+            "creator": gServer.creator,
+            "organizer": gServer.creator,
+            "start": { "dateTime": "2006-06-10T18:00:00+02:00" },
+            "end": {"dateTime": "2006-06-10T20:00:00+02:00" },
+            "iCalUID": "go6ijb0b46hlpbu4eeu92njevo@google.com",
+            "recurrence": [
+                "RRULE:FREQ=WEEKLY"
+            ]
+        },{
+            "kind": "calendar#event",
+            "etag": "\"2\"",
+            "id": "go6ijb0b46hlpbu4eeu92njevo_20060617T160000Z",
+            "summary": "New Event changed",
+            "start": { "dateTime": "2006-06-17T18:00:00+02:00" },
+            "end": {"dateTime": "2006-06-17T20:00:00+02:00" },
+            "recurringEventId": "go6ijb0b46hlpbu4eeu92njevo",
+            "originalStartTime": { "dateTime": "2006-06-17T18:00:00+02:00" }
+        }]
+    },{
+        // This sync run tests an exception where the master item is not part
+        // of the item stream.
+        token: "2",
+        events: [{
+            "kind": "calendar#event",
+            "etag": "\"3\"",
+            "id": "go6ijb0b46hlpbu4eeu92njevo_20060617T160000Z",
+            "summary": "New Event changed",
+            "start": { "dateTime": "2006-06-17T18:00:00+02:00" },
+            "end": {"dateTime": "2006-06-17T20:00:00+02:00" },
+            "status": "cancelled",
+            "recurringEventId": "go6ijb0b46hlpbu4eeu92njevo",
+            "originalStartTime": { "dateTime": "2006-06-17T18:00:00+02:00" }
+        }]
+    }];
+
+    let client = yield gServer.getClient();
+    let pclient = cal.async.promisifyCalendar(client.wrappedJSObject);
+
+    let items = yield pclient.getAllItems();
+    equal(items.length, 1);
+
+    let exIds = items[0].recurrenceInfo.getExceptionIds({});
+    equal(exIds.length, 1);
+
+    let ex = items[0].recurrenceInfo.getExceptionFor(exIds[0]);
+    equal(ex.title, "New Event changed");
+
+    client.refresh();
+    yield gServer.waitForLoad(client);
+
+    items = yield pclient.getAllItems();
+    equal(items.length, 1);
+
+    exIds = items[0].recurrenceInfo.getExceptionIds({});
+    equal(exIds.length, 0);
 
     gServer.resetClient(client);
 });

@@ -14,16 +14,16 @@
  * include example parameters.
  */
 
-const EXPORTED_SYMBOLS = ["ircCAP"];
+this.EXPORTED_SYMBOLS = ["ircCAP"];
 
-const Cu = Components.utils;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/ircHandlers.jsm");
 Cu.import("resource:///modules/ircUtils.jsm");
 
 // This matches a modifier, followed by the name spaces (network specific or
 // standardized), followed by the capability name.
-const capParameterExp = /^([\-=~])?((?:(?:[A-Z][A-Z0-9\-]*\.)*[A-Z][A-Z0-9\-]*\/)?[A-Z][A-Z0-9\-]*)$/i;
+var capParameterExp = /^([\-=~])?((?:(?:[A-Z][A-Z0-9\-]*\.)*[A-Z][A-Z0-9\-]*\/)?[A-Z][A-Z0-9\-]*)$/i;
 
 /*
  * Parses a CAP message of the form:
@@ -59,19 +59,19 @@ var ircCAP = {
   name: "Client Capabilities",
   // Slightly above default RFC 2812 priority.
   priority: ircHandlers.DEFAULT_PRIORITY + 10,
-  isEnabled: function() true,
+  isEnabled: () => true,
 
   commands: {
     "CAP": function(aMessage) {
       // [* | <nick>] <subcommand> :<parameters>
       let messages = capMessage(aMessage);
 
-      messages = messages.filter(function(aMessage)
-        !ircHandlers.handleCAPMessage(this, aMessage), this);
+      messages = messages.filter(aMessage =>
+        !ircHandlers.handleCAPMessage(this, aMessage));
       if (messages.length) {
         // Display the list of unhandled CAP messages.
         let unhandledMessages =
-          messages.map(function(aMsg) aMsg.cap.parameter).join(" ");
+          messages.map(aMsg => aMsg.cap.parameter).join(" ");
         this.LOG("Unhandled CAP messages: " + unhandledMessages +
                  "\nRaw message: " + aMessage.rawMessage);
       }

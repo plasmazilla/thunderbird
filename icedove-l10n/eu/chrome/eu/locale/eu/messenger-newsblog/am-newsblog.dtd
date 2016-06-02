@@ -1,0 +1,24 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY biffStart.label "Egiaztatu artikulu berriak dauden ">
+<!ENTITY biffStart.accesskey "E">
+<!ENTITY biffEnd.label "minutuan behin">
+
+<!ENTITY loginAtStartup.label "Egiaztatu artikulu berriak dauden abiaraztean"> 
+<!ENTITY loginAtStartup.accesskey "g">
+
+<!ENTITY useQuickMode.label "Lehenetsita, erakutsi artikuluaren laburpena web orrialdea kargatu ordez"> 
+<!ENTITY useQuickMode.accesskey "L">
+
+<!ENTITY manageSubscriptions.label "Kudeatu harpidetzak…"> 
+<!ENTITY manageSubscriptions.accesskey "K">
+
+<!ENTITY feedWindowTitle.label "Jario-kontuaren morroia">
+<!-- entities from rss.rdf -->
+
+<!ENTITY feeds.accountName "Blogak eta berrien jarioak">
+<!ENTITY feeds.wizardShortName "Jarioak">
+<!ENTITY feeds.wizardLongName "Blogak eta berrien jarioak">
+<!ENTITY feeds.wizardLongName.accesskey "B">

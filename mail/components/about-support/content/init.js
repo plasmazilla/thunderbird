@@ -2,14 +2,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
 
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource://gre/modules/AddonManager.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/AppConstants.jsm");
 
 Components.utils.import("resource:///modules/aboutSupport.js");
 
@@ -17,15 +18,15 @@ Components.utils.import("resource:///modules/aboutSupport.js");
 
 // Any nodes marked with this class will be considered part of the UI only,
 // and therefore will not be copied.
-const CLASS_DATA_UIONLY = "data-uionly";
+var CLASS_DATA_UIONLY = "data-uionly";
 
 // Any nodes marked with this class will be considered private and will be
 // hidden if the user requests only public data to be shown or copied.
-const CLASS_DATA_PRIVATE = "data-private";
+var CLASS_DATA_PRIVATE = "data-private";
 
 // Any nodes marked with this class will only be displayed when the user chooses
 // to not display private data.
-const CLASS_DATA_PUBLIC = "data-public";
+var CLASS_DATA_PUBLIC = "data-public";
 
 window.onload = function () {
   // Get the support URL.
@@ -63,9 +64,10 @@ window.onload = function () {
   // Update the other sections.
   populateAccountsSection();
   populatePreferencesSection();
-#ifdef MOZ_CRASHREPORTER
-  populateCrashesSection();
-#endif
+
+  if (AppConstants.MOZ_CRASHREPORTER)
+    populateCrashesSection();
+
   populateExtensionsSection();
   populateGraphicsSection();
   populateJavaScriptSection();
@@ -85,11 +87,12 @@ function createParentElement(tagName, childElems) {
 
 function createElement(tagName, textContent, opt_attributes, opt_copyData) {
   if (opt_attributes == null)
-    opt_attributes = [];
+    opt_attributes = {};
   let elem = document.createElement(tagName);
   elem.textContent = textContent;
-  for each (let [key, value] in Iterator(opt_attributes))
-    elem.setAttribute(key, "" + value);
+  for (let key in opt_attributes) {
+    elem.setAttribute(key, "" + opt_attributes[key]);
+  }
 
   if (opt_copyData != null) {
     elem.dataset.copyData = opt_copyData;

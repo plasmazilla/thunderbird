@@ -6,7 +6,7 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Preferences.jsm");
 
-const nsIScriptableDateFormat = Components.interfaces.nsIScriptableDateFormat;
+var nsIScriptableDateFormat = Components.interfaces.nsIScriptableDateFormat;
 
 function calDateTimeFormatter() {
     this.wrappedJSObject = this;
@@ -65,8 +65,8 @@ function calDateTimeFormatter() {
         this.mUseLongDateService = false;
     }
 }
-const calDateTimeFormatterClassID = Components.ID("{4123da9a-f047-42da-a7d0-cc4175b9f36a}");
-const calDateTimeFormatterInterfaces = [Components.interfaces.calIDateTimeFormatter];
+var calDateTimeFormatterClassID = Components.ID("{4123da9a-f047-42da-a7d0-cc4175b9f36a}");
+var calDateTimeFormatterInterfaces = [Components.interfaces.calIDateTimeFormatter];
 calDateTimeFormatter.prototype = {
     classID: calDateTimeFormatterClassID,
     QueryInterface: XPCOMUtils.generateQI(calDateTimeFormatterInterfaces),
@@ -92,22 +92,33 @@ calDateTimeFormatter.prototype = {
     },
 
     formatDateLong: function formatDateLong(aDate) {
+        let longDate;
         if (this.mUseLongDateService) {
-            return this.mDateService.FormatDate("",
-                                                nsIScriptableDateFormat.dateFormatLong,
-                                                aDate.year,
-                                                aDate.month + 1,
-                                                aDate.day);
-        } else {
-            // HACK We are probably on Linux and want a string in long format.
-            // dateService.dateFormatLong on Linux may return a short string, so
-            // build our own.
-            return cal.calGetString("calendar", "formatDateLong",
-                                    [this.shortDayName(aDate.weekday),
-                                     this.formatDayWithOrdinal(aDate.day),
-                                     this.shortMonthName(aDate.month),
-                                     aDate.year]);
+            longDate = this.mDateService.FormatDate("",
+                                                    nsIScriptableDateFormat.dateFormatLong,
+                                                    aDate.year,
+                                                    aDate.month + 1,
+                                                    aDate.day);
+            // check whether weekday name appears as in Lightning localization. if not, this is
+            // probably a minority language without OS support, so we should fall back to compose
+            // longDate on our own. May be not needed anymore once bug 441167 is fixed.
+            if (!longDate.includes(this.dayName(aDate.weekday)) &&
+                !longDate.includes(this.shortDayName(aDate.weekday))) {
+                longDate = null;
+                this.mUseLongDateService = false;
+            }
         }
+        if (longDate == null) {
+            // HACK We are probably on Linux or have a minority localization and want a string in
+            // long format. dateService.dateFormatLong on Linux may return a short string, so
+            // build our own.
+            longDate = cal.calGetString("calendar", "formatDateLong",
+                                        [this.shortDayName(aDate.weekday),
+                                         this.formatDayWithOrdinal(aDate.day),
+                                         this.shortMonthName(aDate.month),
+                                         aDate.year]);
+        }
+        return longDate;
     },
 
     formatDateWithoutYear: function formatDateWithoutYear(aDate) {

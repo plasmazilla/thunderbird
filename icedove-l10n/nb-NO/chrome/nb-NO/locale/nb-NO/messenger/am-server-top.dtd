@@ -1,0 +1,95 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!-- extracted from am-server-top.xul -->
+
+<!ENTITY messageStorage.label "Meldingslagring">
+<!ENTITY securitySettings.label "Sikkerhetsinnstillinger">
+<!ENTITY serverSettings.label "Serverinnstillinger">
+<!ENTITY serverType.label "Servertype:">
+<!ENTITY serverName.label "Servernavn:">
+<!ENTITY serverName.accesskey "j">
+<!ENTITY userName.label "Brukernavn:">
+<!ENTITY userName.accesskey "N">
+<!ENTITY port.label "Port:">
+<!ENTITY port.accesskey "P">
+<!ENTITY serverPortDefault.label "Std:">
+<!-- LOCALIZATION NOTE (biffStart.label) : translate below 2 line with grammer dependency
+        For example, in Japanese cases:
+                biffStart.label "every"
+                biffEnd.label   "minutes for new messages Check"
+-->
+<!ENTITY biffStart.label "Se etter nye meldinger hvert">
+<!ENTITY biffStart.accesskey "e">
+<!ENTITY biffEnd.label "minutt">
+<!ENTITY connectionSecurity.label "Tilkoblingssikkerhet:">
+<!ENTITY connectionSecurity.accesskey "o">
+<!ENTITY connectionSecurityType-0.label "Ingen">
+<!ENTITY connectionSecurityType-1.label "STARTTLS, dersom tilgjengelig">
+<!ENTITY connectionSecurityType-2.label "STARTTLS">
+<!ENTITY connectionSecurityType-3.label "SSL/TLS">
+<!ENTITY authMethod.label "Autentiseringsmetode:">
+<!ENTITY authMethod.accesskey "r">
+<!ENTITY leaveOnServer.label "La meldinger ligge på serveren">
+<!ENTITY leaveOnServer.accesskey "m">
+<!ENTITY headersOnly.label "Hent bare meldingshoder">
+<!ENTITY headersOnly.accesskey "H">
+<!ENTITY deleteByAgeFromServer.label "Inntil de er">
+<!ENTITY deleteByAgeFromServer.accesskey "I">
+<!ENTITY daysEnd.label "dager gamle">
+<!ENTITY deleteOnServer2.label "Inntil jeg sletter dem">
+<!ENTITY deleteOnServer2.accesskey "t">
+<!ENTITY downloadOnBiff.label "Last ned nye meldinger automatisk">
+<!ENTITY downloadOnBiff.accesskey "d">
+<!ENTITY username.label "Innloggingsnavn">
+<!ENTITY deleteMessagePrefix.label "Når jeg sletter en melding:">
+<!ENTITY modelMoveToTrash.label "Flytt den til søppelmappen">
+<!ENTITY modelMoveToTrash.accesskey "d">
+<!ENTITY modelMarkDeleted.label "Merk som slettet">
+<!ENTITY modelMarkDeleted.accesskey "k">
+<!ENTITY modelDeleteImmediately.label "Slett umiddelbart">
+<!ENTITY modelDeleteImmediately.accesskey "u">
+<!-- LOCALIZATION NOTE (expungeOnExit.label) : do not translate two of "&quot;" in below line -->
+<!ENTITY expungeOnExit.label "Tøm (slett) Innboks ved avslutning">
+<!ENTITY expungeOnExit.accesskey "a">
+<!ENTITY emptyTrashOnExit.label "Tøm søppelkassen ved avslutning">
+<!ENTITY emptyTrashOnExit.accesskey "ø">
+<!ENTITY loginAtStartup.label "Se etter nye meldinger ved oppstart">
+<!ENTITY loginAtStartup.accesskey "S">
+<!-- LOCALIZATION NOTE (maxMessagesStart.label) : translate below 2 lines with grammar dependency
+    maxMessengerStart.label will be followed by maxMessagesEnd.label with the number
+   of messages between them
+-->
+<!ENTITY maxMessagesStart.label "Spør meg før nedlasting av mer enn">
+<!ENTITY maxMessagesStart.accesskey "M">
+<!-- LOCALIZATION NOTE (maxMessagesEnd.label) : see note for maxMessagesStart.label -->
+<!ENTITY maxMessagesEnd.label "meldinger">
+<!ENTITY alwaysAuthenticate.label "Alltid spør etter autentisering ved tilkobling til denne serveren">
+<!ENTITY alwaysAuthenticate.accesskey "A">
+<!ENTITY newsrcFilePath.label "newsrc-fil:">
+<!ENTITY newsrcPicker.label "Velg newsrc-fil">
+<!ENTITY abbreviate.label "Vis navn i mappelisten med">
+<!ENTITY abbreviateOn.label "fulle navn (for eksempel «netscape.public.mozilla.mail-news»)">
+<!ENTITY abbreviateOff.label "forkortede navn (for eksempel «n.p.m.mail-news»)">
+<!ENTITY advancedButton.label "Avansert …">
+<!ENTITY advancedButton.accesskey "A">
+<!ENTITY serverDefaultCharset.label "Standard tegnkoding:">
+<!ENTITY localPath.label "Lokal mappe:">
+<!ENTITY localFolderPicker.label "Velg lokal mappe:">
+<!ENTITY browseFolder.label "Bla gjennom …">
+<!ENTITY browseFolder.accesskey "B">
+<!ENTITY browseNewsrc.label "Bla gjennom …">
+<!ENTITY browseNewsrc.accesskey "l">
+
+<!ENTITY accountTitle.label "Kontoinnstillinger">
+<!ENTITY accountSettingsDesc.label "Dette er en spesiell konto.  Ingen identiteter er tilknyttet den.">
+<!ENTITY storeType.label "Meldingslagertype:">
+<!ENTITY storeType.accesskey "t">
+<!ENTITY mboxStore.label "En stor fil (mbox)">
+<!ENTITY maildirStore.label "En fil per melding (maildir)">
+
+<!ENTITY mboxStore2.label "File per folder (mbox)">
+<!ENTITY serverDefaultCharset2.label "Default Text Encoding:">
+<!ENTITY useIdleNotifications.accesskey "w">
+<!ENTITY useIdleNotifications.label "Allow immediate server notifications when new messages arrive">

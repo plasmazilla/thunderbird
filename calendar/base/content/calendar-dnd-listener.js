@@ -233,7 +233,7 @@ calDNDBaseObserver.prototype = {
         }
 
         // Treat unicode data with VEVENT in it as text/calendar
-        if (bestFlavor.value == "text/unicode" && data.toString().indexOf("VEVENT") != -1) {
+        if (bestFlavor.value == "text/unicode" && data.toString().includes("VEVENT")) {
             bestFlavor.value = "text/calendar";
         }
 
@@ -284,7 +284,12 @@ calDNDBaseObserver.prototype = {
                 var uri = Services.io.newURI(data.toString(), null, null);
                 var loader = Components.classes["@mozilla.org/network/unichar-stream-loader;1"]
                              .createInstance(Components.interfaces.nsIUnicharStreamLoader);
-                var channel = Services.io.newChannelFromURI(uri);
+                var channel = Services.io.newChannelFromURI2(uri,
+                                                             null,
+                                                             Services.scriptSecurityManager.getSystemPrincipal(),
+                                                             null,
+                                                             Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                             Components.interfaces.nsIContentPolicy.TYPE_OTHER);
                 channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
 
                 var self = this;
@@ -411,30 +416,8 @@ calMailButtonDNDObserver.prototype = {
      */
     onDropItems: function(aItems) {
         if (aItems && aItems.length > 0) {
-            var item = aItems[0];
-
-            var recipients = "";
-            var attendees = item.getAttendees({});
-            for each (var attendee in attendees) {
-                if (attendee.id && attendee.id.length) {
-                    var email = attendee.id;
-                    var re = new RegExp("^mailto:(.*)", "i");
-                    if (email && email.length) {
-                        if (re.test(email)) {
-                            email = RegExp.$1;
-                        } else {
-                            email = email;
-                        }
-                    }
-                    // Prevent trailing commas.
-                    if (recipients.length > 0) {
-                        recipients += ",";
-                    }
-                    // Add this recipient id to the list.
-                    recipients += email;
-                }
-            }
-
+            let item = aItems[0];
+            let recipients = cal.getRecipientList(item.getAttendees({}));
             let identity = item.calendar.getProperty("imip.identity");
             sendMailTo(recipients, item.title, item.getProperty("DESCRIPTION"), identity);
         }

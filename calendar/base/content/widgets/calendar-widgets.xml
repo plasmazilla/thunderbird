@@ -57,7 +57,7 @@
                 let checkedNodes = categoryListbox.getElementsByAttribute("checked", "true");
                 let sliceEnd = this.maxCount > 0 ? this.maxCount : checkedNodes.length;
                 return Array.slice(checkedNodes, 0, sliceEnd)
-                            .map(function(x) x.getAttribute("value"));
+                            .map(x => x.getAttribute("value"));
             }
         ]]></getter>
       </property>
@@ -342,8 +342,7 @@
                 return false;
             }
             var collapsedModes = this.getAttribute("collapsedinmodes").split(",");
-            var modeIndex = collapsedModes.indexOf(lMode);
-            return (modeIndex == -1);
+            return (!collapsedModes.includes(lMode));
         ]]></body>
       </method>
 
@@ -445,7 +444,7 @@
                 lModes = modeString.split(",");
             }
             if (lModes && lModes.length > 0) {
-                display = lModes.indexOf(lMode) > -1;
+                display = lModes.includes(lMode);
             }
             return display;
         ]]></body>
@@ -602,7 +601,7 @@
     </implementation>
 
     <handlers>
-      <handler event="dragstart"><![CDATA[
+      <handler event="dragstart" phase="capturing"><![CDATA[
          let draggedDOMNode = event.target;
          if (!draggedDOMNode || draggedDOMNode.parentNode != this) {
              return;
@@ -660,7 +659,7 @@
        }
       ]]></handler>
 
-      <handler event="dragdrop"><![CDATA[
+      <handler event="drop"><![CDATA[
          let session = cal.getDragService().getCurrentSession();
          if (!session || !session.sourceNode || !session.sourceNode.sourceObject) {
             // No source node? Not our drag.

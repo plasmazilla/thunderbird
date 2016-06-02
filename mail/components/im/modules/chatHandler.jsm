@@ -2,16 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["allContacts", "onlineContacts", "ChatCore"];
+this.EXPORTED_SYMBOLS = ["allContacts", "onlineContacts", "ChatCore"];
 
 Components.utils.import("resource:///modules/imServices.jsm");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 
-let allContacts = {};
-let onlineContacts = {};
+var allContacts = {};
+var onlineContacts = {};
 
-let ChatCore = {
+var ChatCore = {
   initialized: false,
   _initializing: false,
   init: function() {
@@ -51,7 +51,8 @@ let ChatCore = {
           delete accountsById[incomingServer.wrappedJSObject.imAccount.numericId];
         }
         // Let's recreate each of them...
-        for each (let account in accountsById) {
+        for (let id in accountsById) {
+          let account = accountsById[id];
           let inServer = mgr.createIncomingServer(account.name,
                                                   account.protocol.id, // hostname
                                                   "im");

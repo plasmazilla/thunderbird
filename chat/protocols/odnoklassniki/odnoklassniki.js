@@ -2,14 +2,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const {interfaces: Ci, utils: Cu} = Components;
+var {interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 Cu.import("resource:///modules/jsProtoHelper.jsm");
 Cu.import("resource:///modules/xmpp.jsm");
 Cu.import("resource:///modules/xmpp-session.jsm");
 
-XPCOMUtils.defineLazyGetter(this, "_", function()
+XPCOMUtils.defineLazyGetter(this, "_", () =>
   l10nHelper("chrome://chat/locale/xmpp.properties")
 );
 
@@ -18,9 +18,9 @@ function OdnoklassnikiAccount(aProtoInstance, aImAccount) {
 }
 OdnoklassnikiAccount.prototype = {
   __proto__: XMPPAccountPrototype,
-  get canJoinChat() false,
+  get canJoinChat() { return false; },
   connect: function() {
-    if (!this.name.contains("@")) {
+    if (!this.name.includes("@")) {
       let jid = this.name + "@odnoklassniki.ru/" + XMPPDefaultResource;
       this._jid = this._parseJID(jid);
     }
@@ -45,12 +45,12 @@ function OdnoklassnikiProtocol() {
 }
 OdnoklassnikiProtocol.prototype = {
   __proto__: GenericProtocolPrototype,
-  get normalizedName() "odnoklassniki",
-  get name() _("odnoklassniki.protocolName"),
-  get iconBaseURI() "chrome://prpl-odnoklassniki/skin/",
-  get usernameEmptyText() _("odnoklassniki.usernameHint"),
-  getAccount: function(aImAccount) new OdnoklassnikiAccount(this, aImAccount),
+  get normalizedName() { return "odnoklassniki"; },
+  get name() { return _("odnoklassniki.protocolName"); },
+  get iconBaseURI() { return "chrome://prpl-odnoklassniki/skin/"; },
+  get usernameEmptyText() { return _("odnoklassniki.usernameHint"); },
+  getAccount: function(aImAccount) { return new OdnoklassnikiAccount(this, aImAccount); },
   classID: Components.ID("{29b09a83-81c1-2032-11e2-6d9bc4f8e969}")
 };
 
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([OdnoklassnikiProtocol]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([OdnoklassnikiProtocol]);

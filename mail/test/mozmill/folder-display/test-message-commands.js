@@ -497,7 +497,7 @@ function test_disabled_archive() {
 
 function check_tag_in_message(message, tag, isSet) {
   let tagSet = message.getStringProperty("keywords").split(" ")
-                      .indexOf(tag.key) != -1;
+                      .includes(tag.key);
   if (isSet)
     assert_true(tagSet, "Tag '" + tag.name + "' expected on message!");
   else
@@ -528,7 +528,7 @@ function test_tag_keys_disabled_in_content_tab() {
   mc.sleep(0);
 
   let tab = mc.tabmail.currentTabInfo;
-  wait_for_content_tab_load(tab, 'about:addons');
+  wait_for_content_tab_load(tab, 'about:addons', 15000);
 
   // Make sure pressing the "1" key in a content tab doesn't tag a message
   check_tag_in_message(curMessage, tagArray[0], false);

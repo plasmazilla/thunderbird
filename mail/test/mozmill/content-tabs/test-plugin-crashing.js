@@ -18,14 +18,14 @@ var gTabDoc = null;
 var gOldStartPage = null;
 var gOldCrashReporterEnabled = null;
 var crashReporter = null;
-const kPluginId = "test-plugin";
-const kStartPagePref = "mailnews.start_page.override_url";
-const kPluginCrashDocPref = "plugins.crash.supportUrl";
+var kPluginId = "test-plugin";
+var kStartPagePref = "mailnews.start_page.override_url";
+var kPluginCrashDocPref = "plugins.crash.supportUrl";
 // RELATIVE_ROOT messes with the collector, so we have to bring the path back
 // so we get the right path for the resources.
-const kUrl = collector.addHttpResource('../content-tabs/html', '');
-const kPluginUrl = kUrl + "plugin.html";
-const kPluginCrashDocUrl = kUrl + "plugin_crashed_help.html";
+var kUrl = collector.addHttpResource('../content-tabs/html', '');
+var kPluginUrl = kUrl + "plugin.html";
+var kPluginCrashDocUrl = kUrl + "plugin_crashed_help.html";
 
 function setupModule(module) {
   let fdh = collector.getModule('folder-display-helpers');
@@ -59,7 +59,7 @@ function setupModule(module) {
    * disable them for now, until we can figure out what's going on.
    */
   let is64BitOSX = (mc.mozmillModule.isMac &&
-                    Services.appinfo.XPCOMABI.contains("x86_64-"));
+                    Services.appinfo.XPCOMABI.includes("x86_64-"));
 
   // These tests are no good if the crash reporter is disabled, or if
   // we don't have out-of-process plugins enabled.
@@ -117,7 +117,7 @@ function teardownTest() {
  * IMPORTANT:  Calls to planForCrash must be followed by waitForCrash in
  * order to remove PluginCrashObserver from the nsIObserverService.
  */
-let PluginCrashObserver = {
+var PluginCrashObserver = {
   _sawCrash: false,
 
   planForCrash: function(aController) {
@@ -127,8 +127,8 @@ let PluginCrashObserver = {
 
   waitForCrash: function(aController) {
     if (!this._sawCrash)
-      aController.waitFor(function() this._sawCrash, "Timeout waiting for crash",
-                          5000, 100, this);
+      aController.waitFor(() => this._sawCrash, "Timeout waiting for crash",
+                          5000, 100);
 
     Services.obs.removeObserver(this, "plugin-crashed");
   },
@@ -238,7 +238,7 @@ function test_crashed_plugin_notification_inline() {
     });
     observer.observe(submitDiv, { attributes: true });
 
-    mc.waitFor(function() submitStatusChanged,
+    mc.waitFor(() => submitStatusChanged,
                "Timed out: Notification existed and did not disappear.");
     observer.disconnect();
   }

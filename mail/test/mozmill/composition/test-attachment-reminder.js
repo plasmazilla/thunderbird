@@ -8,10 +8,10 @@
 
 // make SOLO_TEST=composition/test-attachment-reminder.js mozmill-one
 
-const MODULE_NAME = "test-attachment-reminder";
+var MODULE_NAME = "test-attachment-reminder";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers",
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers",
                          "compose-helpers",
                          "window-helpers",
                          "notificationbox-helpers",
@@ -20,9 +20,9 @@ const MODULE_REQUIRES = ["folder-display-helpers",
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/mailServices.js");
 
-const kBoxId = "attachmentNotificationBox";
-const kNotificationId = "attachmentReminder";
-const kReminderPref = "mail.compose.attachment_reminder";
+var kBoxId = "attachmentNotificationBox";
+var kNotificationId = "attachmentReminder";
+var kReminderPref = "mail.compose.attachment_reminder";
 
 function setupModule(module) {
   for (let lib of MODULE_REQUIRES) {
@@ -54,7 +54,8 @@ function assert_automatic_reminder_state(aCwc, aShown) {
  * Waits for the attachment reminder bar to change into the wished state.
  *
  * @param aCwc    A compose window controller.
- * @param aShown  True for waiting for the bar to be shown, false otherwise.
+ * @param aShown  True for waiting for the bar to be shown,
+ *                false for waiting for it to be hidden.
  * @param aDelay  Set to true to sleep a while to give the notification time
  *                to change. This is used if the state is already what we want
  *                but we expect it could change in a short while.
@@ -130,6 +131,7 @@ function test_attachment_reminder_appears_properly() {
 
   // Click ok to be notified on send if no attachments are attached.
   cwc.click(cwc.eid(kBoxId, {tagName: "button", label: "Remind Me Later"}));
+  wait_for_reminder_state(cwc, false);
 
   // The manual reminder should be enabled now.
   assert_manual_reminder_state(cwc, true);
@@ -322,8 +324,10 @@ function test_manual_attachment_reminder() {
                            .getFolderWithFlags(Ci.nsMsgFolderFlags.Drafts);
   be_in_folder(drafts);
 
-  // Edit it again...
   select_click_row(0);
+  // Wait for the notification with the Edit button.
+  wait_for_notification_to_show(mc, "msgNotificationBar", "draftMsgContent");
+  // Edit the draft again...
   plan_for_new_window("msgcompose");
   // ... by clicking Edit in the draft message notification bar.
   mc.click(mc.eid("msgNotificationBar", {tagName: "button", label: "Edit"}));

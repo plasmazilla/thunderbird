@@ -18,6 +18,7 @@
 #include "nsIMsgFilterService.h"
 #include "nsMsgSearchScopeTerm.h"
 #include "nsNetUtil.h"
+#include "nsIInputStream.h"
 #include "nsMsgI18N.h"
 #include "nsMemory.h"
 #include "prmem.h"
@@ -684,7 +685,7 @@ nsresult nsMsgFilterList::LoadTextFilters(nsIInputStream *aStream)
 
           char *utf8 = ToNewUTF8String(unicodeStr);
           value.Assign(utf8);
-          nsMemory::Free(utf8);
+          free(utf8);
         }
         err = ParseCondition(m_curFilter, value.get());
         if (err == NS_ERROR_INVALID_ARG)

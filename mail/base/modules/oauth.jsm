@@ -8,7 +8,7 @@
  * need to be made to support differences in OAuth usage.
  */
 
-const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 
 var EXPORTED_SYMBOLS = ["OAuth"];
 
@@ -116,7 +116,7 @@ OAuth.prototype = {
     if (queryIndex != -1) {
       urlSpec = url.slice(0, queryIndex);
       dataParams = url.slice(queryIndex + 1).split("&")
-                      .map(function(p) p.split("=").map(percentEncode));
+                      .map(p => p.split("=").map(percentEncode));
     }
     this.log.info("in sign and send url = " + url + "\nurlSpec = " + urlSpec);
     this.log.info("dataParams = " + dataParams);
@@ -127,8 +127,8 @@ OAuth.prototype = {
       let signatureBase =
         aMethod + "&" + encodeURIComponent(urlSpec) + "&" +
         params.concat(dataParams)
-              .sort(function(a,b) (a[0] < b[0]) ? -1 : (a[0] > b[0]) ? 1 : 0)
-              .map(function(p) p.map(percentEncode).join("%3D"))
+              .sort((a, b) => (a[0] < b[0]) ? -1 : (a[0] > b[0]) ? 1 : 0)
+              .map(p => p.map(percentEncode).join("%3D"))
               .join("%26");
 
       this.log.info("sig base = " + signatureBase);
@@ -139,7 +139,7 @@ OAuth.prototype = {
       hmac.init(hmac.SHA1,
                 keyFactory.keyFromString(Ci.nsIKeyObject.HMAC, signatureKey));
       // No UTF-8 encoding, special chars are already escaped.
-      let bytes = [b.charCodeAt() for each (b in signatureBase)];
+      let bytes = Array.from(signatureBase).map(b => b.charCodeAt(0));
       hmac.update(bytes, bytes.length);
       signature = encodeURIComponent(hmac.finish(true));
     }
@@ -154,7 +154,7 @@ OAuth.prototype = {
     params.push(["oauth_signature", signature]);
 
     let authorization =
-      "OAuth " + params.map(function (p) p[0] + "=\"" + p[1] + "\"").join(", ");
+      "OAuth " + params.map(p => p[0] + "=\"" + p[1] + "\"").join(", ");
     let options = {
       headers: (aHeaders || []).concat([["Authorization", authorization]]),
       postData: aPOSTData,
@@ -237,7 +237,7 @@ OAuth.prototype = {
               delete this.window;
             },
             _checkForRedirect: function(aURL) {
-              if (aURL.indexOf(this._parent.completionURI) != 0)
+              if (!aURL.startsWith(this._parent.completionURI))
                 return;
 
               this._parent.finishAuthorizationRequest();
@@ -301,7 +301,7 @@ OAuth.prototype = {
   cleanUp: function() {
     this.finishAuthorizationRequest();
     if (this._pendingRequests.length != 0) {
-      for each (let request in this._pendingRequests)
+      for (let request of this._pendingRequests)
         request.abort();
       delete this._pendingRequests;
     }

@@ -8,25 +8,25 @@ Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
-let gFilterListMsgWindow = null;
-let gCurrentFilterList;
-let gCurrentFolder;
-let gSelectedFolder = null;
+var gFilterListMsgWindow = null;
+var gCurrentFilterList;
+var gCurrentFolder;
+var gSelectedFolder = null;
 
-let gFilterListbox = null;
-let gEditButton = null;
-let gDeleteButton = null;
-let gTopButton = null;
-let gUpButton = null;
-let gDownButton = null;
-let gBottomButton = null;
-let gSearchBox = null;
-let gRunFiltersFolder = null;
-let gRunFiltersButton = null;
+var gFilterListbox = null;
+var gEditButton = null;
+var gDeleteButton = null;
+var gTopButton = null;
+var gUpButton = null;
+var gDownButton = null;
+var gBottomButton = null;
+var gSearchBox = null;
+var gRunFiltersFolder = null;
+var gRunFiltersButton = null;
 
-let gFilterBundle = null;
+var gFilterBundle = null;
 
-const msgMoveMotion = {
+var msgMoveMotion = {
   Up     : 0,
   Down   : 1,
   Top    : 2,
@@ -154,6 +154,10 @@ function processWindowArguments(aArguments) {
     // to show potential new filters if we were called for refresh.
     rebuildFilterList();
   }
+
+  // If a specific filter was requested, try to select it.
+  if ("filter" in aArguments)
+    selectFilter(aArguments.filter);
 }
 
 /**
@@ -277,6 +281,31 @@ function selectFolder(aFolder)
 }
 
 /**
+ * Selects a specific filter in the filter list.
+ * The listbox view is scrolled to the corresponding item.
+ *
+ * @param aFilter  The nsIMsgFilter to select.
+ *
+ * @return  true/false indicating whether the filter was found and selected.
+ */
+function selectFilter(aFilter) {
+  if (currentFilter() == aFilter)
+    return true;
+
+  resetSearchBox(aFilter);
+
+  let filterCount = gCurrentFilterList.filterCount;
+  for (let i = 0; i < filterCount; i++) {
+    if (gCurrentFilterList.getFilterAt(i) == aFilter) {
+      gFilterListbox.ensureIndexIsVisible(i);
+      gFilterListbox.selectedIndex = i;
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Returns the currently selected filter. If multiple filters are selected,
  * returns the first one. If none are selected, returns null.
  */
@@ -329,11 +358,13 @@ function onNewFilter(emailAddress)
 
   if ("refresh" in args && args.refresh) {
     // On success: reset the search box if necessary!
-    resetSearchBox(gCurrentFilterList.getFilterAt(position));
+    resetSearchBox(args.newFilter);
     rebuildFilterList();
 
     // Select the new filter, it is at the position of previous selection.
     gFilterListbox.selectItem(gFilterListbox.getItemAtIndex(position));
+    if (currentFilter() != args.newFilter)
+      Components.utils.reportError("Filter created at an unexpected position!");
   }
 }
 
@@ -548,7 +579,7 @@ function runSelectedFilters()
   filterList.loggingEnabled = gCurrentFilterList.loggingEnabled;
 
   let index = 0;
-  for each (let item in gFilterListbox.selectedItems) {
+  for (let item of gFilterListbox.selectedItems) {
     filterList.insertFilterAt(index++, item._filter);
   }
 
@@ -652,7 +683,7 @@ function rebuildFilterList()
     enabledCell.setAttribute("enabled", filter.enabled);
     listitem._filter = filter;
 
-    if (selectedNames.indexOf(filter.filterName) != -1)
+    if (selectedNames.includes(filter.filterName))
       gFilterListbox.addItemToSelection(listitem);
 
     listitemIndex++;
@@ -825,7 +856,7 @@ function onFilterListKeyPress(aEvent)
   else if (!aEvent.ctrlKey && !aEvent.altKey && !aEvent.metaKey) {
     switch (aEvent.charCode) {
       case KeyEvent.DOM_VK_SPACE:
-        for each (let item in gFilterListbox.selectedItems) {
+        for (let item of gFilterListbox.selectedItems) {
           toggleFilter(item);
         }
         break;
@@ -891,7 +922,7 @@ function getFirstFolder(msgFolder)
  */
 function filterSearchMatch(aFilter, aKeyword)
 {
-  return (aFilter.filterName.toLocaleLowerCase().contains(aKeyword))
+  return (aFilter.filterName.toLocaleLowerCase().includes(aKeyword))
 }
 
 /**

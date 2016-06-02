@@ -8,12 +8,12 @@
 
 // make SOLO_TEST=content-policy/test-view-source.js mozmill-one
 
-const MODULE_NAME = "test-view-source";
+var MODULE_NAME = "test-view-source";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers", "window-helpers"];
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers", "window-helpers"];
 
-const elib = {};
+var elib = {};
 Components.utils.import("resource://mozmill/modules/elementslib.js", elib);
 
 Components.utils.import("resource://gre/modules/Services.jsm");
@@ -78,11 +78,11 @@ function test_view_source_reload() {
   mc.keypress(null, "U", {shiftKey: false, accelKey: true});
   let vsc = wait_for_new_window("navigator:view-source");
 
-  vsc.waitFor(function() vsc.e("content").contentDocument.querySelector("pre") != null,
+  vsc.waitFor(() => vsc.e("content").contentDocument.querySelector("pre") != null,
               "Timeout waiting for the latin1 view-source document to load.");
 
   let source = vsc.e("content").contentDocument.querySelector("pre").textContent;
-  if (!source.contains(contentLatin1))
+  if (!source.includes(contentLatin1))
     throw new Error("View source didn't contain the latin1 text;\n" +
                     contentLatin1 + "\n" + source);
 
@@ -91,12 +91,12 @@ function test_view_source_reload() {
   vsc.click_menus_in_sequence(vsc.e("viewmenu-popup"),
     [{id: "charsetMenu"}, {label: "Unicode (UTF-8)"}]);
 
-  vsc.waitFor(function() vsc.e("content").contentDocument != doc &&
-                         vsc.e("content").contentDocument.querySelector("pre") != null,
+  vsc.waitFor(() => vsc.e("content").contentDocument != doc &&
+                    vsc.e("content").contentDocument.querySelector("pre") != null,
               "Timeout waiting utf-8 encoded view-source document to load.");
 
   source = vsc.e("content").contentDocument.querySelector("pre").textContent;
-  if (!source.contains(contentUTF8))
+  if (!source.includes(contentUTF8))
     throw new Error("View source didn't contain the utf-8 text;\n" +
                     contentUTF8 + "\n" + source);
 

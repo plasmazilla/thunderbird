@@ -182,19 +182,14 @@ contact[droptarget] > buddy[dummy] {
   -moz-appearance: none;
 }
 
-%ifdef XP_UNIX
-%ifndef XP_MACOSX
-%define UNIX_BUT_NOT_MAC
-%endif
-%endif
-
 .hideGroupButton {
   -moz-margin-end: 0;
   -moz-stack-sizing: ignore;
-%ifdef UNIX_BUT_NOT_MAC
-  list-style-image: url("moz-icon://stock/gtk-close?size=menu");
+%ifdef XP_WIN
+  list-style-image: url("chrome://global/skin/icons/close-XPVista7.png");
 %else
   list-style-image: url("chrome://global/skin/icons/close.png");
+%endif
   -moz-image-region: rect(0, 16px, 16px, 0);
 }
 .hideGroupButton:hover {
@@ -202,7 +197,6 @@ contact[droptarget] > buddy[dummy] {
 }
 .hideGroupButton:hover:active {
   -moz-image-region: rect(0, 48px, 16px, 32px);
-%endif
 }
 
 .startChatBubble {
@@ -277,11 +271,11 @@ group .twisty {
   height: 9px;
   -moz-margin-end: 3px;
   -moz-margin-start: 3px;
-  background: url("chrome://global/skin/tree/twisty-open.png") no-repeat center;
+  background: url("chrome://global/skin/tree/twisty.svg#open") no-repeat center;
 }
 
 group[closed] .twisty {
-  background: url("chrome://global/skin/tree/twisty-clsd.png") no-repeat center;
+  background: url("chrome://global/skin/tree/twisty.svg#clsd") no-repeat center;
 }
 %else
 %ifdef XP_MACOSX
@@ -486,12 +480,12 @@ group[closed] .twisty {
   padding: 0;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 25%, transparent 100%);
   border: none;
+%ifdef XP_WIN
+  list-style-image: url("chrome://global/skin/icons/close-XPVista7.png");
+%else
   list-style-image: url("chrome://global/skin/icons/close.png");
+%endif
   -moz-image-region: rect(0, 16px, 16px, 0);
-}
-
-#userIconPanelImageRemove > .toolbarbutton-icon {
-  max-width: 16px;
 }
 
 #userIconPanelImageRemove:hover:not([disabled="true"]) {
@@ -500,6 +494,10 @@ group[closed] .twisty {
 
 #userIconPanelImageRemove:active:not([disabled="true"]) {
   -moz-image-region: rect(0, 48px, 16px, 32px);
+}
+
+#userIconPanelImageRemove > .toolbarbutton-icon {
+  max-width: 16px;
 }
 
 .userIconPanelButton {

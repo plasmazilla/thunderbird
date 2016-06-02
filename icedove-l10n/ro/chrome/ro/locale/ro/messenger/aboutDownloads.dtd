@@ -1,0 +1,26 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY aboutDownloads.title                      "Fișiere salvate">
+<!ENTITY aboutDownloads.empty                      "Niciun fișier salvat">
+<!-- LOCALIZATION NOTE (cmd.show.label, cmd.show.accesskey, cmd.showMac.label,
+     cmd.showMac.accesskey):
+     The show and showMac commands are never shown together, thus they can share
+     the same access key (though the two access keys can also be different).
+     -->
+<!ENTITY cmd.show.label                            "Deschide dosarul conținător">
+<!ENTITY cmd.show.accesskey                        "d">
+<!ENTITY cmd.showMac.label                         "Arată în Finder">
+<!ENTITY cmd.showMac.accesskey                     "F">
+<!ENTITY cmd.open.label                            "Deschide">
+<!ENTITY cmd.open.accesskey                        "D">
+<!ENTITY cmd.removeFromHistory.label               "Elimină din istoric">
+<!ENTITY cmd.removeFromHistory.accesskey           "E">
+<!ENTITY cmd.clearList.label                       "Curăță lista">
+<!ENTITY cmd.clearList.accesskey                   "u">
+
+<!ENTITY cmd.searchDownloads.label                 "Caută…">
+<!ENTITY cmd.searchDownloads.key                   "F">
+
+<!ENTITY cmd.clearList.tooltip                     "Remove all entries from the list of saved files, except ongoing downloads.">

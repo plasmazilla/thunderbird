@@ -1,0 +1,75 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY tableWindow.title                "Propriedades da tabela">
+<!ENTITY applyButton.label                "Aplicar">
+<!ENTITY applyButton.accesskey            "A">
+<!ENTITY closeButton.label                "Fechar">
+<!ENTITY tableTab.label                   "Tabela">
+<!ENTITY cellTab.label                    "Células">
+<!ENTITY tableRows.label                  "Linhas:">
+<!ENTITY tableRows.accessKey              "L">
+<!ENTITY tableColumns.label               "Colunas:">
+<!ENTITY tableColumns.accessKey           "C">
+<!ENTITY tableHeight.label                "Altura:">
+<!ENTITY tableHeight.accessKey            "r">
+<!ENTITY tableWidth.label                 "Largura:">
+<!ENTITY tableWidth.accessKey             "u">
+<!ENTITY tableBorderSpacing.label         "Bordas e espaçamento">
+<!ENTITY tableBorderWidth.label           "border =">
+<!ENTITY tableBorderWidth.accessKey       "b">
+<!ENTITY tableSpacing.label               "cellspacing =">
+<!ENTITY tableSpacing.accessKey           "s">
+<!ENTITY tablePadding.label               "cellpadding =">
+<!ENTITY tablePadding.accessKey           "d">
+<!ENTITY tablePxBetwCells.label           "pixels (espaçamento entre células)">
+<!ENTITY tablePxBetwBrdrCellContent.label "pixels (espaçamento entre a borda da célula e o conteúdo)">
+<!ENTITY tableAlignment.label             "Alinhamento da tabela:">
+<!ENTITY tableAlignment.accessKey         "h">
+<!ENTITY tableCaption.label               "Legenda:">
+<!ENTITY tableCaption.accessKey           "n">
+<!ENTITY tableCaptionAbove.label          "Acima da tabela">
+<!ENTITY tableCaptionBelow.label          "Abaixo da tabela">
+<!ENTITY tableCaptionLeft.label           "À esquerda da tabela">
+<!ENTITY tableCaptionRight.label          "À direita da tabela">
+<!ENTITY tableCaptionNone.label           "Nenhuma">
+<!ENTITY tableInheritColor.label           "(tabela transparente)">
+
+<!ENTITY cellSelection.label              "Seleção">
+<!ENTITY cellSelectCell.label             "Célula">
+<!ENTITY cellSelectRow.label              "Linha">
+<!ENTITY cellSelectColumn.label           "Coluna">
+<!ENTITY cellSelectNext.label             "Próxima">
+<!ENTITY cellSelectNext.accessKey         "P">
+<!ENTITY cellSelectPrevious.label         "Anterior">
+<!ENTITY cellSelectPrevious.accessKey     "t">
+<!ENTITY applyBeforeChange.label          "As alterações atuais serão aplicadas antes de mudar a seleção.">
+<!ENTITY cellContentAlignment.label       "Alinhamento do conteúdo">
+<!ENTITY cellHorizontal.label             "Horizontal:">
+<!ENTITY cellHorizontal.accessKey         "z">
+<!ENTITY cellVertical.label               "Vertical:">
+<!ENTITY cellVertical.accessKey           "V">
+<!ENTITY cellStyle.label                  "Estilo da célula:">
+<!ENTITY cellStyle.accessKey              "c">
+<!ENTITY cellNormal.label                 "Normal">
+<!ENTITY cellHeader.label                 "Cabeçalho">
+<!ENTITY cellTextWrap.label               "Quebra de texto:">
+<!ENTITY cellTextWrap.accessKey           "Q">
+<!ENTITY cellWrap.label                   "Quebrar">
+<!ENTITY cellNoWrap.label                 "Não quebrar">
+<!ENTITY cellAlignTop.label               "Superior">
+<!ENTITY cellAlignMiddle.label            "Centralizado">
+<!ENTITY cellAlignBottom.label            "Inferior">
+<!ENTITY cellAlignJustify.label           "Justificado">
+<!ENTITY cellInheritColor.label           "(célula transparente)">
+<!ENTITY cellUseCheckboxHelp.label        "Marque os campos cujas propriedades devem ser aplicadas nas células selecionadas.">
+<!-- Used in both Table and Cell panels  -->
+
+<!ENTITY size.label                       "Tamanho">
+<!ENTITY pixels.label                     "pixels (borda)">
+<!ENTITY backgroundColor.label            "Cor do plano de fundo:">
+<!ENTITY backgroundColor.accessKey        "u">
+<!ENTITY AlignLeft.label                  "Esquerdo">
+<!ENTITY AlignCenter.label                "Centralizado">
+<!ENTITY AlignRight.label                 "Direito">

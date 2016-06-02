@@ -8,10 +8,10 @@ Components.utils.import("resource://gre/modules/Preferences.jsm");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
 
-const REGISTRY_BRANCH = "calendar.registry.";
-const DB_SCHEMA_VERSION = 10;
-const MAX_INT = Math.pow(2, 31) - 1;
-const MIN_INT = -MAX_INT;
+var REGISTRY_BRANCH = "calendar.registry.";
+var DB_SCHEMA_VERSION = 10;
+var MAX_INT = Math.pow(2, 31) - 1;
+var MIN_INT = -MAX_INT;
 
 function calCalendarManager() {
     this.wrappedJSObject = this;
@@ -19,8 +19,8 @@ function calCalendarManager() {
     this.mCalendarObservers = new calListenerBag(Components.interfaces.calIObserver);
 }
 
-const calCalendarManagerClassID = Components.ID("{f42585e7-e736-4600-985d-9624c1c51992}");
-const calCalendarManagerInterfaces = [
+var calCalendarManagerClassID = Components.ID("{f42585e7-e736-4600-985d-9624c1c51992}");
+var calCalendarManagerInterfaces = [
     Components.interfaces.calICalendarManager,
     Components.interfaces.calIStartupService,
     Components.interfaces.nsIObserver,
@@ -36,9 +36,9 @@ calCalendarManager.prototype = {
         flags: Components.interfaces.nsIClassInfo.SINGLETON
     }),
 
-    get networkCalendarCount() this.mNetworkCalendarCount,
-    get readOnlyCalendarCount() this.mReadonlyCalendarCount,
-    get calendarCount() this.mCalendarCount,
+    get networkCalendarCount() { return this.mNetworkCalendarCount; },
+    get readOnlyCalendarCount() { return this.mReadonlyCalendarCount; },
+    get calendarCount() { return this.mCalendarCount; },
 
     // calIStartupService:
     startup: function ccm_startup(aCompleteListener) {
@@ -125,8 +125,8 @@ calCalendarManager.prototype = {
                             // The provider may choose to explicitly disable the
                             // rewriting, for example if all calendars on a
                             // domain have the same credentials
-                            let escapedName = calendar.name.replace('\\', '\\\\', 'g')
-                                                           .replace('"','\\"', 'g');
+                            let escapedName = calendar.name.replace(/\\/g, '\\\\')
+                                                           .replace(/\"/g, '\\"');
                             authHeader = appendToRealm(authHeader, "(" + escapedName + ")");
                             channel.setResponseHeader("WWW-Authenticate", authHeader, false);
                         }
@@ -150,7 +150,7 @@ calCalendarManager.prototype = {
                     // the "cal" namespace defined
                     let ua = httpChannel.getRequestHeader("User-Agent");
                     let calUAString = Preferences.get("calendar.useragent.extra");
-                    if (calUAString && ua.indexOf(calUAString) < 0) {
+                    if (calUAString && !ua.includes(calUAString)) {
                         // User-Agent is not a mergeable header. We need to
                         // merge the user agent ourselves.
                         httpChannel.setRequestHeader("User-Agent",
@@ -452,7 +452,7 @@ calCalendarManager.prototype = {
                 case Components.interfaces.calIErrors.STORAGE_UNKNOWN_SCHEMA_ERROR:
                     // For now we alert and quit on schema errors like we've done before:
                     this.alertAndQuit();
-                    return;
+                    return null;
                 case Components.interfaces.calIErrors.STORAGE_UNKNOWN_TIMEZONES_ERROR:
                     uiMessage = calGetString("calendar", "unknownTimezonesError", [uri.spec]);
                     break;
@@ -758,14 +758,14 @@ calCalendarManager.prototype = {
     },
 
     mObservers: null,
-    addObserver: function(aObserver) this.mObservers.add(aObserver),
-    removeObserver: function(aObserver) this.mObservers.remove(aObserver),
-    notifyObservers: function(functionName, args) this.mObservers.notify(functionName, args),
+    addObserver: function(aObserver) { return this.mObservers.add(aObserver); },
+    removeObserver: function(aObserver) { return this.mObservers.remove(aObserver); },
+    notifyObservers: function(functionName, args) { return this.mObservers.notify(functionName, args); },
 
     mCalendarObservers: null,
-    addCalendarObserver: function(aObserver) this.mCalendarObservers.add(aObserver),
-    removeCalendarObserver: function(aObserver) this.mCalendarObservers.remove(aObserver),
-    notifyCalendarObservers: function(functionName, args) this.mCalendarObservers.notify(functionName, args)
+    addCalendarObserver: function(aObserver) { return this.mCalendarObservers.add(aObserver); },
+    removeCalendarObserver: function(aObserver) { return this.mCalendarObservers.remove(aObserver); },
+    notifyCalendarObservers: function(functionName, args) { return this.mCalendarObservers.notify(functionName, args); }
 };
 
 function equalMessage(msg1, msg2) {
@@ -796,12 +796,12 @@ calMgrCalendarObserver.prototype = {
     ]),
 
     // calIObserver:
-    onStartBatch: function() this.calMgr.notifyCalendarObservers("onStartBatch", arguments),
-    onEndBatch: function() this.calMgr.notifyCalendarObservers("onEndBatch", arguments),
-    onLoad: function(calendar) this.calMgr.notifyCalendarObservers("onLoad", arguments),
-    onAddItem: function(aItem) this.calMgr.notifyCalendarObservers("onAddItem", arguments),
-    onModifyItem: function(aNewItem, aOldItem) this.calMgr.notifyCalendarObservers("onModifyItem", arguments),
-    onDeleteItem: function(aDeletedItem) this.calMgr.notifyCalendarObservers("onDeleteItem", arguments),
+    onStartBatch: function() { return this.calMgr.notifyCalendarObservers("onStartBatch", arguments); },
+    onEndBatch: function() { return this.calMgr.notifyCalendarObservers("onEndBatch", arguments); },
+    onLoad: function(calendar) { return this.calMgr.notifyCalendarObservers("onLoad", arguments); },
+    onAddItem: function(aItem) { return this.calMgr.notifyCalendarObservers("onAddItem", arguments); },
+    onModifyItem: function(aNewItem, aOldItem) { return this.calMgr.notifyCalendarObservers("onModifyItem", arguments); },
+    onDeleteItem: function(aDeletedItem) { return this.calMgr.notifyCalendarObservers("onDeleteItem", arguments); },
     onError: function(aCalendar, aErrNo, aMessage) {
         this.calMgr.notifyCalendarObservers("onError", arguments);
         this.announceError(aCalendar, aErrNo, aMessage);
@@ -955,63 +955,53 @@ calMgrCalendarObserver.prototype = {
 
         // Log warnings in error console.
         // Report serious errors in both error console and in prompt window.
-        var isSerious = (aErrNo == calIErrors.MODIFICATION_FAILED);
-        if (!isSerious) {
-            WARN(summary);
-        } else {
-            // Write error to console.
+        if (aErrNo == calIErrors.MODIFICATION_FAILED) {
             Components.utils.reportError(summary);
-
-            // silently don't do anything if this message already has
-            // been announced without being acknowledged.
-            if (this.announcedMessages.some(
-                function(element, index, array) {
-                    return equalMessage(paramBlock, element);
-                })) {
-                return;
-            }
-
-            // this message hasn't been announced recently, remember the
-            // details of the message for future reference.
-            this.announcedMessages.push(paramBlock);
-
-            // Display in prompt window.
-            var promptWindow =
-                Services.ww.openWindow
-                    (null, "chrome://calendar/content/calendar-error-prompt.xul",
-                     "_blank", "chrome,dialog=yes,alwaysRaised=yes",
-                     paramBlock);
-            // Will remove paramBlock from announced messages when
-            // promptWindow is closed.  (Closing fires unloaded event, but
-            // promptWindow is also unloaded [to clean it?] before loading,
-            // so wait for detected load event before detecting unload event
-            // that signifies user closed this prompt window.)
-            var observer = this;
-            function awaitLoad(event) {
-                // #2 loaded, remove load listener
-                promptWindow.removeEventListener("load", awaitLoad, false);
-                function awaitUnload(event) {
-                    // #4 unloaded (user closed prompt window),
-                    // remove paramBlock and unload listener.
-                    try {
-                        // remove the message that has been shown from
-                        // the list of all announced messages.
-                        observer.announcedMessages =
-                            observer.announcedMessages.filter(function(msg) {
-                                return !equalMessage(msg, paramBlock);
-                            });
-                        promptWindow.removeEventListener("unload", awaitUnload,
-                                                         false);
-                    } catch (e) {
-                        Components.utils.reportError(e);
-                    }
-                }
-                // #3 add unload listener (wait for user to close promptWindow)
-                promptWindow.addEventListener("unload", awaitUnload, false);
-            }
-            // #1 add load listener
-            promptWindow.addEventListener("load", awaitLoad, false);
+            this.announceParamBlock(paramBlock);
+        } else {
+            cal.WARN(summary);
         }
+    },
+
+    announceParamBlock: function(paramBlock) {
+        function awaitLoad(event) {
+            promptWindow.removeEventListener("load", awaitLoad, false);
+            promptWindow.addEventListener("unload", awaitUnload, false);
+        }
+        let awaitUnload = (event) => {
+            promptWindow.removeEventListener("unload", awaitUnload, false);
+            // unloaded (user closed prompt window),
+            // remove paramBlock and unload listener.
+            try {
+                // remove the message that has been shown from
+                // the list of all announced messages.
+                this.announcedMessages = this.announcedMessages.filter((msg) => {
+                    return !equalMessage(msg, paramBlock);
+                });
+            } catch (e) {
+                Components.utils.reportError(e);
+            }
+        };
+
+        // silently don't do anything if this message already has been
+        // announced without being acknowledged.
+        if (this.announcedMessages.some(equalMessage.bind(null, paramBlock))) {
+            return;
+        }
+
+        // this message hasn't been announced recently, remember the details of
+        // the message for future reference.
+        this.announcedMessages.push(paramBlock);
+
+        // Will remove paramBlock from announced messages when promptWindow is
+        // closed.  (Closing fires unloaded event, but promptWindow is also
+        // unloaded [to clean it?] before loading, so wait for detected load
+        // event before detecting unload event that signifies user closed this
+        // prompt window.)
+        let promptUrl = "chrome://calendar/content/calendar-error-prompt.xul";
+        let features = "chrome,dialog=yes,alwaysRaised=yes";
+        let promptWindow =  Services.ww.openWindow(null, promptUrl, "_blank", features, paramBlock);
+        promptWindow.addEventListener("load", awaitLoad, false);
     }
 };
 

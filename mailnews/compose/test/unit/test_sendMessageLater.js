@@ -23,8 +23,9 @@ var finished = false;
 var identity = null;
 var testFile = do_get_file("data/429891_testcase.eml");
 
-const kSender = "from@foo.invalid";
-const kTo = "to@foo.invalid";
+var kSender = "from@foo.invalid";
+var kTo = "to@foo.invalid";
+var kToEncodedDisplayName = "=?UTF-8?B?RnLDqcOpZGxlLCBUZXN0?="; // "Fréédle, Test"
 
 var msgSendLater = Cc["@mozilla.org/messengercompose/sendlater;1"]
   .getService(Ci.nsIMsgSendLater);
@@ -68,7 +69,7 @@ msll.prototype = {
 
       do_check_transaction(server.playTransaction(),
                            ["EHLO test",
-                            "MAIL FROM:<" + kSender + "> SIZE=" + originalData.length,
+                            "MAIL FROM:<" + kSender + "> BODY=8BITMIME SIZE=" + originalData.length,
                             "RCPT TO:<" + kTo + ">",
                             "DATA"]);
 
@@ -207,7 +208,7 @@ function run_test() {
                      .createInstance(Ci.nsIMsgCompFields);
 
   compFields.from = identity.email;
-  compFields.to = kTo;
+  compFields.to = kToEncodedDisplayName + " <" + kTo + ">";
 
   var msgSend = Cc["@mozilla.org/messengercompose/send;1"]
                   .createInstance(Ci.nsIMsgSend);

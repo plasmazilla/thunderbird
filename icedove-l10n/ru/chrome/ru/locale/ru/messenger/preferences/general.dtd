@@ -1,0 +1,34 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY messengerStartPage.label "Стартовая страница &brandShortName;">
+<!ENTITY enableStartPage.label "Показывать стартовую страницу в области просмотра сообщения при запуске &brandShortName;">
+<!ENTITY enableStartPage.accesskey "с">
+<!ENTITY location.label "Адрес:">
+<!ENTITY location1.accesskey "д">
+<!ENTITY useDefault.label "Восстановить">
+<!ENTITY useDefault.accesskey "н">
+<!ENTITY changeDockIconOptions.label "Изменить наcтройки значка приложения">
+<!ENTITY dockOptions.label "Наcтройки значка приложения…">
+<!ENTITY dockOptions.accesskey "а">
+<!ENTITY newMessagesArrive.label "При появлении новых сообщений:">
+<!ENTITY playSound.label "Подавать звуковой сигнал">
+<!ENTITY playSound1.accesskey "в">
+<!ENTITY showAnimatedAlert.label "Показывать уведомление">
+<!ENTITY showAnimatedAlert.accesskey "к">
+<!ENTITY customizeMailAlert.label "Настроить…">
+<!ENTITY customizeMailAlert.accesskey "и">
+<!ENTITY showTrayIcon.label "Показать значок в трее">
+<!ENTITY showTrayIcon.accesskey "о">
+<!ENTITY play.label "Прослушать">
+<!ENTITY play.accesskey "ш">
+<!ENTITY systemsound.label "Системный звуковой сигнал о приходе почты">
+<!ENTITY systemsoundMac.label "Системный звуковой сигнал оповещения">
+<!ENTITY systemsoundMac.accesskey "м">
+<!ENTITY systemsound.accesskey "м">
+<!ENTITY customsound.label "Использовать следующий звуковой файл">
+<!ENTITY customsound.accesskey "з">
+<!ENTITY browse.label "Обзор…">
+<!ENTITY browse.accesskey "б">
+<!ENTITY defaultSearchEngine.label "Поисковая система по умолчанию">

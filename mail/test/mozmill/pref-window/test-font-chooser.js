@@ -25,13 +25,13 @@ var Cc, Ci;
 var gFontEnumerator;
 
 // We'll test with Western. Unicode has issues on Windows (bug 550443).
-const kLanguage = "x-western";
+var kLanguage = "x-western";
 
 // A list of fonts present on the computer for each font type.
 var gRealFontLists = {};
 
 // A list of font types to consider
-const kFontTypes = ["serif", "sans-serif", "monospace"];
+var kFontTypes = ["serif", "sans-serif", "monospace"];
 
 function setupModule(module) {
   let fdh = collector.getModule("folder-display-helpers");
@@ -123,7 +123,7 @@ function test_font_name_displayed() {
 
 // Fonts definitely not present on a computer -- we simply use UUIDs. These
 // should be kept in sync with the ones in *-prefs.js.
-const kFakeFonts = {
+var kFakeFonts = {
   "serif": "bc7e8c62-0634-467f-a029-fe6abcdf1582",
   "sans-serif": "419129aa-43b7-40c4-b554-83d99b504b89",
   "monospace": "348df6e5-e874-4d21-ad4b-359b530a33b7",
@@ -154,7 +154,7 @@ function test_font_name_not_present() {
       throw new Error("The first font in " + listPref + " should be " + fakeFont +
                       ", but is actually " + fonts[0] + ".");
 
-    if (gRealFontLists[fontType].indexOf(fonts[1]) == -1)
+    if (!gRealFontLists[fontType].includes(fonts[1]))
       throw new Error("The second font in " + listPref + " (" + fonts[1] +
                       ") should be present on this computer, but isn't.");
     expected[fontType] = fonts[1];

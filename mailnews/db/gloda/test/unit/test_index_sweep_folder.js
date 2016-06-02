@@ -69,7 +69,7 @@ function _spin_folder_indexer_gen(aFolderHandle, aExpectedJobGoal) {
  * The value itself does not matter; it just needs to be present and be in a
  *  certain range for our logic testing.
  */
-const arbitraryGlodaId = 4096;
+var arbitraryGlodaId = 4096;
 
 /**
  * When we enter a filthy folder we should be marking all the messages as filthy
@@ -82,7 +82,7 @@ function test_propagate_filthy_from_folder_to_messages() {
   glodaFolder._dirtyStatus = glodaFolder.kFolderFilthy;
 
   // mark each header with a gloda-id so they can get marked filthy
-  for each (let msgHdr in msgSet.msgHdrs) {
+  for (let msgHdr of msgSet.msgHdrs) {
     msgHdr.setUint32Property("gloda-id", arbitraryGlodaId);
   }
 
@@ -105,7 +105,7 @@ function test_propagate_filthy_from_folder_to_messages() {
 
   // The messages should be filthy per the headers (we force a commit of the
   //  database.)
-  for each (let msgHdr in msgSet.msgHdrs) {
+  for (let msgHdr of msgSet.msgHdrs) {
     do_check_eq(msgHdr.getUint32Property("gloda-dirty"),
                 GlodaMsgIndexer.kMessageFilthy);
   }
@@ -148,7 +148,7 @@ function test_count_pass() {
   yield spin_folder_indexer(folder, 2);
 }
 
-let tests = [
+var tests = [
   test_propagate_filthy_from_folder_to_messages,
   test_count_pass,
 ];

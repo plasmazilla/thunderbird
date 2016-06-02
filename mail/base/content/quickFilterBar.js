@@ -15,7 +15,7 @@ Components.utils.import("resource:///modules/searchSpec.js");
  *  changes and directing modifications to and reflecting the state of the
  *  actual filterer objects.
  */
-let QuickFilterBarMuxer = {
+var QuickFilterBarMuxer = {
   /**
    * This gets called by OnLoadMessenger in order to ensure that the monitor
    *  gets registered prior to the first tab being opened.  This avoids
@@ -129,7 +129,7 @@ let QuickFilterBarMuxer = {
 
     // - postFilterProcess everyone who cares
     // This may need to be converted into an asynchronous process at some point.
-    for each (let [, filterDef] in Iterator(QuickFilterManager.filterDefs)) {
+    for (let filterDef of QuickFilterManager.filterDefs) {
       if ("postFilterProcess" in filterDef) {
         let preState = (filterDef.name in filterer.filterValues) ?
           filterer.filterValues[filterDef.name] : null;
@@ -180,7 +180,7 @@ let QuickFilterBarMuxer = {
    * - reflect filter state
    */
   _bindUI: function QFBM__bindUI() {
-    for each (let [, filterDef] in Iterator(QuickFilterManager.filterDefs)) {
+    for (let filterDef of QuickFilterManager.filterDefs) {
       let domNode = document.getElementById(filterDef.domId);
       // the loop let binding does not latch, at least in 1.9.2
       let latchedFilterDef = filterDef;
@@ -232,8 +232,7 @@ let QuickFilterBarMuxer = {
     // If we aren't visible then there is no need to update the widgets.
     if (aFilterer.visible) {
       let filterValues = aFilterer.filterValues;
-      for each (let [, filterDef] in
-                Iterator(QuickFilterManager.filterDefs)) {
+      for (let filterDef of QuickFilterManager.filterDefs) {
         // If we only need to update one state, check and skip as appropriate.
         if (aFilterName && filterDef.name != aFilterName)
           continue;
@@ -588,7 +587,7 @@ let QuickFilterBarMuxer = {
     let [terms, listeners] =
       filterer.createSearchTerms(tab.folderDisplay.view.search.session);
 
-    for each (let [, [listener, filterDef]] in Iterator(listeners)) {
+    for (let [listener, filterDef] of listeners) {
       // it registers itself with the search session.
       new QuickFilterSearchListener(
         tab.folderDisplay, filterer, filterDef,

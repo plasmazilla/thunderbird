@@ -11,13 +11,14 @@
 #include "nsNullPrincipal.h"
 #include "nsISupportsPrimitives.h"
 #include "plstr.h"
+#include "nsPIDOMWindow.h"
 #include "nsIDOMWindow.h"
 #include "nsMsgUtils.h"
 #include "nsIMsgVCardService.h"
 #include "nsIAbCard.h"
 #include "nsIAbManager.h"
 #include "nsVCard.h"
-
+#include "nsIChannel.h"
 //
 // nsAbContentHandler
 //
@@ -66,9 +67,12 @@ nsAbContentHandler::HandleContent(const char *aContentType,
             if (!aWindowContext)
                 return NS_ERROR_FAILURE;
 
-            nsCOMPtr<nsIDOMWindow> parentWindow = do_GetInterface(aWindowContext);
+            nsCOMPtr<nsIDOMWindow> domWindow = do_GetInterface(aWindowContext);
+            nsCOMPtr<nsPIDOMWindow> parentWindow = do_QueryInterface(domWindow);
             if (!parentWindow)
                 return NS_ERROR_FAILURE;
+            parentWindow = parentWindow->GetOuterWindow();
+            NS_ENSURE_ARG_POINTER(parentWindow);
 
             nsCOMPtr<nsIAbManager> ab =
               do_GetService(NS_ABMANAGER_CONTRACTID, &rv);
@@ -123,8 +127,7 @@ nsAbContentHandler::HandleContent(const char *aContentType,
                             this,
                             nullPrincipal,
                             nsILoadInfo::SEC_NORMAL,
-                            nsIContentPolicy::TYPE_OTHER,
-                            aWindowContext);
+                            nsIContentPolicy::TYPE_OTHER);
     NS_ENSURE_SUCCESS(rv, rv);
 
   }
@@ -163,8 +166,11 @@ nsAbContentHandler::OnStreamComplete(nsIStreamLoader *aLoader,
                                     getter_AddRefs(cardFromVCard));
       NS_ENSURE_SUCCESS(rv, rv);
 
-      nsCOMPtr<nsIDOMWindow> parentWindow = do_GetInterface(aContext);
+      nsCOMPtr<nsIDOMWindow> domWindow = do_GetInterface(aContext);
+      nsCOMPtr<nsPIDOMWindow> parentWindow = do_QueryInterface(domWindow);
       NS_ENSURE_TRUE(parentWindow, NS_ERROR_FAILURE);
+      parentWindow = parentWindow->GetOuterWindow();
+      NS_ENSURE_ARG_POINTER(parentWindow);
 
       nsCOMPtr<nsIDOMWindow> dialogWindow;
       rv = parentWindow->OpenDialog(

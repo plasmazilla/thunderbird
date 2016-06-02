@@ -8,6 +8,7 @@
 #include "nsMailboxProtocol.h"
 #include "nscore.h"
 #include "nsIOutputStream.h"
+#include "nsIInputStreamPump.h"
 #include "nsIMsgDatabase.h"
 #include "nsIMsgHdr.h"
 #include "nsMsgLineBuffer.h"
@@ -16,7 +17,7 @@
 #include "nsICopyMsgStreamListener.h"
 #include "nsMsgMessageFlags.h"
 #include "prtime.h"
-#include "prlog.h"
+#include "mozilla/Logging.h"
 #include "prerror.h"
 #include "prprf.h"
 #include "nspr.h"
@@ -366,7 +367,7 @@ NS_IMETHODIMP nsMailboxProtocol::OnStopRequest(nsIRequest *request, nsISupports 
   // this solution is not very good so we should look at something better, but don't remove this
   // line before talking to me (mscott) and mailnews QA....
   
-  PR_LOG(MAILBOX, PR_LOG_ALWAYS, ("Mailbox Done\n"));
+  MOZ_LOG(MAILBOX, mozilla::LogLevel::Info, ("Mailbox Done\n"));
   
   // when on stop binding is called, we as the protocol are done...let's close down the connection
   // releasing all of our interfaces. It's important to remember that this on stop binding call

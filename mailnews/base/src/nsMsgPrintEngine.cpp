@@ -219,15 +219,13 @@ nsMsgPrintEngine::SetWindow(nsIDOMWindow *aWin)
 		return NS_OK;
   }
 
-  mWindow = aWin;
+  mWindow = do_QueryInterface(aWin);
+  NS_ENSURE_TRUE(mWindow, NS_ERROR_FAILURE);
 
-  nsCOMPtr<nsPIDOMWindow> win( do_QueryInterface(aWin) );
-  NS_ENSURE_TRUE(win, NS_ERROR_FAILURE);
-
-  win->GetDocShell()->SetAppType(nsIDocShell::APP_TYPE_MAIL);
+  mWindow->GetDocShell()->SetAppType(nsIDocShell::APP_TYPE_MAIL);
 
   nsCOMPtr<nsIDocShellTreeItem> docShellAsItem =
-    do_QueryInterface(win->GetDocShell());
+    do_QueryInterface(mWindow->GetDocShell());
   NS_ENSURE_TRUE(docShellAsItem, NS_ERROR_FAILURE);
 
   nsCOMPtr<nsIDocShellTreeItem> rootAsItem;
@@ -261,12 +259,8 @@ nsMsgPrintEngine::ShowWindow(bool aShow)
 
   NS_ENSURE_TRUE(mWindow, NS_ERROR_NOT_INITIALIZED);
 
-  nsCOMPtr <nsPIDOMWindow> win = do_QueryInterface(mWindow, &rv);
-
-  NS_ENSURE_SUCCESS(rv,rv);
-
   nsCOMPtr <nsIDocShellTreeItem> treeItem =
-    do_QueryInterface(win->GetDocShell(), &rv);
+    do_QueryInterface(mWindow->GetDocShell(), &rv);
   NS_ENSURE_SUCCESS(rv,rv);
 
   nsCOMPtr <nsIDocShellTreeOwner> treeOwner;
@@ -485,8 +479,11 @@ nsMsgPrintEngine::FireThatLoadOperation(const nsString& uri)
     rv = GetMessageServiceFromURI(uriCStr, getter_AddRefs(messageService));
   }
 
-  if (NS_SUCCEEDED(rv) && messageService)
-    rv = messageService->DisplayMessageForPrinting(uriCStr.get(), mDocShell, nullptr, nullptr, nullptr);
+  if (NS_SUCCEEDED(rv) && messageService) {
+    nsCOMPtr<nsIURI> dummyNull;
+    rv = messageService->DisplayMessageForPrinting(uriCStr.get(), mDocShell, nullptr, nullptr,
+                                                   getter_AddRefs(dummyNull));
+  }
   //If it's not something we know about, then just load try loading it directly.
   else
   {
@@ -659,7 +656,7 @@ public:
   }
 
 private:
-  nsRefPtr<nsMsgPrintEngine> mMsgPrintEngine;
+  RefPtr<nsMsgPrintEngine> mMsgPrintEngine;
 };
 
 //-----------------------------------------------------------
@@ -678,7 +675,7 @@ public:
   }
 
 private:
-  nsRefPtr<nsMsgPrintEngine> mMsgPrintEngine;
+  RefPtr<nsMsgPrintEngine> mMsgPrintEngine;
 };
 
 //-----------------------------------------------------------

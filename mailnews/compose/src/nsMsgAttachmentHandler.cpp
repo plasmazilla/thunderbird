@@ -34,6 +34,7 @@
 #include "nsIDirectoryEnumerator.h"
 #include "mozilla/Services.h"
 #include "mozilla/mailnews/MimeEncoder.h"
+#include "nsIPrincipal.h"
 
 ///////////////////////////////////////////////////////////////////////////
 // Mac Specific Attachment Handling for AppleDouble Encoded Files
@@ -153,6 +154,86 @@ nsMsgAttachmentHandler::~nsMsgAttachmentHandler()
   CleanupTempFile();
 }
 
+NS_IMPL_ISUPPORTS(nsMsgAttachmentHandler, nsIMsgAttachmentHandler)
+
+// nsIMsgAttachmentHandler implementation.
+
+NS_IMETHODIMP nsMsgAttachmentHandler::GetType(nsACString& aType)
+{
+  aType.Assign(m_type);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachmentHandler::GetUri(nsACString& aUri)
+{
+  nsAutoCString turl;
+  if (!mURL)
+  {
+    if (!m_uri.IsEmpty())
+      turl = m_uri;
+  }
+  else
+    mURL->GetSpec(turl);
+  aUri.Assign(turl);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachmentHandler::GetTmpFile(nsIFile **aTmpFile)
+{
+  NS_ENSURE_ARG_POINTER(aTmpFile);
+  if (!mTmpFile)
+    return NS_ERROR_FAILURE;
+  NS_ADDREF(*aTmpFile = mTmpFile);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachmentHandler::GetName(nsACString& aName)
+{
+  aName.Assign(m_realName);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachmentHandler::GetSize(uint32_t *aSize)
+{
+  NS_ENSURE_ARG_POINTER(aSize);
+  *aSize = m_size;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachmentHandler::GetContentId(nsACString& aContentId)
+{
+  aContentId.Assign(m_contentId);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachmentHandler::GetSendViaCloud(bool* aSendViaCloud)
+{
+  NS_ENSURE_ARG_POINTER(aSendViaCloud);
+  *aSendViaCloud = mSendViaCloud;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachmentHandler::GetCharset(nsACString& aCharset)
+{
+  aCharset.Assign(m_charset);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachmentHandler::GetEncoding(nsACString& aEncoding)
+{
+  aEncoding.Assign(m_encoding);
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachmentHandler::GetAlreadyEncoded(bool* aAlreadyEncoded)
+{
+  NS_ENSURE_ARG_POINTER(aAlreadyEncoded);
+  *aAlreadyEncoded = m_already_encoded_p;
+  return NS_OK;
+}
+
+// Local methods.
+
 void
 nsMsgAttachmentHandler::CleanupTempFile()
 {
@@ -219,6 +300,10 @@ nsMsgAttachmentHandler::AnalyzeDataChunk(const char *chunk, int32_t length)
       m_current_column++;
     }
   }
+  // Check one last time for the last line. This is also important if there
+  // is only one line that doesn't terminate in \n.
+  if (m_max_column < m_current_column)
+    m_max_column = m_current_column;
 }
 
 void
@@ -267,6 +352,7 @@ nsMsgAttachmentHandler::PickEncoding(const char *charset, nsIMsgSend *mime_deliv
 
   bool needsB64 = false;
   bool forceB64 = false;
+  bool isUsingQP = false;
 
   if (mSendViaCloud)
   {
@@ -278,100 +364,106 @@ nsMsgAttachmentHandler::PickEncoding(const char *charset, nsIMsgSend *mime_deliv
 
   AnalyzeSnarfedFile();
 
-  /* Allow users to override our percentage-wise guess on whether
-  the file is text or binary */
+  // Allow users to override our percentage-wise guess on whether
+  // the file is text or binary.
   if (pPrefBranch)
     pPrefBranch->GetBoolPref ("mail.file_attach_binary", &forceB64);
 
   if (!mMainBody && (forceB64 || mime_type_requires_b64_p (m_type.get()) ||
     m_have_cr + m_have_lf + m_have_crlf != 1))
   {
-    /* If the content-type is "image/" or something else known to be binary
-       or several flavors of newlines are present, always use base64
-       (so that we don't get confused by newline conversions.)
-     */
+    // If the content-type is "image/" or something else known to be binary
+    // or several flavors of newlines are present, always use base64
+    // (so that we don't get confused by newline conversions.)
     needsB64 = true;
   }
   else
   {
-  /* Otherwise, we need to pick an encoding based on the contents of
-  the document.
-     */
-
+    // Otherwise, we need to pick an encoding based on the contents of the
+    // document.
     bool encode_p;
     bool force_p = false;
 
-    /*
-      force quoted-printable if the sender does not allow
-      conversion to 7bit
-    */
+    // Force quoted-printable if the sender does not allow conversion to 7bit.
     if (mCompFields) {
       if (mCompFields->GetForceMsgEncoding())
         force_p = true;
-    }
-    else if (mime_delivery_state) {
-      if (((nsMsgComposeAndSend *)mime_delivery_state)->mCompFields->GetForceMsgEncoding())
+    } else if (mime_delivery_state) {
+      if (((nsMsgComposeAndSend *)mime_delivery_state)->mCompFields->GetForceMsgEncoding()) {
         force_p = true;
+      }
     }
 
-    if (force_p || (m_max_column > 900))
+    if (force_p || (m_max_column > LINELENGTH_ENCODING_THRESHOLD)) {
       encode_p = true;
-    else if (UseQuotedPrintable() && m_unprintable_count)
+    } else if (UseQuotedPrintable() && m_unprintable_count) {
       encode_p = true;
+    } else if (m_null_count) {
+      // If there are nulls, we must always encode, because sendmail will
+      // blow up.
+      encode_p = true;
+    } else {
+      encode_p = false;
+    }
 
-      else if (m_null_count)  /* If there are nulls, we must always encode,
-        because sendmail will blow up. */
-        encode_p = true;
-      else
-        encode_p = false;
+    // MIME requires a special case that these types never be encoded.
+    if (StringBeginsWith(m_type, NS_LITERAL_CSTRING("message"),
+                         nsCaseInsensitiveCStringComparator()) ||
+        StringBeginsWith(m_type, NS_LITERAL_CSTRING("multipart"),
+                         nsCaseInsensitiveCStringComparator()))
+    {
+      encode_p = false;
+      if (m_desiredType.LowerCaseEqualsLiteral(TEXT_PLAIN))
+        m_desiredType.Truncate();
+    }
 
-        /* MIME requires a special case that these types never be encoded.
-      */
-      if (StringBeginsWith(m_type, NS_LITERAL_CSTRING("message"),
-                           nsCaseInsensitiveCStringComparator()) ||
-         StringBeginsWith(m_type, NS_LITERAL_CSTRING("multipart"),
-                          nsCaseInsensitiveCStringComparator()))
-      {
-        encode_p = false;
-        if (m_desiredType.LowerCaseEqualsLiteral(TEXT_PLAIN))
-          m_desiredType.Truncate();
-      }
-
-      // If the Mail charset is multibyte, we force it to use Base64 for attachments.
-      if ((!mMainBody && charset && nsMsgI18Nmultibyte_charset(charset)) &&
-          (m_type.LowerCaseEqualsLiteral(TEXT_HTML) ||
-           m_type.LowerCaseEqualsLiteral(TEXT_MDL) ||
-           m_type.LowerCaseEqualsLiteral(TEXT_PLAIN) ||
-           m_type.LowerCaseEqualsLiteral(TEXT_RICHTEXT) ||
-           m_type.LowerCaseEqualsLiteral(TEXT_ENRICHED) ||
-           m_type.LowerCaseEqualsLiteral(TEXT_VCARD) ||
-           m_type.LowerCaseEqualsLiteral(APPLICATION_DIRECTORY) || /* text/x-vcard synonym */
-           m_type.LowerCaseEqualsLiteral(TEXT_CSS) ||
-           m_type.LowerCaseEqualsLiteral(TEXT_JSSS)))
-        needsB64 = true;
-      else if (charset && nsMsgI18Nstateful_charset(charset))
-        m_encoding = ENCODING_7BIT;
-      else if (encode_p &&
-        m_unprintable_count > (m_size / 10))
-        /* If the document contains more than 10% unprintable characters,
-        then that seems like a good candidate for base64 instead of
-        quoted-printable.
-        */
-        needsB64 = true;
-      else if (encode_p)
-        m_encoding = ENCODING_QUOTED_PRINTABLE;
-      else if (m_highbit_count > 0)
-        m_encoding = ENCODING_8BIT;
-      else
-        m_encoding = ENCODING_7BIT;
+    // If the Mail charset is multibyte, we force it to use Base64 for attachments.
+    if ((!mMainBody && charset && nsMsgI18Nmultibyte_charset(charset)) &&
+        (m_type.LowerCaseEqualsLiteral(TEXT_HTML) ||
+         m_type.LowerCaseEqualsLiteral(TEXT_MDL) ||
+         m_type.LowerCaseEqualsLiteral(TEXT_PLAIN) ||
+         m_type.LowerCaseEqualsLiteral(TEXT_RICHTEXT) ||
+         m_type.LowerCaseEqualsLiteral(TEXT_ENRICHED) ||
+         m_type.LowerCaseEqualsLiteral(TEXT_VCARD) ||
+         m_type.LowerCaseEqualsLiteral(APPLICATION_DIRECTORY) || /* text/x-vcard synonym */
+         m_type.LowerCaseEqualsLiteral(TEXT_CSS) ||
+         m_type.LowerCaseEqualsLiteral(TEXT_JSSS))) {
+      needsB64 = true;
+    } else if (charset && nsMsgI18Nstateful_charset(charset)) {
+      m_encoding = ENCODING_7BIT;
+    } else if (encode_p &&
+      m_unprintable_count > (m_size / 10)) {
+      // If the document contains more than 10% unprintable characters,
+      // then that seems like a good candidate for base64 instead of
+      // quoted-printable.
+      needsB64 = true;
+    } else if (encode_p) {
+      m_encoding = ENCODING_QUOTED_PRINTABLE;
+      isUsingQP = true;
+    } else if (m_highbit_count > 0) {
+      m_encoding = ENCODING_8BIT;
+    } else {
+      m_encoding = ENCODING_7BIT;
+    }
   }
 
-  // always base64 binary data.
+  // Always base64 binary data.
   if (needsB64)
     m_encoding = ENCODING_BASE64;
 
-  /* Now that we've picked an encoding, initialize the filter.
-  */
+  // According to RFC 821 we must always have lines shorter than 998 bytes.
+  // To encode "long lines" use a CTE that will transmit shorter lines.
+  // Switch to base64 if we are not already using "quoted printable".
+
+  // We don't do this for message/rfc822 attachments, since we can't
+  // change the original Content-Transfer-Encoding of the message we're
+  // attaching. We rely on the original message complying with RFC 821,
+  // if it doesn't we won't either. Not ideal.
+  if (!m_type.LowerCaseEqualsLiteral(MESSAGE_RFC822) &&
+      m_max_column > LINELENGTH_ENCODING_THRESHOLD && !isUsingQP)
+    m_encoding = ENCODING_BASE64;
+
+  // Now that we've picked an encoding, initialize the filter.
   NS_ASSERTION(!m_encoder, "not-null m_encoder");
   if (m_encoding.LowerCaseEqualsLiteral(ENCODING_BASE64))
   {
@@ -576,7 +668,9 @@ nsMsgAttachmentHandler::SnarfMsgAttachment(nsMsgCompFields *compFields)
       if (NS_FAILED(rv))
         goto done;
 
-      rv = messageService->DisplayMessage(uri.get(), convertedListener, nullptr, nullptr, nullptr, nullptr);
+      nsCOMPtr<nsIURI> dummyNull;
+      rv = messageService->DisplayMessage(uri.get(), convertedListener, nullptr, nullptr, nullptr,
+                                          getter_AddRefs(dummyNull));
     }
   }
 done:
@@ -1118,7 +1212,10 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const char16_t* aMsg)
 
     if (NS_SUCCEEDED(LoadDataFromFile(mTmpFile, conData, true)))
     {
-      if (NS_SUCCEEDED(ConvertBufToPlainText(conData, UseFormatFlowed(m_charset.get()), true)))
+      bool flowed, delsp, formatted, disallowBreaks;
+      GetSerialiserFlags(m_charset.get(), &flowed, &delsp, &formatted, &disallowBreaks);
+
+      if (NS_SUCCEEDED(ConvertBufToPlainText(conData, flowed, delsp, formatted, disallowBreaks)))
       {
         if (mDeleteFile)
           mTmpFile->Remove(false);
@@ -1171,7 +1268,7 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const char16_t* aMsg)
      */
     uint32_t i;
     nsMsgAttachmentHandler *next = 0;
-    nsTArray<nsRefPtr<nsMsgAttachmentHandler>> *attachments;
+    nsTArray<RefPtr<nsMsgAttachmentHandler>> *attachments;
 
     m_mime_delivery_state->GetAttachmentHandlers(&attachments);
 

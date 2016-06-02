@@ -17,10 +17,6 @@
   #tabs-toolbar {
     margin-bottom: -1px;
   }
-
-  #messengerWindow[tabsintitlebar="true"] #tabs-toolbar:not(:-moz-lwtheme) {
-    -moz-appearance: -moz-mac-vibrancy-light !important;
-  }
 }
 
 .tabmail-arrowscrollbox {
@@ -51,18 +47,10 @@
 }
 
 @media (min-resolution: 2dppx) {
-  /* image preloading hack from shared/tabmail.css */
-  #tabs-toolbar::before {
-    background-image: url(tabs/background-end@2x.png),
-                      url(tabs/background-middle@2x.png),
-                      url(tabs/background-start@2x.png);
-  }
-
-  .tabmail-tab:hover > .tab-stack > .tab-background:not([selected=true]),
-  .tabs-newtab-button:hover {
-    background-image: url(tabs/background-start@2x.png),
-                      url(tabs/background-middle@2x.png),
-                      url(tabs/background-end@2x.png);
+  #tabs-toolbar {
+    --tabBackgroundImage: url(chrome://messenger/skin/tabs/background-start@2x.png),
+                          url(chrome://messenger/skin/tabs/background-middle@2x.png),
+                          url(chrome://messenger/skin/tabs/background-end@2x.png);
   }
 
   .tab-background-middle[selected=true] {
@@ -81,18 +69,58 @@
     background-image: url(tabs/stroke-end@2x.png);
   }
 
-  /* Background tab separators */
-  .tabmail-tab:not([selected]):not(:hover) +
-  .tabmail-tab:not([selected]):not(:hover)::before {
-    background-image: url(tabs/separator@2x.png);
-  }
-
   .tab-throbber {
     list-style-image: url("chrome://messenger/skin/icons/loading@2x.png") !important;
   }
 
   .tabmail-tab[type="glodaSearch"] {
     list-style-image: url("chrome://messenger/skin/icons/search-tab@2x.png");
+  }
+}
+
+@media (-moz-mac-yosemite-theme) {
+  .tab-background-middle[selected=true]:-moz-window-inactive {
+    background-image: url(tabs/active-middle-yosemite-inactive.png),
+                      var(--fgTabTexture),
+                      none;
+  }
+
+  .tab-background-start[selected=true]:-moz-window-inactive:-moz-locale-dir(ltr):not(:-moz-lwtheme)::before,
+  .tab-background-end[selected=true]:-moz-window-inactive:-moz-locale-dir(rtl):not(:-moz-lwtheme)::before {
+    background-image: url("chrome://messenger/skin/tabs/selected-start-yosemite-inactive.svg");
+  }
+
+  .tab-background-end[selected=true]:-moz-window-inactive:-moz-locale-dir(ltr):not(:-moz-lwtheme)::before,
+  .tab-background-start[selected=true]:-moz-window-inactive:-moz-locale-dir(rtl):not(:-moz-lwtheme)::before {
+    background-image: url("chrome://messenger/skin/tabs/selected-end-yosemite-inactive.svg");
+  }
+
+  .tab-background-start[selected=true]:-moz-window-inactive:-moz-locale-dir(ltr)::after,
+  .tab-background-end[selected=true]:-moz-window-inactive:-moz-locale-dir(rtl)::after {
+    background-image: url(tabs/stroke-start-yosemite-inactive.png);
+  }
+
+  .tab-background-end[selected=true]:-moz-window-inactive:-moz-locale-dir(ltr)::after,
+  .tab-background-start[selected=true]:-moz-window-inactive:-moz-locale-dir(rtl)::after {
+    background-image: url(tabs/stroke-end-yosemite-inactive.png);
+  }
+
+  @media (min-resolution: 2dppx) {
+    .tab-background-middle[selected=true]:-moz-window-inactive {
+      background-image: url(tabs/active-middle-yosemite-inactive@2x.png),
+                        var(--fgTabTexture),
+                        none;
+    }
+
+    .tab-background-start[selected=true]:-moz-window-inactive:-moz-locale-dir(ltr)::after,
+    .tab-background-end[selected=true]:-moz-window-inactive:-moz-locale-dir(rtl)::after {
+      background-image: url(tabs/stroke-start-yosemite-inactive@2x.png);
+    }
+
+    .tab-background-end[selected=true]:-moz-window-inactive:-moz-locale-dir(ltr)::after,
+    .tab-background-start[selected=true]:-moz-window-inactive:-moz-locale-dir(rtl)::after {
+      background-image: url(tabs/stroke-end-yosemite-inactive@2x.png);
+    }
   }
 }
 
@@ -144,43 +172,44 @@ tabmail > tabbox > tabpanels {
   -moz-padding-start: 26px;
 }
 
+/* Tabstrip close button */
+
+.tabs-closebutton {
+  -moz-box-align: stretch;
+  margin-top: 1px;
+  -moz-padding-end: 4px;
+  border: none;
+}
+
+.tabs-closebutton:hover > .toolbarbutton-icon {
+  background-image: none !important;
+}
+
 /**
  * In-tab close button
  */
 
 .tab-close-button > .toolbarbutton-icon {
   -moz-margin-end: 0px !important;
-  padding-top: 1px;
 }
 
 .tab-close-button {
-  list-style-image: url("chrome://global/skin/icons/close.png");
   -moz-appearance: none;
-  -moz-image-region: rect(0, 16px, 16px, 0);
   border: none !important;
-  height: 30px;
-  padding: 0;
-  margin: 0;
-  position: relative;
-  z-index: 2;
   background: none;
   cursor: default;
 }
 
-.tab-close-button:hover,
-.tabs-closebutton:hover {
-  -moz-image-region: rect(0, 32px, 16px, 16px);
+#tabs-toolbar[brighttext] .tabs-closebutton:not([selected=true]):not(:hover),
+#tabs-toolbar[brighttext] .tab-close-button.close-icon:not([selected=true]):not(:hover) {
+  -moz-image-region: rect(0, 64px, 16px, 48px);
 }
 
-.tab-close-button:hover:active,
-.tabs-closebutton:hover:active {
-  -moz-image-region: rect(0, 48px, 16px, 32px);
-}
-
-.tabmail-tab[selected] > .tab-stack > .tab-content > .tab-close-button {
-  /* Make this button focusable so clicking on it will not focus the tab while
-     it's getting closed */
-  -moz-user-focus: normal;
+@media (min-resolution: 2dppx) {
+  #tabs-toolbar[brighttext] .tabs-closebutton:not([selected=true]):not(:hover),
+  #tabs-toolbar[brighttext] .tab-close-button.close-icon:not([selected=true]):not(:hover) {
+    -moz-image-region: rect(0, 128px, 32px, 96px);
+  }
 }
 
 .tabmail-arrowscrollbox > .scrollbutton-up,
@@ -310,18 +339,6 @@ tabmail > tabbox > tabpanels {
   -moz-image-region: auto !important;
 }
 
-.tabs-closebutton {
-  -moz-padding-end: 4px;
-  list-style-image: url("chrome://global/skin/icons/close.png") !important;
-  border: none;
-  -moz-box-align: stretch;
-  -moz-image-region: rect(0, 16px, 16px, 0);
-}
-
-.tabs-closebutton:hover > .toolbarbutton-icon {
-  background-image: none !important;
-}
-
 @media (min-resolution: 2dppx) {
   .tabs-alltabs-button {
     list-style-image: url(chrome://messenger/skin/tabs/alltabs-box-bkgnd-icon@2x.png);
@@ -339,27 +356,6 @@ tabmail > tabbox > tabpanels {
 
   alltabs-item[busy] {
     list-style-image: url("chrome://messenger/skin/icons/loading@2x.png") !important;
-  }
-
-  .tab-close-button,
-  .tabs-closebutton {
-    list-style-image: url("chrome://global/skin/icons/close@2x.png") !important;
-    -moz-image-region: rect(0, 32px, 32px, 0);
-  }
-
-  .tab-close-button:hover,
-  .tabs-closebutton:hover {
-    -moz-image-region: rect(0, 64px, 32px, 32px);
-  }
-
-  .tab-close-button:hover:active,
-  .tabs-closebutton:hover:active {
-    -moz-image-region: rect(0, 96px, 32px, 64px);
-  }
-
-  .tab-close-button > .toolbarbutton-icon,
-  .tabs-closebutton > .toolbarbutton-icon {
-    width: 16px;
   }
 }
 

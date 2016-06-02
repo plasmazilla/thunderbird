@@ -8,7 +8,7 @@ Components.utils.import("resource://gre/modules/PluralForm.jsm");
 /**
  * The calendar to modify, is retrieved from window.arguments[0].calendar
  */
-let gCalendar;
+var gCalendar;
 
 /**
  * This function gets called when the calendar properties dialog gets opened. To
@@ -129,20 +129,20 @@ function unsubscribeCalendar() {
 }
 
 function initRefreshInterval() {
+    function createMenuItem(minutes) {
+        let menuitem = createXULElement("menuitem");
+        menuitem.setAttribute("value", minutes);
+
+        let everyMinuteString = cal.calGetString("calendar", "calendarPropertiesEveryMinute");
+        let label = PluralForm.get(minutes, everyMinuteString).replace("#1", minutes);
+        menuitem.setAttribute("label", label);
+
+        return menuitem;
+    }
+
     setBooleanAttribute("calendar-refreshInterval-row", "hidden", !gCalendar.canRefresh);
 
     if (gCalendar.canRefresh) {
-        function createMenuItem(minutes) {
-            let menuitem = createXULElement("menuitem");
-            menuitem.setAttribute("value", minutes);
-
-            let everyMinuteString = cal.calGetString("calendar", "calendarPropertiesEveryMinute");
-            let label = PluralForm.get(minutes, everyMinuteString).replace("#1", minutes);
-            menuitem.setAttribute("label", label);
-
-            return menuitem;
-        }
-
         let refreshInterval = gCalendar.getProperty("refreshInterval");
         if (refreshInterval === null) refreshInterval = 30;
 

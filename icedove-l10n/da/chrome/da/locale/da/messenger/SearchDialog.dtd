@@ -1,0 +1,80 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!-- for SearchDialog.xul -->
+<!ENTITY searchHeading.label "Søg efter meddelelser i:">
+<!ENTITY searchHeading.accesskey "i">
+<!ENTITY searchSubfolders.label "Søg i undermapper">
+<!ENTITY searchSubfolders.accesskey "u">
+<!ENTITY searchOnServer.label        "Søg på serveren">
+<!ENTITY searchOnServer.accesskey    "ø">
+<!ENTITY resetButton.label "Ryd">
+<!ENTITY resetButton.accesskey "R">
+<!ENTITY openButton.label "Åbn">
+<!ENTITY openButton.accesskey "Å">
+<!ENTITY deleteButton.label "Slet">
+<!ENTITY deleteButton.accesskey "l">
+<!ENTITY searchDialogTitle.label "Søg i meddelelser">
+<!ENTITY results.label "Resultater">
+<!ENTITY moveButton.label            "Flyt til">
+<!ENTITY moveButton.accesskey        "t">
+<!ENTITY closeCmd.key "W">
+<!ENTITY openInFolder.label          "Åbn i mappe">
+<!ENTITY openInFolder.accesskey      "m">
+<!ENTITY saveAsVFButton.label "Gem som virtuel mappe">
+<!ENTITY saveAsVFButton.accesskey "v">
+
+<!-- for ABSearchDialog.xul -->
+<!ENTITY abSearchHeading.label "Søg i:">
+<!ENTITY abSearchHeading.accesskey "ø">
+<!ENTITY propertiesButton.label "Egenskaber">
+<!ENTITY propertiesButton.accesskey "E">
+<!ENTITY composeButton.label "Skriv">
+<!ENTITY composeButton.accesskey "k">
+<!ENTITY deleteCardButton.label      "Slet">
+<!ENTITY deleteCardButton.accesskey  "S">
+<!ENTITY abSearchDialogTitle.label "Avanceret adressebogssøgning">
+
+<!-- Thread Pane -->
+<!ENTITY threadColumn.label "Tråd">
+<!ENTITY fromColumn.label "Fra">
+<!ENTITY recipientColumn.label "Modtager">
+<!ENTITY correspondentColumn.label "Korrespondenter">
+<!ENTITY subjectColumn.label "Emne">
+<!ENTITY dateColumn.label "Dato">
+<!ENTITY priorityColumn.label "Prioritet">
+<!ENTITY tagsColumn.label "Mærkater">
+<!ENTITY accountColumn.label "Konto">
+<!ENTITY statusColumn.label "Status">
+<!ENTITY sizeColumn.label "Størrelse">
+<!ENTITY junkStatusColumn.label "Spam-status">
+<!ENTITY unreadColumn.label "Ulæste i tråden">
+<!ENTITY totalColumn.label "I alt i tråden">
+<!ENTITY readColumn.label "Læst">
+<!ENTITY receivedColumn.label "Modtaget">
+<!ENTITY starredColumn.label "Stjernemarkeret">
+<!ENTITY locationColumn.label "Placering">
+<!ENTITY idColumn.label "Modtagelsesorden">
+
+<!-- Thread Pane Tooltips -->
+<!ENTITY columnChooser2.tooltip "Vælg hvilke kolonner der skal vises">
+<!ENTITY threadColumn2.tooltip "Vis meddelelser i tråde">
+<!ENTITY fromColumn2.tooltip "Sorter efter afsender">
+<!ENTITY recipientColumn2.tooltip "Sorter efter modtager">
+<!ENTITY correspondentColumn2.tooltip "Sorter efter korrespondenter">
+<!ENTITY subjectColumn2.tooltip "Sorter efter emne">
+<!ENTITY dateColumn2.tooltip "Sorter efter dato">
+<!ENTITY priorityColumn2.tooltip "Sorter efter prioritet">
+<!ENTITY tagsColumn2.tooltip "Sorter efter mærkater">
+<!ENTITY accountColumn2.tooltip "Sorter efter konto">
+<!ENTITY statusColumn2.tooltip "Sorter efter status">
+<!ENTITY sizeColumn2.tooltip "Sorter efter størrelse">
+<!ENTITY junkStatusColumn2.tooltip "Sorter efter spam-status">
+<!ENTITY unreadColumn2.tooltip "Antal af ulæste meddelelser i tråden">
+<!ENTITY totalColumn2.tooltip "Total antal af meddelelser i tråden">
+<!ENTITY readColumn2.tooltip "Sorter efter læst">
+<!ENTITY receivedColumn2.tooltip "Sorter efter modtagelsesdato">
+<!ENTITY starredColumn2.tooltip "Sorter efter stjernemarkering">
+<!ENTITY locationColumn2.tooltip "Sorter efter placering">
+<!ENTITY idColumn2.tooltip "Sorter efter modtagelsesorden">

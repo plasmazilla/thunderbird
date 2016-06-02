@@ -2,10 +2,10 @@
  * http://creativecommons.org/publicdomain/zero/1.0/ */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
-let ircCTCP = {};
+var ircCTCP = {};
 Services.scriptloader.loadSubScript("resource:///modules/ircCTCP.jsm", ircCTCP);
 
-const input = [
+var input = [
   "ACTION",
   "ACTION test",
   "ACTION \x5Ctest",
@@ -24,9 +24,9 @@ const input = [
   "ACTION \x5C\x5Catest"
 ];
 
-const expectedOutputCommand = "ACTION";
+var expectedOutputCommand = "ACTION";
 
-const expectedOutputParam = [
+var expectedOutputParam = [
   "",
   "test",
   "test",
@@ -46,7 +46,7 @@ const expectedOutputParam = [
 ];
 
 function run_test() {
-  let output = input.map(function(aStr) ircCTCP.CTCPMessage({}, aStr));
+  let output = input.map(aStr => ircCTCP.CTCPMessage({}, aStr));
   // Ensure both arrays have the same length.
   do_check_eq(expectedOutputParam.length, output.length);
   // Ensure the values in the arrays are equal.

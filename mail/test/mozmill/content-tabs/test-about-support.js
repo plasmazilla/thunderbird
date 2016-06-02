@@ -31,7 +31,7 @@ function teardownTest(module) {
  * Strings found in the about:support HTML or text that should clearly mark the
  * data as being from about:support.
  */
-const ABOUT_SUPPORT_STRINGS = ["Application Basics", "Mail and News Accounts",
+var ABOUT_SUPPORT_STRINGS = ["Application Basics", "Mail and News Accounts",
                                "Extensions", "Modified Preferences", "Graphics",
                                "JavaScript", "Accessibility", "Library Versions"];
 
@@ -39,7 +39,7 @@ const ABOUT_SUPPORT_STRINGS = ["Application Basics", "Mail and News Accounts",
  * Strings that if found in the about:support text or HTML usually indicate an
  * error.
  */
-const ABOUT_SUPPORT_ERROR_STRINGS = ["undefined", "null"];
+var ABOUT_SUPPORT_ERROR_STRINGS = ["undefined", "null"];
 
 
 /*
@@ -56,7 +56,7 @@ function open_about_support() {
                                         "about:support");
   // We have one variable that's asynchronously populated -- wait for it to be
   // populated.
-  mc.waitFor(function () tab.browser.contentWindow.gExtensions !== undefined,
+  mc.waitFor(() => (tab.browser.contentWindow.gExtensions !== undefined),
              "Timeout waiting for about:support's gExtensions to populate.");
   return tab;
 }
@@ -115,7 +115,7 @@ function test_accounts_in_order() {
   close_tab(tab);
 }
 
-const UNIQUE_ID = "3a9e1694-7115-4237-8b1e-1cabe6e35073";
+var UNIQUE_ID = "3a9e1694-7115-4237-8b1e-1cabe6e35073";
 
 /**
  * Test that a modified preference on the whitelist but not on the blacklist
@@ -127,7 +127,7 @@ function test_modified_pref_on_whitelist() {
   Services.prefs.setBoolPref(prefName, true);
   let tab = open_about_support();
   // Check that the prefix is actually in the whitelist.
-  if (tab.browser.contentWindow.PREFS_WHITELIST.indexOf(PREFIX) == -1)
+  if (!tab.browser.contentWindow.PREFS_WHITELIST.includes(PREFIX))
     mark_failure(["The prefs whitelist doesn't contain " + PREFIX]);
 
   assert_content_tab_text_present(tab, prefName);
@@ -156,7 +156,7 @@ function test_modified_pref_on_blacklist() {
   let tab = open_about_support();
   // Check that the prefix is in the blacklist.
   if (!tab.browser.contentWindow.PREFS_BLACKLIST.some(
-        function(regex) regex.test(PREFIX))) {
+        regex => regex.test(PREFIX))) {
     mark_failure(["The prefs blacklist doesn't include " + PREFIX]);
   }
   assert_content_tab_text_absent(tab, prefName);
@@ -201,18 +201,18 @@ function test_copy_to_clipboard_public() {
     let text = data.value.QueryInterface(Ci.nsISupportsString).data;
 
     for (let [, str] in Iterator(ABOUT_SUPPORT_STRINGS)) {
-      if (!text.contains(str))
+      if (!text.includes(str))
         mark_failure(["Unable to find \"" + str + "\" in flavor \"" + flavor + "\""]);
     }
 
     for (let [, str] in Iterator(ABOUT_SUPPORT_ERROR_STRINGS)) {
-      if (text.contains(str))
+      if (text.includes(str))
         mark_failure(["Found \"" + str + "\" in flavor \"" + flavor + "\""]);
     }
 
     // Check that private data (profile directory) isn't in the output.
     let profD = Services.dirsvc.get("ProfD", Ci.nsIFile).path;
-    if (text.contains(profD))
+    if (text.includes(profD))
       mark_failure(["Found profile directory in flavor \"" + flavor + "\""]);
   }
   close_tab(tab);
@@ -242,22 +242,22 @@ function test_copy_to_clipboard_private() {
     let text = data.value.QueryInterface(Ci.nsISupportsString).data;
 
     for (let [, str] in Iterator(ABOUT_SUPPORT_STRINGS)) {
-      if (!text.contains(str))
+      if (!text.includes(str))
         mark_failure(["Unable to find \"" + str + "\" in flavor \"" + flavor + "\""]);
     }
 
     for (let [, str] in Iterator(ABOUT_SUPPORT_ERROR_STRINGS)) {
-      if (text.contains(str))
+      if (text.includes(str))
         mark_failure(["Found \"" + str + "\" in flavor \"" + flavor + "\""]);
     }
 
     // Check that private data (profile directory) is in the output.
     let profD = Services.dirsvc.get("ProfD", Ci.nsIFile).path;
-    if (!text.contains(profD))
+    if (!text.includes(profD))
       mark_failure(["Unable to find profile directory in flavor \"" + flavor + "\""]);
 
     // Check that the warning text is in the output.
-    if (!text.contains(warningText))
+    if (!text.includes(warningText))
       mark_failure(["Unable to find warning text in flavor \"" + flavor + "\""]);
   }
   close_tab(tab);
@@ -274,18 +274,18 @@ function test_send_via_email_public() {
   let text = contentFrame.contentDocument.body.innerHTML;
 
   for (let [, str] in Iterator(ABOUT_SUPPORT_STRINGS)) {
-    if (!text.contains(str))
+    if (!text.includes(str))
       mark_failure(["Unable to find \"" + str + "\" in compose window"]);
   }
 
   for (let [, str] in Iterator(ABOUT_SUPPORT_ERROR_STRINGS)) {
-    if (text.contains(str))
+    if (text.includes(str))
       mark_failure(["Found \"" + str + "\" in compose window"]);
   }
 
   // Check that private data (profile directory) isn't in the output.
   let profD = Services.dirsvc.get("ProfD", Ci.nsIFile).path;
-  if (text.contains(profD))
+  if (text.includes(profD))
     mark_failure(["Found profile directory in compose window"]);
 
   close_compose_window(cwc);
@@ -313,22 +313,22 @@ function test_send_via_email_private() {
   let text = contentFrame.contentDocument.body.innerHTML;
 
   for (let [, str] in Iterator(ABOUT_SUPPORT_STRINGS)) {
-    if (!text.contains(str))
+    if (!text.includes(str))
       mark_failure(["Unable to find \"" + str + "\" in compose window"]);
   }
 
   for (let [, str] in Iterator(ABOUT_SUPPORT_ERROR_STRINGS)) {
-    if (text.contains(str))
+    if (text.includes(str))
       mark_failure(["Found \"" + str + "\" in compose window"]);
   }
 
   // Check that private data (profile directory) is in the output.
   let profD = Services.dirsvc.get("ProfD", Ci.nsIFile).path;
-  if (!text.contains(profD))
+  if (!text.includes(profD))
     mark_failure(["Unable to find profile directory in compose window"]);
 
   // Check that the warning text is in the output.
-  if (!text.contains(warningText))
+  if (!text.includes(warningText))
     mark_failure(["Unable to find warning text in compose window"]);
 
   close_compose_window(cwc);

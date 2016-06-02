@@ -10,9 +10,9 @@
 // add-ons can add support for more auth mechanisms easily by adding them
 // in XMPPAuthMechanisms without having to modify XMPPSession.
 
-const EXPORTED_SYMBOLS = ["XMPPAuthMechanisms"];
+this.EXPORTED_SYMBOLS = ["XMPPAuthMechanisms"];
 
-const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/xmpp-xml.jsm");
 
@@ -23,11 +23,14 @@ function PlainAuth(username, password, domain) {
   this._base64Data = btoa(unescape(encodeURIComponent(data)));
 }
 PlainAuth.prototype = {
-  next: function(aStanza) ({
-    done: true,
-    send: Stanza.node("auth", Stanza.NS.sasl, {mechanism: "PLAIN"},
-                      this._base64Data)
-  })
+  next: function(aStanza) {
+    return {
+      done: true,
+      send: Stanza.node("auth", Stanza.NS.sasl, {mechanism: "PLAIN"},
+                        this._base64Data),
+      log: '<auth mechanism:="PLAIN"/> (base64 encoded username and password not logged)'
+    };
+  }
 };
 
 
@@ -55,7 +58,7 @@ function md5(aString, aUTF8) {
 }
 function md5hex(aString) {
   let hash = md5(aString);
-  function toHexString(charCode) ("0" + charCode.toString(16)).slice(-2)
+  function toHexString(charCode) { return ("0" + charCode.toString(16)).slice(-2); }
   return [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
 }
 
@@ -115,14 +118,15 @@ DigestMD5Auth.prototype = {
 
     let response =
       ["username", "realm", "nonce", "cnonce", "nc", "qop", "digest-uri",
-       "response", "charset"].map(function(key) key + "=\"" + data[key] + "\"")
+       "response", "charset"].map(key => key + "=\"" + data[key] + "\"")
                              .join(",");
 
     this.next = this._finish;
 
     return {
       done: false,
-      send: Stanza.node("response", Stanza.NS.sasl, null, btoa(response))
+      send: Stanza.node("response", Stanza.NS.sasl, null, btoa(response)),
+      log: '<response/> (base64 encoded MD5 response containing password not logged)'
     };
   },
 

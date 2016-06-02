@@ -470,8 +470,14 @@
           return;
         }
 
+        // We don't want to enable tab completion if the user has selected
+        // some text, as it's not clear what the user would expect
+        // to happen in that case.
+        let noSelection = !(inputBox.selectionEnd - inputBox.selectionStart);
+
         // Undo tab complete.
-        if (this._completions && event.keyCode == KeyEvent.DOM_VK_BACK_SPACE &&
+        if (noSelection && this._completions &&
+            event.keyCode == KeyEvent.DOM_VK_BACK_SPACE &&
             !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
           if (text == this._beforeTabComplete) {
             // Nothing to undo, so let backspace act normally.
@@ -492,7 +498,7 @@
               let completions = [b for (b of this.buddies.keys())];
               // Check if the preceding words are a sequence of nick completions.
               let preceding = text.substring(0, pos - suffix.length).split(", ");
-              if (preceding.every(function(n) completions.indexOf(n) != -1)) {
+              if (preceding.every(n => completions.indexOf(n) != -1)) {
                 let s = preceding.pop();
                 if (preceding.length)
                   s = suffix + s;
@@ -500,7 +506,7 @@
                 this.addString(s);
                 if (this._completions[0].slice(-suffix.length) == suffix) {
                   this._completions =
-                    this._completions.map(function(c) c.slice(0, -suffix.length));
+                    this._completions.map(c => c.slice(0, -suffix.length));
                 }
                 if (this._completions.length == 1 &&
                     inputBox.value == this._beforeTabComplete) {
@@ -522,7 +528,8 @@
         // Tab complete.
         // Keep the default behavior of the tab key if the input box
         // is empty or a modifier is used.
-        if (event.keyCode == KeyEvent.DOM_VK_TAB && text.length != 0 &&
+        if (event.keyCode == KeyEvent.DOM_VK_TAB &&
+            text.length != 0 && noSelection &&
             !event.altKey && !event.ctrlKey && !event.metaKey &&
             (!event.shiftKey || this._completions)) {
           event.preventDefault();
@@ -563,7 +570,7 @@
           // Check if we are completing a command.
           let completingCommand = isFirstWord && word[0] == "/";
           if (completingCommand) {
-            for each (let cmd in Services.cmd.listCommandsForConversation(this._conv)) {
+            for (let cmd of Services.cmd.listCommandsForConversation(this._conv)) {
               // It's possible to have a global and a protocol specific command
               // with the same name. Avoid duplicates in the |completions| array.
               let name = "/" + cmd.name;
@@ -595,7 +602,7 @@
 */
 
             let outgoingNick = this._conv.nick;
-            completions = completions.filter(function(c) c != outgoingNick);
+            completions = completions.filter(c => c != outgoingNick);
 
             // Check if the preceding words are a sequence of nick completions.
             let wordStart = inputBox.selectionStart - word.length;
@@ -603,11 +610,11 @@
               let separator = text.substring(wordStart - 2, wordStart);
               if (separator == ": " || separator == ", ") {
                 let preceding = text.substring(0, wordStart - 2).split(", ");
-                if (preceding.every(function(n) completions.indexOf(n) != -1)) {
+                if (preceding.every(n => completions.indexOf(n) != -1)) {
                   secondNick = true;
                   isFirstWord = true;
                   // Remove preceding completions from possible completions.
-                  completions = completions.filter(function(c)
+                  completions = completions.filter(c =>
                     preceding.indexOf(c) == -1);
                 }
               }
@@ -633,7 +640,7 @@
           // If the cursor is in the middle of a word, and the word is a nick,
           // there is no need to complete - just jump to the end of the nick.
           let wholeWord = text.substring(inputBox.selectionStart - word.length);
-          for each (let completion in matchingCompletions) {
+          for (let completion of matchingCompletions) {
             if (wholeWord.lastIndexOf(completion, 0) == 0) {
               let moveCursor = completion.length - word.length;
               inputBox.selectionStart += moveCursor;
@@ -664,9 +671,9 @@
           let preferredNick = false;
           if (this._conv.isChat && !completingCommand) {
             // If there are active nicks, prefer those.
-            let activeCompletions = this._completions.filter(function(c)
+            let activeCompletions = this._completions.filter(c =>
               this.buddies.has(c) &&
-              !this.buddies.get(c).hasAttribute("inactive"), this);
+              !this.buddies.get(c).hasAttribute("inactive"));
             if (activeCompletions.length == 1)
               preferredNick = true;
             if (activeCompletions.length) {
@@ -703,7 +710,7 @@
           }
 
           let suffix = (isFirstWord ? firstWordSuffix : "");
-          this._completions = this._completions.map(function(c) c + suffix);
+          this._completions = this._completions.map(c => c + suffix);
 
           let completion;
           if (this._completions.length == 1 || preferredNick) {
@@ -968,7 +975,7 @@
         if (event.metaKey)
           modifiers |= masks.META_MASK;
         if (event.accelKey)
-          modifiers |= (navigator.platform.contains("Mac")) ? masks.META_MASK
+          modifiers |= (navigator.platform.includes("Mac")) ? masks.META_MASK
                                                             : masks.CONTROL_MASK;
 
         // resend the event
@@ -1269,6 +1276,7 @@
        </body>
      </method>
 
+     <field name="_currentTypingName">""</field>
      <method name="updateTyping">
        <body>
        <![CDATA[
@@ -1277,7 +1285,9 @@
           cti.removeAttribute("typing");
           cti.removeAttribute("typed");
 
-          let name = this._conv.title;//.replace(/^([a-zA-Z0-9.]+)[@\s].*/, "$1");
+          let name = this._currentTypingName;
+          if (!this._currentTypingName)
+            name = this._conv.title;//.replace(/^([a-zA-Z0-9.]+)[@\s].*/, "$1");
           if (typingState == Ci.prplIConvIM.TYPING) {
             cti.setAttribute("typing", "true");
             let typingMsg = this.bundle.formatStringFromName("chat.contactIsTyping",
@@ -1481,9 +1491,15 @@
          case "update-buddy-status":
          case "update-buddy-icon":
          case "update-conv-chatleft":
-         case "update-typing":
            if (this.tab && this._isConversationSelected)
              this.updateConvStatus();
+           break;
+
+         case "update-typing":
+           if (this.tab && this._isConversationSelected) {
+             this._currentTypingName = aData;
+             this.updateConvStatus();
+           }
            break;
 
          case "chat-buddy-add":

@@ -97,7 +97,7 @@ function typedArrayToString(buffer) {
 }
 
 /** A list of month names for Date parsing. */
-const kMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
+var kMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
   "Sep", "Oct", "Nov", "Dec"];
 
 return {
@@ -479,10 +479,10 @@ function getHeaderTokens(value, delimiters, opts) {
     // the location.
     // isSpecial: The current character is a delimiter that needs to be output.
     let tokenIsEnding = false, tokenIsStarting = false, isSpecial = false;
-    if (wsp.contains(ch)) {
+    if (wsp.includes(ch)) {
       // Whitespace ends current tokens, doesn't emit anything.
       tokenIsEnding = true;
-    } else if (commentDepth == 0 && delimiters.contains(ch)) {
+    } else if (commentDepth == 0 && delimiters.includes(ch)) {
       // Delimiters end the current token, and need to be output. They do not
       // apply within comments.
       tokenIsEnding = true;
@@ -653,7 +653,7 @@ function decodeRFC2047Words(headerValue) {
       // whitespace at the end of the string. Such an input string is already
       // malformed to begin with, so stripping the = and following input in that
       // case should not be an important loss.
-      buffer = mimeutils.decode_qp(text.replace('_', ' ', 'g'), false)[0];
+      buffer = mimeutils.decode_qp(text.replace(/_/g, ' '), false)[0];
     } else {
       return false;
     }
@@ -1174,7 +1174,7 @@ function decode2231Value(value) {
 
 // This is a map of known timezone abbreviations, for fallback in obsolete Date
 // productions.
-const kKnownTZs = {
+var kKnownTZs = {
   // The following timezones are explicitly listed in RFC 5322.
   "UT":  "+0000", "GMT": "+0000",
   "EST": "-0500", "EDT": "-0400",
@@ -1729,8 +1729,8 @@ StructuredHeaders.prototype.has = function (headerName) {
 
 // Make a custom iterator. Presently, support for Symbol isn't yet present in
 // SpiderMonkey (or V8 for that matter), so type-pun the name for now.
-const JS_HAS_SYMBOLS = typeof Symbol === "function";
-const ITERATOR_SYMBOL = JS_HAS_SYMBOLS ? Symbol.iterator : "@@iterator";
+var JS_HAS_SYMBOLS = typeof Symbol === "function";
+var ITERATOR_SYMBOL = JS_HAS_SYMBOLS ? Symbol.iterator : "@@iterator";
 
 /**
  * An equivalent of Map.@@iterator, applied to the structured header
@@ -2091,10 +2091,10 @@ MimeParser.prototype._willIgnorePart = function (part) {
 
 
 // Parser states. See the large comment above.
-const PARSING_HEADERS = 1;
-const SEND_TO_BLACK_HOLE = 2;
-const SEND_TO_EMITTER = 3;
-const SEND_TO_SUBPARSER = 4;
+var PARSING_HEADERS = 1;
+var SEND_TO_BLACK_HOLE = 2;
+var SEND_TO_EMITTER = 3;
+var SEND_TO_SUBPARSER = 4;
 
 /**
  * Main dispatch for incoming packet data.
@@ -2779,7 +2779,7 @@ HeaderEmitter.prototype.addQuotable = function (text, qchars, mayBreakAfter) {
 
   if (!(text[0] == '"' && text[text.length - 1] == '"') && qchars != '') {
     for (let i = 0; i < text.length; i++) {
-      if (qchars.contains(text[i])) {
+      if (qchars.includes(text[i])) {
         needsQuote = true;
         break;
       }
@@ -2824,7 +2824,7 @@ HeaderEmitter.prototype.addPhrase = function (text, qchars, mayBreakAfter) {
       // If we don't have a breakpoint, and the text is encoded as a sequence of
       // atoms (and not a quoted-string), then make the last space we added a
       // breakpoint, regardless of the mayBreakAfter setting.
-      if (this._preferredBreakpoint == 0 && text.contains(" ")) {
+      if (this._preferredBreakpoint == 0 && text.includes(" ")) {
         if (this._currentLine[this._currentLine.length - 1] != '"')
           this._preferredBreakpoint = this._currentLine.lastIndexOf(" ");
       }
@@ -2847,15 +2847,15 @@ HeaderEmitter.prototype.addPhrase = function (text, qchars, mayBreakAfter) {
 };
 
 /// A regular expression for characters that need to be encoded.
-let nonAsciiRe = /[^\x20-\x7e]/;
+var nonAsciiRe = /[^\x20-\x7e]/;
 
 /// The beginnings of RFC 2047 encoded-word
-const b64Prelude = "=?UTF-8?B?", qpPrelude = "=?UTF-8?Q?";
+var b64Prelude = "=?UTF-8?B?", qpPrelude = "=?UTF-8?Q?";
 
 /// A list of ASCII characters forbidden in RFC 2047 encoded-words
-const qpForbidden = "=?_()\",";
+var qpForbidden = "=?_()\",";
 
-const hexString = "0123456789abcdef";
+var hexString = "0123456789abcdef";
 
 /**
  * Add a block of text as a single RFC 2047 encoded word. This does not try to
@@ -2875,7 +2875,7 @@ HeaderEmitter.prototype._addRFC2047Word = function (encodedText, useQP,
     var token = qpPrelude;
     for (let i = 0; i < encodedText.length; i++) {
       if (encodedText[i] < 0x20 || encodedText[i] >= 0x7F ||
-          qpForbidden.contains(binaryString[i])) {
+          qpForbidden.includes(binaryString[i])) {
         let ch = encodedText[i];
         token += "=" + hexString[(ch & 0xf0) >> 4] + hexString[ch & 0x0f];
       } else if (binaryString[i] == " ") {
@@ -2921,7 +2921,7 @@ HeaderEmitter.prototype.encodeRFC2047Phrase = function (text, mayBreakAfter) {
 
     // The length for quoted-printable is 3 chars only if encoded
     if (encodedText[i] < 0x20 || encodedText[i] >= 0x7f ||
-        qpForbidden.contains(String.fromCharCode(encodedText[i]))) {
+        qpForbidden.includes(String.fromCharCode(encodedText[i]))) {
       qpInc = 3;
     } else {
       qpInc = 1;
@@ -3103,7 +3103,7 @@ HeaderEmitter.prototype.addUnstructured = function (text) {
 };
 
 /** RFC 822 labels for days of the week. */
-const kDaysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+var kDaysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /**
  * Formatting helper to output numbers between 0-9 as 00-09 instead.

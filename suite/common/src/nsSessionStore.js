@@ -1914,7 +1914,7 @@ SessionStoreService.prototype = {
           hasDefaultValue = hasDefaultValue && (oSelected == aOpt.defaultSelected);
           return oSelected ? aIx : -1;
         });
-        value = options.filter(function(aIx) aIx >= 0);
+        value = options.filter(aIx => aIx >= 0);
       }
       // In order to reduce XPath generation (which is slow), we only save data
       // for form fields that have been changed. (cf. bug 537289)
@@ -2919,8 +2919,9 @@ SessionStoreService.prototype = {
     }
 
     // always call this before injecting content into a document!
-    function hasExpectedURL(aDocument, aURL)
-      !aURL || aURL.replace(/#.*/, "") == aDocument.location.href.replace(/#.*/, "");
+    function hasExpectedURL(aDocument, aURL) {
+      return !aURL || aURL.replace(/#.*/, "") == aDocument.location.href.replace(/#.*/, "");
+    }
 
     function restoreFormData(aDocument, aData, aURL) {
       for (let key in aData) {
@@ -3629,7 +3630,7 @@ SessionStoreService.prototype = {
 
     // By creating a regex we reduce overhead and there is only one loop pass
     // through either array (cookieHosts and aWinState.cookies).
-    let hosts = Object.keys(cookieHosts).join("|").replace("\\.", "\\.", "g");
+    let hosts = Object.keys(cookieHosts).join("|").replace(/\./g, "\\.");
     let cookieRegex = new RegExp(".*(" + hosts + ")");
     for (let cIndex = 0; cIndex < aWinState.cookies.length;) {
       if (cookieRegex.test(aWinState.cookies[cIndex].host)) {
@@ -3874,7 +3875,7 @@ SessionStoreService.prototype = {
   }
 };
 
-let XPathHelper = {
+var XPathHelper = {
   // these two hashes should be kept in sync
   namespaceURIs:     { "xhtml": "http://www.w3.org/1999/xhtml" },
   namespacePrefixes: { "http://www.w3.org/1999/xhtml": "xhtml" },
@@ -3969,7 +3970,7 @@ let XPathHelper = {
 // A map storing a closed window's state data until it goes aways (is GC'ed).
 // This ensures that API clients can still read (but not write) states of
 // windows they still hold a reference to but we don't.
-let DyingWindowCache = {
+var DyingWindowCache = {
   _data: new WeakMap(),
 
   has: function (window) {
@@ -3991,7 +3992,7 @@ let DyingWindowCache = {
 
 // A weak set of dirty windows. We use it to determine which windows we need to
 // recollect data for when getCurrentState() is called.
-let DirtyWindows = {
+var DirtyWindows = {
   _data: new WeakMap(),
 
   has: function (window) {
@@ -4014,7 +4015,7 @@ let DirtyWindows = {
 // This is used to help meter the number of restoring tabs. This is the control
 // point for telling the next tab to restore. It gets attached to each gBrowser
 // via gBrowser.addTabsProgressListener
-let gRestoreTabsProgressListener = {
+var gRestoreTabsProgressListener = {
   ss: null,
   onStateChange: function (aBrowser, aWebProgress, aRequest, aStateFlags, aStatus) {
     // Ignore state changes on browsers that we've already restored and state

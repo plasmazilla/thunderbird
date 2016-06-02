@@ -18,24 +18,8 @@
 /* give the toolbox a min-height of 42px for Australis theme */
 .mail-toolbox:not([mode="full"]) > toolbar:only-of-type,
 .mail-toolbox[mode="full"][labelalign="end"] > toolbar:only-of-type {
-  margin-top: 5px;
-  margin-bottom: 6px;
-}
-
-.mail-toolbox[iconsize="large"]:not([mode="full"]) > toolbar:only-of-type,
-.mail-toolbox[iconsize="large"][mode="full"][labelalign="end"] >
-toolbar:only-of-type {
-  margin-top: 3px;
-  margin-bottom: 3px;
-}
-
-.mail-toolbox[mode="text"]:not([mode="full"]) > toolbar:only-of-type {
-  margin-top: 5px;
-  margin-bottom: 4px;
-}
-
-#viewPickerLabel:not(:-moz-lwtheme) {
-  color: MenuText;
+  margin-top: 7px;
+  margin-bottom: 7px;
 }
 
 menu > #folderLocationPopup > menu > .menu-iconic-left,
@@ -64,12 +48,9 @@ menu > #folderLocationPopup > menuitem > .menu-iconic-left {
 /* ::::: thread decoration ::::: */
 
 treechildren::-moz-tree-row(dummy)  {
-  background-color:  #F0F0F0;
+  background-color: var(--row-grouped-header-bg-color);
   -moz-padding-start: 2px;
-}
-
-treechildren::-moz-tree-row(dummy, selected) {
-  background-color: -moz-Dialog;
+  margin-bottom: 1px;
 }
 
 treechildren::-moz-tree-row(dummy, selected, focus)  {
@@ -175,17 +156,30 @@ treechildren::-moz-tree-image(flaggedCol, flagged) {
 /* "unknown" now looks like "not junk".  see bug #182386 */
 treechildren::-moz-tree-image(junkStatusCol) {
   list-style-image: url("chrome://messenger/skin/icons/message-list.png");
-  -moz-image-region: rect(0px 16px 16px 0px); /* message-read.png */
-  -moz-padding-start: 0px;
+  -moz-image-region: rect(48px 16px 64px 0);
+  padding-inline-start: 0;
 }
 
 treechildren::-moz-tree-image(junkStatusCol, junk) {
-  -moz-image-region: rect(32px 16px 48px 0px); /* message-junk.png */
+  -moz-image-region: rect(32px 16px 48px 0);
 }
 
 treechildren::-moz-tree-image(junkStatusCol, notjunk) {
-  -moz-image-region: rect(0px 16px 16px 0px); /* message-read.png */
-  -moz-padding-start: 0px;
+  -moz-image-region: rect(48px 16px 64px 0);
+}
+
+/* ..... correspondent column ..... */
+
+treechildren::-moz-tree-image(correspondentCol, incoming) {
+  -moz-margin-end: 2px;
+  list-style-image: url("chrome://messenger/skin/icons/message.png");
+  -moz-image-region: rect(0 112px 16px 96px);
+}
+
+treechildren::-moz-tree-image(correspondentCol, outgoing) {
+  -moz-margin-end: 2px;
+  list-style-image: url("chrome://messenger/skin/icons/message.png");
+  -moz-image-region: rect(0 128px 16px 112px);
 }
 
 /* ..... subject column ..... */
@@ -201,7 +195,7 @@ treechildren::-moz-tree-image(junkStatusCol, notjunk) {
 treechildren::-moz-tree-image(subjectCol) {
   -moz-margin-end: 2px;
   list-style-image: url("chrome://messenger/skin/icons/message-list.png");
-  -moz-image-region: rect(48px 16px 64px 0px); /* message-blank.png */
+  -moz-image-region: rect(176px 16px 192px 0);
 }
 
 treechildren::-moz-tree-image(subjectCol, forwarded) {
@@ -232,22 +226,25 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 /* ..... folder pane adjustments ..... */
 
 #folderpane-title {
-  -moz-padding-start: 12px;
-  -moz-padding-end: 8px;
+  padding-inline-start: 12px;
+  padding-inline-end: 8px;
 }
 
 .folderview-cycler {
-  -moz-padding-end: 0px !important;
+  padding-inline-end: 0 !important;
 }
 
-.folderview-cycler[dir="prev"],
-.folderview-cycler[dir="next"]:-moz-locale-dir(rtl) {
-  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow-left.png");
+.folderview-cycler {
+  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow.svg#normal");
 }
 
-.folderview-cycler[dir="next"],
-.folderview-cycler[dir="prev"]:-moz-locale-dir(rtl) {
-  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow-right.png");
+.folderview-cycler:-moz-lwtheme-brighttext {
+  list-style-image: url("chrome://messenger/skin/icons/arrow/foldercycler-arrow.svg#inverted");
+}
+
+.folderview-cycler[dir="prev"]:-moz-locale-dir(ltr) > .toolbarbutton-icon,
+.folderview-cycler[dir="next"]:-moz-locale-dir(rtl) > .toolbarbutton-icon {
+  transform: scaleX(-1);
 }
 
 /* ..... splitter adjustments ..... */
@@ -255,42 +252,33 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 #folderpane_splitter,
 #threadpane-splitter:not([orient="vertical"]) {
   -moz-appearance: none;
-  border-left: 1px solid ThreeDShadow;
   /* splitter grip area */
   width: 5px;
   margin-top: 0;
-  /* make only the splitter border visible */
-  -moz-margin-end: -5px;
   /* because of the negative margin needed to make the splitter visible */
   position: relative;
   z-index: 10;
   transition: border-width .3s ease-in;
 }
 
+#folderpane_splitter {
+  border-inline-start: 1px solid ThreeDShadow;
+  /* make only the splitter border visible */
+  margin-inline-end: -5px;
+}
+
+#folderpane_splitter[state="collapsed"]:hover {
+  border-inline-start: 4px solid highlight;
+}
+
 #threadpane-splitter:not([orient="vertical"]) {
-  -moz-margin-start: -5px;
-  -moz-margin-end: 0;
+  border-inline-end: 1px solid ThreeDShadow;
+  /* make only the splitter border visible */
+  margin-inline-start: -5px;
 }
 
-/* Until Bug 621351 is fixed we need border-right and border-left in
- * combination with -moz-locale-dir instead of -moz-border-end and
- * -moz-border-start for transition
- */
-
-#folderpane_splitter:-moz-locale-dir(rtl),
-#threadpane-splitter:not([orient="vertical"]):-moz-locale-dir(ltr) {
-  border-right: 1px solid ThreeDShadow;
-  border-left: none;
-}
-
-#folderpane_splitter[state="collapsed"]:hover:-moz-locale-dir(ltr),
-#threadpane-splitter[state="collapsed"]:not([orient="vertical"]):hover:-moz-locale-dir(rtl) {
-  border-left: 4px solid highlight;
-}
-
-#folderpane_splitter[state="collapsed"]:hover:-moz-locale-dir(rtl),
-#threadpane-splitter[state="collapsed"]:not([orient="vertical"]):hover:-moz-locale-dir(ltr) {
-  border-right: 4px solid highlight;
+#threadpane-splitter[state="collapsed"]:not([orient="vertical"]):hover {
+  border-inline-end: 4px solid highlight;
 }
 
 #threadpane-splitter,
@@ -349,6 +337,10 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
   background-color: transparent;
 }
 
+#threadTree > treechildren::-moz-tree-row(dummy, odd) {
+  background-color: var(--row-grouped-header-bg-color);
+}
+
 #threadTree > treechildren::-moz-tree-row(selected) {
   color: -moz-cellhighlighttext;
   background-color: -moz-cellhighlight;
@@ -375,4 +367,50 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 
 #tabpanelcontainer {
   -moz-appearance: none;
+}
+
+/* ..... menulists on main toolbar ..... */
+
+menulist {
+  -moz-appearance: none;
+  min-height: 24px;
+  color: inherit;
+  margin: 1px 4px;
+  padding: 1px 6px;
+  border: 1px solid;
+  background: var(--toolbarbutton-hover-background);
+  border-color: var(--toolbarbutton-hover-bordercolor);
+  box-shadow: var(--toolbarbutton-hover-boxshadow);
+  transition: background-color 150ms;
+}
+
+menulist:not([disabled="true"]):not([open="true"]):hover {
+  background: var(--toolbarbutton-active-background);
+  border-color: var(--toolbarbutton-active-bordercolor);
+}
+
+menulist[open="true"] {
+  background: var(--toolbarbutton-active-background);
+  border-color: var(--toolbarbutton-active-bordercolor);
+  box-shadow: var(--toolbarbutton-active-boxshadow);
+}
+
+menulist[disabled="true"] {
+  opacity: .6;
+}
+
+menulist > .menulist-label-box {
+  -moz-appearance: none;
+  padding-inline-end: 12px;
+  background-repeat: no-repeat;
+  background-position: right;
+  background-image: url("chrome://messenger/skin/icons/toolbarbutton-arrow.png");
+}
+
+menulist:-moz-locale-dir(rtl) > .menulist-label-box {
+  background-position: left;
+}
+
+toolbar[brighttext] menulist > .menulist-label-box {
+  background-image: url("chrome://messenger/skin/icons/toolbarbutton-arrow-inverted.png");
 }

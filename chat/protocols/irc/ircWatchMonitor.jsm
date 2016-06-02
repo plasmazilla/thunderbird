@@ -12,10 +12,10 @@
  *     http://www.stack.nl/~jilles/cgi-bin/hgwebdir.cgi/irc-documentation-jilles/raw-file/tip/reference/draft-meglio-irc-watch-00.txt
  */
 
-const EXPORTED_SYMBOLS = ["ircWATCH", "isupportWATCH", "ircMONITOR",
+this.EXPORTED_SYMBOLS = ["ircWATCH", "isupportWATCH", "ircMONITOR",
                           "isupportMONITOR"];
 
-const {interfaces: Ci, utils: Cu} = Components;
+var {interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 Cu.import("resource:///modules/ircHandlers.jsm");
@@ -27,7 +27,7 @@ function setStatus(aAccount, aNick, aStatus) {
 
   if (aStatus == "AWAY") {
     // We need to request the away message.
-    aAccount.requestBuddyInfo(aNick);
+    aAccount.requestCurrentWhois(aNick);
   }
   else {
     // Clear the WHOIS information.
@@ -94,7 +94,7 @@ var isupportWATCH = {
   name: "WATCH",
   // Slightly above default ISUPPORT priority.
   priority: ircHandlers.DEFAULT_PRIORITY + 10,
-  isEnabled: function() true,
+  isEnabled: () => true,
 
   commands: {
     "WATCH": function(aMessage) {
@@ -111,6 +111,7 @@ var isupportWATCH = {
 
       // Clear our watchlist in case there is garbage in it.
       this.sendMessage("WATCH", "C");
+      this.watchLength = 0;
 
       // Kill the ISON polling loop.
       clearTimeout(this._isOnTimer);
@@ -140,7 +141,7 @@ var ircWATCH = {
   // Slightly above default IRC priority.
   priority: ircHandlers.DEFAULT_PRIORITY + 10,
   // Use WATCH if it is supported.
-  isEnabled: function() !!this.watchEnabled,
+  isEnabled: function() { return !!this.watchEnabled; },
 
   commands: {
     "251": function(aMessage) { // RPL_LUSERCLIENT
@@ -267,7 +268,7 @@ var isupportMONITOR = {
   name: "MONITOR",
   // Slightly above default ISUPPORT priority.
   priority: ircHandlers.DEFAULT_PRIORITY + 10,
-  isEnabled: function() true,
+  isEnabled: () => true,
 
   commands: {
     "MONITOR": function(aMessage) {
@@ -284,6 +285,7 @@ var isupportMONITOR = {
 
       // Clear our monitor list in case there is garbage in it.
       this.sendMessage("MONITOR", "C");
+      this.monitorLength = 0;
 
       // Kill the ISON polling loop.
       clearTimeout(this._isOnTimer);
@@ -343,7 +345,7 @@ var ircMONITOR = {
   priority: ircHandlers.DEFAULT_PRIORITY + 10,
   // Use MONITOR only if MONITOR is enabled and WATCH is not enabled, as WATCH
   // supports more features.
-  isEnabled: function() this.monitorEnabled && !this.watchEnabled,
+  isEnabled: function() { return this.monitorEnabled && !this.watchEnabled; },
 
   commands: {
     "251": function(aMessage) { // RPL_LUSERCLIENT
@@ -377,18 +379,18 @@ var ircMONITOR = {
       // :<server> 730 <nick> :nick!user@host[,nick!user@host]*
       // Mark each nick as online.
       return aMessage.params[1].split(",")
-                               .map(function(aNick)
+                               .map(aNick =>
                                       setStatus(this, aNick.split("!", 1)[0],
-                                                "AVAILABLE"),
-                                    this).every(function(aResult) aResult);
+                                                "AVAILABLE"))
+                               .every(aResult => aResult);
     },
 
     "731": function(aMessage) { // RPL_MONOFFLINE
       // :<server> 731 <nick> :nick[,nick1]*
       return aMessage.params[1].split(",")
-                               .map(function(aNick)
-                                      setStatus(this, aNick, "OFFLINE"),
-                                    this).every(function(aResult) aResult);
+                               .map(aNick =>
+                                      setStatus(this, aNick, "OFFLINE"))
+                               .every(aResult => aResult);
     },
 
     "732": function(aMessage) { // RPL_MONLIST

@@ -6,14 +6,14 @@
  * Tests the Hightail Bigfile backend.
  */
 
-let Cu = Components.utils;
-let Cc = Components.classes;
-let Ci = Components.interfaces;
+var Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
 
-const MODULE_NAME = 'test-cloudfile-backend-hightail';
+var MODULE_NAME = 'test-cloudfile-backend-hightail';
 
-const RELATIVE_ROOT = '../shared-modules';
-const MODULE_REQUIRES = ['folder-display-helpers',
+var RELATIVE_ROOT = '../shared-modules';
+var MODULE_REQUIRES = ['folder-display-helpers',
                          'compose-helpers',
                          'cloudfile-hightail-helpers',
                          'observer-helpers',
@@ -77,7 +77,7 @@ function test_simple_case() {
   gServer.planForGetFileURL("testFile1", {url: kExpectedUrl});
 
   let obs = new ObservationRecorder();
-  for each (let [, topic] in Iterator(kTopics)) {
+  for (let topic of kTopics) {
     obs.planFor(topic);
     Services.obs.addObserver(obs, topic, false);
   }
@@ -87,7 +87,7 @@ function test_simple_case() {
   let provider = gServer.getPreparedBackend("someAccountKey");
   provider.uploadFile(file, requestObserver);
 
-  mc.waitFor(function () requestObserver.success);
+  mc.waitFor( () => requestObserver.success);
 
   let urlForFile = provider.urlForFile(file);
   assert_equals(kExpectedUrl, urlForFile);
@@ -98,14 +98,14 @@ function test_simple_case() {
   gServer.planForGetFileURL("testFile1", {url: kExpectedUrl});
   requestObserver = gObsManager.create("test_simple_case - Upload 2");
   provider.uploadFile(file, requestObserver);
-  mc.waitFor(function () requestObserver.success);
+  mc.waitFor(() => requestObserver.success);
   urlForFile = provider.urlForFile(file);
   assert_equals(kExpectedUrl, urlForFile);
 
   assert_equals(2, obs.numSightings(kUploadFile));
   assert_equals(2, obs.numSightings(kGetFileURL));
 
-  for each (let [, topic] in Iterator(kTopics)) {
+  for (let topic of kTopics) {
     Services.obs.removeObserver(obs, topic);
   }
 }
@@ -115,14 +115,14 @@ function test_chained_uploads() {
   const kTopics = [kUploadFile, kGetFileURL];
   const kFilenames = ["testFile1", "testFile2", "testFile3"];
 
-  for each (let [, filename] in Iterator(kFilenames)) {
+  for (let filename of kFilenames) {
     let expectedUrl = kExpectedUrlRoot + filename;
     gServer.planForUploadFile(filename);
     gServer.planForGetFileURL(filename, {url: expectedUrl});
   }
 
   let obs = new ObservationRecorder();
-  for each (let [, topic] in Iterator(kTopics)) {
+  for (let topic of kTopics) {
     obs.planFor(topic);
     Services.obs.addObserver(obs, topic, false);
   }
@@ -140,7 +140,7 @@ function test_chained_uploads() {
   });
 
   mc.waitFor(function() {
-    return observers.every(function(aListener) aListener.success);
+    return observers.every(aListener => aListener.success);
   }, "Timed out waiting for chained uploads to complete.", 10000);
 
   assert_equals(kFilenames.length, obs.numSightings(kUploadFile));
@@ -155,7 +155,7 @@ function test_chained_uploads() {
 
   assert_equals(kFilenames.length, obs.numSightings(kGetFileURL));
 
-  for each (let [, topic] in Iterator(kTopics)) {
+  for (let topic of kTopics) {
     Services.obs.removeObserver(obs, topic);
   }
 }
@@ -169,7 +169,7 @@ function test_deleting_uploads() {
   gServer.planForUploadFile(kFilename);
   let requestObserver = gObsManager.create("test_deleting_uploads - upload 1");
   provider.uploadFile(file, requestObserver);
-  mc.waitFor(function() requestObserver.success);
+  mc.waitFor(() => requestObserver.success);
 
   // Try deleting a file
   let obs = new ObservationRecorder();
@@ -179,7 +179,7 @@ function test_deleting_uploads() {
   gServer.planForDeleteFile(kFilename);
   let deleteObserver = gObsManager.create("test_deleting_uploads - delete 1");
   provider.deleteFile(file, deleteObserver);
-  mc.waitFor(function() deleteObserver.success);
+  mc.waitFor(() => deleteObserver.success);
 
   // Check to make sure the file was deleted on the server
   assert_equals(1, obs.numSightings(kDeleteFile));
@@ -207,7 +207,7 @@ function test_can_cancel_uploads() {
   const kFiles = ["testFile2", "testFile3", "testFile4"];
   let provider = gServer.getPreparedBackend("anAccount");
   let files = [];
-  for each (let [, filename] in Iterator(kFiles)) {
+  for (let filename of kFiles) {
     gServer.planForUploadFile(filename, 2000);
     files.push(getFile("./data/" + filename, __file__));
   }
@@ -234,7 +234,7 @@ function test_create_existing_account() {
   }
 
   provider.createExistingAccount(myObs);
-  mc.waitFor(function() done);
+  mc.waitFor(() => done);
   gMockAuthPromptReg.unregister();
 }
 
@@ -268,7 +268,7 @@ function test_delete_refreshes_stale_token() {
   gServer.planForUploadFile(kFilename);
   let requestObserver = gObsManager.create("test_delete_refreshes_stale_token - upload 1");
   provider.uploadFile(file, requestObserver);
-  mc.waitFor(function() requestObserver.success);
+  mc.waitFor(() => requestObserver.success);
 
   // At this point, we should not have seen any auth attempts.
   assert_equals(gServer.auth.count, 0,
@@ -283,7 +283,7 @@ function test_delete_refreshes_stale_token() {
 
   // Now, since the token was stale, we should see us hit authentication
   // again.
-  mc.waitFor(function() gServer.auth.count > 0,
+  mc.waitFor(() => gServer.auth.count > 0,
              "Timed out waiting for authorization attempt");
 }
 
@@ -305,7 +305,7 @@ function test_bug771132_fix_no_scheme() {
   let provider = gServer.getPreparedBackend("someAccountKey");
   provider.uploadFile(file, requestObserver);
 
-  mc.waitFor(function () requestObserver.success);
+  mc.waitFor(() => requestObserver.success);
 
   let urlForFile = provider.urlForFile(file);
   assert_equals(kExpectedUrl, urlForFile);
@@ -316,7 +316,7 @@ function test_bug771132_fix_no_scheme() {
   gServer.planForGetFileURL("testFile1", {url: kExpectedUrl});
   requestObserver = gObsManager.create("test_simple_case - Upload 2");
   provider.uploadFile(file, requestObserver);
-  mc.waitFor(function () requestObserver.success);
+  mc.waitFor(() => requestObserver.success);
 
   urlForFile = provider.urlForFile(file);
   assert_equals(kExpectedUrl, urlForFile);

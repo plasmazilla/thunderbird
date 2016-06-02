@@ -7,12 +7,12 @@
  *  nsIMsgDBView.
  */
 
-const EXPORTED_SYMBOLS = ["GlodaSyntheticView"];
+this.EXPORTED_SYMBOLS = ["GlodaSyntheticView"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/gloda/log4moz.js");
@@ -87,7 +87,7 @@ GlodaSyntheticView.prototype = {
   },
 
   reportResults: function(aItems) {
-    for each (let [, item] in Iterator(aItems)) {
+    for (let item of aItems) {
       let hdr = item.folderMessage;
       if (hdr)
         this.searchListener.onSearchHit(hdr, hdr.folder);
@@ -99,7 +99,7 @@ GlodaSyntheticView.prototype = {
    *  are no actual backing folders for it to check.
    */
   getMsgHdrForMessageID: function(aMessageId) {
-    for each (let [, item] in Iterator(this.collection.items)) {
+    for (let item of this.collection.items) {
       if (item.headerMessageID == aMessageId) {
         let hdr = item.folderMessage;
         if (hdr)
@@ -122,7 +122,7 @@ GlodaSyntheticView.prototype = {
     subjectCol: {
       visible: true,
     },
-    senderCol: {
+    correspondentCol: {
       visible: true,
     },
     dateCol: {

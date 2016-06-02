@@ -1448,7 +1448,7 @@ nsresult nsMsgDBFolder::AddMarkAllReadUndoAction(nsIMsgWindow *msgWindow,
                                                  nsMsgKey *thoseMarked,
                                                  uint32_t numMarked)
 {
-  nsRefPtr<nsMsgReadStateTxn> readStateTxn = new nsMsgReadStateTxn();
+  RefPtr<nsMsgReadStateTxn> readStateTxn = new nsMsgReadStateTxn();
   if (!readStateTxn)
     return NS_ERROR_OUT_OF_MEMORY;
 
@@ -1485,7 +1485,7 @@ nsMsgDBFolder::MarkAllMessagesRead(nsIMsgWindow *aMsgWindow)
     // Setup a undo-state
     if (aMsgWindow && numMarked)
       rv = AddMarkAllReadUndoAction(aMsgWindow, thoseMarked, numMarked);
-    nsMemory::Free(thoseMarked);
+    free(thoseMarked);
   }
 
   SetHasNewMessages(false);
@@ -1500,7 +1500,7 @@ NS_IMETHODIMP nsMsgDBFolder::MarkThreadRead(nsIMsgThread *thread)
     nsMsgKey *keys;
     uint32_t numKeys;
     rv = mDatabase->MarkThreadRead(thread, nullptr, &numKeys, &keys);
-    nsMemory::Free(keys);
+    free(keys);
   }
   return rv;
 }
@@ -1821,7 +1821,7 @@ public:
 
 private:
   nsCOMPtr<nsIMsgWindow> mMsgWindow;
-  nsRefPtr<nsMsgDBFolder> mFolder;
+  RefPtr<nsMsgDBFolder> mFolder;
 };
 
 nsresult nsMsgDBFolder::HandleAutoCompactEvent(nsIMsgWindow *aWindow)
@@ -2147,7 +2147,10 @@ nsMsgDBFolder::SetDBTransferInfo(nsIDBFolderInfo *aTransferInfo)
   {
     db->GetDBFolderInfo(getter_AddRefs(dbFolderInfo));
     if(dbFolderInfo)
+    {
       dbFolderInfo->InitFromTransferInfo(aTransferInfo);
+      dbFolderInfo->SetBooleanProperty("forceReparse", false);
+    }
     db->SetSummaryValid(true);
   }
   return NS_OK;
@@ -3481,7 +3484,8 @@ NS_IMETHODIMP
 nsMsgDBFolder::GetChildNamed(const nsAString& aName, nsIMsgFolder **aChild)
 {
   NS_ENSURE_ARG_POINTER(aChild);
-  GetSubFolders(nullptr); // initialize mSubFolders
+  nsCOMPtr<nsISimpleEnumerator> dummy;
+  GetSubFolders(getter_AddRefs(dummy)); // initialize mSubFolders
   *aChild = nullptr;
   int32_t count = mSubFolders.Count();
 
@@ -4410,7 +4414,8 @@ NS_IMETHODIMP nsMsgDBFolder::GetFolderWithFlags(uint32_t aFlags, nsIMsgFolder** 
     return NS_OK;
   }
 
-  GetSubFolders(nullptr); // initialize mSubFolders
+  nsCOMPtr<nsISimpleEnumerator> dummy;
+  GetSubFolders(getter_AddRefs(dummy)); // initialize mSubFolders
 
   int32_t count = mSubFolders.Count();
   *aResult = nullptr;
@@ -4439,7 +4444,8 @@ NS_IMETHODIMP nsMsgDBFolder::ListFoldersWithFlags(uint32_t aFlags, nsIMutableArr
   if ((mFlags & aFlags) == aFlags)
     aFolders->AppendElement(static_cast<nsRDFResource*>(this), false);
 
-  GetSubFolders(nullptr); // initialize mSubFolders
+  nsCOMPtr<nsISimpleEnumerator> dummy;
+  GetSubFolders(getter_AddRefs(dummy)); // initialize mSubFolders
 
   int32_t count = mSubFolders.Count();
   for (int32_t i = 0; i < count; ++i)
@@ -4484,32 +4490,11 @@ NS_IMETHODIMP nsMsgDBFolder::GetDeletable(bool *deletable)
 
 NS_IMETHODIMP nsMsgDBFolder::GetDisplayRecipients(bool *displayRecipients)
 {
-  nsresult rv;
   *displayRecipients = false;
   if (mFlags & nsMsgFolderFlags::SentMail && !(mFlags & nsMsgFolderFlags::Inbox))
     *displayRecipients = true;
   else if (mFlags & nsMsgFolderFlags::Queue)
     *displayRecipients = true;
-  else
-  {
-    // Only mail folders can be FCC folders
-    if (mFlags & nsMsgFolderFlags::Mail || mFlags & nsMsgFolderFlags::ImapBox)
-    {
-      // There's one FCC folder for sent mail, and one for sent news
-      nsIMsgFolder *fccFolders[2];
-      int numFccFolders = 0;
-      for (int i = 0; i < numFccFolders; i++)
-      {
-        bool isAncestor;
-        if (NS_SUCCEEDED(rv = fccFolders[i]->IsAncestorOf(this, &isAncestor)))
-        {
-          if (isAncestor)
-            *displayRecipients = true;
-        }
-        NS_RELEASE(fccFolders[i]);
-      }
-    }
-  }
   return NS_OK;
 }
 
@@ -5158,7 +5143,8 @@ NS_IMETHODIMP nsMsgDBFolder::ListDescendants(nsIMutableArray *aDescendants)
 {
   NS_ENSURE_ARG_POINTER(aDescendants);
 
-  GetSubFolders(nullptr); // initialize mSubFolders
+  nsCOMPtr<nsISimpleEnumerator> dummy;
+  GetSubFolders(getter_AddRefs(dummy)); // initialize mSubFolders
   uint32_t count = mSubFolders.Count();
   for (uint32_t i = 0; i < count; i++)
   {
@@ -5956,6 +5942,14 @@ NS_IMETHODIMP nsMsgDBFolder::AndProcessingFlags(nsMsgKey aKey, uint32_t mask)
     if (!(mProcessingFlag[i].bit & mask) && mProcessingFlag[i].keys)
       mProcessingFlag[i].keys->Remove(aKey);
   return NS_OK;
+}
+
+// Each implementation must provide an override of this, connecting the folder
+// type to the corresponding incoming server type.
+NS_IMETHODIMP nsMsgDBFolder::GetIncomingServerType(nsACString& aIncomingServerType)
+{
+  NS_ASSERTION(false, "subclasses need to override this");
+  return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 void nsMsgDBFolder::ClearProcessingFlags()

@@ -117,7 +117,7 @@ nsNntpIncomingServer::nsNntpIncomingServer()
 
 nsNntpIncomingServer::~nsNntpIncomingServer()
 {
-    nsresult rv;
+    mozilla::DebugOnly<nsresult> rv;
 
     if (mNewsrcSaveTimer) {
         mNewsrcSaveTimer->Cancel();
@@ -620,7 +620,7 @@ nsNntpIncomingServer::PrepareForNextUrl(nsNNTPProtocol *aConnection)
   // on.
   while (m_queuedChannels.Length() > 0)
   {
-    nsRefPtr<nsNntpMockChannel> channel = m_queuedChannels[0];
+    RefPtr<nsNntpMockChannel> channel = m_queuedChannels[0];
     m_queuedChannels.RemoveElementAt(0);
     nsresult rv = channel->AttachNNTPConnection(*aConnection);
     // If this succeeded, the connection is now running the URL.
@@ -1657,7 +1657,7 @@ nsNntpIncomingServer::SetSearchValue(const nsAString &aSearchValue)
 
   if (mTree) {
     mTree->BeginUpdateBatch();
-    mTree->RowCountChanged(0, -mSubscribeSearchResult.Length());
+    mTree->RowCountChanged(0, -static_cast<int32_t>(mSubscribeSearchResult.Length()));
   }
 
   nsTArray<nsCString> searchStringParts;

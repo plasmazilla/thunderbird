@@ -2,22 +2,22 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
   * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "cloudfile-helpers";
+var MODULE_NAME = "cloudfile-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers", "mock-object-helpers"];
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers", "mock-object-helpers"];
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 var os = {};
 Cu.import('resource://mozmill/stdlib/os.js', os);
 
-let Cr = Components.results;
+var Cr = Components.results;
 
-const kMockContractIDPrefix = "@mozilla.org/mail/mockCloudFile;1?id=";
+var kMockContractIDPrefix = "@mozilla.org/mail/mockCloudFile;1?id=";
 
-const kDefaults = {
-  iconClass: "chrome://messenger/skin/icons/dropbox.png",
+var kDefaults = {
+  iconClass: "chrome://messenger/skin/icons/box-logo.png",
   accountKey: null,
   settingsURL: "",
   managementURL: "",
@@ -69,8 +69,7 @@ function getFile(aFilename, aRoot) {
  *                          __file__);
  */
 function collectFiles(aFiles, aFileRoot) {
-  return [getFile(filename, aFileRoot)
-          for each (filename in aFiles)]
+  return aFiles.map(filename => getFile(filename, aFileRoot));
 }
 
 function MockCloudfileAccount() {

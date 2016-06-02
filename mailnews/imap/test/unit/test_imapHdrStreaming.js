@@ -19,10 +19,10 @@ load("../../../resources/messageInjection.js");
 setupIMAPPump();
 
 
-const nsMsgMessageFlags = Ci.nsMsgMessageFlags;
+var nsMsgMessageFlags = Ci.nsMsgMessageFlags;
 
 var gMsgFile1 = do_get_file("../../../data/bugmail10");
-const gMsgId1 = "200806061706.m56H6RWT004933@mrapp54.mozilla.org";
+var gMsgId1 = "200806061706.m56H6RWT004933@mrapp54.mozilla.org";
 
 // We use this as a display consumer
 var streamListener =
@@ -38,7 +38,7 @@ var streamListener =
   },
   onStopRequest: function(aRequest, aContext, aStatusCode) {
     do_check_eq(aStatusCode, 0);
-    do_check_true(this._data.contains("Content-Type"));
+    do_check_true(this._data.includes("Content-Type"));
     async_driver();
   },
 

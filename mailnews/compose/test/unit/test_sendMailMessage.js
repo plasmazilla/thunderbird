@@ -11,10 +11,10 @@ Components.utils.import("resource:///modules/mailServices.js");
 var test = null;
 var server;
 
-const kSender = "from@foo.invalid";
-const kTo = "to@foo.invalid";
-const kUsername = "testsmtp";
-const kPassword = "smtptest";
+var kSender = "from@foo.invalid";
+var kTo = "to@foo.invalid";
+var kUsername = "testsmtp";
+var kPassword = "smtptest";
 
 function test_RFC2821() {
 
@@ -43,7 +43,7 @@ function test_RFC2821() {
 
     var transaction = server.playTransaction();
     do_check_transaction(transaction, ["EHLO test",
-                                       "MAIL FROM:<" + kSender + "> SIZE=155",
+                                       "MAIL FROM:<" + kSender + "> BODY=8BITMIME SIZE=155",
                                        "RCPT TO:<" + kTo + ">",
                                        "DATA"]);
 
@@ -66,7 +66,7 @@ function test_RFC2821() {
     var transaction = server.playTransaction();
     do_check_transaction(transaction, ["EHLO test",
                                        "AUTH PLAIN " + AuthPLAIN.encodeLine(kUsername, kPassword),
-                                       "MAIL FROM:<" + kSender + "> SIZE=155",
+                                       "MAIL FROM:<" + kSender + "> BODY=8BITMIME SIZE=155",
                                        "RCPT TO:<" + kTo + ">",
                                        "DATA"]);
 

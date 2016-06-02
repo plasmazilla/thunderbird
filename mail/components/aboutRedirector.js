@@ -1,8 +1,8 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-const Cc = Components.classes;
-const Ci = Components.interfaces;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
@@ -44,12 +44,13 @@ AboutRedirector.prototype = {
     return this._redirMap[name].flags;
   },
 
-  newChannel: function(aURI) {
+  newChannel: function(aURI, aLoadInfo) {
     let name = this._getModuleName(aURI);
     if (!(name in this._redirMap))
       throw Components.results.NS_ERROR_ILLEGAL_VALUE;
 
-    let channel = Services.io.newChannel(this._redirMap[name].url, null, null);
+    let newURI = Services.io.newURI(this._redirMap[name].url, null, null);
+    let channel = Services.io.newChannelFromURIWithLoadInfo(newURI, aLoadInfo);
     channel.originalURI = aURI;
 
     if (this._redirMap[name].flags & Ci.nsIAboutModule.URI_SAFE_FOR_UNTRUSTED_CONTENT) {
@@ -61,4 +62,4 @@ AboutRedirector.prototype = {
   }
 };
 
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([AboutRedirector]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([AboutRedirector]);

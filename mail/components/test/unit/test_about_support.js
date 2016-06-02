@@ -8,7 +8,7 @@ Components.utils.import("resource://testing-common/mailnews/localAccountUtils.js
  * Test the about:support module.
  */
 
-let gAccountList = [{
+var gAccountList = [{
   type: "pop3",
   port: 1234,
   user: "pop3user",
@@ -56,15 +56,15 @@ let gAccountList = [{
 }];
 
 /// A map of account keys to servers. Populated by setup_accounts.
-let gAccountMap = {};
+var gAccountMap = {};
 /// A map of SMTP server names to SMTP servers. Populated by setup_accounts.
-let gSMTPMap = {};
+var gSMTPMap = {};
 
 /**
  * A list of sensitive data: it shouldn't be present in the account
  * details. Populated by setup_accounts.
  */
-let gSensitiveData = [];
+var gSensitiveData = [];
 
 /**
  * Set up accounts based on the given data.
@@ -143,7 +143,7 @@ function test_get_file_system_type() {
     do_check_eq(fsType, null);
   else
     // Windows and Linux should return a string
-    do_check_true(["local", "network", "unknown"].indexOf(fsType) != -1);
+    do_check_true(["local", "network", "unknown"].includes(fsType));
 }
 
 /**
@@ -157,7 +157,7 @@ function test_get_account_details() {
 
   // Our first check is to see that no sensitive data has crept in
   for (let [, data] in Iterator(gSensitiveData))
-    do_check_false(accountDetailsText.contains(data));
+    do_check_false(accountDetailsText.includes(data));
 
   for (let [, details] in Iterator(accountDetails)) {
     // We're going to make one exception: for the local folders server. We don't
