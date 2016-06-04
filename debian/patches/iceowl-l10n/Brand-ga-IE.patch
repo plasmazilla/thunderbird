@@ -1,0 +1,28 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:26 +0200
+Subject: Brand-ga-IE
+
+---
+ iceowl-l10n/ga-IE/locale/ga-IE/lightning/lightning.properties | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/iceowl-l10n/ga-IE/locale/ga-IE/lightning/lightning.properties b/iceowl-l10n/ga-IE/locale/ga-IE/lightning/lightning.properties
+index cf4ff82..ac4eca4 100644
+--- a/iceowl-l10n/ga-IE/locale/ga-IE/lightning/lightning.properties
++++ b/iceowl-l10n/ga-IE/locale/ga-IE/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Féilire comhtháite le haghaidh Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Féilire comhtháite le haghaidh Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Tionscadal Féilire Mozilla
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Tascanna

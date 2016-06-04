@@ -7,10 +7,10 @@ Subject: fix installdir
  1 file changed, 9 insertions(+)
 
 diff --git a/mail/app/Makefile.in b/mail/app/Makefile.in
-index 8f81701..a65d48d 100644
+index 74c164b..1c9ea15 100644
 --- a/mail/app/Makefile.in
 +++ b/mail/app/Makefile.in
-@@ -108,11 +108,20 @@ libs:: $(addprefix icons/$(MOZ_WIDGET_TOOLKIT)/,$(DESKTOP_ICON_FILES))
+@@ -100,11 +100,20 @@ libs:: $(addprefix icons/$(MOZ_WIDGET_TOOLKIT)/,$(DESKTOP_ICON_FILES))
  
  libs:: $(addprefix $(DIST)/branding/,$(BRANDED_ICON_FILES))
  	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/chrome/icons/default
@@ -22,7 +22,7 @@ index 8f81701..a65d48d 100644
 +	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(installdir)/chrome/icons/default
  endif
  
- ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
+ ifdef MOZ_WIDGET_GTK
  libs::
  	$(INSTALL) $(IFLAGS1) $(DIST)/branding/default* $(DIST)/bin/chrome/icons/default
 +

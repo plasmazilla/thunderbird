@@ -1,0 +1,37 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:26 +0200
+Subject: Brand-zh-TW
+
+---
+ iceowl-l10n/zh-TW/locale/zh-TW/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/zh-TW/locale/zh-TW/lightning/lightning.properties b/iceowl-l10n/zh-TW/locale/zh-TW/lightning/lightning.properties
+index f9d956f..c81fe20 100644
+--- a/iceowl-l10n/zh-TW/locale/zh-TW/lightning/lightning.properties
++++ b/iceowl-l10n/zh-TW/locale/zh-TW/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Thunderbird 的整合行事曆
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Icedove 的整合行事曆
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Mozilla Calendar Project
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=工作
+@@ -122,7 +122,7 @@ imipBarUpdateText=此郵件包含現有事件的更新。
+ imipBarAlreadyProcessedText=此郵件包含一已經處理過的事件。
+ imipBarProcessedNeedsAction=此訊息包含您尚未回覆的事件。
+ imipBarReplyText=此郵件包含對邀請的回覆。
+-imipBarUnsupportedText=此郵件包含此版 Lightning 無法處理的事件。
++imipBarUnsupportedText=此郵件包含此版 Iceowl 無法處理的事件。
+ imipBarProcessingFailed=郵件處理失敗。狀態: %1$S。
+ imipBarNotWritable=還沒有為邀請設定可寫入的行事曆，請檢查行事曆屬性。
+ imipSendMail.title=電子郵件通知

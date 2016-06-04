@@ -1,0 +1,37 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:25 +0200
+Subject: Brand-eu
+
+---
+ iceowl-l10n/eu/locale/eu/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/eu/locale/eu/lightning/lightning.properties b/iceowl-l10n/eu/locale/eu/lightning/lightning.properties
+index 9416846..5f8fa2b 100644
+--- a/iceowl-l10n/eu/locale/eu/lightning/lightning.properties
++++ b/iceowl-l10n/eu/locale/eu/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Thunderbirden integratutako egutegia
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Icedoven integratutako egutegia
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Mozilla Calendar proiektua
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Zereginak
+@@ -79,7 +79,7 @@ imipBarUpdateText=Mezu honek dagoen gertaera baten eguneratzea dakar.
+ imipBarAlreadyProcessedText=Mezu honek jadanik prozesatu den gertaera dauka.
+ imipBarProcessedNeedsAction=Oraindik erantzun ez duzun gertaera bat dauka mezu honek.
+ imipBarReplyText=Mezu honek gonbidapen bati egindako erantzuna dauka.
+-imipBarUnsupportedText=Mezu honek Lightning bertsio honek kudeatu ezin duen gertaera bat dauka.
++imipBarUnsupportedText=Mezu honek Iceowl bertsio honek kudeatu ezin duen gertaera bat dauka.
+ imipBarProcessingFailed=Mezua prozesatzean huts egin du. Egoera: %1$S.
+ imipBarNotWritable=Ez da egutegi idazgarririk konfiguratu gonbidapenetarako, egiaztatu egutegiaren propietateak.
+ imipSendMail.title=E-posta jakinarazpena
