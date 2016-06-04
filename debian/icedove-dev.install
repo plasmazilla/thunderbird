@@ -1,6 +1,6 @@
-debian/icedove.pc                  usr/lib/pkgconfig/
-debian/tmp/usr/include/icedove/*   usr/include/icedove/
-debian/tmp/usr/lib/icedove-devel   usr/lib/
-debian/tmp/usr/share/idl/icedove/* usr/share/idl/icedove/
-mozilla/config/MozZipFile.py       usr/lib/icedove-devel/config/
-mozilla/python/mozbuild/mozbuild/action/buildlist.py        usr/lib/icedove-devel/config/
+debian/icedove.pc                                     usr/lib/pkgconfig/
+debian/tmp/usr/include/thunderbird/*                  usr/include/thunderbird/
+debian/tmp/usr/lib/thunderbird-devel                  usr/lib/
+debian/tmp/usr/share/idl/thunderbird/*                usr/share/idl/thunderbird/
+mozilla/config/MozZipFile.py                          usr/lib/thunderbird-devel/config/
+mozilla/python/mozbuild/mozbuild/action/buildlist.py  usr/lib/thunderbird-devel/config/

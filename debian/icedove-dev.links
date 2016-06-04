@@ -1,4 +1,4 @@
-usr/lib/icedove/libldap60.so     usr/lib/icedove-devel/sdk/lib/libldap60.so
-usr/lib/icedove/libldif60.so     usr/lib/icedove-devel/sdk/lib/libldif60.so
-usr/lib/icedove/libprldap60.so   usr/lib/icedove-devel/sdk/lib/libprldap60.so
-usr/lib/icedove/libxul.so        usr/lib/icedove-devel/sdk/lib/libxul.so
+usr/lib/thunderbird/libldap60.so     usr/lib/thunderbird-devel/sdk/lib/libldap60.so
+usr/lib/thunderbird/libldif60.so     usr/lib/thunderbird-devel/sdk/lib/libldif60.so
+usr/lib/thunderbird/libprldap60.so   usr/lib/thunderbird-devel/sdk/lib/libprldap60.so
+usr/lib/thunderbird/libxul.so        usr/lib/thunderbird-devel/sdk/lib/libxul.so
