@@ -202,7 +202,7 @@ override_dh_install-arch:
 	install -m 644 debian/app-icons/icedovebig.svg \
 		debian/icedove/usr/share/icons/hicolor/scalable/apps/icedove.svg
 	# remove duplicate .so files in dev package
-	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libxul.so
+	rm debian/icedove-dev/usr/lib/thunderbird-devel/sdk/lib/libxul.so
 	# install apparmor profile
 	cp debian/apparmor/usr.bin.icedove debian/icedove/etc/apparmor.d/usr.bin.icedove
 	dh_apparmor --profile-name=usr.bin.icedove -picedove
@@ -219,12 +219,12 @@ override_dh_install-indep:
 
 override_dh_fixperms-arch:
 	dh_fixperms
-	chmod a-x debian/icedove-dev/usr/share/idl/icedove/*.idl
-	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/xpcshell
-	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/header.py
-	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/typelib.py
-	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/xpidl.py
-	chmod 0755 debian/icedove-dev/usr/lib/icedove-devel/sdk/bin/xpt.py
+	chmod a-x debian/thunderbird-dev/usr/share/idl/thunderbird/*.idl
+	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/xpcshell
+	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/header.py
+	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/typelib.py
+	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/xpidl.py
+	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/xpt.py
 
 override_dh_strip:
 	if [ "$(RELEASE)" != "UNRELEASED" ]; then \
@@ -234,7 +234,7 @@ override_dh_strip:
 	fi
 
 override_dh_shlibdeps:
-	dh_shlibdeps -a -l $(CURDIR)/debian/tmp/usr/lib/icedove
+	dh_shlibdeps -a -l $(CURDIR)/debian/tmp/usr/lib/thunderbird
 
 override_dh_builddeb:
 	# just build all packages if there is no 'UNRELEASED' within the changelog
