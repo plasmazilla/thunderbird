@@ -2,7 +2,7 @@
 
 set -e
 
-LIBDIR=/usr/lib/icedove
+LIBDIR=/usr/lib/thunderbird
 
 if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] ; then
     touch $LIBDIR/.autoreg
