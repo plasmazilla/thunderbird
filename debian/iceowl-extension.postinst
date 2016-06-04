@@ -10,8 +10,8 @@ symlink_dir() {
     fi
 }
 
-if test -e /usr/lib/icedove/.autoreg; then
-  touch /usr/lib/icedove/.autoreg
+if test -e /usr/lib/thunderbird/.autoreg; then
+  touch /usr/lib/thunderbird/.autoreg
 fi
 
 if [ "$1" = "configure" ] && dpkg --compare-versions "$2" lt "31.0-2"; then
