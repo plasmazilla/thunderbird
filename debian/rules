@@ -8,8 +8,6 @@
 # the icedove-dbg package
 RELEASE := $(shell head -1 debian/changelog | cut -d" " -f3 | tr -d ';')
 
-BRANDING_DIR_ICEDOVE := mail/branding/icedove
-
 ICEDOVE_VERSION=$(shell tail -1 mail/config/version.txt)
 DEB_AUTO_UPDATE_AUTOCONF=2.13
 
@@ -74,19 +72,6 @@ override_dh_auto_configure:
 	then cd $(CURDIR)/mozilla && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
 	if [ "Z$(DEB_AUTO_UPDATE_AUTOCONF)" != Z ] || [ ! -e $(CURDIR)/mozilla/js/src/configure ]; \
 	then cd $(CURDIR)/mozilla/js/src && `which autoconf$(DEB_AUTO_UPDATE_AUTOCONF) || which autoconf`; fi
-	# prepare branding for the Icedove packages
-	mkdir -p $(BRANDING_DIR_ICEDOVE)
-	# copy needed icons
-	cp -a debian/icedove-branding/*    $(BRANDING_DIR_ICEDOVE)
-	cp debian/app-icons/icedove16.png  $(BRANDING_DIR_ICEDOVE)/mailicon16.png
-	cp debian/app-icons/icedove22.png  $(BRANDING_DIR_ICEDOVE)/mailicon22.png
-	cp debian/app-icons/icedove24.png  $(BRANDING_DIR_ICEDOVE)/mailicon24.png
-	cp debian/app-icons/icedove32.png  $(BRANDING_DIR_ICEDOVE)/mailicon32.png
-	cp debian/app-icons/icedove48.png  $(BRANDING_DIR_ICEDOVE)/mailicon48.png
-	cp debian/app-icons/icedove256.png $(BRANDING_DIR_ICEDOVE)/mailicon256.png
-	cp debian/app-icons/icedove48.png  $(BRANDING_DIR_ICEDOVE)/content/icon48.png
-	cp debian/app-icons/icedove64.png  $(BRANDING_DIR_ICEDOVE)/content/icon64.png
-	cp debian/preview.png mail/themes/linux/mail/preview.png
 	# copy the mozconfig files
 	cp debian/mozconfig.* .
 	cp debian/mozconfig.default mozilla/
