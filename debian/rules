@@ -137,9 +137,9 @@ override_dh_auto_install:
 		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/iceowl/extensions/; \
 		ln -sf /usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/ \
 			$(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/iceowl/extensions/langpack-$${locale}@lightning.debian.org; \
-		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/icedove/extensions/; \
+		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/thunderbird/extensions/; \
 		ln -sf /usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/ \
-			$(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/icedove/extensions/langpack-$${locale}@lightning.debian.org; \
+			$(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/thunderbird/extensions/langpack-$${locale}@lightning.debian.org; \
 	done
 	# install iceowl-l10n; install.rdf
 	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
