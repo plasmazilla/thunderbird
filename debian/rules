@@ -122,9 +122,9 @@ override_dh_auto_install:
 	for DIRECTORY in *; do \
 		LOCALE=`echo $${DIRECTORY} | tr [:upper:] [:lower:]`; \
 		ID=`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`; \
-		install -D -m 644 ../$(ICEDOVE_L10N_BUILDDIR)/$${DIRECTORY}.xpi $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}.xpi; \
-		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions; \
-		ln -sf /usr/share/icedove/extensions/$${ID}.xpi $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}.xpi; \
+		install -D -m 644 ../$(ICEDOVE_L10N_BUILDDIR)/$${DIRECTORY}.xpi $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/thunderbird/extensions/$${ID}.xpi; \
+		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/thunderbird/extensions; \
+		ln -sf /usr/share/thunderbird/extensions/$${ID}.xpi $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/thunderbird/extensions/$${ID}.xpi; \
 	done
 	# install iceowl-l10n
 	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
