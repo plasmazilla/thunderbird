@@ -171,21 +171,18 @@ override_dh_install-arch:
 	install -d -m 755 debian/icedove/usr/share/pixmaps/
 	install -m 644 debian/icedove.xpm debian/icedove/usr/share/pixmaps/
 	# install Icedove icons
-	install -d -m 755 debian/icedove/usr/share/icons/hicolor/16x16/apps
-	install -m 644 debian/app-icons/icedove16.png \
-		debian/icedove/usr/share/icons/hicolor/16x16/apps/icedove.png
-	install -d -m 755 debian/icedove/usr/share/icons/hicolor/32x32/apps
-	install -m 644 debian/app-icons/icedove32.png \
-		debian/icedove/usr/share/icons/hicolor/32x32/apps/icedove.png
-	install -d -m 755 debian/icedove/usr/share/icons/hicolor/64x64/apps
-	install -m 644 debian/app-icons/icedove64.png \
-		debian/icedove/usr/share/icons/hicolor/64x64/apps/icedove.png
-	install -d -m 755 debian/icedove/usr/share/icons/hicolor/128x128/apps
-	install -m 644 debian/app-icons/icedove128.png \
-		debian/icedove/usr/share/icons/hicolor/128x128/apps/icedove.png
-	install -d -m 755 debian/icedove/usr/share/icons/hicolor/scalable/apps
-	install -m 644 debian/app-icons/icedovebig.svg \
-		debian/icedove/usr/share/icons/hicolor/scalable/apps/icedove.svg
+	install -m 644 other-licenses/branding/thunderbird/mailicon16.png \
+		debian/icedove/usr/share/icons/hicolor/16x16/apps/thunderbird.png
+	install -m 644 other-licenses/branding/thunderbird/mailicon22.png \
+		debian/icedove/usr/share/icons/hicolor/22x22/apps/thunderbird.png
+	install -m 644 other-licenses/branding/thunderbird/mailicon24.png \
+		debian/icedove/usr/share/icons/hicolor/24x24/apps/thunderbird.png
+	install -m 644 other-licenses/branding/thunderbird/mailicon32.png \
+		debian/icedove/usr/share/icons/hicolor/32x32/apps/thunderbird.png
+	install -m 644 other-licenses/branding/thunderbird/mailicon48.png \
+		debian/icedove/usr/share/icons/hicolor/48x48/apps/thunderbird.png
+	install -m 644 other-licenses/branding/thunderbird/mailicon256.png \
+		debian/icedove/usr/share/icons/hicolor/256x256/apps/thunderbird.png
 	# remove duplicate .so files in dev package
 	rm debian/icedove-dev/usr/lib/thunderbird-devel/sdk/lib/libxul.so
 	# install apparmor profile
