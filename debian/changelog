@@ -1,3 +1,80 @@
+icedove (1:45.1.0-1~deb8u1) stable-security; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [fb43fac] Imported Upstream version 45.1.0
+    - MFSA 2016-16 aka CVE-2016-1952, CVE-2016-1953
+    - MFSA 2016-17 aka CVE-2016-1954
+    - MFSA 2016-18 aka CVE-2016-1955
+    - MFSA 2016-19 aka CVE-2016-1956
+    - MFSA 2016-20 aka CVE-2016-1957
+    - MFSA 2016-23 aka CVE-2016-1960
+    - MFSA 2016-24 aka CVE-2016-1961
+    - MFSA 2016-27 aka CVE-2016-1964
+    - MFSA 2016-34 aka CVE-2016-1974
+    - MFSA 2016-35 aka CVE-2016-1950
+    - MFSA 2016-36 aka CVE-2016-1979
+    - MFSA 2016-37 aka CVE-2016-1977, CVE-2016-2790, CVE-2016-2791,
+      CVE-2016-2792, CVE-2016-2793, CVE-2016-2794, CVE-2016-2795,
+      CVE-2016-2796, CVE-2016-2797, CVE-2016-2798, CVE-2016-2799,
+      CVE-2016-2800, CVE-2016-2801, CVE-2016-2802
+    - MFSA 2016-39 aka CVE-2016-2807, CVE-2016-2806
+  * [2f41836] debian/vendor.js: adjust to new version related wiki site
+  * [695d480] Icedove Branding: adopt usptream changes to branding
+  * [ff8a29d] d/icedove.install: remove no longer existing parts
+  * [a93f81f] debian/rules: remove obsolet dpkg-shlibdeps call
+  * [47e35db] debian/control: adding the current icedove-l10n-* packages
+  * [dbfa1c6] debian/rules: adding icedove.l10n install to targets
+  * [3c53b2d] debian/control: adding a B-D on libpng-dev
+  * [e564202] debian/rules: adding iceowl-l10n related rules
+  * [679d2c5] debian/control: adding the current iceowl-l10n-* packages
+  * [11cf262] d/icedove.install: searchplugins isn't alive anymore
+  * [bbd1f2c] adopting needed changes for GTK3 into the Debian branding
+  * [c4766ca] adding changes due ldap restructure
+  * [59eac2e] debian/mozconfig.default: switching back to gtk2 as default
+    (Closes: #821744)
+  * [4d2462c] debian/iceowl-*.in: adding needed base files
+
+  [ Guido Günther ]
+  * [772cd63] icedove-dev: Drop dependencies on nspr, nss
+
+  [ Christoph Goehre ]
+  * [566d769] debian/control: make depends between icedove-l10n and icedove
+    dynamic
+  * [38d43e9] debian/control: add section localization to all l10n packages
+  * [b1c0f93] debian/NEWS: rename to icedove.NEWS to ship only in icedove core
+    package
+  * [2c8467e] build against internal sqlite
+  * [389571a] rebuild patch queue from patch-queue branch
+    added patches:
+    - icedove-l10n/*
+    - iceowl-l10n/*
+    - p-kfreebsd-hurd/CrossProcessMutex.h-fix-build-on-kfreebsd-and-GNU.patch
+    - porting-kfreebsd-hurd/adding-missed-HURD-adoptions.patch
+    modified patches:
+    - fixes/Allow-.js-preference-files-to-set-locked-prefs-with-lockP.patch
+    - fixes/Bug-628252-os2.cc-fails-to-compile-against-GCC-4.6-m.patch
+    - icedove/fix-branding-in-migration-wizard-and-the-addon-manag.patch
+    - p-kfreebsd-hurd/LDAP-support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    obsolete patches (fixed upstream):
+    - debian-hacks/Add-unminified-jquery-and-jquery-ui-files.patch
+    - debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
+    - fixes/Bug-1165654-Cleanup-how-libjpeg-turbo-assembly-build.patch
+    - fixes/Bug-1168231-Fixup-to-keep-file-type.patch
+    - fixes/Bug-1168231-Normalize-file-mode-in-jars.patch
+    - fixes/Bug-1194905-Build-libvpx-neon-code-without-mthumb-an.patch
+    - fixes/Followup-to-bug-1194905-add-mfloat-abi-softfp-when-t.patch
+    - fixes/Link-libldap-against-libpthread.patch
+    - icedove/no-dynamic-nss-softokn.patch
+    - porting/Remove-duplicate-SkDiscardableMemory_none.cpp-from-g.patch
+    - reproducible/Bug-1166243-Remove-build-function-from-js-and-xpc-sh.patch
+    - reproducible/Bug-1168316-Remove-build-machine-name-from-about-bui.patch
+    - reproducible/generate-sorted-output-while-header-creation.patch
+  * [8bce181] icedove.lintian-overrides: add override for embedded library
+    sqlite
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 08 Jun 2016 18:28:41 -0400
+
 icedove (38.8.0-1~deb8u1) stable-security; urgency=medium
 
   [ Guido Günther ]
