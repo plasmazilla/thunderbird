@@ -1187,7 +1187,7 @@ Description: Chinese (Taiwan) language package for Icedove
  .
  This package contains the localization of Icedove in Chinese (Taiwan).
 
-Package: iceowl-l10n-ar
+Package: lightning-l10n-ar
 Architecture: all
 Section: localization
 Depends:
@@ -1203,7 +1203,7 @@ Description: Arabic language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Arabian.
 
-Package: iceowl-l10n-be
+Package: lightning-l10n-be
 Architecture: all
 Section: localization
 Depends:
@@ -1219,7 +1219,7 @@ Description: Belarusian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Belarusian.
 
-Package: iceowl-l10n-bg
+Package: lightning-l10n-bg
 Architecture: all
 Section: localization
 Depends:
@@ -1235,7 +1235,7 @@ Description: Bulgarian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Bulgarian.
 
-Package: iceowl-l10n-bn-bd
+Package: lightning-l10n-bn-bd
 Architecture: all
 Section: localization
 Depends:
@@ -1252,7 +1252,7 @@ Description: Bengali (Bangladesh) language package for iceowl-extension
  This package contains the localization of iceowl-extension in
  Bengali/Bangladesh.
 
-Package: iceowl-l10n-br
+Package: lightning-l10n-br
 Architecture: all
 Section: localization
 Depends:
@@ -1268,7 +1268,7 @@ Description: Breton language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Breton.
 
-Package: iceowl-l10n-ca
+Package: lightning-l10n-ca
 Architecture: all
 Section: localization
 Depends:
@@ -1285,7 +1285,7 @@ Description: Catalan/Valencian language package for iceowl-extension
  This package contains the localization of iceowl-extension in
  Catalan/Valencian.
 
-Package: iceowl-l10n-cs
+Package: lightning-l10n-cs
 Architecture: all
 Section: localization
 Depends:
@@ -1301,7 +1301,7 @@ Description: Czech language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Czech.
 
-Package: iceowl-l10n-cy
+Package: lightning-l10n-cy
 Architecture: all
 Section: localization
 Depends:
@@ -1315,7 +1315,7 @@ Description: Welsh language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Welsh.
 
-Package: iceowl-l10n-da
+Package: lightning-l10n-da
 Architecture: all
 Section: localization
 Depends:
@@ -1331,7 +1331,7 @@ Description: Danish language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Danish.
 
-Package: iceowl-l10n-de
+Package: lightning-l10n-de
 Architecture: all
 Section: localization
 Depends:
@@ -1347,7 +1347,7 @@ Description: German language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in German.
 
-Package: iceowl-l10n-el
+Package: lightning-l10n-el
 Architecture: all
 Section: localization
 Depends:
@@ -1363,7 +1363,7 @@ Description: Greek language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Greek.
 
-Package: iceowl-l10n-es-ar
+Package: lightning-l10n-es-ar
 Architecture: all
 Section: localization
 Depends:
@@ -1380,7 +1380,7 @@ Description: Spanish (Argentina) language package for iceowl-extension
  This package contains the localization of iceowl-extension in
  Spanish (Argentina).
 
-Package: iceowl-l10n-es-es
+Package: lightning-l10n-es-es
 Architecture: all
 Section: localization
 Depends:
@@ -1396,7 +1396,7 @@ Description: Spanish (Spain) language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Spanish (Spain).
 
-Package: iceowl-l10n-en-gb
+Package: lightning-l10n-en-gb
 Architecture: all
 Section: localization
 Depends:
@@ -1412,7 +1412,7 @@ Description: British English language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in British English.
 
-Package: iceowl-l10n-et
+Package: lightning-l10n-et
 Architecture: all
 Section: localization
 Depends:
@@ -1428,7 +1428,7 @@ Description: Estonian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Estonian.
 
-Package: iceowl-l10n-eu
+Package: lightning-l10n-eu
 Architecture: all
 Section: localization
 Depends:
@@ -1444,7 +1444,7 @@ Description: Basque language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Basque.
 
-Package: iceowl-l10n-fi
+Package: lightning-l10n-fi
 Architecture: all
 Section: localization
 Depends:
@@ -1461,7 +1461,7 @@ Description: Finnish language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Finnish.
 
-Package: iceowl-l10n-fr
+Package: lightning-l10n-fr
 Architecture: all
 Section: localization
 Depends:
@@ -1477,7 +1477,7 @@ Description: French language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in French.
 
-Package: iceowl-l10n-fy-nl
+Package: lightning-l10n-fy-nl
 Architecture: all
 Section: localization
 Depends:
@@ -1491,7 +1491,7 @@ Description: Western Frisian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Western Frisian.
 
-Package: iceowl-l10n-ga-ie
+Package: lightning-l10n-ga-ie
 Architecture: all
 Section: localization
 Depends:
@@ -1505,7 +1505,7 @@ Description: Irish (Ireland) language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Irish (Ireland).
 
-Package: iceowl-l10n-gd
+Package: lightning-l10n-gd
 Architecture: all
 Section: localization
 Depends:
@@ -1521,7 +1521,7 @@ Description: Scottish Gaelic language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Scottish Gaelic.
 
-Package: iceowl-l10n-gl
+Package: lightning-l10n-gl
 Architecture: all
 Section: localization
 Depends:
@@ -1537,7 +1537,7 @@ Description: Galician language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Galician.
 
-Package: iceowl-l10n-he
+Package: lightning-l10n-he
 Architecture: all
 Section: localization
 Depends:
@@ -1553,7 +1553,7 @@ Description: Hebrew language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Hebrew.
 
-Package: iceowl-l10n-hr
+Package: lightning-l10n-hr
 Architecture: all
 Section: localization
 Depends:
@@ -1569,7 +1569,7 @@ Description: Croatian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Croatian.
 
-Package: iceowl-l10n-hu
+Package: lightning-l10n-hu
 Architecture: all
 Section: localization
 Depends:
@@ -1585,7 +1585,7 @@ Description: Hungarian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Hungarian.
 
-Package: iceowl-l10n-hy-am
+Package: lightning-l10n-hy-am
 Architecture: all
 Section: localization
 Depends:
@@ -1602,7 +1602,7 @@ Description: Armenian language package for iceowl-extension
  This package contains the localization of iceowl-extension in
  Armenian (Armenia).
 
-Package: iceowl-l10n-id
+Package: lightning-l10n-id
 Architecture: all
 Section: localization
 Depends:
@@ -1616,7 +1616,7 @@ Description: Indonesian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Indonesian.
 
-Package: iceowl-l10n-is
+Package: lightning-l10n-is
 Architecture: all
 Section: localization
 Depends:
@@ -1632,7 +1632,7 @@ Description: Icelandic language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Icelandic.
 
-Package: iceowl-l10n-it
+Package: lightning-l10n-it
 Architecture: all
 Section: localization
 Depends:
@@ -1648,7 +1648,7 @@ Description: Italian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Italian.
 
-Package: iceowl-l10n-ja
+Package: lightning-l10n-ja
 Architecture: all
 Section: localization
 Depends:
@@ -1662,7 +1662,7 @@ Description: Japanese language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Japanese.
 
-Package: iceowl-l10n-ko
+Package: lightning-l10n-ko
 Architecture: all
 Section: localization
 Depends:
@@ -1678,7 +1678,7 @@ Description: Korean language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Korean.
 
-Package: iceowl-l10n-lt
+Package: lightning-l10n-lt
 Architecture: all
 Section: localization
 Depends:
@@ -1694,7 +1694,7 @@ Description: Lithuanian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Lithuanian.
 
-Package: iceowl-l10n-nb-no
+Package: lightning-l10n-nb-no
 Architecture: all
 Section: localization
 Depends:
@@ -1711,7 +1711,7 @@ Description: Bokmaal (Norway) language package for iceowl-extension
  This package contains the localization of iceowl-extension in Bokmaal
  (Norway).
 
-Package: iceowl-l10n-nl
+Package: lightning-l10n-nl
 Architecture: all
 Section: localization
 Depends:
@@ -1727,7 +1727,7 @@ Description: Dutch language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Dutch.
 
-Package: iceowl-l10n-nn-no
+Package: lightning-l10n-nn-no
 Architecture: all
 Section: localization
 Depends:
@@ -1744,7 +1744,7 @@ Description: Nynorsk (Norway) language package for iceowl-extension
  This package contains the localization of iceowl-extension in Nynorsk
  (Norway).
 
-Package: iceowl-l10n-pa-in
+Package: lightning-l10n-pa-in
 Architecture: all
 Section: localization
 Depends:
@@ -1758,7 +1758,7 @@ Description: Punjabi language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Punjabi (India).
 
-Package: iceowl-l10n-pl
+Package: lightning-l10n-pl
 Architecture: all
 Section: localization
 Depends:
@@ -1774,7 +1774,7 @@ Description: Polish language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Polish.
 
-Package: iceowl-l10n-pt-br
+Package: lightning-l10n-pt-br
 Architecture: all
 Section: localization
 Depends:
@@ -1791,7 +1791,7 @@ Description: Portuguese (Brazil) language package for iceowl-extension
  This package contains the localization of iceowl-extension in Portuguese
  (Brazil).
 
-Package: iceowl-l10n-pt-pt
+Package: lightning-l10n-pt-pt
 Architecture: all
 Section: localization
 Depends:
@@ -1808,7 +1808,7 @@ Description: Portuguese (Portugal) language package for iceowl-extension
  This package contains the localization of iceowl-extension in Portuguese
  (Portugal).
 
-Package: iceowl-l10n-rm
+Package: lightning-l10n-rm
 Architecture: all
 Section: localization
 Depends:
@@ -1822,7 +1822,7 @@ Description: Romansh language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Romansh.
 
-Package: iceowl-l10n-ro
+Package: lightning-l10n-ro
 Architecture: all
 Section: localization
 Depends:
@@ -1838,7 +1838,7 @@ Description: Romanian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Romanian.
 
-Package: iceowl-l10n-ru
+Package: lightning-l10n-ru
 Architecture: all
 Section: localization
 Depends:
@@ -1854,7 +1854,7 @@ Description: Russian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Russian.
 
-Package: iceowl-l10n-si
+Package: lightning-l10n-si
 Architecture: all
 Section: localization
 Depends:
@@ -1870,7 +1870,7 @@ Description: Sinhala language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Sinhala.
 
-Package: iceowl-l10n-sk
+Package: lightning-l10n-sk
 Architecture: all
 Section: localization
 Depends:
@@ -1886,7 +1886,7 @@ Description: Slovak language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Slovak.
 
-Package: iceowl-l10n-sl
+Package: lightning-l10n-sl
 Architecture: all
 Section: localization
 Depends:
@@ -1902,7 +1902,7 @@ Description: Slovenian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Slovenian.
 
-Package: iceowl-l10n-sr
+Package: lightning-l10n-sr
 Architecture: all
 Section: localization
 Depends:
@@ -1918,7 +1918,7 @@ Description: Serbian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Serbian.
 
-Package: iceowl-l10n-sq
+Package: lightning-l10n-sq
 Architecture: all
 Section: localization
 Depends:
@@ -1932,7 +1932,7 @@ Description: Albanian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Albanian.
 
-Package: iceowl-l10n-sv-se
+Package: lightning-l10n-sv-se
 Architecture: all
 Section: localization
 Depends:
@@ -1948,7 +1948,7 @@ Description: Swedish language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Swedish (Sweden).
 
-Package: iceowl-l10n-ta-lk
+Package: lightning-l10n-ta-lk
 Architecture: all
 Section: localization
 Depends:
@@ -1963,7 +1963,7 @@ Description: Tamil language package for iceowl-extension
  This package contains the localization of iceowl-extension in
  Tamil (Sri Lanka).
 
-Package: iceowl-l10n-tr
+Package: lightning-l10n-tr
 Architecture: all
 Section: localization
 Depends:
@@ -1977,7 +1977,7 @@ Description: Turkish language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Turkish.
 
-Package: iceowl-l10n-uk
+Package: lightning-l10n-uk
 Architecture: all
 Section: localization
 Depends:
@@ -1993,7 +1993,7 @@ Description: Ukrainian language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Ukrainian.
 
-Package: iceowl-l10n-vi
+Package: lightning-l10n-vi
 Architecture: all
 Section: localization
 Depends:
@@ -2009,7 +2009,7 @@ Description: Vietnamese language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Vietnamese.
 
-Package: iceowl-l10n-zh-cn
+Package: lightning-l10n-zh-cn
 Architecture: all
 Section: localization
 Depends:
@@ -2023,7 +2023,7 @@ Description: Chinese (China) language package for iceowl-extension
  .
  This package contains the localization of iceowl-extension in Chinese (China).
 
-Package: iceowl-l10n-zh-tw
+Package: lightning-l10n-zh-tw
 Architecture: all
 Section: localization
 Depends:
