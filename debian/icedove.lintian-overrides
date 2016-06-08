@@ -9,3 +9,4 @@ icedove: embedded-library usr/lib/icedove/libxul.so: libpng
 icedove: embedded-library usr/lib/icedove/libnss3.so: nss
 icedove: embedded-library usr/lib/icedove/libnspr4.so: nspr
 icedove: embedded-library usr/lib/icedove/libnssutil3.so: nspr
+icedove: embedded-library usr/lib/icedove/libmozsqlite3.so: sqlite
