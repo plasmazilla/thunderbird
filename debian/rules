@@ -14,8 +14,8 @@ DEB_AUTO_UPDATE_AUTOCONF=2.13
 # build directory used for building the icedove-l10n files
 ICEDOVE_L10N_BUILDDIR=debian/icedove-l10n-build
 
-# build directory used for building the iceowl-l10n files
-ICEOWL_L10N_BUILDDIR=debian/iceowl-l10n-build
+# build directory used for building the lightning-l10n files
+LIGHTNING_L10N_BUILDDIR=debian/lightning-l10n-build
 # Iceowl/Lightning version, note this is different from the TB version!
 LIGHTNING_VERSION := $(shell python $(CURDIR)/calendar/lightning/build/makeversion.py ${ICEDOVE_VERSION})
 
@@ -59,8 +59,8 @@ override_dh_auto_clean:
 	dh_auto_clean --builddirectory=obj-icedove
 	# needed for icedove-l10n
 	rm -rf $(ICEDOVE_L10N_BUILDDIR)
-	# needed for iceowl-l10n
-	rm -rf $(ICEOWL_L10N_BUILDDIR)
+	# needed for lightning-l10n
+	rm -rf $(LIGHTNING_L10N_BUILDDIR)
 
 override_dh_auto_configure:
 	# update config.sub and config.guess
@@ -90,15 +90,15 @@ override_dh_auto_build:
 		LOCALE=`basename $${XPI}`; \
 		xpi-pack $${LOCALE} ../$(ICEDOVE_L10N_BUILDDIR)/$${LOCALE}.xpi; \
 	done
-	# build iceowl-l10n
-	mkdir -p $(ICEOWL_L10N_BUILDDIR)
+	# build lightning-l10n
+	mkdir -p $(LIGHTNING_L10N_BUILDDIR)
 	cd $(CURDIR)/iceowl-l10n; \
 	for dir in ?? ??-*; do \
 		cd $${dir}; \
-		zip -q -X -r ../../$(ICEOWL_L10N_BUILDDIR)/$${dir}.jar locale; \
+		zip -q -X -r ../../$(LIGHTNING_L10N_BUILDDIR)/$${dir}.jar locale; \
 		cd -; \
 	done
-	rm -rf $(ICEOWL_L10N_BUILDDIR)/en-US.jar
+	rm -rf $(LIGHTNING_L10N_BUILDDIR)/en-US.jar
 
 override_dh_auto_install:
 	make -f client.mk install DESTDIR=$(CURDIR)/debian/tmp
@@ -111,41 +111,41 @@ override_dh_auto_install:
 		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/thunderbird/extensions; \
 		ln -sf /usr/share/thunderbird/extensions/$${ID}.xpi $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/thunderbird/extensions/$${ID}.xpi; \
 	done
-	# install iceowl-l10n
-	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
+	# install lightning-l10n
+	for jar in $(LIGHTNING_L10N_BUILDDIR)/*.jar; do \
 		locale=`basename $${jar} .jar | tr 'A-Z' 'a-z'`; \
-		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/chrome; \
-		install -m 644 $${jar} $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/chrome/; \
+		mkdir -p $(CURDIR)/debian/lightning-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/chrome; \
+		install -m 644 $${jar} $(CURDIR)/debian/lightning-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/chrome/; \
 	done
-	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
+	for jar in $(LIGHTNING_L10N_BUILDDIR)/*.jar; do \
 		locale=`basename $${jar} .jar | tr 'A-Z' 'a-z'`; \
-		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/iceowl/extensions/; \
+		mkdir -p $(CURDIR)/debian/lightning-l10n-$${locale}/usr/lib/iceowl/extensions/; \
 		ln -sf /usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/ \
-			$(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/iceowl/extensions/langpack-$${locale}@lightning.debian.org; \
-		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/thunderbird/extensions/; \
+			$(CURDIR)/debian/lightning-l10n-$${locale}/usr/lib/iceowl/extensions/langpack-$${locale}@lightning.debian.org; \
+		mkdir -p $(CURDIR)/debian/lightning-l10n-$${locale}/usr/lib/thunderbird/extensions/; \
 		ln -sf /usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/ \
-			$(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/thunderbird/extensions/langpack-$${locale}@lightning.debian.org; \
+			$(CURDIR)/debian/lightning-l10n-$${locale}/usr/lib/thunderbird/extensions/langpack-$${locale}@lightning.debian.org; \
 	done
-	# install iceowl-l10n; install.rdf
-	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
+	# install lightning-l10n; install.rdf
+	for jar in $(LIGHTNING_L10N_BUILDDIR)/*.jar; do \
 		locale=`basename $${jar} .jar | tr 'A-Z' 'a-z'`; \
 		sed -e s"/##LOCALE##/$${locale}/" -e s",##VERSION##,$(LIGHTNING_VERSION)," \
-			debian/iceowl-l10n-install.rdf.in \
-			> $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/install.rdf; \
+			debian/lightning-l10n-install.rdf.in \
+			> $(CURDIR)/debian/lightning-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/install.rdf; \
 	done
-	# install iceowl-l10n; chrome.manifest
-	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
+	# install lightning-l10n; chrome.manifest
+	for jar in $(LIGHTNING_L10N_BUILDDIR)/*.jar; do \
 		lang=`basename $${jar} .jar`; \
 		locale=`basename $${jar} .jar | tr 'A-Z' 'a-z'`; \
 			sed -e s"/##LANG##/$${lang}/g" \
-			debian/iceowl-l10n-chrome.manifest.in \
-			> $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/chrome.manifest; \
+			debian/lightning-l10n-chrome.manifest.in \
+			> $(CURDIR)/debian/lightning-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/chrome.manifest; \
 	done
-	# install iceowl-l10n; uninstall
-	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
+	# install lightning-l10n; uninstall
+	for jar in $(LIGHTNING_L10N_BUILDDIR)/*.jar; do \
 		locale=`basename $${jar} .jar | tr 'A-Z' 'a-z'`; \
-		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/uninstall; \
-		touch $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/uninstall/Uninstall; \
+		mkdir -p $(CURDIR)/debian/lightning-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/uninstall; \
+		touch $(CURDIR)/debian/lightning-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/uninstall/Uninstall; \
 	done
 
 override_dh_install-arch:
@@ -228,7 +228,8 @@ override_dh_builddeb:
 		dh_builddeb -picedove-dev ;\
 		dh_builddeb -piceowl-extension ;\
 		dh_builddeb -pcalendar-google-provider ;\
-		for package in `grep -e 'Package: icedove-l10n\|Package: iceowl-l10n' debian/control | awk '{print $$2;}'`; do \
+		for package in `grep -e \
+			'Package: icedove-l10n\|Package: lightning-l10n\|Package: iceowl-l10n' debian/control | awk '{print $$2;}'`; do \
 			dh_builddeb -p$$package ;\
 		done ;\
 		sed -i '/icedove-dbg/d' debian/files ;\
