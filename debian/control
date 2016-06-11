@@ -1196,8 +1196,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-ar,
-Description: Arabic language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-ar (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-ar (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-ar,
+Description: Arabic language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1212,8 +1218,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-be,
-Description: Belarusian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-be (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-be (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-be,
+Description: Belarusian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1228,8 +1240,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-bg | myspell-bg,
-Description: Bulgarian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-bg (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-bg (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-bg,
+Description: Bulgarian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1244,8 +1262,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-bn,
-Description: Bengali (Bangladesh) language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-bn-bd (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-bn-bd (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-bn-bd,
+Description: Bengali (Bangladesh) language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1261,8 +1285,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-br,
-Description: Breton language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-br (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-br (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-br,
+Description: Breton language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1277,8 +1307,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-ca | myspell-ca,
-Description: Catalan/Valencian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-ca (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-ca (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-ca,
+Description: Catalan/Valencian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1294,8 +1330,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-cs | myspell-cs-cz,
-Description: Czech language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-cs (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-cs (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-cs,
+Description: Czech language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1308,8 +1350,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Welsh language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-cy (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-cy (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-cy,
+Description: Welsh language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1324,8 +1372,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  myspell-da | hunspell-da,
-Description: Danish language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-da (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-da (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-da,
+Description: Danish language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1340,8 +1394,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-de-de | hunspell-de-at | hunspell-de-ch | myspell-de-de | myspell-de-at | myspell-de-ch,
-Description: German language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-de (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-de (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-de,
+Description: German language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1356,8 +1416,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-el | myspell-el-gr,
-Description: Greek language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-el (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-el (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-el,
+Description: Greek language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1372,8 +1438,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-es | myspell-es,
-Description: Spanish (Argentina) language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-es-ar (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-es-ar (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-es-ar,
+Description: Spanish (Argentina) language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1389,8 +1461,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-es | myspell-es,
-Description: Spanish (Spain) language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-es-es (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-es-es (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-es-es,
+Description: Spanish (Spain) language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1405,8 +1483,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-en-gb | hunspell-en-au | hunspell-en-ca | hunspell-en-za,
-Description: British English language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-en-gb (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-en-gb (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-en-gb,
+Description: British English language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1421,8 +1505,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  myspell-et,
-Description: Estonian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-et (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-et (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-et,
+Description: Estonian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1437,8 +1527,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-eu,
-Description: Basque language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-eu (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-eu (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-eu,
+Description: Basque language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1454,8 +1550,14 @@ Depends:
 Recommends:
  myspell-fi,
  xul-ext-mozvoikko,
-Description: Finnish language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-fi (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-fi (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-fi,
+Description: Finnish language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1470,8 +1572,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-fr | myspell-fr | myspell-fr-gut,
-Description: French language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-fr (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-fr (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-fr,
+Description: French language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1484,8 +1592,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Western Frisian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-fy-nl (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-fy-nl (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-fy-nl,
+Description: Western Frisian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1498,8 +1612,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Irish (Ireland) language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-ga-ie (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-ga-ie (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-ga-ie,
+Description: Irish (Ireland) language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1514,8 +1634,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-gd,
-Description: Scottish Gaelic language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-gd (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-gd (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-gd,
+Description: Scottish Gaelic language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1530,8 +1656,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-gl | hunspell-gl-es,
-Description: Galician language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-gl (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-gl (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-gl,
+Description: Galician language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1546,8 +1678,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-he | myspell-he,
-Description: Hebrew language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-he (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-he (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-he,
+Description: Hebrew language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1562,8 +1700,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-hr | myspell-hr,
-Description: Croatian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-hr (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-hr (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-hr,
+Description: Croatian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1578,8 +1722,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-hu | myspell-hu,
-Description: Hungarian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-hu (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-hu (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-hu,
+Description: Hungarian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1594,8 +1744,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  myspell-hy,
-Description: Armenian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-hy-am (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-hy-am (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-hy-am,
+Description: Armenian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1609,8 +1765,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Indonesian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-id (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-id (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-id,
+Description: Indonesian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1625,8 +1787,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-is,
-Description: Icelandic language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-is (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-is (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-is,
+Description: Icelandic language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1641,8 +1809,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-it | myspell-it,
-Description: Italian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-it (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-it (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-it,
+Description: Italian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1655,8 +1829,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Japanese language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-ja (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-ja (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-ja,
+Description: Japanese language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1671,8 +1851,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-ko,
-Description: Korean language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-ko (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-ko (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-ko,
+Description: Korean language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1687,8 +1873,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-lt | myspell-lt,
-Description: Lithuanian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-lt (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-lt (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-lt,
+Description: Lithuanian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1703,8 +1895,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-no | myspell-nb,
-Description: Bokmaal (Norway) language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-nb-no (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-nb-no (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-nb-no,
+Description: Bokmaal (Norway) language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1720,8 +1918,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-nl | myspell-nl,
-Description: Dutch language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-nl (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-nl (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-nl,
+Description: Dutch language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1736,8 +1940,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-no | myspell-nn,
-Description: Nynorsk (Norway) language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-nn-no (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-nn-no (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-nn-no,
+Description: Nynorsk (Norway) language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1751,8 +1961,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Punjabi language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-pa-in (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-pa-in (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-pa-in,
+Description: Punjabi language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1767,8 +1983,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-pl | myspell-pl,
-Description: Polish language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-pl (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-pl (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-pl,
+Description: Polish language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1783,8 +2005,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-pt-br | myspell-pt-br | myspell-pt,
-Description: Portuguese (Brazil) language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-pt-br (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-pt-br (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-pt-br,
+Description: Portuguese (Brazil) language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1800,8 +2028,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-pt-pt | myspell-pt-pt | myspell-pt,
-Description: Portuguese (Portugal) language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-pt-pt (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-pt-pt (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-pt-pt,
+Description: Portuguese (Portugal) language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1815,8 +2049,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Romansh language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-rm (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-rm (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-rm,
+Description: Romansh language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1831,8 +2071,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-ro,
-Description: Romanian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-ro (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-ro (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-ro,
+Description: Romanian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1847,8 +2093,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-ru | myspell-ru,
-Description: Russian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-ru (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-ru (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-ru,
+Description: Russian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1863,8 +2115,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-si,
-Description: Sinhala language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-si (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-si (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-si,
+Description: Sinhala language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1879,8 +2137,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-sk | myspell-sk,
-Description: Slovak language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-sk (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-sk (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-sk,
+Description: Slovak language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1895,8 +2159,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-sl | myspell-sl,
-Description: Slovenian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-sl (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-sl (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-sl,
+Description: Slovenian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1911,8 +2181,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-sr,
-Description: Serbian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-sr (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-sr (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-sr,
+Description: Serbian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1925,8 +2201,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Albanian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-sq (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-sq (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-sq,
+Description: Albanian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1941,8 +2223,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-sv | myspell-sv-se,
-Description: Swedish language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-sv-se (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-sv-se (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-sv-se,
+Description: Swedish language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1955,8 +2243,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Tamil language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-ta-lk (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-ta-lk (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-ta-lk,
+Description: Tamil language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1970,8 +2264,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Turkish language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-tr (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-tr (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-tr,
+Description: Turkish language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -1986,8 +2286,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-uk | myspell-uk,
-Description: Ukrainian language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-uk (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-uk (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-uk,
+Description: Ukrainian language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -2002,8 +2308,14 @@ Depends:
  ${misc:Depends},
 Recommends:
  hunspell-vi,
-Description: Vietnamese language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-vi (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-vi (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-vi,
+Description: Vietnamese language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -2016,8 +2328,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Chinese (China) language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-zh-cn (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-zh-cn (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-zh-cn,
+Description: Chinese (China) language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
@@ -2030,8 +2348,14 @@ Depends:
  iceowl-extension (<< ${source:Version}.1~),
  iceowl-extension (>= ${source:Version}),
  ${misc:Depends},
-Description: Chinese (Taiwan) language package for iceowl-extension
- The iceowl-extension is a Mozilla based calendar extension for Icedove.
+Replaces:
+ iceowl-l10n-zh-tw (<< 1:45.5.1-1.1~),
+Breaks:
+ iceowl-l10n-zh-tw (<< 1:45.5.1-1.1~),
+Provides:
+ iceowl-l10n-zh-tw,
+Description: Chinese (Taiwan) language package for lightning
+ Lightning is a Mozilla based calendar extension for Icedove.
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
