@@ -183,6 +183,9 @@ override_dh_install-arch:
 		debian/icedove/usr/share/icons/hicolor/48x48/apps/thunderbird.png
 	install -m 644 other-licenses/branding/thunderbird/mailicon256.png \
 		debian/icedove/usr/share/icons/hicolor/256x256/apps/thunderbird.png
+	# install the thunderbird wrapper script
+	install -m 755 debian/thunderbird-wrapper.sh \
+		debian/icedove/usr/bin/thunderbird
 	# remove duplicate .so files in dev package
 	rm debian/icedove-dev/usr/lib/thunderbird-devel/sdk/lib/libxul.so
 	# install apparmor profile
