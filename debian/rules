@@ -77,7 +77,7 @@ override_dh_auto_configure:
 	cp debian/mozconfig.default mozilla/
 	echo 'mk_add_options MOZ_OBJDIR=$(CURDIR)/obj-icedove' >> mozconfig.icedove
 	# configure the various build settings
-	# icedove, thunderbird-dev, calendar-google-provider, iceowl-extension
+	# icedove, thunderbird-dev, calendar-google-provider, lightning
 	make -f client.mk configure
 
 override_dh_auto_build:
@@ -152,21 +152,19 @@ override_dh_install-arch:
 	dh_install
 	# adjust Thunderbird version in pkg-config file
 	sed -i 's/@Version@/$(THUNDERBIRD_VERSION)/' debian/thunderbird-dev/usr/lib/pkgconfig/thunderbird.pc
-	# prepare iceowl-extension
+	# prepare lightning
 	LIGHTNING=`find -type f -name "lightning*.xpi"` &&\
-		unzip -d debian/iceowl-extension/usr/lib/iceowl-extension/ $(CURDIR)/$$LIGHTNING
+		unzip -d debian/lightning/usr/lib/lightning/ $(CURDIR)/$$LIGHTNING
 	# remove executable rights on *.js, *.png, *.xul files
-	find debian/iceowl-extension/ -type f -name "*.js"  -exec chmod 644 {} \;
-	find debian/iceowl-extension/ -type f -name "*.png" -exec chmod 644 {} \;
-	find debian/iceowl-extension/ -type f -name "*.xul" -exec chmod 644 {} \;
-	# moving skins and icon stuff to /usr/share/iceowl-extension/
-	mv debian/iceowl-extension/usr/lib/iceowl-extension/chrome/skin debian/iceowl-extension/usr/share/iceowl-extension/chrome/
-	mv debian/iceowl-extension/usr/lib/iceowl-extension/chrome/icons debian/iceowl-extension/usr/share/iceowl-extension/chrome/
-	cd debian/iceowl-extension/usr/lib/iceowl-extension/chrome && ln -s ../../../share/iceowl-extension/chrome/skin/
-	cd debian/iceowl-extension/usr/lib/iceowl-extension/chrome && ln -s ../../../share/iceowl-extension/chrome/icons/
-	# sometimes there are temporary build files in iceowl-extension
-	@echo "    --> searching for temporary build files in 'iceowl-extension' ..."
-	@for i in `find debian/iceowl-extension/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
+	find debian/lightning/ -type f \( -name "*.js" -o -name "*.png" -o -name "*.xul" \) -exec chmod 644 {} \;
+	# moving skins and icon stuff to /usr/share/lightning/
+	mv debian/lightning/usr/lib/lightning/chrome/skin debian/lightning/usr/share/lightning/chrome/
+	mv debian/lightning/usr/lib/lightning/chrome/icons debian/lightning/usr/share/lightning/chrome/
+	cd debian/lightning/usr/lib/lightning/chrome && ln -s ../../../share/lightning/chrome/skin/
+	cd debian/lightning/usr/lib/lightning/chrome && ln -s ../../../share/lightning/chrome/icons/
+	# sometimes there are temporary build files in lightning
+	@echo "    --> searching for temporary build files in 'lightning' ..."
+	@for i in `find debian/lightning/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
 	# install Icedove menu icon
 	install -d -m 755 debian/icedove/usr/share/pixmaps/
 	install -m 644 debian/icedove.xpm debian/icedove/usr/share/pixmaps/
@@ -227,6 +225,7 @@ override_dh_builddeb:
 		dh_builddeb -picedove ;\
 		dh_builddeb -pthunderbird-dev ;\
 		dh_builddeb -picedove-dev ;\
+		dh_builddeb -plightning ;\
 		dh_builddeb -piceowl-extension ;\
 		dh_builddeb -pcalendar-google-provider ;\
 		for package in `grep -e \
