@@ -15,8 +15,8 @@ if test -e /usr/lib/thunderbird/.autoreg; then
 fi
 
 if [ "$1" = "configure" ] && dpkg --compare-versions "$2" lt "31.0-2"; then
-    symlink_dir "/usr/share/iceowl-extension/chrome/icons" "/usr/lib/iceowl-extension/chrome/icons"
-    symlink_dir "/usr/share/iceowl-extension/chrome/skin" "/usr/lib/iceowl-extension/chrome/skin"
+    symlink_dir "/usr/share/lightning/chrome/icons" "/usr/lib/lightning/chrome/icons"
+    symlink_dir "/usr/share/lightning/chrome/skin" "/usr/lib/lightning/chrome/skin"
 fi
 
 #DEBHELPER#

@@ -253,6 +253,7 @@ Suggests:
  fonts-lyx,
 Provides:
  calendar-timezones,
+ iceowl-extension,
 Breaks:
  calendar-timezones,
  iceowl-extension (<< 1:45.5.1-1.1~),
@@ -277,7 +278,8 @@ Description: Calendar Extension for Thunderbird/Icedove
  Thunderbird/Icedove. It can handle events, event invitations and
  tasks in multiple calendars.
  .
- It supports local calendars, CalDAV and plain ics files on CardDAV and WebDAV.
+ It supports local calendars, CalDAV and plain ics files on WebDAV.
+ This is a transitional package. It can be safely removed.
 
 Package: calendar-google-provider
 Architecture: all
