@@ -8,7 +8,7 @@
 # the icedove-dbg package
 RELEASE := $(shell head -1 debian/changelog | cut -d" " -f3 | tr -d ';')
 
-ICEDOVE_VERSION=$(shell tail -1 mail/config/version.txt)
+THUNDERBIRD_VERSION=$(shell tail -1 mail/config/version.txt)
 DEB_AUTO_UPDATE_AUTOCONF=2.13
 
 # build directory used for building the thunderbird-l10n files
@@ -17,7 +17,7 @@ THUNDERBIRD_L10N_BUILDDIR=debian/thunderbird-l10n-build
 # build directory used for building the lightning-l10n files
 LIGHTNING_L10N_BUILDDIR=debian/lightning-l10n-build
 # Iceowl/Lightning version, note this is different from the TB version!
-LIGHTNING_VERSION := $(shell python $(CURDIR)/calendar/lightning/build/makeversion.py ${ICEDOVE_VERSION})
+LIGHTNING_VERSION := $(shell python $(CURDIR)/calendar/lightning/build/makeversion.py ${THUNDERBIRD_VERSION})
 
 DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
@@ -77,7 +77,7 @@ override_dh_auto_configure:
 	cp debian/mozconfig.default mozilla/
 	echo 'mk_add_options MOZ_OBJDIR=$(CURDIR)/obj-icedove' >> mozconfig.icedove
 	# configure the various build settings
-	# icedove, icedove-dev, calendar-google-provider, iceowl-extension
+	# icedove, thunderbird-dev, calendar-google-provider, iceowl-extension
 	make -f client.mk configure
 
 override_dh_auto_build:
@@ -150,8 +150,8 @@ override_dh_auto_install:
 
 override_dh_install-arch:
 	dh_install
-	# adjust Icedove version in pkg-config file
-	sed -i 's/@Version@/$(ICEDOVE_VERSION)/' debian/icedove-dev/usr/lib/pkgconfig/icedove.pc
+	# adjust Thunderbird version in pkg-config file
+	sed -i 's/@Version@/$(THUNDERBIRD_VERSION)/' debian/thunderbird-dev/usr/lib/pkgconfig/thunderbird.pc
 	# prepare iceowl-extension
 	LIGHTNING=`find -type f -name "lightning*.xpi"` &&\
 		unzip -d debian/iceowl-extension/usr/lib/iceowl-extension/ $(CURDIR)/$$LIGHTNING
@@ -187,7 +187,7 @@ override_dh_install-arch:
 	install -m 755 debian/thunderbird-wrapper.sh \
 		debian/icedove/usr/bin/thunderbird
 	# remove duplicate .so files in dev package
-	rm debian/icedove-dev/usr/lib/thunderbird-devel/sdk/lib/libxul.so
+	rm debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/lib/libxul.so
 	# install apparmor profile
 	cp debian/apparmor/usr.bin.icedove debian/icedove/etc/apparmor.d/usr.bin.icedove
 	dh_apparmor --profile-name=usr.bin.icedove -picedove
@@ -205,11 +205,8 @@ override_dh_install-indep:
 override_dh_fixperms-arch:
 	dh_fixperms
 	chmod a-x debian/thunderbird-dev/usr/share/idl/thunderbird/*.idl
+	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/*.py
 	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/xpcshell
-	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/header.py
-	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/typelib.py
-	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/xpidl.py
-	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/xpt.py
 
 override_dh_strip:
 	if [ "$(RELEASE)" != "UNRELEASED" ]; then \
@@ -228,6 +225,7 @@ override_dh_builddeb:
 		dh_builddeb ;\
 	else \
 		dh_builddeb -picedove ;\
+		dh_builddeb -pthunderbird-dev ;\
 		dh_builddeb -picedove-dev ;\
 		dh_builddeb -piceowl-extension ;\
 		dh_builddeb -pcalendar-google-provider ;\
