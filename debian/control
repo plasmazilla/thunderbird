@@ -63,7 +63,7 @@ Depends:
  ${misc:Depends},
  ${shlibs:Depends},
 Recommends:
- iceowl-extension (= ${binary:Version}),
+ lightning (= ${binary:Version}),
  myspell-en-us | hunspell-dictionary | myspell-dictionary,
 Suggests:
  apparmor,
@@ -96,7 +96,7 @@ Breaks:
  hunspell-uz (<< 0.6-3.1),
  hunspell-vi (<< 1:3.1.0-3),
  icedove-gnome-support (<< 3.0-1~),
- iceowl-extension (<< ${binary:Version}),
+ lightning (<< ${binary:Version}),
  myspell-af (<< 1:3.1.0-3),
  myspell-ca (<< 0.6-8),
  myspell-cs-cz (<< 20040229-4.1),
@@ -242,7 +242,7 @@ Description: Debug Symbols for Icedove
  crash.
  This is a transitional package. It can be safely removed.
 
-Package: iceowl-extension
+Package: lightning
 Architecture: any
 Depends:
  icedove (>= ${binary:Version}),
@@ -277,19 +277,19 @@ Description: Calendar Extension for Thunderbird/Icedove
  Thunderbird/Icedove. It can handle events, event invitations and
  tasks in multiple calendars.
  .
- It supports local calendars, CalDAV and plain ics files on WebDAV.
+ It supports local calendars, CalDAV and plain ics files on CardDAV and WebDAV.
 
 Package: calendar-google-provider
 Architecture: all
 Depends:
- iceowl-extension (>= ${binary:Version}),
+ lightning (>= ${binary:Version}),
  ${misc:Depends},
 Enhances:
  icedove,
- iceowl-extension,
-Description: Google Calendar support for lightning- and iceowl-extension
+ lightning,
+Description: Google Calendar support for lightning
  This extension adds support for accessing google calendars in Icedove
- via iceowl-extension.
+ via lightning.
  .
  It's a recommended component if you want to connect Icedove to your
  Google calendar.
@@ -2471,8 +2471,8 @@ Package: lightning-l10n-ar
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-ar,
@@ -2487,14 +2487,14 @@ Description: Arabic language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Arabian.
+ This package contains the localization of lightning in Arabian.
 
 Package: lightning-l10n-be
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-be,
@@ -2509,14 +2509,14 @@ Description: Belarusian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Belarusian.
+ This package contains the localization of lightning in Belarusian.
 
 Package: lightning-l10n-bg
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-bg | myspell-bg,
@@ -2531,14 +2531,14 @@ Description: Bulgarian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Bulgarian.
+ This package contains the localization of lightning in Bulgarian.
 
 Package: lightning-l10n-bn-bd
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-bn,
@@ -2553,15 +2553,14 @@ Description: Bengali (Bangladesh) language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in
- Bengali/Bangladesh.
+ This package contains the localization of lightning in Bengali/Bangladesh.
 
 Package: lightning-l10n-br
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-br,
@@ -2576,14 +2575,14 @@ Description: Breton language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Breton.
+ This package contains the localization of lightning in Breton.
 
 Package: lightning-l10n-ca
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-ca | myspell-ca,
@@ -2598,15 +2597,14 @@ Description: Catalan/Valencian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in
- Catalan/Valencian.
+ This package contains the localization of lightning in Catalan/Valencian.
 
 Package: lightning-l10n-cs
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-cs | myspell-cs-cz,
@@ -2621,14 +2619,14 @@ Description: Czech language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Czech.
+ This package contains the localization of lightning in Czech.
 
 Package: lightning-l10n-cy
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-cy (<< 1:45.5.1-1.1~),
@@ -2641,14 +2639,14 @@ Description: Welsh language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Welsh.
+ This package contains the localization of lightning in Welsh.
 
 Package: lightning-l10n-da
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  myspell-da | hunspell-da,
@@ -2663,14 +2661,14 @@ Description: Danish language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Danish.
+ This package contains the localization of lightning in Danish.
 
 Package: lightning-l10n-de
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-de-de | hunspell-de-at | hunspell-de-ch | myspell-de-de | myspell-de-at | myspell-de-ch,
@@ -2685,14 +2683,14 @@ Description: German language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in German.
+ This package contains the localization of lightning in German.
 
 Package: lightning-l10n-el
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-el | myspell-el-gr,
@@ -2707,14 +2705,14 @@ Description: Greek language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Greek.
+ This package contains the localization of lightning in Greek.
 
 Package: lightning-l10n-es-ar
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-es | myspell-es,
@@ -2729,15 +2727,14 @@ Description: Spanish (Argentina) language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in
- Spanish (Argentina).
+ This package contains the localization of lightning in Spanish (Argentina).
 
 Package: lightning-l10n-es-es
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-es | myspell-es,
@@ -2752,14 +2749,14 @@ Description: Spanish (Spain) language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Spanish (Spain).
+ This package contains the localization of lightning in Spanish (Spain).
 
 Package: lightning-l10n-en-gb
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-en-gb | hunspell-en-au | hunspell-en-ca | hunspell-en-za,
@@ -2774,14 +2771,14 @@ Description: British English language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in British English.
+ This package contains the localization of lightning in British English.
 
 Package: lightning-l10n-et
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  myspell-et,
@@ -2796,14 +2793,14 @@ Description: Estonian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Estonian.
+ This package contains the localization of lightning in Estonian.
 
 Package: lightning-l10n-eu
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-eu,
@@ -2818,14 +2815,14 @@ Description: Basque language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Basque.
+ This package contains the localization of lightning in Basque.
 
 Package: lightning-l10n-fi
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  myspell-fi,
@@ -2841,14 +2838,14 @@ Description: Finnish language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Finnish.
+ This package contains the localization of lightning in Finnish.
 
 Package: lightning-l10n-fr
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-fr | myspell-fr | myspell-fr-gut,
@@ -2863,14 +2860,14 @@ Description: French language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in French.
+ This package contains the localization of lightning in French.
 
 Package: lightning-l10n-fy-nl
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-fy-nl (<< 1:45.5.1-1.1~),
@@ -2883,14 +2880,14 @@ Description: Western Frisian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Western Frisian.
+ This package contains the localization of lightning in Western Frisian.
 
 Package: lightning-l10n-ga-ie
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-ga-ie (<< 1:45.5.1-1.1~),
@@ -2903,14 +2900,14 @@ Description: Irish (Ireland) language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Irish (Ireland).
+ This package contains the localization of lightning in Irish (Ireland).
 
 Package: lightning-l10n-gd
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-gd,
@@ -2925,14 +2922,14 @@ Description: Scottish Gaelic language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Scottish Gaelic.
+ This package contains the localization of lightning in Scottish Gaelic.
 
 Package: lightning-l10n-gl
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-gl | hunspell-gl-es,
@@ -2947,14 +2944,14 @@ Description: Galician language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Galician.
+ This package contains the localization of lightning in Galician.
 
 Package: lightning-l10n-he
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-he | myspell-he,
@@ -2969,14 +2966,14 @@ Description: Hebrew language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Hebrew.
+ This package contains the localization of lightning in Hebrew.
 
 Package: lightning-l10n-hr
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-hr | myspell-hr,
@@ -2991,14 +2988,14 @@ Description: Croatian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Croatian.
+ This package contains the localization of lightning in Croatian.
 
 Package: lightning-l10n-hu
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-hu | myspell-hu,
@@ -3013,14 +3010,14 @@ Description: Hungarian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Hungarian.
+ This package contains the localization of lightning in Hungarian.
 
 Package: lightning-l10n-hy-am
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  myspell-hy,
@@ -3035,15 +3032,14 @@ Description: Armenian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in
- Armenian (Armenia).
+ This package contains the localization of lightning in Armenian (Armenia).
 
 Package: lightning-l10n-id
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-id (<< 1:45.5.1-1.1~),
@@ -3056,14 +3052,14 @@ Description: Indonesian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Indonesian.
+ This package contains the localization of lightning in Indonesian.
 
 Package: lightning-l10n-is
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-is,
@@ -3078,14 +3074,14 @@ Description: Icelandic language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Icelandic.
+ This package contains the localization of lightning in Icelandic.
 
 Package: lightning-l10n-it
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-it | myspell-it,
@@ -3100,14 +3096,14 @@ Description: Italian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Italian.
+ This package contains the localization of lightning in Italian.
 
 Package: lightning-l10n-ja
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-ja (<< 1:45.5.1-1.1~),
@@ -3120,14 +3116,14 @@ Description: Japanese language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Japanese.
+ This package contains the localization of lightning in Japanese.
 
 Package: lightning-l10n-ko
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-ko,
@@ -3142,14 +3138,14 @@ Description: Korean language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Korean.
+ This package contains the localization of lightning in Korean.
 
 Package: lightning-l10n-lt
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-lt | myspell-lt,
@@ -3164,14 +3160,14 @@ Description: Lithuanian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Lithuanian.
+ This package contains the localization of lightning in Lithuanian.
 
 Package: lightning-l10n-nb-no
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-no | myspell-nb,
@@ -3186,15 +3182,14 @@ Description: Bokmaal (Norway) language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Bokmaal
- (Norway).
+ This package contains the localization of lightning in Bokmaal (Norway).
 
 Package: lightning-l10n-nl
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-nl | myspell-nl,
@@ -3209,14 +3204,14 @@ Description: Dutch language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Dutch.
+ This package contains the localization of lightning in Dutch.
 
 Package: lightning-l10n-nn-no
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-no | myspell-nn,
@@ -3231,15 +3226,14 @@ Description: Nynorsk (Norway) language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Nynorsk
- (Norway).
+ This package contains the localization of lightning in Nynorsk (Norway).
 
 Package: lightning-l10n-pa-in
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-pa-in (<< 1:45.5.1-1.1~),
@@ -3252,14 +3246,14 @@ Description: Punjabi language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Punjabi (India).
+ This package contains the localization of lightning in Punjabi (India).
 
 Package: lightning-l10n-pl
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-pl | myspell-pl,
@@ -3274,14 +3268,14 @@ Description: Polish language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Polish.
+ This package contains the localization of lightning in Polish.
 
 Package: lightning-l10n-pt-br
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-pt-br | myspell-pt-br | myspell-pt,
@@ -3296,15 +3290,14 @@ Description: Portuguese (Brazil) language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Portuguese
- (Brazil).
+ This package contains the localization of lightning in Portuguese (Brazil).
 
 Package: lightning-l10n-pt-pt
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-pt-pt | myspell-pt-pt | myspell-pt,
@@ -3319,15 +3312,14 @@ Description: Portuguese (Portugal) language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Portuguese
- (Portugal).
+ This package contains the localization of lightning in Portuguese (Portugal).
 
 Package: lightning-l10n-rm
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-rm (<< 1:45.5.1-1.1~),
@@ -3340,14 +3332,14 @@ Description: Romansh language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Romansh.
+ This package contains the localization of lightning in Romansh.
 
 Package: lightning-l10n-ro
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-ro,
@@ -3362,14 +3354,14 @@ Description: Romanian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Romanian.
+ This package contains the localization of lightning in Romanian.
 
 Package: lightning-l10n-ru
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-ru | myspell-ru,
@@ -3384,14 +3376,14 @@ Description: Russian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Russian.
+ This package contains the localization of lightning in Russian.
 
 Package: lightning-l10n-si
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-si,
@@ -3406,14 +3398,14 @@ Description: Sinhala language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Sinhala.
+ This package contains the localization of lightning in Sinhala.
 
 Package: lightning-l10n-sk
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-sk | myspell-sk,
@@ -3428,14 +3420,14 @@ Description: Slovak language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Slovak.
+ This package contains the localization of lightning in Slovak.
 
 Package: lightning-l10n-sl
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-sl | myspell-sl,
@@ -3450,14 +3442,14 @@ Description: Slovenian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Slovenian.
+ This package contains the localization of lightning in Slovenian.
 
 Package: lightning-l10n-sr
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-sr,
@@ -3472,14 +3464,14 @@ Description: Serbian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Serbian.
+ This package contains the localization of lightning in Serbian.
 
 Package: lightning-l10n-sq
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-sq (<< 1:45.5.1-1.1~),
@@ -3492,14 +3484,14 @@ Description: Albanian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Albanian.
+ This package contains the localization of lightning in Albanian.
 
 Package: lightning-l10n-sv-se
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-sv | myspell-sv-se,
@@ -3514,14 +3506,14 @@ Description: Swedish language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Swedish (Sweden).
+ This package contains the localization of lightning in Swedish (Sweden).
 
 Package: lightning-l10n-ta-lk
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-ta-lk (<< 1:45.5.1-1.1~),
@@ -3534,15 +3526,14 @@ Description: Tamil language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in
- Tamil (Sri Lanka).
+ This package contains the localization of lightning in Tamil (Sri Lanka).
 
 Package: lightning-l10n-tr
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-tr (<< 1:45.5.1-1.1~),
@@ -3555,14 +3546,14 @@ Description: Turkish language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Turkish.
+ This package contains the localization of lightning in Turkish.
 
 Package: lightning-l10n-uk
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-uk | myspell-uk,
@@ -3577,14 +3568,14 @@ Description: Ukrainian language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Ukrainian.
+ This package contains the localization of lightning in Ukrainian.
 
 Package: lightning-l10n-vi
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Recommends:
  hunspell-vi,
@@ -3599,14 +3590,14 @@ Description: Vietnamese language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Vietnamese.
+ This package contains the localization of lightning in Vietnamese.
 
 Package: lightning-l10n-zh-cn
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-zh-cn (<< 1:45.5.1-1.1~),
@@ -3619,14 +3610,14 @@ Description: Chinese (China) language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Chinese (China).
+ This package contains the localization of lightning in Chinese (China).
 
 Package: lightning-l10n-zh-tw
 Architecture: all
 Section: localization
 Depends:
- iceowl-extension (<< ${source:Version}.1~),
- iceowl-extension (>= ${source:Version}),
+ lightning (<< ${source:Version}.1~),
+ lightning (>= ${source:Version}),
  ${misc:Depends},
 Replaces:
  iceowl-l10n-zh-tw (<< 1:45.5.1-1.1~),
@@ -3639,7 +3630,7 @@ Description: Chinese (Taiwan) language package for lightning
  It's goal is to integrate a Calendar and Task application using the XUL
  user interface language.
  .
- This package contains the localization of iceowl-extension in Chinese
+ This package contains the localization of lightning in Chinese
  (Taiwan).
 
 Package: iceowl-l10n-ar
