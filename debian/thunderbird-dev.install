@@ -1,4 +1,4 @@
-debian/icedove.pc                                     usr/lib/pkgconfig/
+debian/thunderbird.pc                                 usr/lib/pkgconfig/
 debian/tmp/usr/include/thunderbird/*                  usr/include/thunderbird/
 debian/tmp/usr/lib/thunderbird-devel                  usr/lib/
 debian/tmp/usr/share/idl/thunderbird/*                usr/share/idl/thunderbird/
