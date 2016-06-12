@@ -204,6 +204,12 @@ Section: debug
 Depends:
  icedove (= ${binary:Version}),
  ${misc:Depends},
+Replaces:
+ icedove-dbg (<< 1:45.5.1-1.1~),
+Breaks:
+ icedove-dbg (<< 1:45.5.1-1.1~),
+Provides:
+ icedove-dbg,
 Description: Debug Symbols for Thunderbird
  Thunderbird is an mail client suitable for free distribution. The goal of
  Thunderbird is to produce a cross platform stand-alone mail application using
@@ -216,6 +222,25 @@ Description: Debug Symbols for Thunderbird
  This package contains the debug symbols for Thunderbird. Install this package
  if you need to debug such a program or if you need a useful backtrace of a
  crash.
+
+Package: icedove-dbg
+Architecture: all
+Priority: extra
+Section: oldlibs
+Depends:
+ thunderbird-dbg,
+ ${misc:Depends},
+Description: Debug Symbols for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free
+ distribution. It supports different mail accounts (POP, IMAP, Gmail), has an
+ integrated learning Spam filter, and offers easy organization of mails with
+ tagging and virtual folders. Also, more features can be added by installing
+ extensions.
+ .
+ This package contains the debug symbols for Icedove. Install this package if
+ you need to debug such a program or if you need a useful backtrace of a
+ crash.
+ This is a transitional package. It can be safely removed.
 
 Package: iceowl-extension
 Architecture: any
