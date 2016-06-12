@@ -161,6 +161,12 @@ Depends:
  python,
  ${misc:Depends},
  ${shlibs:Depends},
+Replaces:
+ icedove-dev (<< 1:45.5.1-1.1~),
+Breaks:
+ icedove-dev (<< 1:45.5.1-1.1~),
+Provides:
+ icedove-dev,
 Description: Development files for Thunderbird
  Thunderbird is an mail client suitable for free distribution. The goal of
  Thunderbird is to produce a cross platform stand-alone mail application using
@@ -172,6 +178,24 @@ Description: Development files for Thunderbird
  .
  This package contains the development headers, idl files and static libraries
  needed to develop applications using Thunderbird.
+
+Package: icedove-dev
+Architecture: all
+Section: oldlibs
+Priority: extra
+Depends:
+ thunderbird-dev,
+ ${misc:Depends},
+Description: Development files for Icedove
+ Icedove is an unbranded Thunderbird mail client suitable for free
+ distribution. It supports different mail accounts (POP, IMAP, Gmail), has an
+ integrated learning Spam filter, and offers easy organization of mails with
+ tagging and virtual folders. Also, more features can be added by installing
+ extensions.
+ .
+ This package contains the development headers, idl files and static libraries
+ needed to develop applications using Icedove.
+ This is a transitional package. It can be safely removed.
 
 Package: icedove-dbg
 Architecture: any
