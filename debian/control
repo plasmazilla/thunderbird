@@ -54,7 +54,7 @@ Homepage: http://www.mozilla.org/thunderbird/
 X-Debian-Homepage: http://wiki.debian.org/Icedove
 Standards-Version: 3.9.8
 
-Package: icedove
+Package: thunderbird
 Architecture: any
 Depends:
  debianutils (>= 1.16),
@@ -142,20 +142,22 @@ Breaks:
  myspell-tl (<< 0.4-0-5),
  xul-ext-compactheader (<< 2.1.0~),
  xul-ext-foxyproxy-standard (<< 4.5.6-debian-2~),
-Description: mail/news client with RSS and integrated spam filter support
- Icedove is an unbranded Thunderbird mail client suitable for free
- distribution. It supports different mail accounts (POP, IMAP, Gmail), has an
- integrated learning Spam filter, and offers easy organization of mails with
- tagging and virtual folders. Also, more features can be added by installing
- extensions.
+Description: mail/news client with RSS, chat and integrated spam filter support
+ Thunderbird is an mail client suitable for free distribution. The goal of
+ Thunderbird is to produce a cross platform stand-alone mail application using
+ the XUL user interface language.
+ It supports different mail accounts, no matter of the used protocol like
+ POP(s) or IMAP(s), has an integrated learning Spam filter, and offers easy
+ organization of mails with tagging and virtual folders. Also, more features
+ can be added by installing extensions.
  .
- The goal of Icedove is to produce a cross platform standalone mail application
- using the XUL user interface language.
+ The goal of Thunderbird is to produce a cross platform standalone mail
+ application using the XUL user interface language.
 
 Package: thunderbird-dev
 Architecture: any
 Depends:
- icedove (= ${binary:Version}),
+ thunderbird (= ${binary:Version}),
  libnspr4-dev,
  libnss3-dev,
  python,
@@ -202,7 +204,7 @@ Architecture: any
 Priority: extra
 Section: debug
 Depends:
- icedove (= ${binary:Version}),
+ thunderbird (= ${binary:Version}),
  ${misc:Depends},
 Replaces:
  icedove-dbg (<< 1:45.5.1-1.1~),
@@ -245,7 +247,7 @@ Description: Debug Symbols for Icedove
 Package: lightning
 Architecture: any
 Depends:
- icedove (>= ${binary:Version}),
+ thunderbird (>= ${binary:Version}),
  ${misc:Depends},
  ${shlibs:Depends},
 Suggests:
@@ -373,8 +375,8 @@ Package: thunderbird-l10n-ar
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ar
 Recommends:
@@ -396,8 +398,8 @@ Package: thunderbird-l10n-ast
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ast
 Replaces:
@@ -417,8 +419,8 @@ Package: thunderbird-l10n-be
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:be
 Recommends:
@@ -440,8 +442,8 @@ Package: thunderbird-l10n-bg
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:bg
 Recommends:
@@ -463,8 +465,8 @@ Package: thunderbird-l10n-bn-bd
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:bd-BD
 Recommends:
@@ -486,8 +488,8 @@ Package: thunderbird-l10n-br
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:br
 Recommends:
@@ -509,8 +511,8 @@ Package: thunderbird-l10n-ca
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ca
 Recommends:
@@ -532,8 +534,8 @@ Package: thunderbird-l10n-cs
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:cs
 Recommends:
@@ -555,8 +557,8 @@ Package: thunderbird-l10n-da
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:da
 Recommends:
@@ -578,8 +580,8 @@ Package: thunderbird-l10n-de
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:de
 Recommends:
@@ -601,8 +603,8 @@ Package: thunderbird-l10n-el
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:el
 Recommends:
@@ -624,8 +626,8 @@ Package: thunderbird-l10n-en-gb
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:en-GB
 Recommends:
@@ -648,8 +650,8 @@ Package: thunderbird-l10n-es-ar
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:es-AR
 Recommends:
@@ -671,8 +673,8 @@ Package: thunderbird-l10n-es-es
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:es-ES
 Recommends:
@@ -694,8 +696,8 @@ Package: thunderbird-l10n-et
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:et
 Recommends:
@@ -717,8 +719,8 @@ Package: thunderbird-l10n-eu
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:eu
 Recommends:
@@ -740,8 +742,8 @@ Package: thunderbird-l10n-fi
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:fi
 Recommends:
@@ -764,8 +766,8 @@ Package: thunderbird-l10n-fr
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:fr
 Recommends:
@@ -787,8 +789,8 @@ Package: thunderbird-l10n-fy-nl
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:fy-NL
 Replaces:
@@ -808,8 +810,8 @@ Package: thunderbird-l10n-ga-ie
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ga-IE
 Replaces:
@@ -829,8 +831,8 @@ Package: thunderbird-l10n-gd
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:gd
 Recommends:
@@ -852,8 +854,8 @@ Package: thunderbird-l10n-gl
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:gl
 Recommends:
@@ -875,8 +877,8 @@ Package: thunderbird-l10n-he
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:he
 Recommends:
@@ -898,8 +900,8 @@ Package: thunderbird-l10n-hr
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:hr
 Recommends:
@@ -921,8 +923,8 @@ Package: thunderbird-l10n-hu
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:hu
 Recommends:
@@ -944,8 +946,8 @@ Package: thunderbird-l10n-hy-am
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:hy-AM
 Recommends:
@@ -967,8 +969,8 @@ Package: thunderbird-l10n-id
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:id
 Replaces:
@@ -988,8 +990,8 @@ Package: thunderbird-l10n-is
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:is
 Recommends:
@@ -1011,8 +1013,8 @@ Package: thunderbird-l10n-it
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:it
 Recommends:
@@ -1034,8 +1036,8 @@ Package: thunderbird-l10n-ja
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ja
 Replaces:
@@ -1055,8 +1057,8 @@ Package: thunderbird-l10n-ko
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ko
 Recommends:
@@ -1078,8 +1080,8 @@ Package: thunderbird-l10n-lt
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:lt
 Recommends:
@@ -1101,8 +1103,8 @@ Package: thunderbird-l10n-nb-no
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:nb-NO
 Recommends:
@@ -1124,8 +1126,8 @@ Package: thunderbird-l10n-nl
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:nl
 Recommends:
@@ -1147,8 +1149,8 @@ Package: thunderbird-l10n-nn-no
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:nn-NO
 Recommends:
@@ -1170,8 +1172,8 @@ Package: thunderbird-l10n-pa-in
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:pa
 Replaces:
@@ -1191,8 +1193,8 @@ Package: thunderbird-l10n-pl
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:pl
 Recommends:
@@ -1214,8 +1216,8 @@ Package: thunderbird-l10n-pt-br
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:pt-BR
 Recommends:
@@ -1237,8 +1239,8 @@ Package: thunderbird-l10n-pt-pt
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:pt-PT
 Recommends:
@@ -1260,8 +1262,8 @@ Package: thunderbird-l10n-rm
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:rm
 Replaces:
@@ -1281,8 +1283,8 @@ Package: thunderbird-l10n-ro
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ro
 Recommends:
@@ -1304,8 +1306,8 @@ Package: thunderbird-l10n-ru
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ru
 Recommends:
@@ -1327,8 +1329,8 @@ Package: thunderbird-l10n-si
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:si
 Recommends:
@@ -1350,8 +1352,8 @@ Package: thunderbird-l10n-sk
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:sk
 Recommends:
@@ -1373,8 +1375,8 @@ Package: thunderbird-l10n-sl
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:sl
 Recommends:
@@ -1396,8 +1398,8 @@ Package: thunderbird-l10n-sq
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:sq
 Replaces:
@@ -1417,8 +1419,8 @@ Package: thunderbird-l10n-sr
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:sr
 Recommends:
@@ -1440,8 +1442,8 @@ Package: thunderbird-l10n-sv-se
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:sv-SE
 Recommends:
@@ -1463,8 +1465,8 @@ Package: thunderbird-l10n-ta-lk
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:ta-LK
 Replaces:
@@ -1484,8 +1486,8 @@ Package: thunderbird-l10n-tr
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:tr
 Replaces:
@@ -1505,8 +1507,8 @@ Package: thunderbird-l10n-uk
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:uk
 Recommends:
@@ -1528,8 +1530,8 @@ Package: thunderbird-l10n-vi
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:vi
 Recommends:
@@ -1551,8 +1553,8 @@ Package: thunderbird-l10n-zh-cn
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:zh-CN
 Replaces:
@@ -1572,8 +1574,8 @@ Package: thunderbird-l10n-zh-tw
 Architecture: all
 Section: localization
 Depends:
- icedove (<< ${source:Version}.1~),
- icedove (>= ${source:Version}),
+ thunderbird (<< ${source:Version}.1~),
+ thunderbird (>= ${source:Version}),
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:zh-TW
 Replaces:
