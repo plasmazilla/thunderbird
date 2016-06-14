@@ -2,15 +2,15 @@
 // You can make any change in here, it is the purpose of this file.
 // You can, with this file and all files present in the directory
 //
-//      /etc/icedove/pref directory
+//      /etc/thunderbird/pref directory
 //
 // override any preference that is present in the directory
 //
-//      /usr/lib/icedove/defaults/pref
+//      /usr/lib/thunderbird/defaults/pref
 //
 // While your changes will be kept on upgrade if you modify files in
-// /etc/icedove/pref, please note that they won't be kept if you
-// do them in /usr/lib/icedove/defaults/pref.
+// /etc/thunderbird/pref, please note that they won't be kept if you
+// do them in /usr/lib/thunderbird/defaults/pref.
 
 pref("extensions.update.enabled", true);
 

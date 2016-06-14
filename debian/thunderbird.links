@@ -1,4 +1,4 @@
-/etc/icedove/pref                usr/share/thunderbird/defaults/syspref
+/etc/thunderbird/pref            usr/share/thunderbird/defaults/syspref
 /usr/share/hunspell              usr/lib/thunderbird/dictionaries
 # don't link /usr/bin/thunderbird -> /usr/lib/thunderbird/thunderbird
 # we need to use a wrapper for Icedove user profile migration
