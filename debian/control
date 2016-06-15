@@ -72,11 +72,14 @@ Suggests:
  ${gnome:Depends},
 Provides:
  mail-reader,
+ icedove,
 Xb-Xul-AppId: {3550f703-e582-4d05-9a08-453d09bdfdc6}
 Replaces:
+ icedove (<< 1:45.5.1-1.1~),
  icedove-gnome-support (<< 3.0-1~),
 Breaks:
  enigmail (<< 2:1.8),
+ icedove (<< 1:45.5.1-1.1~),
  hunspell-ar (<< 0.0.0+20080110-1.1),
  hunspell-da (<< 1:3.1.0-3),
  hunspell-de-at (<< 20071211-2),
@@ -153,6 +156,24 @@ Description: mail/news client with RSS, chat and integrated spam filter support
  .
  The goal of Thunderbird is to produce a cross platform standalone mail
  application using the XUL user interface language.
+
+Package: icedove
+Architecture: all
+Section: oldlibs
+Priority: extra
+Depends:
+ thunderbird,
+ ${misc:Depends},
+Description: mail/news client with RSS and integrated spam filter support
+ Icedove is an unbranded Thunderbird mail client suitable for free
+ distribution. It supports different mail accounts (POP, IMAP, Gmail), has an
+ integrated learning Spam filter, and offers easy organization of mails with
+ tagging and virtual folders. Also, more features can be added by installing
+ extensions.
+ .
+ The goal of Icedove is to produce a cross platform standalone mail application
+ using the XUL user interface language.
+ This is a transitional package. It can be safely removed.
 
 Package: thunderbird-dev
 Architecture: any
