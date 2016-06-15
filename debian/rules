@@ -43,7 +43,7 @@ LDFLAGS += -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
 LDFLAGS += -Wl,--stats
 
 export MOZ_BUILD_DATE := $(shell TZ=UTC date -d "$(shell dpkg-parsechangelog -S Date)" +%Y%m%d%H%M%S)
-export MOZCONFIG=$(shell pwd)/mozconfig.icedove
+export MOZCONFIG=$(shell pwd)/mozconfig.thunderbird
 export MOZILLA_OFFICIAL=1
 export DEB_BUILD_GNU_TYPE
 export DEB_HOST_GNU_TYPE
@@ -56,7 +56,7 @@ build:
 	dh $@
 
 override_dh_auto_clean:
-	dh_auto_clean --builddirectory=obj-icedove
+	dh_auto_clean --builddirectory=obj-thunderbird
 	# needed for thunderbird-l10n
 	rm -rf $(THUNDERBIRD_L10N_BUILDDIR)
 	# needed for lightning-l10n
@@ -75,9 +75,9 @@ override_dh_auto_configure:
 	# copy the mozconfig files
 	cp debian/mozconfig.* .
 	cp debian/mozconfig.default mozilla/
-	echo 'mk_add_options MOZ_OBJDIR=$(CURDIR)/obj-icedove' >> mozconfig.icedove
+	echo 'mk_add_options MOZ_OBJDIR=$(CURDIR)/obj-thunderbird' >> mozconfig.thunderbird
 	# configure the various build settings
-	# icedove, thunderbird-dev, calendar-google-provider, lightning
+	# thunderbird, thunderbird-dev, calendar-google-provider, lightning
 	make -f client.mk configure
 
 override_dh_auto_build:
@@ -165,25 +165,26 @@ override_dh_install-arch:
 	# sometimes there are temporary build files in lightning
 	@echo "    --> searching for temporary build files in 'lightning' ..."
 	@for i in `find debian/lightning/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
+	# !!! This is obsolete! !!!
 	# install Icedove menu icon
-	install -d -m 755 debian/icedove/usr/share/pixmaps/
-	install -m 644 debian/icedove.xpm debian/icedove/usr/share/pixmaps/
-	# install Icedove icons
+	#install -d -m 755 debian/icedove/usr/share/pixmaps/
+	#install -m 644 debian/icedove.xpm debian/icedove/usr/share/pixmaps/
+	# install Thunderbird icons
 	install -m 644 other-licenses/branding/thunderbird/mailicon16.png \
-		debian/icedove/usr/share/icons/hicolor/16x16/apps/thunderbird.png
+		debian/thunderbird/usr/share/icons/hicolor/16x16/apps/thunderbird.png
 	install -m 644 other-licenses/branding/thunderbird/mailicon22.png \
-		debian/icedove/usr/share/icons/hicolor/22x22/apps/thunderbird.png
+		debian/thunderbird/usr/share/icons/hicolor/22x22/apps/thunderbird.png
 	install -m 644 other-licenses/branding/thunderbird/mailicon24.png \
-		debian/icedove/usr/share/icons/hicolor/24x24/apps/thunderbird.png
+		debian/thunderbird/usr/share/icons/hicolor/24x24/apps/thunderbird.png
 	install -m 644 other-licenses/branding/thunderbird/mailicon32.png \
-		debian/icedove/usr/share/icons/hicolor/32x32/apps/thunderbird.png
+		debian/thunderbird/usr/share/icons/hicolor/32x32/apps/thunderbird.png
 	install -m 644 other-licenses/branding/thunderbird/mailicon48.png \
-		debian/icedove/usr/share/icons/hicolor/48x48/apps/thunderbird.png
+		debian/thunderbird/usr/share/icons/hicolor/48x48/apps/thunderbird.png
 	install -m 644 other-licenses/branding/thunderbird/mailicon256.png \
-		debian/icedove/usr/share/icons/hicolor/256x256/apps/thunderbird.png
+		debian/thunderbird/usr/share/icons/hicolor/256x256/apps/thunderbird.png
 	# install the thunderbird wrapper script
 	install -m 755 debian/thunderbird-wrapper.sh \
-		debian/icedove/usr/bin/thunderbird
+		debian/thunderbird/usr/bin/thunderbird
 	# remove duplicate .so files in dev package
 	rm debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/lib/libxul.so
 	# install apparmor profile
@@ -222,6 +223,7 @@ override_dh_builddeb:
 	if [ "$(RELEASE)" != "UNRELEASED" ]; then \
 		dh_builddeb ;\
 	else \
+		dh_builddeb -pthunderbird ;\
 		dh_builddeb -picedove ;\
 		dh_builddeb -pthunderbird-dev ;\
 		dh_builddeb -picedove-dev ;\
