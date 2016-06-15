@@ -310,13 +310,13 @@ Depends:
  lightning (>= ${binary:Version}),
  ${misc:Depends},
 Enhances:
- icedove,
+ thunderbird,
  lightning,
 Description: Google Calendar support for lightning
- This extension adds support for accessing google calendars in Icedove
+ This extension adds support for accessing google calendars in Thunderbird
  via lightning.
  .
- It's a recommended component if you want to connect Icedove to your
+ It's a recommended component if you want to connect Thunderbird to your
  Google calendar.
 
 Package: thunderbird-l10n-all
