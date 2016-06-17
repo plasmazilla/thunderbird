@@ -17,7 +17,7 @@ const URIS = [
 
 const TOPIC_CONNECTION_CLOSED = "places-connection-closed";
 
-let EXPECTED_NOTIFICATIONS = [
+var EXPECTED_NOTIFICATIONS = [
   "places-shutdown"
 , "places-will-close-connection"
 , "places-expiration-finished"
@@ -30,9 +30,9 @@ const UNEXPECTED_NOTIFICATIONS = [
 
 const URL = "ftp://localhost/clearHistoryOnShutdown/";
 
-let notificationIndex = 0;
+var notificationIndex = 0;
 
-let notificationsObserver = {
+var notificationsObserver = {
   observe: function observe(aSubject, aTopic, aData) {
     print("Received notification: " + aTopic);
 
@@ -46,7 +46,7 @@ let notificationsObserver = {
       return;
 
     getDistinctNotifications().forEach(
-      function (topic) Services.obs.removeObserver(notificationsObserver, topic)
+      topic => Services.obs.removeObserver(notificationsObserver, topic)
     );
 
     print("Looking for uncleared stuff.");
@@ -70,7 +70,7 @@ let notificationsObserver = {
   }
 }
 
-let timeInMicroseconds = Date.now() * 1000;
+var timeInMicroseconds = Date.now() * 1000;
 
 function run_test() {
   run_next_test();
@@ -112,7 +112,7 @@ function run_test_continue()
 {
   print("Simulate and wait shutdown.");
   getDistinctNotifications().forEach(
-    function (topic)
+    topic =>
       Services.obs.addObserver(notificationsObserver, topic, false)
   );
 

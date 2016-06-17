@@ -1,0 +1,37 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:26 +0200
+Subject: Brand-fr
+
+---
+ iceowl-l10n/fr/locale/fr/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/fr/locale/fr/lightning/lightning.properties b/iceowl-l10n/fr/locale/fr/lightning/lightning.properties
+index 1afcf4e..387b71f 100644
+--- a/iceowl-l10n/fr/locale/fr/lightning/lightning.properties
++++ b/iceowl-l10n/fr/locale/fr/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Un agenda intégré pour Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Un agenda intégré pour Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Projet Mozilla Calendar
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Tâches
+@@ -122,7 +122,7 @@ imipBarUpdateText=Ce message contient une mise à jour pour un évènement exist
+ imipBarAlreadyProcessedText=Ce message contient un évènement qui a déjà été traité.
+ imipBarProcessedNeedsAction=Ce message contient un évènement auquel vous n'avez pas encore répondu.
+ imipBarReplyText=Ce message contient une réponse à une invitation.
+-imipBarUnsupportedText=Ce message contient un évènement que cette version de Lightning ne peut pas traiter.
++imipBarUnsupportedText=Ce message contient un évènement que cette version de Iceowl ne peut pas traiter.
+ imipBarProcessingFailed=Le traitement du message a échoué. État : %1$S.
+ imipBarNotWritable=Aucun agenda disponible à l'écriture n'est configuré pour les invitations, veuillez vérifier les propriétés de l'agenda.
+ imipSendMail.title=Notification par courrier électronique

@@ -10,10 +10,10 @@ endif
 # included to get $(BUILDID), which needs $(MOZILLA_DIR)
 include $(topsrcdir)/toolkit/mozapps/installer/package-name.mk
 
-BUILD_YEAR := $(shell echo $(BUILDID) | cut -c 1-4)
-BUILD_MONTH := $(shell echo $(BUILDID) | cut -c 5-6)
-BUILD_DAY := $(shell echo $(BUILDID) | cut -c 7-8)
-BUILD_HOUR := $(shell echo $(BUILDID) | cut -c 9-10)
+BUILD_YEAR = $(shell echo $(BUILDID) | cut -c 1-4)
+BUILD_MONTH = $(shell echo $(BUILDID) | cut -c 5-6)
+BUILD_DAY = $(shell echo $(BUILDID) | cut -c 7-8)
+BUILD_HOUR = $(shell echo $(BUILDID) | cut -c 9-10)
 
 ifndef PKG_SUFFIX
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
@@ -22,7 +22,7 @@ else
 ifeq ($(OS_ARCH),WINNT)
 PKG_SUFFIX = .zip
 else
-ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
+ifdef MOZ_WIDGET_GTK
 PKG_SUFFIX = .tar.bz2
 else
 PKG_SUFFIX = .tar.gz
@@ -94,7 +94,7 @@ ifdef LIST_PREVIOUS_MAR_CMD
 		mkdir -p $(PREVIOUS_MAR_DIR)/$(buildid) ; \
 	        $(DOWNLOAD_MAR_CMD) ; \
 		echo "$(MAR_FILE_DEST),$(DIST)/$(COMPLETE_MAR),$(DIST)/$(PKG_UPDATE_PATH)$(PKG_UPDATE_BASENAME).partial.from-$(buildid).mar,$(FORCE_UPDATE)" >> $(PATCH_FILE) ;))))
-	PATH="$(realpath $(LIBXUL_DIST)/host/bin):$(PATH)" $(PYTHON) $(topsrcdir)/tools/update-packaging/make_incremental_updates.py -f $(PATCH_FILE)
+	PATH="$(realpath $(DIST)/host/bin):$(PATH)" $(PYTHON) $(topsrcdir)/tools/update-packaging/make_incremental_updates.py -f $(PATCH_FILE)
 endif
 endif
 ifdef SYMBOL_SERVER_HOST

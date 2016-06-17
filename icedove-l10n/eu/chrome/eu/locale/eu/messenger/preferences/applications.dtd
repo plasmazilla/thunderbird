@@ -1,0 +1,38 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY  typeColumn.label            "Eduki mota">
+<!ENTITY  typeColumn.accesskey        "t">
+
+<!ENTITY  actionColumn2.label         "Ekintza">
+<!ENTITY  actionColumn2.accesskey     "a">
+
+<!ENTITY  focusSearch1.key            "f">
+<!ENTITY  focusSearch2.key            "k">
+
+<!ENTITY  filter.placeholder          "Bilatu">
+
+<!ENTITY saveTo.label                 "Gorde fitxategiak hemen:">
+<!ENTITY saveTo.accesskey             "G">
+<!ENTITY alwaysAsk.label              "Beti galdetu niri fitxategiak non  gorde">
+<!ENTITY alwaysAsk.accesskey          "B">
+<!ENTITY chooseFolderWin.label        "Arakatu…">
+<!ENTITY chooseFolderWin.accesskey    "A">
+<!ENTITY chooseFolderMac.label        "Hautatu…">
+<!ENTITY chooseFolderMac.accesskey    "H">
+
+<!ENTITY attachments.incoming.label   "Sarrerakoa">
+<!ENTITY attachments.outgoing.label   "Irteerakoa">
+
+<!ENTITY addCloudFileAccount.label        "Gehitu">
+<!ENTITY addCloudFileAccount.accesskey    "G">
+<!ENTITY addCloudFileAccount.description  "Gehitu Filelink biltegiratze-zerbitzu berri bat">
+<!ENTITY removeCloudFileAccount.label     "Kendu">
+<!ENTITY removeCloudFileAccount.accesskey "K">
+<!ENTITY authRequired.description         "Beharrezkoa da zure baimena biltegiratze-zerbitzu honen ezarpenak ikusteko.">
+<!ENTITY authRequired.button.label        "Baimendu">
+<!ENTITY authRequired.button.accesskey    "a">
+
+<!ENTITY enableCloudFileAccountOffer.label "Eskaini partekatzea hau baino handiagoak diren fitxategientzat:">
+<!ENTITY enableCloudFileAccountOffer.mb "MB">

@@ -425,7 +425,7 @@ var PlacesOrganizer = {
    */
   restoreBookmarksFromFile: function PO_restoreBookmarksFromFile(aFile) {
     // check file extension
-    if (!/\.json(?:lz4)?$/.test(aFile.leafName)) {
+    if (!/\.json(?:lz4)?$/i.test(aFile.leafName)) {
       this._showErrorAlert(PlacesUIUtils.getString("bookmarksRestoreFormatError"));
       return;
     }
@@ -517,7 +517,7 @@ var PlacesOrganizer = {
         infoBox.setAttribute("minimal", "true");
       infoBox.removeAttribute("wasminimal");
       infoBoxExpanderWrapper.hidden =
-        this._additionalInfoFields.every(function (id)
+        this._additionalInfoFields.every(id =>
           document.getElementById(id).collapsed);
     }
     additionalInfoBroadcaster.hidden = infoBox.getAttribute("minimal") == "true";

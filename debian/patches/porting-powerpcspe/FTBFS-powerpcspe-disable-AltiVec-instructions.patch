@@ -18,10 +18,10 @@ Closes: #772933
  2 files changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/mozilla/gfx/qcms/moz.build b/mozilla/gfx/qcms/moz.build
-index 268c604..fde06de 100644
+index a67a46b..38fbbe8 100644
 --- a/mozilla/gfx/qcms/moz.build
 +++ b/mozilla/gfx/qcms/moz.build
-@@ -38,6 +38,10 @@ elif 'ppc' in CONFIG['CPU_ARCH']:
+@@ -36,6 +36,10 @@ elif 'ppc' in CONFIG['CPU_ARCH']:
      if CONFIG['GNU_CC']:
          use_altivec = True
  
@@ -33,7 +33,7 @@ index 268c604..fde06de 100644
      SOURCES += ['transform-sse1.c']
      SOURCES['transform-sse1.c'].flags += CONFIG['SSE_FLAGS']
 diff --git a/mozilla/gfx/qcms/transform.c b/mozilla/gfx/qcms/transform.c
-index f7bade6..d28b444 100644
+index bafdcef..481bd34 100644
 --- a/mozilla/gfx/qcms/transform.c
 +++ b/mozilla/gfx/qcms/transform.c
 @@ -1296,7 +1296,7 @@ qcms_transform* qcms_transform_create(

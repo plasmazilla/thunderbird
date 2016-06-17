@@ -7,9 +7,9 @@
  * with no accounts created.
  */
 
-let MODULE_NAME = "test-main-menu-collapsed";
-let RELATIVE_ROOT = "../shared-modules";
-let MODULE_REQUIRES = ["folder-display-helpers",
+var MODULE_NAME = "test-main-menu-collapsed";
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers",
                        "window-helpers"];
 
 function setupModule(module) {
@@ -37,7 +37,7 @@ function test_main_menu_collapsed() {
   close_window(wizard);
 
   // Spin the event loop until mail-startup-done is fired.
-  mc.waitFor(function () done);
+  mc.waitFor(() => done);
 
   let mainMenu = mc.e("mail-toolbar-menubar2");
   assert_equals(mainMenu.getAttribute("autohide"), "true",

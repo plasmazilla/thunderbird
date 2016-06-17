@@ -22,7 +22,7 @@ index ae6dbd2..f71d848 100644
      <em:description>An integrated calendar for Thunderbird</em:description>
  #ifdef LIGHTNING_PRERELEASE_VERSION
 diff --git a/calendar/locales/en-US/chrome/calendar/timezones.properties b/calendar/locales/en-US/chrome/calendar/timezones.properties
-index 882cc70..8b395bd 100644
+index f15d3ab..ee96858 100644
 --- a/calendar/locales/en-US/chrome/calendar/timezones.properties
 +++ b/calendar/locales/en-US/chrome/calendar/timezones.properties
 @@ -4,7 +4,7 @@
@@ -35,7 +35,7 @@ index 882cc70..8b395bd 100644
  
  pref.timezone.floating=Local Time
 diff --git a/calendar/locales/en-US/chrome/lightning/lightning.properties b/calendar/locales/en-US/chrome/lightning/lightning.properties
-index 78b15b6..6bf260f 100644
+index 3c61d82..2089f1c 100644
 --- a/calendar/locales/en-US/chrome/lightning/lightning.properties
 +++ b/calendar/locales/en-US/chrome/lightning/lightning.properties
 @@ -3,12 +3,12 @@

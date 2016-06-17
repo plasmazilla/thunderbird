@@ -105,6 +105,7 @@
     <command id="cmd_deleteFolder" oncommand="goDoCommand('cmd_deleteFolder')"/>
     <command id="cmd_renameFolder" oncommand="goDoCommand('cmd_renameFolder')" />
     <command id="cmd_sendUnsentMsgs" oncommand="goDoCommand('cmd_sendUnsentMsgs')" />
+    <command id="cmd_subscribe" oncommand="goDoCommand('cmd_subscribe')" disabled="true"/>
     <command id="cmd_synchronizeOffline" oncommand="goDoCommand('cmd_synchronizeOffline')" disabled="true"/>
     <command id="cmd_downloadFlagged" oncommand="goDoCommand('cmd_downloadFlagged')" disabled="true"/>
     <command id="cmd_downloadSelected" oncommand="goDoCommand('cmd_downloadSelected')" disabled="true"/>
@@ -152,7 +153,8 @@
      <command id="cmd_fullZoomReset"
               oncommand="goDoCommand('cmd_fullZoomReset');"/>
      <command id="cmd_fullZoomToggle"
-              oncommand="goDoCommand('cmd_fullZoomToggle');"/>
+              oncommand="goDoCommand('cmd_fullZoomToggle');"
+              checked="false"/>
    </commandset>
 </commandset>
 
@@ -1015,6 +1017,10 @@
               accesskey="&editRemoteContentSettingsUnix.accesskey;"
 #endif
               oncommand="editRemoteContentSettings();"/>
+    <menuseparator id="remoteContentOriginsMenuSeparator"/>
+    <menuseparator id="remoteContentAllMenuSeparator"/>
+    <menuitem id="remoteContentOptionAllowAll"
+              oncommand="allowRemoteContentForAll(this.parentNode);"/>
   </menupopup>
 
   <menupopup id="phishingOptions">
@@ -1033,6 +1039,7 @@
               oncommand="OpenPhishingSettings();"/>
   </menupopup>
 
+<!-- Used by messenger.xul and messageWindow.xul -->
 <popupset id="mainPopupSet">
   <menupopup id="appmenu-popup"
              onpopupshowing="initAppMenuPopup(this, event);">
@@ -1406,7 +1413,7 @@
                       command="cmd_sendUnsentMsgs"/>
             <menuitem id="appmenu_subscribe"
                       label="&subscribeCmd.label;"
-                      oncommand="MsgSubscribe();"/>
+                      command="cmd_subscribe"/>
             <menuseparator id="appmenu_fileMenuAfterSubscribeSeparator"/>
             <menuitem id="appmenu_deleteFolder"
                       label="&deleteFolder.label;"
@@ -1487,6 +1494,11 @@
                           name="sortby"
                           label="&sortByRecipientCmd.label;"
                           oncommand="MsgSortThreadPane('byRecipient')"/>
+                <menuitem id="appmenu_sortByCorrespondentMenuitem"
+                          type="radio"
+                          name="sortby"
+                          label="&sortByCorrespondentCmd.label;"
+                          oncommand="MsgSortThreadPane('byCorrespondent')"/>
                 <menuitem id="appmenu_sortBySizeMenuitem"
                           type="radio"
                           name="sortby"
@@ -1752,8 +1764,8 @@
             <menu id="appmenu_charsetMenu"
                   onpopupshowing="UpdateCharsetMenu(msgWindow.mailCharacterSet, this);"
                   oncommand="MailSetCharacterSet(event)"
-                  label="&charsetMenu.label;"
-                  accesskey="&charsetMenu.accesskey;">
+                  label="&charsetMenu2.label;"
+                  accesskey="&charsetMenu2.accesskey;">
               <menupopup id="appmenu_charsetPopup"
                          onpopupshowing="CharsetMenu.build(this, true, this.getAttribute('detectors') != 'false');"/>
             </menu>
@@ -2127,6 +2139,55 @@
       </vbox>
     </hbox>
   </menupopup>
+
+  <menupopup id="emailAddressPopup" position="after_start" class="emailAddressPopup"
+             onpopupshowing="setupEmailAddressPopup(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup')); goUpdateCommand('cmd_createFilterFromPopup')"
+             onpopuphiding="hideEmailNewsPopup(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'));">
+    <menuitem id="emailAddressPlaceHolder"
+              disabled="true"/>
+    <menuseparator/>
+    <menuitem id="addToAddressBookItem"
+              label="&AddDirectlyToAddressBook.label;"
+              accesskey="&AddDirectlyToAddressBook.accesskey;"
+              oncommand="AddContact(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
+    <menuitem id="editContactItem" label="&EditContact1.label;" hidden="true"
+              accesskey="&EditContact1.accesskey;"
+              oncommand="EditContact(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
+    <menuitem id="viewContactItem" label="&ViewContact.label;" hidden="true"
+              accesskey="&ViewContact.accesskey;"
+              oncommand="EditContact(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
+    <menuitem id="sendMailToItem" label="&SendMessageTo.label;"
+              accesskey="&SendMessageTo.accesskey;"
+              oncommand="SendMailToNode(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'), event)"/>
+    <menuitem id="copyEmailAddressItem" label="&CopyEmailAddress.label;"
+              accesskey="&CopyEmailAddress.accesskey;"
+              oncommand="CopyEmailNewsAddress(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'))"/>
+    <menuitem id="copyNameAndEmailAddressItem" label="&CopyNameAndEmailAddress.label;"
+              accesskey="&CopyNameAndEmailAddress.accesskey;"
+              oncommand="CopyEmailNewsAddress(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'), true)"/>
+    <menuseparator/>
+    <menuitem id="createFilterFromItem" label="&CreateFilterFrom.label;"
+              accesskey="&CreateFilterFrom.accesskey;"
+              oncommand="CreateFilter(findEmailNodeFromPopupNode(document.popupNode, 'emailAddressPopup'), gMessageDisplay.displayedMessage)"
+              observes="cmd_createFilterFromPopup"/>
+  </menupopup>
+
+  <menupopup id="copyPopup">
+    <menuitem id="copyMenuitem"
+              label="&copyCmd.label;"
+              accesskey="&copyCmd.accesskey;"
+              tooltiptext="&copyCmd.label;"
+              oncommand="Components.classes['@mozilla.org/widget/clipboardhelper;1']
+                         .getService(Components.interfaces.nsIClipboardHelper)
+                         .copyString(window.getSelection().isCollapsed ?
+                             document.popupNode.textContent :
+                             window.getSelection().toString());"/>
+    <menuitem id="createFilterFromMenuItem" label="&CreateFilterFrom.label;"
+              accesskey="&CreateFilterFrom.accesskey;"
+              oncommand="CreateFilter(this.parentNode.triggerNode.parentNode, gMessageDisplay.displayedMessage)"
+              observes="cmd_createFilterFromPopup"/>
+  </menupopup>
+
 </popupset>
 
 <!-- The reason we put the menubar inside a toolbox is due to the labelalign and
@@ -2242,7 +2303,7 @@
           <menuitem id="menu_sendunsentmsgs" label="&sendUnsentCmd.label;"
                     accesskey="&sendUnsentCmd.accesskey;" command="cmd_sendUnsentMsgs"/>
           <menuitem id="menu_subscribe" label="&subscribeCmd.label;"
-                    accesskey="&subscribeCmd.accesskey;" oncommand="MsgSubscribe();"/>
+                    accesskey="&subscribeCmd.accesskey;" command="cmd_subscribe"/>
           <menuseparator id="fileMenuAfterSubscribeSeparator"/>
           <menuitem id="menu_deleteFolder" label="&deleteFolder.label;"
                  accesskey="&deleteFolder.accesskey;"
@@ -2432,6 +2493,7 @@
             <menuitem id="sortByPriorityMenuitem" type="radio" name="sortby" label="&sortByPriorityCmd.label;" accesskey="&sortByPriorityCmd.accesskey;" oncommand="MsgSortThreadPane('byPriority')"/>
             <menuitem id="sortByFromMenuitem" type="radio" name="sortby" label="&sortByFromCmd.label;" accesskey="&sortByFromCmd.accesskey;" oncommand="MsgSortThreadPane('byAuthor')"/>
             <menuitem id="sortByRecipientMenuitem" type="radio" name="sortby" label="&sortByRecipientCmd.label;" accesskey="&sortByRecipientCmd.accesskey;" oncommand="MsgSortThreadPane('byRecipient')"/>
+            <menuitem id="sortByCorrespondentMenuitem" type="radio" name="sortby" label="&sortByCorrespondentCmd.label;" accesskey="&sortByCorrespondentCmd.accesskey;" oncommand="MsgSortThreadPane('byCorrespondent')"/>
             <menuitem id="sortBySizeMenuitem" type="radio" name="sortby" label="&sortBySizeCmd.label;" accesskey="&sortBySizeCmd.accesskey;" oncommand="MsgSortThreadPane('bySize')"/>
             <menuitem id="sortByStatusMenuitem" type="radio" name="sortby" label="&sortByStatusCmd.label;" accesskey="&sortByStatusCmd.accesskey;" oncommand="MsgSortThreadPane('byStatus')"/>
             <menuitem id="sortBySubjectMenuitem" type="radio" name="sortby" label="&sortBySubjectCmd.label;" accesskey="&sortBySubjectCmd.accesskey;" oncommand="MsgSortThreadPane('bySubject')"/>

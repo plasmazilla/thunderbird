@@ -1,0 +1,44 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!-- Subscription Dialog -->
+<!ENTITY feedSubscriptions.label     "Suscripciones a canales">
+<!ENTITY learnMore.label             "Conocer más acerca de los canales">
+
+<!ENTITY feedTitle.label             "Título:">
+<!ENTITY feedTitle.accesskey         "T">
+
+<!ENTITY feedLocation.label          "URL del canal:">
+<!ENTITY feedLocation.accesskey      "U">
+<!ENTITY feedLocation.placeholder    "Ingrese una dirección de canal valida para agregar">
+
+<!ENTITY feedFolder.label            "Almacenar los artículos en:">
+<!ENTITY feedFolder.accesskey        "s">
+
+<!ENTITY quickMode.label             "Mostrar el resumen del artículo en vez de cargar la página web">
+<!ENTITY quickMode.accesskey         "M">
+
+<!ENTITY autotagEnable.label         "Crear etiquetas automáticamentes de los nombres de &lt;categoría&gt; del canal">
+<!ENTITY autotagEnable.accesskey     "C">
+<!ENTITY autotagUsePrefix.label      "Anteponer etiquetas con:">
+<!ENTITY autotagUsePrefix.accesskey  "p">
+<!ENTITY autoTagPrefix.placeholder   "Ingrese un prefijo de etiqueta">
+
+<!ENTITY locationValidate.label      "Validar">
+<!ENTITY validateText.label          "Verificar validación y recuperar una dirección válida.">
+
+<!ENTITY button.addFeed.label        "Agregar">
+<!ENTITY button.addFeed.accesskey    "A">
+<!ENTITY button.editFeed.label       "Editar">
+<!ENTITY button.editFeed.accesskey   "E">
+<!ENTITY button.removeFeed.label     "Eliminar">
+<!ENTITY button.removeFeed.accesskey "r">
+<!ENTITY button.importOPML.label     "Importar">
+<!ENTITY button.importOPML.accesskey "I">
+<!ENTITY button.exportOPML.label     "Exportar">
+<!ENTITY button.exportOPML.accesskey "x">
+<!ENTITY button.exportOPML.tooltip   "Exportar canales con estructura de carpetas; ctrl clic o ctrl intro para exportar canales como una lista">
+
+<!ENTITY cmd.close.commandKey        "w">
+<!ENTITY button.close.label          "Cerrar">

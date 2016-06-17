@@ -1,4 +1,3 @@
-no_tooltool=1
 . $topsrcdir/build/unix/mozconfig.linux
 
 ac_add_options --enable-application=mail
@@ -9,18 +8,16 @@ ac_add_options --with-l10n-base=../../l10n
 # Build lightning locales
 ac_add_options --enable-calendar
 
-# Temporary options until bug 794378 is fixed
-ac_add_options --enable-gnomevfs
-ac_add_options --disable-gio
-
 # Needed to enable breakpad in application.ini
 export MOZILLA_OFFICIAL=1
 
 # For NSS symbols
 export MOZ_DEBUG_SYMBOLS=1
 
-# Use ccache
-ac_add_options --with-ccache=/usr/bin/ccache
+# Disable checking that add-ons are signed by the trusted root
+MOZ_ADDON_SIGNING=0
+# Disable enforcing that add-ons are signed by the trusted root
+MOZ_REQUIRE_ADDON_SIGNING=0
 
 ac_add_options --disable-stdcxx-compat
 

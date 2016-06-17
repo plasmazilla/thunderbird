@@ -1,0 +1,43 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<!-- Subscription Dialog -->
+
+<!ENTITY feedSubscriptions.label     "Jario harpidetzak">
+<!ENTITY learnMore.label             "Jarioei buruzko argibide gehiago">
+
+<!ENTITY feedTitle.label             "Izenburua:">
+<!ENTITY feedTitle.accesskey         "I">
+
+<!ENTITY feedLocation.label          "Jarioaren URLa:">
+<!ENTITY feedLocation.accesskey      "U">
+<!ENTITY feedLocation.placeholder    "Sartu gehitzeko baliozko jario URLa">
+<!ENTITY locationValidate.label      "Balidatu">
+<!ENTITY validateText.label          "Egiaztatu balidazioa eta eskuratu baliozko URLa.">
+
+<!ENTITY feedFolder.label            "Gorde artikuluak hemen:">
+<!ENTITY feedFolder.accesskey        "G">
+
+<!ENTITY quickMode.label             "Erakutsi artikuluaren laburpena web orrialdea kargatu ordez">
+<!ENTITY quickMode.accesskey         "E">
+
+<!ENTITY autotagEnable.label         "Sortu etiketak automatikoki &lt;kategorien&gt; izenetatik">
+<!ENTITY autotagEnable.accesskey     "m">
+<!ENTITY autotagUsePrefix.label      "Erabili aurrizkia etiketentzat:">
+<!ENTITY autotagUsePrefix.accesskey  "z">
+<!ENTITY autoTagPrefix.placeholder   "Sartu etiketaren aurrizkia">
+
+<!ENTITY button.addFeed.label        "Gehitu">
+<!ENTITY button.addFeed.accesskey    "G">
+<!ENTITY button.editFeed.label       "Editatu">
+<!ENTITY button.editFeed.accesskey   "E">
+<!ENTITY button.removeFeed.label     "Ezabatu">
+<!ENTITY button.removeFeed.accesskey "z">
+<!ENTITY button.importOPML.label     "Inportatu">
+<!ENTITY button.importOPML.accesskey "I">
+<!ENTITY button.exportOPML.label     "Esportatu">
+<!ENTITY button.exportOPML.accesskey "s">
+<!ENTITY button.exportOPML.tooltip   "Esportatu jarioak karpeta-egiturarekin; ktrl-klik edo ktrl-sartu jarioak zerrenda gisa esportatzeko">
+
+<!ENTITY cmd.close.commandKey        "w">
+<!ENTITY button.close.label          "Itxi">

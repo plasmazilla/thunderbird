@@ -8,10 +8,10 @@
 
 // make SOLO_TEST=composition/test-reply-signature.js mozmill-one
 
-const MODULE_NAME = "test-reply-signature";
+var MODULE_NAME = "test-reply-signature";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers", "compose-helpers", "window-helpers",
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers", "compose-helpers", "window-helpers",
                          "message-helpers"];
 var jumlib = {};
 Components.utils.import("resource://mozmill/modules/jum.js", jumlib);
@@ -19,7 +19,7 @@ var elib = {};
 Components.utils.import("resource://mozmill/modules/elementslib.js", elib);
 Components.utils.import("resource://gre/modules/Services.jsm");
 
-const sig = "roses are red";
+var sig = "roses are red";
 var folder;
 
 function setupModule(module) {
@@ -94,10 +94,10 @@ function check_sig_strip_works(aRow, aShouldStrip) {
   let rwc = open_compose_with_reply();
   let body = get_compose_body(rwc);
 
-  if (aShouldStrip && body.textContent.contains(sig)) {
+  if (aShouldStrip && body.textContent.includes(sig)) {
     throw new Error("signature was not stripped; body=" + body.textContent);
   }
-  else if (!aShouldStrip && !body.textContent.contains(sig)) {
+  else if (!aShouldStrip && !body.textContent.includes(sig)) {
     throw new Error("signature stripped; body=" + body.textContent);
   }
   close_compose_window(rwc);

@@ -8,7 +8,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=444440
  1 file changed, 4 insertions(+)
 
 diff --git a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
-index 08fde90..5aad5a9 100644
+index caac2ff..54b17c9 100644
 --- a/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
 +++ b/mozilla/uriloader/exthandler/unix/nsMIMEInfoUnix.cpp
 @@ -89,6 +89,10 @@ nsMIMEInfoUnix::LaunchDefaultWithFile(nsIFile *aFile)

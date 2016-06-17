@@ -2,9 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = [];
+this.EXPORTED_SYMBOLS = [];
 
-const {classes: Cc, interfaces: Ci, utils: Cu, Constructor: CC} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu, Constructor: CC} = Components;
 
 Cu.import("resource:///modules/gloda/public.js");
 Cu.import("resource:///modules/gloda/datamodel.js");
@@ -23,20 +23,20 @@ XPCOMUtils.defineLazyModuleGetter(this, "AsyncShutdown",
 XPCOMUtils.defineLazyModuleGetter(this, "GlodaDatastore",
                                   "resource:///modules/gloda/datastore.js");
 
-const kCacheFileName = "indexedFiles.json";
+var kCacheFileName = "indexedFiles.json";
 
-const FileInputStream = CC("@mozilla.org/network/file-input-stream;1",
+var FileInputStream = CC("@mozilla.org/network/file-input-stream;1",
                            "nsIFileInputStream",
                            "init");
-const ScriptableInputStream = CC("@mozilla.org/scriptableinputstream;1",
+var ScriptableInputStream = CC("@mozilla.org/scriptableinputstream;1",
                                  "nsIScriptableInputStream",
                                  "init");
 
 // kIndexingDelay is how long we wait from the point of scheduling an indexing
 // job to actually carrying it out.
-const kIndexingDelay = 5000; // in milliseconds
+var kIndexingDelay = 5000; // in milliseconds
 
-XPCOMUtils.defineLazyGetter(this, "MailFolder", function()
+XPCOMUtils.defineLazyGetter(this, "MailFolder", () =>
   Cc["@mozilla.org/rdf/resource-factory;1?name=mailbox"].createInstance(Ci.nsIMsgFolder)
 );
 
@@ -54,10 +54,10 @@ function GlodaIMConversation(aTitle, aTime, aPath, aContent)
   this._content = aContent;
 }
 GlodaIMConversation.prototype = {
-  get title() this._title,
-  get time() this._time,
-  get path() this._path,
-  get content() this._content,
+  get title() { return this._title; },
+  get time() { return this._time; },
+  get path() { return this._path; },
+  get content() { return this._content; },
 
   // for glodaFacetBindings.xml compatibility (pretend we are a message object)
   get account() {
@@ -81,9 +81,9 @@ GlodaIMConversation.prototype = {
     // The IM conversation is probably for an account that no longer exists.
     return null;
   },
-  get subject() this._title,
-  get date() new Date(this._time * 1000),
-  get involves() Gloda.IGNORE_FACET,
+  get subject() { return this._title; },
+  get date() { return new Date(this._time * 1000); },
+  get involves() { return Gloda.IGNORE_FACET; },
   _recipients: null,
   get recipients() {
     if (!this._recipients)
@@ -101,15 +101,15 @@ GlodaIMConversation.prototype = {
     }
     return this._from;
   },
-  get tags() [],
-  get starred() false,
-  get attachmentNames() null,
-  get indexedBodyText() this._content,
-  get read() true,
-  get folder() Gloda.IGNORE_FACET,
+  get tags() { return []; },
+  get starred() { return false; },
+  get attachmentNames() { return null; },
+  get indexedBodyText() { return this._content; },
+  get read() { return true; },
+  get folder() { return Gloda.IGNORE_FACET; },
 
   // for glodaFacetView.js _removeDupes
-  get headerMessageID() this.id
+  get headerMessageID() { return this.id; }
 };
 
 // FIXME
@@ -155,7 +155,7 @@ IMConversationNoun.objFromRow = function(aRow) {
   return conv;
 };
 
-const EXT_NAME = "im";
+var EXT_NAME = "im";
 
 // --- special (on-row) attributes
 Gloda.defineAttribute({
@@ -353,7 +353,7 @@ var GlodaIMIndexer = {
       this._knownConversations[convId] = {
         id: convId,
         scheduledIndex: null,
-        logFile: null,
+        logFileCount: null,
         convObj: {}
       };
     }
@@ -377,24 +377,26 @@ var GlodaIMIndexer = {
       this._knownConversations[convId] = {
         id: convId,
         scheduledIndex: null,
-        logFile: null,
+        logFileCount: null,
         convObj: {}
       };
     }
 
     let conv = this._knownConversations[convId];
     Task.spawn(function* () {
-      if (!conv.logFile) {
-        let logFile =
-          yield Services.logs.getLogPathForConversation(aConversation);
-        if (!logFile) {
-          // Log file doesn't exist yet, nothing to do!
-          return;
-        }
+      // We need to get the log files every time, because a new log file might
+      // have been started since we last got them.
+      let logFiles =
+        yield Services.logs.getLogPathsForConversation(aConversation);
+      if (!logFiles.length) {
+        // No log files exist yet, nothing to do!
+        return;
+      }
 
-        // We initialize the _knownFiles tree path for the current file below in
+      if (conv.logFileCount == undefined) {
+        // We initialize the _knownFiles tree path for the current files below in
         // case it doesn't already exist.
-        let folder = OS.Path.dirname(logFile);
+        let folder = OS.Path.dirname(logFiles[0]);
         let convName = OS.Path.basename(folder);
         folder = OS.Path.dirname(folder);
         let accountName = OS.Path.basename(folder);
@@ -409,33 +411,43 @@ var GlodaIMIndexer = {
         if (!Object.prototype.hasOwnProperty.call(accountObj, convName))
           accountObj[convName] = {};
 
-        conv.logFile = logFile;
         // convObj is the penultimate level of the tree,
         // maps file name -> last modified time
         conv.convObj = accountObj[convName];
+        conv.logFileCount = 0;
       }
 
-      let logPath = conv.logFile;
-      let fileName = OS.Path.basename(logPath);
-      let lastModifiedTime =
-        (yield OS.File.stat(logPath)).lastModificationDate.valueOf();
-      if (Object.prototype.hasOwnProperty.call(conv.convObj, fileName) &&
-          conv.convObj[fileName] == lastModifiedTime) {
-        // The file hasn't changed since we last indexed it, so we're done.
-        return;
+      // The last log file in the array is the one currently being written to.
+      // When new log files are started, we want to finish indexing the previous
+      // one as well as index the new ones. The index of the previous one is
+      // conv.logFiles.length - 1, so we slice from there. This gives us all new
+      // log files even if there are multiple new ones.
+      let currentLogFiles = conv.logFileCount > 1 ?
+                            logFiles.slice(conv.logFileCount - 1) :
+                            logFiles;
+      for (let logFile of currentLogFiles) {
+        let fileName = OS.Path.basename(logFile);
+        let lastModifiedTime =
+          (yield OS.File.stat(logFile)).lastModificationDate.valueOf();
+        if (Object.prototype.hasOwnProperty.call(conv.convObj, fileName) &&
+            conv.convObj[fileName] == lastModifiedTime) {
+          // The file hasn't changed since we last indexed it, so we're done.
+          continue;
+        }
+
+        if (this._indexingJobPromise)
+          yield this._indexingJobPromise;
+        this._indexingJobPromise = new Promise(aResolve => {
+          this._indexingJobCallbacks.set(convId, aResolve);
+        });
+
+        let job = new IndexingJob("indexIMConversation", null);
+        job.conversation = conv;
+        job.path = logFile;
+        job.lastModifiedTime = lastModifiedTime;
+        GlodaIndexer.indexJob(job);
       }
-
-      if (this._indexingJobPromise)
-        yield this._indexingJobPromise;
-      this._indexingJobPromise = new Promise(aResolve => {
-        this._indexingJobCallbacks.set(convId, aResolve);
-      });
-
-      let job = new IndexingJob("indexIMConversation", null);
-      job.conversation = conv;
-      job.path = logPath;
-      job.lastModifiedTime = lastModifiedTime;
-      GlodaIndexer.indexJob(job);
+      conv.logFileCount = logFiles.length;
     }.bind(this)).catch(Components.utils.reportError);
 
     // Now clear the job, so we can index in the future.
@@ -530,6 +542,12 @@ var GlodaIMIndexer = {
     });
   },
 
+  // Get the path of a log file relative to the logs directory - the last 4
+  // components of the path.
+  _getRelativePath: function(aLogPath) {
+    return OS.Path.split(aLogPath).components.slice(-4).join("/");
+  },
+
   /* aGlodaConv is an optional inout param that lets the caller save and reuse
    * the GlodaIMConversation instance created when the conversation is indexed
    * the first time. After a conversation is indexed for the first time,
@@ -570,9 +588,7 @@ var GlodaIMIndexer = {
       glodaConv._content = content;
     }
     else {
-      // Get the path of the file relative to the logs directory - the last 4
-      // components of the path.
-      let relativePath = OS.Path.split(aLogPath).components.slice(-4).join("/");
+      let relativePath = this._getRelativePath(aLogPath);
       glodaConv = new GlodaIMConversation(logConv.title, log.time, relativePath, content);
       // If we've indexed this file before, we need the id of the existing
       // gloda conversation so that the existing entry gets updated. This can
@@ -601,7 +617,9 @@ var GlodaIMIndexer = {
 
   _worker_indexIMConversation: function(aJob, aCallbackHandle) {
     let glodaConv = {};
-    if (aJob.conversation.glodaConv)
+    let existingGlodaConv = aJob.conversation.glodaConv;
+    if (existingGlodaConv &&
+        existingGlodaConv.path == this._getRelativePath(aJob.path))
       glodaConv.value = aJob.conversation.glodaConv;
 
     // indexIMConversation may initiate an async grokNounItem sub-job.

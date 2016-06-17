@@ -21,6 +21,7 @@
 #include "mozITXTToHTMLConv.h"
 #include "nsIAbManager.h"
 
+#include "nsVariant.h"
 #include "nsIProperty.h"
 #include "nsCOMArray.h"
 #include "nsArrayEnumerator.h"
@@ -231,18 +232,13 @@ nsAbSimpleProperty::GetValue(nsIVariant* *aValue)
     return NS_OK;
 }
 
-static PLDHashOperator
-PropertyHashToArrayFunc (const nsACString &aKey, nsIVariant* aData, void *userArg)
-{
-  nsCOMArray<nsIProperty>* propertyArray = static_cast<nsCOMArray<nsIProperty> *>(userArg);
-  propertyArray->AppendObject(new nsAbSimpleProperty(aKey, aData));
-  return PL_DHASH_NEXT;
-}
-
 NS_IMETHODIMP nsAbCardProperty::GetProperties(nsISimpleEnumerator **props)
 {
   nsCOMArray<nsIProperty> propertyArray(m_properties.Count());
-  m_properties.EnumerateRead(PropertyHashToArrayFunc, &propertyArray);
+  for (auto iter = m_properties.Iter(); !iter.Done(); iter.Next()) {
+    propertyArray.AppendObject(new nsAbSimpleProperty(iter.Key(),
+                                                      iter.UserData()));
+  }
   return NS_NewArrayEnumerator(props, propertyArray);
 }
 
@@ -301,7 +297,7 @@ NS_IMETHODIMP nsAbCardProperty::SetPropertyAsAString(const char *name, const nsA
 {
   NS_ENSURE_ARG_POINTER(name);
 
-  nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
+  nsCOMPtr<nsIWritableVariant> variant = new nsVariant();
   variant->SetAsAString(value);
   m_properties.Put(nsDependentCString(name), variant);
   return NS_OK;
@@ -311,7 +307,7 @@ NS_IMETHODIMP nsAbCardProperty::SetPropertyAsAUTF8String(const char *name, const
 {
   NS_ENSURE_ARG_POINTER(name);
 
-  nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
+  nsCOMPtr<nsIWritableVariant> variant = new nsVariant();
   variant->SetAsAUTF8String(value);
   m_properties.Put(nsDependentCString(name), variant);
   return NS_OK;
@@ -321,7 +317,7 @@ NS_IMETHODIMP nsAbCardProperty::SetPropertyAsUint32(const char *name, uint32_t v
 {
   NS_ENSURE_ARG_POINTER(name);
 
-  nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
+  nsCOMPtr<nsIWritableVariant> variant = new nsVariant();
   variant->SetAsUint32(value);
   m_properties.Put(nsDependentCString(name), variant);
   return NS_OK;
@@ -331,7 +327,7 @@ NS_IMETHODIMP nsAbCardProperty::SetPropertyAsBool(const char *name, bool value)
 {
   NS_ENSURE_ARG_POINTER(name);
 
-  nsCOMPtr<nsIWritableVariant> variant = do_CreateInstance(NS_VARIANT_CONTRACTID);
+  nsCOMPtr<nsIWritableVariant> variant = new nsVariant();
   variant->SetAsBool(value);
   m_properties.Put(nsDependentCString(name), variant);
   return NS_OK;
@@ -701,6 +697,7 @@ nsresult nsAbCardProperty::ConvertToEscapedVCard(nsACString &aResult)
 
     if (!vCardHasData) {
         aResult.Truncate();
+        cleanVObject(vObj);
         return NS_OK;
     }
 

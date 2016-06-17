@@ -120,7 +120,7 @@ NS_IMETHODIMP nsMsgSearchSession::UnregisterListener(nsIMsgSearchNotify *aListen
     // Removal of something at a higher index than the iterator does not affect
     // it; we only care if the the index we were pointing at gets shifted down,
     // in which case we also want to shift down.
-    if (m_iListener != -1 && listenerIndex <= m_iListener)
+    if (m_iListener != -1 && (signed)listenerIndex <= m_iListener)
       m_iListener--;
   }
 
@@ -533,7 +533,7 @@ nsresult nsMsgSearchSession::NotifyListenersDone(nsresult aStatus)
 {
   // need to stabilize "this" in case one of the listeners releases the last
   // reference to us.
-  nsRefPtr<nsIMsgSearchSession> kungFuDeathGrip(this);
+  RefPtr<nsIMsgSearchSession> kungFuDeathGrip(this);
 
   nsCOMPtr<nsIMsgSearchNotify> listener;
   m_iListener = 0;

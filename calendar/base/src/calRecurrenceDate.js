@@ -9,8 +9,8 @@ function calRecurrenceDate() {
     this.wrappedJSObject = this;
 }
 
-const calRecurrenceDateClassID = Components.ID("{806b6423-3aaa-4b26-afa3-de60563e9cec}");
-const calRecurrenceDateInterfaces = [Components.interfaces.calIRecurrenceDate];
+var calRecurrenceDateClassID = Components.ID("{806b6423-3aaa-4b26-afa3-de60563e9cec}");
+var calRecurrenceDateInterfaces = [Components.interfaces.calIRecurrenceDate];
 calRecurrenceDate.prototype = {
     isMutable: true,
 
@@ -42,15 +42,15 @@ calRecurrenceDate.prototype = {
         return other;
     },
 
-    get isNegative() this.mIsNegative,
+    get isNegative() { return this.mIsNegative; },
     set isNegative(val) {
         this.ensureMutable();
         return (this.mIsNegative = val);
     },
 
-    get isFinite() true,
+    get isFinite() { return true; },
 
-    get date() this.mDate,
+    get date() { return this.mDate; },
     set date(val) {
         this.ensureMutable();
         return (this.mDate = val);

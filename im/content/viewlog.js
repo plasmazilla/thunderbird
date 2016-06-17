@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const Cu = Components.utils;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
 
@@ -28,7 +28,7 @@ var logWindow = {
     // Prevent closing the findbar, go back to logTree instead.
     let findbar = document.getElementById("findbar");
     let logTree = document.getElementById("logTree");
-    findbar.close = function() logTree.focus();
+    findbar.close = () => logTree.focus();
     // Ensure the findbar has something to look at.
     let browser = document.getElementById("text-browser");
     findbar.browser = browser;
@@ -141,7 +141,7 @@ var logWindow = {
 
     let count = {};
     let messages = browser._conv.getMessagesEnumerator(count);
-    browser.getPendingMessagesCount = function() count.value;
+    browser.getPendingMessagesCount = () => count.value;
     browser.getNextPendingMessage = function() {
       if (!messages.hasMoreElements()) {
         delete browser.getNextPendingMessage;
@@ -184,18 +184,18 @@ var logWindow = {
 function chatLogTreeGroupItem(aTitle, aLogItems) {
   this._title = aTitle;
   this._children = aLogItems;
-  for each (let child in this._children)
+  for (let child of this._children)
     child._parent = this;
   this._open = false;
 }
 chatLogTreeGroupItem.prototype = {
-  getText: function() this._title,
-  get id() this._title,
-  get open() this._open,
-  get level() 0,
-  get _parent() null,
-  get children() this._children,
-  getProperties: function() ""
+  getText: function() { return this._title; },
+  get id() { return this._title; },
+  get open() { return this._open; },
+  get level() { return 0; },
+  get _parent() { return null; },
+  get children() { return this._children; },
+  getProperties: () => ""
 };
 
 function chatLogTreeLogItem(aLog, aText, aLevel) {
@@ -204,12 +204,12 @@ function chatLogTreeLogItem(aLog, aText, aLevel) {
   this._level = aLevel;
 }
 chatLogTreeLogItem.prototype = {
-  getText: function() this._text,
-  get id() this.log.title,
-  get open() false,
-  get level() this._level,
-  get children() [],
-  getProperties: function() ""
+  getText: function() { return this._text; },
+  get id() { return this.log.title; },
+  get open() { return false; },
+  get level() { return this._level; },
+  get children() { return []; },
+  getProperties: () => ""
 };
 
 function chatLogTreeView(aTree, aLogs) {
@@ -252,9 +252,9 @@ chatLogTreeView.prototype = {
       return placesBundle.getFormattedString("finduri-MonthYear",
                                              [month, aDate.getFullYear()]);
     };
-    let formatMonth = function(aDate)
+    let formatMonth = aDate =>
       dateFormatBundle.getString("month." + (aDate.getMonth() + 1) + ".name");
-    let formatWeekday = function(aDate)
+    let formatWeekday = aDate =>
       dateFormatBundle.getString("day." + (aDate.getDay() + 1) + ".name");
 
     let nowDate = new Date();
@@ -277,7 +277,7 @@ chatLogTreeView.prototype = {
 
     // Build a chatLogTreeLogItem for each log, and put it in the right group.
     let groups = {};
-    for each (let log in getIter(this._logs)) {
+    for (let log of getIter(this._logs)) {
       let logDate = new Date(log.time * 1000);
       // Calculate elapsed time between the log and 00:00:00 today.
       let timeFromToday = todayDate - logDate;
@@ -335,7 +335,8 @@ chatLogTreeView.prototype = {
     let groupIDs = Object.keys(groups).sort().reverse();
 
     // Add firstgroups to groups and groupIDs.
-    for each (let [groupID, group] in Iterator(firstgroups)) {
+    for (let groupID in firstgroups) {
+      let group = firstgroups[groupID];
       if (!group.length)
         continue;
       groupIDs.unshift(groupID);
@@ -352,7 +353,7 @@ chatLogTreeView.prototype = {
       this._rowMap.push(yesterday);
     groupIDs.forEach(function (aGroupID) {
       let group = groups[aGroupID];
-      group.entries.sort(function(l1, l2) l2.log.time - l1.log.time);
+      group.entries.sort((l1, l2) => l2.log.time - l1.log.time);
       this._rowMap.push(new chatLogTreeGroupItem(group.name, group.entries));
     }, this);
 

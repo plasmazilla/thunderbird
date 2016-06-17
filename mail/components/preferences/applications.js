@@ -8,34 +8,34 @@
 //****************************************************************************//
 // Constants & Enumeration Values
 
-const PREF_DISABLED_PLUGIN_TYPES = "plugin.disable_full_page_plugin_for_types";
+var PREF_DISABLED_PLUGIN_TYPES = "plugin.disable_full_page_plugin_for_types";
 
 // Preferences that affect which entries to show in the list.
-const PREF_SHOW_PLUGINS_IN_LIST = "browser.download.show_plugins_in_list";
-const PREF_HIDE_PLUGINS_WITHOUT_EXTENSIONS =
+var PREF_SHOW_PLUGINS_IN_LIST = "browser.download.show_plugins_in_list";
+var PREF_HIDE_PLUGINS_WITHOUT_EXTENSIONS =
   "browser.download.hide_plugins_without_extensions";
 
 // The nsHandlerInfoAction enumeration values in nsIHandlerInfo identify
 // the actions the application can take with content of various types.
 // But since nsIHandlerInfo doesn't support plugins, there's no value
 // identifying the "use plugin" action, so we use this constant instead.
-const kActionUsePlugin = 5;
+var kActionUsePlugin = 5;
 
 /*
-#ifdef MOZ_WIDGET_GTK2
+#ifdef MOZ_WIDGET_GTK
 */
-const ICON_URL_APP      = "moz-icon://dummy.exe?size=16";
+var ICON_URL_APP      = "moz-icon://dummy.exe?size=16";
 /*
 #else
 */
-const ICON_URL_APP      = "chrome://messenger/skin/preferences/application.png";
+var ICON_URL_APP      = "chrome://messenger/skin/preferences/application.png";
 /*
 #endif
 */
 
 // For CSS. Can be one of "ask", "save", "plugin" or "feed". If absent, the icon URL
 // was set by us to a custom handler icon and CSS should not try to override it.
-const APP_ICON_ATTR_NAME = "appHandlerIcon";
+var APP_ICON_ATTR_NAME = "appHandlerIcon";
 
 // CloudFile account tools used by gCloudFileTab.
 Components.utils.import("resource://gre/modules/Services.jsm");
@@ -319,7 +319,7 @@ HandlerInfoWrapper.prototype = {
   handledOnlyByPlugin: undefined,
 
   get isDisabledPluginType() {
-    return this._getDisabledPluginTypes().indexOf(this.type) != -1;
+    return this._getDisabledPluginTypes().includes(this.type);
   },
 
   _getDisabledPluginTypes: function() {
@@ -336,7 +336,7 @@ HandlerInfoWrapper.prototype = {
   disablePluginType: function() {
     var disabledPluginTypes = this._getDisabledPluginTypes();
 
-    if (disabledPluginTypes.indexOf(this.type) == -1)
+    if (!disabledPluginTypes.includes(this.type))
       disabledPluginTypes.push(this.type);
 
     Services.prefs.setCharPref(PREF_DISABLED_PLUGIN_TYPES,
@@ -352,7 +352,7 @@ HandlerInfoWrapper.prototype = {
     var disabledPluginTypes = this._getDisabledPluginTypes();
 
     var type = this.type;
-    disabledPluginTypes = disabledPluginTypes.filter(function(v) v != type);
+    disabledPluginTypes = disabledPluginTypes.filter(v => v != type);
 
     Services.prefs.setCharPref(PREF_DISABLED_PLUGIN_TYPES,
                                disabledPluginTypes.join(","));
@@ -1114,7 +1114,7 @@ var gApplicationsPane = {
     if (this._filter.value)
       visibleTypes = visibleTypes.filter(this._matchesFilter, this);
 
-    for each (let visibleType in visibleTypes) {
+    for (let visibleType of visibleTypes) {
       let item = document.createElement("richlistitem");
       item.setAttribute("type", visibleType.type);
       item.setAttribute("typeDescription", this._describeType(visibleType));
@@ -1138,8 +1138,8 @@ var gApplicationsPane = {
 
   _matchesFilter: function(aType) {
     var filterValue = this._filter.value.toLowerCase();
-    return this._describeType(aType).toLowerCase().contains(filterValue) ||
-           this._describePreferredAction(aType).toLowerCase().contains(filterValue);
+    return this._describeType(aType).toLowerCase().includes(filterValue) ||
+           this._describePreferredAction(aType).toLowerCase().includes(filterValue);
   },
 
   /**
@@ -1175,7 +1175,7 @@ var gApplicationsPane = {
       let extIter = aHandlerInfo.wrappedHandlerInfo.getFileExtensions();
       while(extIter.hasMore()) {
         let ext = "."+extIter.getNext();
-        if (exts.indexOf(ext) == -1)
+        if (!exts.includes(ext))
           exts.push(ext);
       }
     }
@@ -1466,7 +1466,7 @@ var gApplicationsPane = {
       case Components.interfaces.nsIHandlerInfo.useHelperApp:
         if (preferredApp)
           menu.selectedItem =
-            possibleAppMenuItems.filter(function(v) v.handlerApp.equals(preferredApp))[0];
+            possibleAppMenuItems.filter(v => v.handlerApp.equals(preferredApp))[0];
         break;
       case kActionUsePlugin:
         menu.selectedItem = pluginMenuItem;

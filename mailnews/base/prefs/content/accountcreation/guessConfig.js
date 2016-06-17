@@ -6,7 +6,7 @@
 Cu.import("resource:///modules/gloda/log4moz.js");
 Cu.import("resource://gre/modules/Services.jsm");
 
-const TIMEOUT = 10; // in seconds
+var TIMEOUT = 10; // in seconds
 
 // This is a bit ugly - we set outgoingDone to false
 // when emailWizard.js cancels the outgoing probe because the user picked
@@ -185,7 +185,7 @@ function guessConfig(domain, progressCallback, successCallback, errorCallback,
     outgoingEx = null;
     HostTryToAccountServer(thisTry, resultConfig.outgoing);
 
-    for each (let alternativeTry in alternativeTries)
+    for (let alternativeTry of alternativeTries)
     {
       // resultConfig.createNewOutgoing(); misses username etc., so copy
       let altServer = deepCopy(resultConfig.outgoing);
@@ -208,7 +208,7 @@ function guessConfig(domain, progressCallback, successCallback, errorCallback,
     incomingEx = null;
     HostTryToAccountServer(thisTry, resultConfig.incoming);
 
-    for each (let alternativeTry in alternativeTries)
+    for (let alternativeTry of alternativeTries)
     {
       // resultConfig.createNewIncoming(); misses username etc., so copy
       let altServer = deepCopy(resultConfig.incoming);
@@ -285,10 +285,10 @@ GuessAbortable.prototype.cancel = function(ex)
 // Objects, functions and constants that follow are not to be used outside
 // this file.
 
-const kNotTried = 0;
-const kOngoing = 1;
-const kFailed = 2;
-const kSuccess = 3;
+var kNotTried = 0;
+var kOngoing = 1;
+var kFailed = 2;
+var kSuccess = 3;
 
 /**
  * Internal object holding one server that we should try or did try.
@@ -632,7 +632,7 @@ HostDetector.prototype =
       result.push(Ci.nsMsgAuthMethod.passwordEncrypted);
     if (new RegExp(prefix + "(NTLM|MSN)").test(line))
       result.push(Ci.nsMsgAuthMethod.NTLM);
-    if (protocol != IMAP || !line.contains("LOGINDISABLED"))
+    if (protocol != IMAP || !line.includes("LOGINDISABLED"))
       result.push(Ci.nsMsgAuthMethod.passwordCleartext);
     return result;
   },
@@ -641,7 +641,7 @@ HostDetector.prototype =
   {
     var capa = thisTry.protocol == POP ? "STLS" : "STARTTLS";
     return thisTry.ssl == TLS &&
-        wiredata.join("").toUpperCase().contains(capa);
+        wiredata.join("").toUpperCase().includes(capa);
   },
 }
 
@@ -708,32 +708,32 @@ OutgoingHostDetector.prototype =
 // Encode protocol ports and order of preference
 
 // Protocol Types
-const UNKNOWN = -1;
-const IMAP = 0;
-const POP = 1;
-const SMTP = 2;
+var UNKNOWN = -1;
+var IMAP = 0;
+var POP = 1;
+var SMTP = 2;
 // Security Types
-const NONE = 0; // no encryption
+var NONE = 0; // no encryption
 //1 would be "TLS if available"
-const TLS = 2; // STARTTLS
-const SSL = 3; // SSL / TLS
+var TLS = 2; // STARTTLS
+var SSL = 3; // SSL / TLS
 
-const IMAP_PORTS = {}
+var IMAP_PORTS = {}
 IMAP_PORTS[NONE] = 143;
 IMAP_PORTS[TLS] = 143;
 IMAP_PORTS[SSL] = 993;
 
-const POP_PORTS = {}
+var POP_PORTS = {}
 POP_PORTS[NONE] = 110;
 POP_PORTS[TLS] = 110;
 POP_PORTS[SSL] = 995;
 
-const SMTP_PORTS = {}
+var SMTP_PORTS = {}
 SMTP_PORTS[NONE] = 587;
 SMTP_PORTS[TLS] = 587;
 SMTP_PORTS[SSL] = 465;
 
-const CMDS = {}
+var CMDS = {}
 CMDS[IMAP] = ["1 CAPABILITY\r\n", "2 LOGOUT\r\n"];
 CMDS[POP] = ["CAPA\r\n", "QUIT\r\n"];
 CMDS[SMTP] = ["EHLO we-guess.mozilla.org\r\n", "QUIT\r\n"];
@@ -998,16 +998,6 @@ SSLErrorHandler.prototype =
     this._log.warn("!! Overrode bad cert temporarily " + host + " " + port +
                    " flags=" + flags + "\n");
     return true;
-  },
-
-  processSSLError : function(socketInfo, status, targetSite)
-  {
-    this._log.error("got SSL error, please implement the handler!");
-    // XXX record that there was an SSL error, and tell the user
-    // about it somehow
-    // XXX test case?
-    // return true if you want to suppress the default PSM dialog
-    return false;
   },
 }
 

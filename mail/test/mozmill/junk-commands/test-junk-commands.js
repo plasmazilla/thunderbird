@@ -26,7 +26,7 @@ function setupModule(module) {
 /**
  * The number of messages to mark as junk and expect to be deleted.
  */
-const NUM_MESSAGES_TO_JUNK = 8;
+var NUM_MESSAGES_TO_JUNK = 8;
 
 /**
  * Helper to check whether a folder has the right number of messages.
@@ -71,7 +71,7 @@ function test_delete_junk_messages() {
                                 initialNumMessages - NUM_MESSAGES_TO_JUNK);
   // Check that none of the message keys exist any more
   let db = folder.getDBFolderInfoAndDB({});
-  for each (let [, msgHdr] in Iterator(selectedMessages)) {
+  for (let msgHdr of selectedMessages) {
     let key = msgHdr.messageKey;
     if (db.ContainsKey(key))
       throw new Error("The database shouldn't contain key " + key +

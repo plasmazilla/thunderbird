@@ -19,6 +19,7 @@ load("resources/glodaTestHelper.js");
 
 Components.utils.import("resource:///modules/MailUtils.js");
 Components.utils.import("resource://gre/modules/NetUtil.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 // Whether we can expect fulltext results
 var expectFulltextResults = true;
@@ -123,7 +124,7 @@ function test_indexing_sweep() {
   yield wait_for_message_injection();
 
   // Make sure that event-driven job gets nuked out of existence
-  GlodaIndexer.purgeJobsUsingFilter(function() true);
+  GlodaIndexer.purgeJobsUsingFilter(() => true);
 
   // turn on event-driven indexing again; this will trigger a sweep.
   configure_gloda_indexing({event: true});
@@ -140,7 +141,7 @@ function test_indexing_sweep() {
   setB2.setRead(true);
 
   // indexing on, killing all outstanding jobs, trigger sweep
-  GlodaIndexer.purgeJobsUsingFilter(function() true);
+  GlodaIndexer.purgeJobsUsingFilter(() => true);
   configure_gloda_indexing({event: true});
   GlodaMsgIndexer.indexingSweepNeeded = true;
 
@@ -158,7 +159,7 @@ function test_indexing_sweep() {
   setB1.setRead(true);
 
   // indexing on, killing all outstanding jobs, trigger sweep
-  GlodaIndexer.purgeJobsUsingFilter(function() true);
+  GlodaIndexer.purgeJobsUsingFilter(() => true);
   configure_gloda_indexing({event: true});
   GlodaMsgIndexer.indexingSweepNeeded = true;
 
@@ -424,7 +425,12 @@ function test_attributes_fundamental() {
 function verify_attributes_fundamental(smsg, gmsg) {
   // save off the message id for test_attributes_fundamental_from_disk
   fundamentalGlodaMessageId = gmsg.id;
-  fundamentalGlodaMsgAttachmentUrls = [att.url for each (att in gmsg.attachmentInfos)];
+  if (gmsg.attachmentInfos) {
+    fundamentalGlodaMsgAttachmentUrls =
+      gmsg.attachmentInfos.map(att => att.url);
+  } else {
+    fundamentalGlodaMsgAttachmentUrls = [];
+  }
 
   do_check_eq(gmsg.folderURI,
               get_real_injection_folder(fundamentalFolderHandle).URI);
@@ -465,13 +471,19 @@ function verify_attributes_fundamental(smsg, gmsg) {
     ];
     let expectedSize = 14;
     do_check_eq(gmsg.attachmentInfos.length, 2);
-    for each (let [i, attInfos] in Iterator(gmsg.attachmentInfos)) {
+    for (let [i, attInfos] of gmsg.attachmentInfos.entries()) {
       for (let k in expectedInfos[i])
         do_check_eq(attInfos[k], expectedInfos[i][k]);
       // because it's unreliable and depends on the platform
       do_check_true(Math.abs(attInfos.size - expectedSize) <= 2);
       // check that the attachment URLs are correct
-      let channel = NetUtil.newChannel(attInfos.url);
+      let channel = NetUtil.newChannel({
+         uri: attInfos.url,
+         loadingPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
+         securityFlags: Ci.nsILoadInfo.SEC_NORMAL,
+         contentPolicyType: Ci.nsIContentPolicy.TYPE_OTHER
+      });
+
       try {
         // will throw if the URL is invalid
         channel.open();
@@ -511,11 +523,16 @@ function test_moved_message_attributes() {
       // verify we still have the same number of attachments
       do_check_eq(fundamentalGlodaMsgAttachmentUrls.length,
         newGlodaMsg.attachmentInfos.length);
-      for each (let [i, attInfos] in Iterator(newGlodaMsg.attachmentInfos)) {
+      for (let [i, attInfos] of newGlodaMsg.attachmentInfos.entries()) {
         // verify the url has changed
         do_check_neq(fundamentalGlodaMsgAttachmentUrls[i], attInfos.url);
         // and verify that the new url is still valid
-        let channel = NetUtil.newChannel(attInfos.url);
+        let channel = NetUtil.newChannel({
+           uri: attInfos.url,
+           loadingPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
+           securityFlags: Ci.nsILoadInfo.SEC_NORMAL,
+           contentPolicyType: Ci.nsIContentPolicy.TYPE_OTHER
+        });
         try {
           channel.open();
         } catch (e) {
@@ -723,7 +740,7 @@ function test_streamed_bodies_are_size_capped() {
   yield wait_for_gloda_indexer(msgSet, {augment: true});
   let gmsg = msgSet.glodaMessages[0];
   do_check_true(gmsg.indexedBodyText.startsWith("aabb"));
-  do_check_false(gmsg.indexedBodyText.contains("xxyy"));
+  do_check_false(gmsg.indexedBodyText.includes("xxyy"));
 
   if (gmsg.indexedBodyText.length > (20 * 1024 + 58 + 10))
     do_throw("indexed body text is too big! (" + gmsg.indexedBodyText.length +
@@ -1125,8 +1142,8 @@ function test_message_moving() {
   do_check_neq(gmsg.messageKey, oldMessageKey);
 
   // - make sure the indexer's _keyChangedBatchInfo dict is empty
-  for each (let [evilKey, evilValue] in
-              Iterator(GlodaMsgIndexer._keyChangedBatchInfo)) {
+  for (let evilKey in GlodaMsgIndexer._keyChangedBatchInfo) {
+    let evilValue = GlodaMsgIndexer._keyChangedBatchInfo[evilKey];
     mark_failure(["GlodaMsgIndexer._keyChangedBatchInfo should be empty but",
                   "has key:",  evilKey, "and value:", evilValue, "."]);
   }

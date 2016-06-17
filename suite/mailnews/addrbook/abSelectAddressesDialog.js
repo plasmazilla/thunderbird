@@ -3,6 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+Components.utils.import("resource:///modules/ABQueryUtils.jsm");
+
 var addressbook = 0;
 var composeWindow = 0;
 var msgCompFields = 0;
@@ -358,7 +360,8 @@ function onEnterInSearchBar()
     return;
 
   if (!gQueryURIFormat) {
-    gQueryURIFormat = GetLocalizedStringPref("mail.addr_book.quicksearchquery.format");
+    // Get model query from pref, without preceding "?", so we need to add it again
+    gQueryURIFormat = "?" + getModelQuery("mail.addr_book.quicksearchquery.format");
   }
   
   var searchURI = selectedNode.value;

@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ['mailTestUtils'];
+this.EXPORTED_SYMBOLS = ['mailTestUtils'];
 
 Components.utils.import("resource://gre/modules/ctypes.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
@@ -117,12 +117,26 @@ var mailTestUtils = {
     return data;
   },
 
-  // Gets the first message header in a folder.
+  /// Gets the first message header in a folder.
   firstMsgHdr: function(folder)
   {
     let enumerator = folder.msgDatabase.EnumerateMessages();
     if (enumerator.hasMoreElements())
       return enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
+    return null;
+  },
+
+  /// Gets message header number N (0 based index) in a folder.
+  getMsgHdrN: function(folder, n)
+  {
+    let i = 0;
+    let enumerator = folder.msgDatabase.EnumerateMessages();
+    while (enumerator.hasMoreElements()) {
+      let next = enumerator.getNext();
+      if (i == n)
+        return next.QueryInterface(Ci.nsIMsgDBHdr);
+      i++;
+    }
     return null;
   },
 

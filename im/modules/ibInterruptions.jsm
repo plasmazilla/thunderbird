@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["Interruptions"];
+this.EXPORTED_SYMBOLS = ["Interruptions"];
 
 var Interruptions = {
   _listeners: [],
@@ -11,7 +11,7 @@ var Interruptions = {
       this._listeners.push(aListener);
   },
   removeListener: function(aListener) {
-    this._listeners = this._listeners.filter(function(o) o !== aListener);
+    this._listeners = this._listeners.filter(o => o !== aListener);
   },
 
   /* All code about to perform an action that could interrupt the
@@ -26,6 +26,7 @@ var Interruptions = {
    *
    * Returns true if the request is granted, false otherwise.
    */
-  requestInterrupt: function(aReason, aSubject, aType)
-    this._listeners.every(function (l) l(aReason, aSubject, aType))
+  requestInterrupt: function(aReason, aSubject, aType) {
+    return this._listeners.every(l => l(aReason, aSubject, aType));
+  }
 };

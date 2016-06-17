@@ -25,9 +25,9 @@ load("../../../../resources/messageModifier.js");
 load("../../../../resources/messageInjection.js");
 
 // Create a message generator
-const msgGen = gMessageGenerator = new MessageGenerator();
+var msgGen = gMessageGenerator = new MessageGenerator();
 // Create a message scenario generator using that message generator
-const scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
+var scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
 
 Components.utils.import("resource:///modules/gloda/mimemsg.js");
 
@@ -317,8 +317,8 @@ function synTransformBody(aSynBodyPart) {
   if (aSynBodyPart._contentType == "text/enriched") {
     // Our job here is just to transform just enough for our example above.
     // We also could have provided a manual translation on the body part.
-    text = text.replace("bold", "B", "g")
-               .replace("italic", "I", "g") + "\n<BR>";
+    text = text.replace(/bold/g, "B")
+               .replace(/italic/g, "I") + "\n<BR>";
   }
   return text;
 }
@@ -340,7 +340,7 @@ function verify_body_part_equivalence(aSynBodyPart, aMimePart) {
   if (aSynBodyPart.body && !aSynBodyPart._filename &&
       aSynBodyPart._contentType.startsWith("text/"))
     do_check_eq(synTransformBody(aSynBodyPart),
-                aMimePart.body.trim().replace("\r", "", "g"));
+                aMimePart.body.trim().replace(/\r/g, ""));
   if (aSynBodyPart.parts) {
     let iPart;
     let realPartOffsetCompensator = 0;
@@ -504,7 +504,7 @@ var expectedAttachmentsInfo = [
 ];
 
 function test_attachments_correctness () {
-  for each (let [i, params] in Iterator(attMessagesParams)) {
+  for (let [i, params] of attMessagesParams.entries()) {
     let synMsg = gMessageGenerator.makeMessage(params);
     let synSet = new SyntheticMessageSet([synMsg]);
     yield add_sets_to_folder(gInbox, [synSet]);
@@ -523,15 +523,15 @@ function test_attachments_correctness () {
         }
 
         do_check_eq(aMimeMsg.allAttachments.length, expected.allAttachmentsContentTypes.length);
-        for each (let [j, att] in Iterator(aMimeMsg.allAttachments))
+        for (let [j, att] of aMimeMsg.allAttachments.entries())
           do_check_eq(att.contentType, expected.allAttachmentsContentTypes[j]);
 
         do_check_eq(aMimeMsg.allUserAttachments.length, expected.allUserAttachmentsContentTypes.length);
-        for each (let [j, att] in Iterator(aMimeMsg.allUserAttachments))
+        for (let [j, att] of aMimeMsg.allUserAttachments.entries())
           do_check_eq(att.contentType, expected.allUserAttachmentsContentTypes[j]);
 
         // Test
-        for each (let [, att] in Iterator(aMimeMsg.allUserAttachments)) {
+        for (let att of aMimeMsg.allUserAttachments) {
           let uri = aMsgHdr.folder.getUriForMsg(aMsgHdr);
           let glodaAttachment =
             GlodaFundAttr.glodaAttFromMimeAtt({ folderMessageURI: uri }, att);
@@ -555,7 +555,7 @@ function test_attachments_correctness () {
 var bogusMessage = msgGen.makeMessage({ body: { body: "whatever" } });
 bogusMessage._contentType = "woooooo"; // Breaking abstraction boundaries. Bad.
 
-let weirdMessageInfos = [
+var weirdMessageInfos = [
   // This message has an unnamed part as an attachment (with
   // Content-Disposition: inline and which is displayable inline). Previously,
   // libmime would emit notifications for this to be treated as an attachment,

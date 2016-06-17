@@ -8,10 +8,10 @@
 
 // make SOLO_TEST=composition/test-multipart-related.js mozmill-one
 
-const MODULE_NAME = "test-multipart-related";
+var MODULE_NAME = "test-multipart-related";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers", "window-helpers", "compose-helpers"];
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers", "window-helpers", "compose-helpers"];
 
 var os = {};
 Cu.import("resource://mozmill/stdlib/os.js", os);
@@ -114,7 +114,7 @@ function test_basic_multipart_related() {
   assert_equals(headers.get("2").getRawHeader("Content-Disposition")[0],
     "inline; filename=\"arrow-dn.gif\"");
   let cid = headers.get("2").getRawHeader("Content-ID")[0].slice(1, -1);
-  if (!text.get("1").contains("src=\"cid:" + cid + '"')) {
+  if (!text.get("1").includes("src=\"cid:" + cid + '"')) {
     throw new Error("Expected HTML to refer to cid " + cid);
   }
   press_delete(mc); // Delete message

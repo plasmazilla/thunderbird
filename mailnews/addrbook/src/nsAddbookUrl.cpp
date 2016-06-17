@@ -152,6 +152,11 @@ NS_IMETHODIMP nsAddbookUrl::GetAsciiHost(nsACString &aHostA)
 	return m_baseURL->GetAsciiHost(aHostA);
 }
 
+NS_IMETHODIMP nsAddbookUrl::GetAsciiHostPort(nsACString &aHostPortA)
+{
+	return m_baseURL->GetAsciiHostPort(aHostPortA);
+}
+
 NS_IMETHODIMP nsAddbookUrl::GetAsciiSpec(nsACString &aSpecA)
 {
 	return m_baseURL->GetAsciiSpec(aSpecA);
@@ -182,7 +187,7 @@ NS_IMETHODIMP nsAddbookUrl::Clone(nsIURI **_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
 
-  nsRefPtr<nsAddbookUrl> clone = new nsAddbookUrl();
+  RefPtr<nsAddbookUrl> clone = new nsAddbookUrl();
 
   if (!clone)
     return NS_ERROR_OUT_OF_MEMORY;
@@ -228,7 +233,7 @@ nsAddbookUrl::CloneIgnoringRef(nsIURI** _retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
 
-  nsRefPtr<nsAddbookUrl> clone = new nsAddbookUrl();
+  RefPtr<nsAddbookUrl> clone = new nsAddbookUrl();
 
   if (!clone)
     return NS_ERROR_OUT_OF_MEMORY;

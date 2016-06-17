@@ -11,6 +11,7 @@ DIRS += [
     '../itip',
     'components',
     'locales',
+    'modules',
 ]
 
 TEST_DIRS += ['../test']
@@ -18,7 +19,15 @@ TEST_DIRS += ['../test']
 XPI_NAME = 'lightning'
 export('XPI_NAME')
 
+FINAL_TARGET_PP_FILES += [
+    'app.ini',
+    'install.rdf',
+]
+
 JAR_MANIFESTS += ['jar.mn']
+
+USE_EXTENSION_MANIFEST = True
+export('USE_EXTENSION_MANIFEST')
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':
     DEFINES['THEME'] = 'windows'
@@ -27,7 +36,22 @@ elif CONFIG['MOZ_WIDGET_TOOLKIT'] == 'cocoa':
 else:
     DEFINES['THEME'] = 'linux'
 
-JS_PREFERENCE_FILES += [
+JS_PREFERENCE_PP_FILES += [
     'content/lightning.js',
 ]
 
+FINAL_TARGET_FILES.timezones += [
+    '../timezones/zones.json',
+]
+
+with Files('**'):
+    BUG_COMPONENT = ('Calendar', 'Lightning Only')
+
+with Files('content/suite-*'):
+    BUG_COMPONENT = ('Calendar', 'Lightning: SeaMonkey Integration')
+
+with Files('build/**'):
+    BUG_COMPONENT = ('Calendar', 'Build Config')
+
+with Files('app.ini'):
+    BUG_COMPONENT = ('Calendar', 'Build Config')

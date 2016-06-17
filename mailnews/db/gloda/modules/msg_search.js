@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["GlodaMsgSearcher"];
+this.EXPORTED_SYMBOLS = ["GlodaMsgSearcher"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/gloda/public.js");
@@ -18,12 +18,12 @@ Cu.import("resource:///modules/gloda/public.js");
  *  Note that gloda stores timestamps as PRTimes for no exceedingly good
  *  reason.
  */
-const FUZZSCORE_TIMESTAMP_FACTOR = 1000 * 1000 * 60 * 60 * 24 * 7;
+var FUZZSCORE_TIMESTAMP_FACTOR = 1000 * 1000 * 60 * 60 * 24 * 7;
 
-const RANK_USAGE =
+var RANK_USAGE =
   "glodaRank(matchinfo(messagesText), 1.0, 2.0, 2.0, 1.5, 1.5)";
 
-const DASCORE =
+var DASCORE =
   "(((" + RANK_USAGE + " + messages.notability) * " +
     FUZZSCORE_TIMESTAMP_FACTOR +
    ") + messages.date)";
@@ -73,7 +73,7 @@ const DASCORE =
  *    LIMIT.)  Since offsets() also needs to retrieve the row from messagesText
  *    there is a nice synergy there.
  */
-const NUEVO_FULLTEXT_SQL =
+var NUEVO_FULLTEXT_SQL =
   "SELECT messages.*, messagesText.*, offsets(messagesText) AS osets " +
   "FROM messagesText, messages " +
   "WHERE" +
@@ -119,12 +119,12 @@ function reduceSum(accum, curValue) {
  *  display name on the address book card associated with the e-mail adress)
  *  a contact is going to bias towards matching multiple times.
  */
-const COLUMN_ALL_MATCH_SCORES = [4, 20, 20, 16, 12];
+var COLUMN_ALL_MATCH_SCORES = [4, 20, 20, 16, 12];
 /**
  * Score for each distinct term that matches in the column.  This is capped
  *  by COLUMN_ALL_SCORES.
  */
-const COLUMN_PARTIAL_PER_MATCH_SCORES = [1, 4, 4, 4, 3];
+var COLUMN_PARTIAL_PER_MATCH_SCORES = [1, 4, 4, 4, 3];
 /**
  * If a term matches multiple times, what is the marginal score for each
  *  additional match.  We count the total number of matches beyond the
@@ -134,8 +134,8 @@ const COLUMN_PARTIAL_PER_MATCH_SCORES = [1, 4, 4, 4, 3];
  *  and the value in COLUMN_MULTIPLE_MATCH_LIMIT and multiply by the value in
  *  COLUMN_MULTIPLE_MATCH_SCORES.
  */
-const COLUMN_MULTIPLE_MATCH_SCORES = [1, 0, 0, 0, 0];
-const COLUMN_MULTIPLE_MATCH_LIMIT = [10, 0, 0, 0, 0];
+var COLUMN_MULTIPLE_MATCH_SCORES = [1, 0, 0, 0, 0];
+var COLUMN_MULTIPLE_MATCH_LIMIT = [10, 0, 0, 0, 0];
 
 /**
  * Score the message on its offsets (from stashedColumns).
@@ -143,7 +143,7 @@ const COLUMN_MULTIPLE_MATCH_LIMIT = [10, 0, 0, 0, 0];
 function scoreOffsets(aMessage, aContext) {
   let score = 0;
 
-  let termTemplate = [0 for each (term in Iterator(aContext.terms, true))];
+  let termTemplate = aContext.terms.map(_ => 0);
   // for each column, a list of the incidence of each term
   let columnTermIncidence = [termTemplate.concat(),
                              termTemplate.concat(),
@@ -154,7 +154,7 @@ function scoreOffsets(aMessage, aContext) {
   // we need a friendlyParseInt because otherwise the radix stuff happens
   //  because of the extra arguments map parses.  curse you, map!
   let offsetNums =
-    [parseInt(x) for each (x in aContext.stashedColumns[aMessage.id][0].split(" "))];
+    aContext.stashedColumns[aMessage.id][0].split(" ").map(x => parseInt(x));
   for (let i=0; i < offsetNums.length; i += 4) {
     let columnIndex = offsetNums[i];
     let termIndex = offsetNums[i+1];
@@ -268,7 +268,7 @@ GlodaMsgSearcher.prototype = {
 
     let fulltextQueryString = "";
 
-    for each (let [iTerm, term] in Iterator(this.fulltextTerms)) {
+    for (let [iTerm, term] of this.fulltextTerms.entries()) {
       if (iTerm)
         fulltextQueryString += this.andTerms ? " " : " OR ";
 

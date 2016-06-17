@@ -828,7 +828,12 @@ function check_for_missing_panels() {
     if (!currTab.is_excluded()) {
       if (currHeader.hasAttribute("prereq") && currHeader.getAttribute("prereq") != "") {
         var prereq_file = currHeader.getAttribute("prereq");
-        var channel = Services.io.newChannel(prereq_file, null, null);
+        var ios = Services.io;
+        var channel = ios.newChannel2(prereq_file, null, null, null,
+                                      Services.scriptSecurityManager.getSystemPrincipal(),
+                                      null,
+                                      Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                      Components.interfaces.nsIContentPolicy.TYPE_OTHER);
         try {
           channel.open();
         }
@@ -1461,7 +1466,7 @@ function SidebarCleanUpExpandCollapse() {
   }
 
   setTimeout(Persist, 100, "sidebar-box", "collapsed");
-  setTimeout(function() sidebarObj.panels.refresh(), 100);
+  setTimeout(() => sidebarObj.panels.refresh(), 100);
 }
 
 function PersistHeight() {
@@ -1654,7 +1659,7 @@ function SidebarBroadcastersToRDF()
     // If the item doesn't already exist, create it.
     if (!curtitleLit && !cururlLit) {
       ds.Assert(panelRes, titleRes, titleLit, true);
-      ds.Assert(panelRes, urlRes, titleLit, true);
+      ds.Assert(panelRes, urlRes, urlLit, true);
       masterSeq.AppendElement(panelRes);
       if (currentSeq.IndexOf(panelRes) == -1)
         currentSeq.AppendElement(panelRes);

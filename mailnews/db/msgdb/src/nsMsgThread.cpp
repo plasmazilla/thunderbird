@@ -8,6 +8,7 @@
 #include "nsCOMPtr.h"
 #include "nsMsgThread.h"
 #include "MailNewsTypes2.h"
+#include "mozilla/DebugOnly.h"
 
 NS_IMPL_ISUPPORTS(nsMsgThread, nsIMsgThread)
 
@@ -53,7 +54,7 @@ nsMsgThread::~nsMsgThread()
   MOZ_COUNT_DTOR(nsMsgThread);
   if (m_mdbDB)
   {
-    bool found = m_mdbDB->m_threads.RemoveElement(this);
+    mozilla::DebugOnly<bool> found = m_mdbDB->m_threads.RemoveElement(this);
     NS_ASSERTION(found, "removing thread not in threads array");
   }
   else // This can happen if db is forced closed
@@ -210,6 +211,7 @@ NS_IMETHODIMP nsMsgThread::AddChild(nsIMsgDBHdr *child, nsIMsgDBHdr *inReplyTo, 
   bool parentKeyNeedsSetting = true;
 
   nsIMdbRow *hdrRow = hdr->GetMDBRow();
+  NS_ENSURE_STATE(hdrRow);
   hdr->GetRawFlags(&newHdrFlags);
   hdr->GetMessageKey(&newHdrKey);
   hdr->GetDateInSeconds(&msgDate);

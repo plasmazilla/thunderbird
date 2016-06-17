@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["GetAttachmentKeywords"];
+this.EXPORTED_SYMBOLS = ["GetAttachmentKeywords"];
 
 /**
  * Check whether the character is a CJK character or not.
@@ -68,7 +68,7 @@ function GetAttachmentKeywords(mailData,keywordsInCsv)
             // We can have several *different* matches for one dot-keyword.
             // E.g. foo.pdf and bar.pdf would both match for .pdf.
             var m = matching[j].trim();
-            if (keywordsFound.indexOf(m) == -1)
+            if (!keywordsFound.includes(m))
               keywordsFound.push(m);
           }
         }

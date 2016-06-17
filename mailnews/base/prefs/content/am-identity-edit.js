@@ -15,6 +15,16 @@ function onLoadIdentityProperties()
   gIdentity = window.arguments[0].identity;
   gAccount = window.arguments[0].account;
 
+  // Make the dialog the same width as the main Account manager page
+  // so that the identity/copies & folders are the same width as
+  // the user set them by resizing the AM dialog.
+  let accountDialog = Services.wm.getMostRecentWindow("mailnews:accountmanager")
+                              .document;
+  if (accountDialog.documentElement.getAttribute("sizemode") == "normal") {
+    document.getElementById("identityTabsPanels").style.width =
+      accountDialog.getElementById("contentFrame").clientWidth + "px";
+  }
+
   loadSMTPServerList();
 
   initIdentityValues(gIdentity);
@@ -93,9 +103,10 @@ function initCompositionAndAddressing(identity)
 
   document.getElementById('identity.directoryServer').value = addressingIdentity.directoryServer;
   document.getElementById('identity.overrideGlobal_Pref').value = addressingIdentity.overrideGlobalPref;
-#ifndef MOZ_THUNDERBIRD
-  document.getElementById('identity.autocompleteToMyDomain').checked = addressingIdentity.autocompleteToMyDomain;
-#endif
+  let autoCompleteElement = document.getElementById('identity.autocompleteToMyDomain');
+  if (autoCompleteElement) // Thunderbird does not have this element.
+    autoCompleteElement.checked = addressingIdentity.autocompleteToMyDomain;
+
   document.getElementById('identity.composeHtml').checked = addressingIdentity.composeHtml;
   document.getElementById('identity.autoQuote').checked = addressingIdentity.autoQuote;
   document.getElementById('identity.replyOnTop').value = addressingIdentity.replyOnTop;
@@ -148,7 +159,7 @@ function validEmailAddress()
 
   // quickly test for an @ sign to test for an email address. We don't have
   // to be anymore precise than that.
-  if (!emailAddress.contains("@"))
+  if (!emailAddress.includes("@"))
   {
     // alert user about an invalid email address
 
@@ -219,9 +230,9 @@ function saveAddressingAndCompositionSettings(identity)
 {
   identity.directoryServer = document.getElementById('identity.directoryServer').value;
   identity.overrideGlobalPref = document.getElementById('identity.overrideGlobal_Pref').value == "true";
-#ifndef MOZ_THUNDERBIRD
-  identity.autocompleteToMyDomain = document.getElementById('identity.autocompleteToMyDomain').checked;
-#endif
+  let autoCompleteElement = document.getElementById('identity.autocompleteToMyDomain');
+  if (autoCompleteElement) // Thunderbird does not have this element.
+    identity.autocompleteToMyDomain = autoCompleteElement.checked;
   identity.composeHtml = document.getElementById('identity.composeHtml').checked;
   identity.autoQuote = document.getElementById('identity.autoQuote').checked;
   identity.replyOnTop = document.getElementById('identity.replyOnTop').value;

@@ -43,13 +43,9 @@
 
 #include "mozilla/gfx/Logging.h"
 
-#include "prlog.h"
-#ifdef PR_LOGGING 
+#include "mozilla/Logging.h"
 PRLogModuleInfo * kWidgetPrintingLogMod = PR_NewLogModule("printing-widget");
-#define PR_PL(_p1)  PR_LOG(kWidgetPrintingLogMod, PR_LOG_DEBUG, _p1)
-#else
-#define PR_PL(_p1)
-#endif
+#define PR_PL(_p1)  MOZ_LOG(kWidgetPrintingLogMod, mozilla::LogLevel::Debug, _p1)
 
 using namespace mozilla;
 
@@ -274,7 +270,7 @@ NS_IMETHODIMP nsDeviceContextSpecWin::GetSurfaceForPrinter(gfxASurface **surface
 {
   NS_ASSERTION(mDevMode, "DevMode can't be NULL here");
 
-  nsRefPtr<gfxASurface> newSurface;
+  RefPtr<gfxASurface> newSurface;
 
   int16_t outputFormat = 0;
   if (mPrintSettings) {
@@ -628,7 +624,6 @@ NS_IMPL_ISUPPORTS(nsPrinterEnumeratorWin, nsIPrinterEnumerator)
 
 //----------------------------------------------------------------------------------
 // Return the Default Printer name
-/* readonly attribute wstring defaultPrinterName; */
 NS_IMETHODIMP 
 nsPrinterEnumeratorWin::GetDefaultPrinterName(char16_t * *aDefaultPrinterName)
 {
@@ -639,7 +634,6 @@ nsPrinterEnumeratorWin::GetDefaultPrinterName(char16_t * *aDefaultPrinterName)
   return NS_OK;
 }
 
-/* void initPrintSettingsFromPrinter (in wstring aPrinterName, in nsIPrintSettings aPrintSettings); */
 NS_IMETHODIMP 
 nsPrinterEnumeratorWin::InitPrintSettingsFromPrinter(const char16_t *aPrinterName, nsIPrintSettings *aPrintSettings)
 {
@@ -650,7 +644,7 @@ nsPrinterEnumeratorWin::InitPrintSettingsFromPrinter(const char16_t *aPrinterNam
     return NS_OK;
   }
 
-  nsRefPtr<nsDeviceContextSpecWin> devSpecWin = new nsDeviceContextSpecWin();
+  RefPtr<nsDeviceContextSpecWin> devSpecWin = new nsDeviceContextSpecWin();
   if (!devSpecWin) return NS_ERROR_OUT_OF_MEMORY;
 
   if (NS_FAILED(GlobalPrinters::GetInstance()->EnumeratePrinterList())) {
@@ -693,10 +687,10 @@ nsPrinterEnumeratorWin::GetPrinterNameList(nsIStringEnumerator **aPrinterNameLis
   if (!printers)
     return NS_ERROR_OUT_OF_MEMORY;
 
-  uint32_t printerInx = 0;
-  while( printerInx < numPrinters ) {
-    LPWSTR name = GlobalPrinters::GetInstance()->GetItemFromList(printerInx++);
-    printers->AppendElement(nsDependentString(name));
+  nsString* names = printers->AppendElements(numPrinters);
+  for (uint32_t printerInx = 0; printerInx < numPrinters; ++printerInx) {
+    LPWSTR name = GlobalPrinters::GetInstance()->GetItemFromList(printerInx);
+    names[printerInx].Assign(name);
   }
 
   return NS_NewAdoptingStringEnumerator(aPrinterNameList, printers);

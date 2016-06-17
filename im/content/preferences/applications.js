@@ -9,20 +9,20 @@
 // Constants & Enumeration Values
 
 /*
-#ifdef MOZ_WIDGET_GTK2
+#ifdef MOZ_WIDGET_GTK
 */
-const ICON_URL_APP      = "moz-icon://dummy.exe?size=16";
+var ICON_URL_APP      = "moz-icon://dummy.exe?size=16";
 /*
 #else
 */
-const ICON_URL_APP      = "chrome://instantbird/skin/preferences/application.png";
+var ICON_URL_APP      = "chrome://instantbird/skin/preferences/application.png";
 /*
 #endif
 */
 
 // For CSS. Can be one of "ask" or "save". If absent, the icon URL
 // was set by us to a custom handler icon and CSS should not try to override it.
-const APP_ICON_ATTR_NAME = "appHandlerIcon";
+var APP_ICON_ATTR_NAME = "appHandlerIcon";
 
 //****************************************************************************//
 // Utilities
@@ -495,7 +495,7 @@ var gApplicationsPane = {
     if (this._filter.value)
       visibleTypes = visibleTypes.filter(this._matchesFilter, this);
 
-    for each (let visibleType in visibleTypes) {
+    for (let visibleType of visibleTypes) {
       let item = document.createElement("richlistitem");
       item.setAttribute("type", visibleType.type);
       item.setAttribute("typeDescription", this._describeType(visibleType));
@@ -773,7 +773,7 @@ var gApplicationsPane = {
       case Ci.nsIHandlerInfo.useHelperApp:
         if (preferredApp)
           menu.selectedItem = 
-            possibleAppMenuItems.filter(function(v) v.handlerApp.equals(preferredApp))[0];
+            possibleAppMenuItems.filter(v => v.handlerApp.equals(preferredApp))[0];
         break;
       case Ci.nsIHandlerInfo.saveToDisk:
         menu.selectedItem = saveMenuItem;

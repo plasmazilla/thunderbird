@@ -38,25 +38,36 @@
 }
 
 /* Adaptation of #folderpane_splitter */
-#listSplitter {
-  background-image: none;
-  width: 1px;
-  min-width: 1px;
-  -moz-border-start: solid 1px #8B8B8B;
-}
-
+#listSplitter,
 #contextSplitter {
-  border: none;
-  -moz-border-end: 1px solid #8B8B8B;
-  background: none;
-  min-width: 0;
+  background-image: none;
   /* splitter grip area */
   width: 5px;
-  /* make only the splitter border visible */
-  -moz-margin-start: -4px;
+  min-width: 5px;
   /* because of the negative margin needed to make the splitter visible */
   position: relative;
   z-index: 10;
+  transition: border-width .3s ease-in;
+}
+
+#listSplitter {
+  border-inline-start: 1px solid #bdbdbd;
+  /* make only the splitter border visible */
+  margin-inline-end: -4px;
+}
+
+#listSplitter[state="collapsed"]:hover {
+  border-inline-start: 4px solid highlight;
+}
+
+#contextSplitter {
+  border-inline-end: 1px solid #bdbdbd;
+  /* make only the splitter border visible */
+  margin-inline-start: -4px;
+}
+
+#contextSplitter[state="collapsed"]:hover {
+  border-inline-end: 4px solid highlight;
 }
 
 .conv-status-container {
@@ -83,84 +94,44 @@
   background-color: #FFFFFF;
 }
 
-/* Adaptation of #searchInput from osx/mail/searchBox.css */
-/* it looks like appearance: searchfield gets us our search icon... */
-#IMSearchInput {
-  margin: 3px 4px 4px !important;
-  -moz-appearance: searchfield;
-  font: icon;
-  height: 22px !important;
-}
-
-#IMSearchInput > .textbox-input-box {
-  border: none;
-  padding-top: 1px;
-  height: 21px !important;
-  margin: 0 !important;
-}
-
-#IMSearchInput:-moz-lwtheme:not([focused="true"]) {
-  opacity: .9;
-}
-
-#button-add-buddy {
-  list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.png");
-  -moz-image-region: rect(0px 18px 18px 0px);
-}
-
-#button-add-buddy:not([disabled="true"]):active {
-  -moz-image-region: rect(18px 18px 36px 0px);
-}
-
-@media (min-resolution: 2dppx) {
+@media not all and (-moz-mac-yosemite-theme) {
   #button-add-buddy {
-    list-style-image: url("chrome://messenger/skin/icons/chat-toolbar@2x.png");
-    -moz-image-region: rect(0px 36px 36px 0px);
+    list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.svg#add");
   }
 
-  #button-add-buddy:not([disabled="true"]):active {
-    -moz-image-region: rect(36px 36px 72px 0px);
-  }
-}
-
-#button-join-chat {
-  list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.png");
-  -moz-image-region: rect(0px 36px 18px 18px);
-}
-
-#button-join-chat:not([disabled="true"]):active {
-  -moz-image-region: rect(18px 36px 36px 18px);
-}
-
-@media (min-resolution: 2dppx) {
   #button-join-chat {
-    list-style-image: url("chrome://messenger/skin/icons/chat-toolbar@2x.png");
-    -moz-image-region: rect(0px 72px 36px 36px);
+    list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.svg#join");
   }
 
-  #button-join-chat:not([disabled="true"]):active {
-    -moz-image-region: rect(36px 72px 72px 36px);
-  }
-}
-
-#button-chat-accounts {
-  list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.png");
-  -moz-image-region: rect(0px 54px 18px 36px);
-}
-
-#button-chat-accounts:not([disabled="true"]):active {
-  -moz-image-region: rect(18px 54px 36px 36px);
-}
-
-@media (min-resolution: 2dppx) {
   #button-chat-accounts {
-    list-style-image: url("chrome://messenger/skin/icons/chat-toolbar@2x.png");
-    -moz-image-region: rect(0px 108px 36px 72px);
+    list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.svg#accounts");
+  }
+}
+
+@media (-moz-mac-yosemite-theme) {
+  #button-add-buddy {
+    list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.svg#add-flat");
   }
 
-  #button-chat-accounts:not([disabled="true"]):active {
-    -moz-image-region: rect(36px 108px 72px 72px);
+  #button-join-chat {
+    list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.svg#join-flat");
   }
+
+  #button-chat-accounts {
+    list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.svg#accounts-flat");
+  }
+}
+
+toolbar[brighttext] #button-add-buddy {
+  list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.svg#add-inverted");
+}
+
+toolbar[brighttext] #button-join-chat {
+  list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.svg#join-inverted");
+}
+
+toolbar[brighttext] #button-chat-accounts {
+  list-style-image: url("chrome://messenger/skin/icons/chat-toolbar.svg#accounts-inverted");
 }
 
 #statusTypeIcon[status="available"],
@@ -318,16 +289,25 @@ richlistitem[state="disconnected"] .accountStateIcon {
   }
 }
 
-.tabmail-tab[type="chat"],
-.alltabs-item[type="chat"] {
-  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
-  -moz-image-region: rect(1px, 395px, 17px, 379px);
-}
-
-@media (min-resolution: 2dppx) {
+@media not all and (-moz-mac-yosemite-theme) {
   .tabmail-tab[type="chat"],
   .alltabs-item[type="chat"] {
-    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar@2x.png");
-    -moz-image-region: rect(0px 792px 36px 756px);
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#chat");
   }
+}
+
+@media (-moz-mac-yosemite-theme) {
+  .tabmail-tab[type="chat"],
+  .alltabs-item[type="chat"] {
+    list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.svg#chat-flat");
+  }
+}
+
+.tabmail-tab[type="chat"] > .tab-stack > .tab-content > .tab-icon-image {
+  width: 18px;
+  height: 18px;
+  margin-top: 0;
+  -moz-margin-end: 5px;
+  margin-bottom: -1px;
+  -moz-margin-start: -1px;
 }

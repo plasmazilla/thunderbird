@@ -1006,13 +1006,14 @@ GetSubFoldersRunnable::GetSubFoldersRunnable(nsIMsgFolder *aFolder) :
 
 NS_IMETHODIMP GetSubFoldersRunnable::Run()
 {
-  return m_folder->GetSubFolders(nullptr);
+  nsCOMPtr<nsISimpleEnumerator> dummy;
+  return m_folder->GetSubFolders(getter_AddRefs(dummy));
 }
 
 
 nsresult ProxyGetSubFolders(nsIMsgFolder *aFolder)
 {
-  nsRefPtr<GetSubFoldersRunnable> getSubFolders =
+  RefPtr<GetSubFoldersRunnable> getSubFolders =
     new GetSubFoldersRunnable(aFolder);
   return NS_DispatchToMainThread(getSubFolders, NS_DISPATCH_SYNC);
 }
@@ -1044,7 +1045,7 @@ NS_IMETHODIMP GetChildNamedRunnable::Run()
 nsresult ProxyGetChildNamed(nsIMsgFolder *aFolder, const nsAString & aName,
                             nsIMsgFolder **aChild)
 {
-  nsRefPtr<GetChildNamedRunnable> getChildNamed =
+  RefPtr<GetChildNamedRunnable> getChildNamed =
     new GetChildNamedRunnable(aFolder, aName, aChild);
   return NS_DispatchToMainThread(getChildNamed, NS_DISPATCH_SYNC);
 }
@@ -1072,7 +1073,7 @@ NS_IMETHODIMP GetParentRunnable::Run()
 
 nsresult ProxyGetParent(nsIMsgFolder *aFolder, nsIMsgFolder **aParent)
 {
-  nsRefPtr<GetParentRunnable> getParent =
+  RefPtr<GetParentRunnable> getParent =
     new GetParentRunnable(aFolder, aParent);
   return NS_DispatchToMainThread(getParent, NS_DISPATCH_SYNC);
 }
@@ -1104,7 +1105,7 @@ NS_IMETHODIMP ContainsChildNamedRunnable::Run()
 nsresult ProxyContainsChildNamed(nsIMsgFolder *aFolder, const nsAString &aName,
                                  bool *aResult)
 {
-  nsRefPtr<ContainsChildNamedRunnable> containsChildNamed =
+  RefPtr<ContainsChildNamedRunnable> containsChildNamed =
     new ContainsChildNamedRunnable(aFolder, aName, aResult);
   return NS_DispatchToMainThread(containsChildNamed, NS_DISPATCH_SYNC);
 }
@@ -1144,7 +1145,7 @@ nsresult ProxyGenerateUniqueSubfolderName(nsIMsgFolder *aFolder,
                                           nsAString& aName)
 
 {
-  nsRefPtr<GenerateUniqueSubfolderNameRunnable> generateUniqueSubfolderName =
+  RefPtr<GenerateUniqueSubfolderNameRunnable> generateUniqueSubfolderName =
     new GenerateUniqueSubfolderNameRunnable(aFolder, aPrefix, aOtherFolder, aName);
   return NS_DispatchToMainThread(generateUniqueSubfolderName, NS_DISPATCH_SYNC);
 }
@@ -1173,7 +1174,7 @@ NS_IMETHODIMP CreateSubfolderRunnable::Run()
 
 nsresult ProxyCreateSubfolder(nsIMsgFolder *aFolder, const nsAString &aName)
 {
-  nsRefPtr<CreateSubfolderRunnable> createSubfolder =
+  RefPtr<CreateSubfolderRunnable> createSubfolder =
     new CreateSubfolderRunnable(aFolder, aName);
   return NS_DispatchToMainThread(createSubfolder, NS_DISPATCH_SYNC);
 }
@@ -1199,7 +1200,7 @@ NS_IMETHODIMP ForceDBClosedRunnable::Run()
 
 nsresult ProxyForceDBClosed(nsIMsgFolder *aFolder)
 {
-  nsRefPtr<ForceDBClosedRunnable> forceDBClosed =
+  RefPtr<ForceDBClosedRunnable> forceDBClosed =
     new ForceDBClosedRunnable(aFolder);
   return NS_DispatchToMainThread(forceDBClosed, NS_DISPATCH_SYNC);
 }

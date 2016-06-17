@@ -14,8 +14,8 @@ function calHtmlExporter() {
     this.wrappedJSObject = this;
 }
 
-const calHtmlExporterClassID = Components.ID("{72d9ab35-9b1b-442a-8cd0-ae49f00b159b}");
-const calHtmlExporterInterfaces = [Components.interfaces.calIExporter];
+var calHtmlExporterClassID = Components.ID("{72d9ab35-9b1b-442a-8cd0-ae49f00b159b}");
+var calHtmlExporterInterfaces = [Components.interfaces.calIExporter];
 calHtmlExporter.prototype = {
     classID: calHtmlExporterClassID,
     QueryInterface: XPCOMUtils.generateQI(calHtmlExporterInterfaces),
@@ -61,7 +61,7 @@ calHtmlExporter.prototype = {
             let itemNode = document.getElementById("item-template").cloneNode(true);
             itemNode.removeAttribute("id");
 
-            function setupTextRow(classKey, propValue, prefixKey) {
+            let setupTextRow = function(classKey, propValue, prefixKey) {
                 if (propValue) {
                     let prefix = cal.calGetString("calendar", prefixKey);
                     itemNode.querySelector("." + classKey + "key").textContent = prefix;
@@ -73,7 +73,7 @@ calHtmlExporter.prototype = {
                     }
                     row.remove();
                 }
-            }
+            };
 
             let startDate = item[cal.calGetStartDateProp(item)];
             let endDate = item[cal.calGetEndDateProp(item)];

@@ -17,15 +17,15 @@ Cu.import("resource://mozmill/modules/elementslib.js", elib);
 var os = {};
 Components.utils.import("resource://mozmill/stdlib/os.js", os);
 
-const textAttachment =
+var textAttachment =
   "Can't make the frug contest, Helen; stomach's upset. I'll fix you, " +
   "Ubik! Ubik drops you back in the thick of things fast. Taken as " +
   "directed, Ubik speeds relief to head and stomach. Remember: Ubik is " +
   "only seconds away. Avoid prolonged use.";
 
-const detachedName = "./attachment.txt";
-const missingName = "./nonexistent.txt";
-const deletedName = "deleted.txt";
+var detachedName = "./attachment.txt";
+var missingName = "./nonexistent.txt";
+var deletedName = "deleted.txt";
 
 // create some messages that have various types of attachments
 var messages = [
@@ -378,7 +378,7 @@ function help_test_attachment_menus(index) {
 }
 
 // Generate a test for each message in |messages|.
-for each (let [i, message] in Iterator(messages)) {
+for (let [i, message] of messages.entries()) {
   let index = i; // make a copy to avoid passing a reference to i
   this["test_" + message.name] = function() {
     help_test_attachment_menus(index);

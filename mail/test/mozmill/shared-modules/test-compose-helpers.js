@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "compose-helpers";
+var MODULE_NAME = "compose-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
+var RELATIVE_ROOT = "../shared-modules";
 // we need this for the main controller
-const MODULE_REQUIRES = ["folder-display-helpers",
+var MODULE_REQUIRES = ["folder-display-helpers",
                          "window-helpers",
                          "dom-helpers"];
 
@@ -15,7 +15,7 @@ Cu.import('resource://mozmill/modules/elementslib.js', elib);
 var utils = {};
 Cu.import('resource://mozmill/modules/utils.js', utils);
 
-const kTextNodeType = 3;
+var kTextNodeType = 3;
 
 var folderDisplayHelper;
 var mc;
@@ -233,7 +233,7 @@ function wait_for_compose_window(aController) {
     editor.commandManager.addCommandObserver(editorObserver,
                                              "obs_documentCreated");
 
-    utils.waitFor(function () editorObserver.editorLoaded,
+    utils.waitFor(() => editorObserver.editorLoaded,
                   "Timeout waiting for compose window editor to load",
                   10000, 100);
 
@@ -325,7 +325,7 @@ function get_compose_body(aController) {
 function type_in_composer(aController, aText) {
   // If we have any typing to do, let's do it.
   let frame = aController.eid("content-frame");
-  for each (let [i, aLine] in Iterator(aText)) {
+  for (let [i, aLine] of aText.entries()) {
     aController.type(frame, aLine);
     if (i < aText.length - 1)
       aController.keypress(frame, "VK_RETURN", {});

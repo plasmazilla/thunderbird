@@ -1,0 +1,30 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY  colorsDialog.title              "Цветове">
+<!ENTITY  window.width                    "38em">
+<!ENTITY  window.macWidth                 "41em">
+
+<!ENTITY  overridePageColors.label        "Предпочитане на избраните от мен цветове пред зададените от съдържанието:">
+<!ENTITY  overridePageColors.accesskey    "р">
+
+<!ENTITY  overridePageColors.always.label "Винаги">
+<!ENTITY  overridePageColors.auto.label   "Само за теми с висок контраст">
+<!ENTITY  overridePageColors.never.label  "Никога">
+
+<!ENTITY  color                           "Текст и фон">
+<!ENTITY  textColor.label                 "Текст:">
+<!ENTITY  textColor.accesskey             "Т">
+<!ENTITY  backgroundColor.label           "Фон:">
+<!ENTITY  backgroundColor.accesskey       "Ф">
+<!ENTITY  useSystemColors.label           "Използване на системните цветове">
+<!ENTITY  useSystemColors.accesskey       "с">
+
+<!ENTITY  underlineLinks.label            "Подчертаване на връзките">
+<!ENTITY  underlineLinks.accesskey        "П">
+<!ENTITY  links                           "Цветове на връзките">
+<!ENTITY  linkColor.label                 "Непосетени връзки:">
+<!ENTITY  linkColor.accesskey             "о">
+<!ENTITY  visitedLinkColor.label          "Посетени връзки:">
+<!ENTITY  visitedLinkColor.accesskey      "с">

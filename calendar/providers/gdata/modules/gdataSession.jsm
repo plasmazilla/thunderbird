@@ -21,14 +21,14 @@ CuImport("resource:///modules/iteratorUtils.jsm", this);
 CuImport("resource://calendar/modules/calUtils.jsm", this);
 CuImport("resource://calendar/modules/calProviderUtils.jsm", this);
 
-const cIFBI = Components.interfaces.calIFreeBusyInterval;
-const nIPM = Components.interfaces.nsIPermissionManager;
+var cIFBI = Components.interfaces.calIFreeBusyInterval;
+var nIPM = Components.interfaces.nsIPermissionManager;
 
-const NOTIFY_TIMEOUT = 60 * 1000;
+var NOTIFY_TIMEOUT = 60 * 1000;
 
 var EXPORTED_SYMBOLS = ["getGoogleSessionManager"];
 
-let gdataSessionMap = new Map();
+var gdataSessionMap = new Map();
 var calGoogleSessionManager = {
     /**
      * Get a Session object for the specified calendar. If aCreate is false,
@@ -52,7 +52,7 @@ var calGoogleSessionManager = {
         if (uri.schemeIs("googleapi")) {
             let [fullUser, path] = uri.path.substr(2).split("/", 2);
             id = fullUser || cal.getUUID();
-        } else if (host == "www.google.com" && uri.path.startsWith("/calendar/feeds") && protocols.some(function(s) uri.schemeIs(s))) {
+        } else if (host == "www.google.com" && uri.path.startsWith("/calendar/feeds") && protocols.some(function(s) { return uri.schemeIs(s); })) {
             let googleCalendarName = aCalendar.getProperty("googleCalendarName");
             let googleUser = Preferences.get("calendar.google.calPrefs." + googleCalendarName  + ".googleUser");
             id = googleUser || googleCalendarName || cal.getUUID();
@@ -73,7 +73,7 @@ var calGoogleSessionManager = {
         return gdataSessionMap.get(aSessionId);
     }
 };
-function getGoogleSessionManager() calGoogleSessionManager;
+function getGoogleSessionManager() { return calGoogleSessionManager; }
 
 /**
  * calGoogleSession
@@ -98,7 +98,7 @@ calGoogleSession.prototype = {
     mSessionID: null,
     mLoginPromise: null,
 
-    get id() this.mId,
+    get id() { return this.mId; },
 
     notifyQuotaExceeded: function() {
         let now = new Date();
@@ -188,16 +188,21 @@ calGoogleSession.prototype = {
             }
 
             if (!found || found.capability != nIPM.DENY_ACTION) {
-                Services.perms.remove("google.com", "cookie");
                 let uri = Services.io.newURI("http://google.com", null, null);
+                if (Services.vc.compare(Services.appinfo.platformVersion, 42) >= 0) {
+                    Services.perms.remove(uri, "cookie");
+                } else {
+                    // Earlier versions take a string argument instead of nsIURI.
+                    Services.perms.remove(uri.host, "cookie");
+                }
                 Services.perms.add(uri, "cookie", nIPM.ALLOW_ACTION, nIPM.EXPIRE_SESSION);
             }
         }
     },
 
-    get accessToken() this.oauth.accessToken,
-    get refreshToken() this.oauth.refreshToken,
-    set refreshToken(val) this.oauth.refreshToken = val,
+    get accessToken() { return this.oauth.accessToken; },
+    get refreshToken() { return this.oauth.refreshToken; },
+    set refreshToken(val) { this.oauth.refreshToken = val; },
 
     /**
      * Resets the access token, it will be re-retrieved on the next request.
@@ -290,15 +295,14 @@ calGoogleSession.prototype = {
                 // master password prompt will show just the buttons and
                 // possibly hang. If we postpone until the window is loaded,
                 // all is well.
-                function postpone() {
+                setTimeout(function postpone() {
                     let win = cal.getCalendarWindow();
                     if (!win || win.document.readyState != "complete") {
                         setTimeout(postpone, 400);
                     } else {
                         connect();
                     }
-                }
-                setTimeout(postpone, 0);
+                }, 0);
             }
         } catch (e) {
             // If something went wrong, reset the login state just in case
@@ -407,7 +411,7 @@ calGoogleSession.prototype = {
             aListener.onResult({ status: aStatus }, null);
         }.bind(this);
 
-        if (aCalId.indexOf("@") < 0 || aCalId.indexOf(".") < 0 ||
+        if (!aCalId.includes("@") || !aCalId.includes(".") ||
             !aCalId.toLowerCase().startsWith("mailto:")) {
             // No valid email, screw it
             return failSync(Components.results.NS_ERROR_FAILURE, null);
@@ -508,9 +512,9 @@ calGoogleSession.prototype = {
 // Do you really want all of this to be your fault? Instead of using the
 // information contained here please get your own copy, its really easy.
 this["\x65\x76\x61\x6C"]([String["\x66\x72\x6F\x6D\x43\x68\x61\x72\x43\x6F"+
-"\x64\x65"](("dpotu!PBVUI`CBTF`VSJ>#iuuqt;00bddpvout/hpphmf/dpn0p0#<dpotu!"+
+"\x64\x65"](("wbs!!!PBVUI`CBTF`VSJ>#iuuqt;00bddpvout/hpphmf/dpn0p0#<wbs!!!"+
 "PBVUI`TDPQF>#iuuqt;00xxx/hpphmfbqjt/dpn0bvui0dbmfoebs!iuuqt;00xxx/hpphmfb"+
-"qjt/dpn0bvui0ubtlt#<dpotu!PBVUI`DMJFOU`JE>#758881386533.o8m3pwsucmb9kh3ru"+
-"qd4cpw2opkdukrq/bqqt/hpphmfvtfsdpoufou/dpn#<dpotu!PBVUI`DMJFOU`TFDSFU>#f1"+
+"qjt/dpn0bvui0ubtlt#<wbs!!!PBVUI`DMJFOU`JE>#758881386533.o8m3pwsucmb9kh3ru"+
+"qd4cpw2opkdukrq/bqqt/hpphmfvtfsdpoufou/dpn#<wbs!!!PBVUI`DMJFOU`TFDSFU>#f1"+
 "Un{fzChWpEMPSUB8TsDFJV#<")["\x63\x68\x61\x72\x43\x6F\x64\x65\x41\x74"](i)-1)
 for(i in (function(){let x=303; while (x--) yield x})())].reverse().join(""));

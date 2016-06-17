@@ -22,7 +22,7 @@ var nsMsgMessageFlags = Components.interfaces.nsMsgMessageFlags;
  * We are not just a global list so that we can add brains about efficiently
  *  building lists, provide try-wrapper convenience, etc.
  */
-let FolderDisplayListenerManager = {
+var FolderDisplayListenerManager = {
   _listeners: [],
 
   /**
@@ -63,7 +63,7 @@ let FolderDisplayListenerManager = {
    * For use by FolderDisplayWidget to trigger listener invocation.
    */
   _fireListeners: function FDBLM__fireListeners(aEventName, aArgs) {
-    for each (let [, listener] in Iterator(this._listeners)) {
+    for (let listener of this._listeners) {
       if (aEventName in listener) {
         try {
           listener[aEventName].apply(listener, aArgs);
@@ -244,14 +244,14 @@ FolderDisplayWidget.prototype = {
    * @return the focused pane
    */
   get focusedPane() {
-    let panes = [document.getElementById(id) for each (id in [
+    let panes = [document.getElementById(id) for (id of [
       "threadTree", "folderTree", "messagepanebox"
     ])];
 
     let currentNode = top.document.activeElement;
 
     while (currentNode) {
-      if (panes.indexOf(currentNode) != -1)
+      if (panes.includes(currentNode))
         return currentNode;
 
       currentNode = currentNode.parentNode;
@@ -313,10 +313,10 @@ FolderDisplayWidget.prototype = {
    *  restore), but is also the most reliable option for this use case.
    */
   _saveSelection: function FolderDisplayWidget_saveSelection() {
-    this._savedSelection = {messages:
-                            [{messageId: msgHdr.messageId} for each
-                             ([, msgHdr] in Iterator(this.selectedMessages))],
-                            forceSelect: false};
+    this._savedSelection = {
+      messages: this.selectedMessages.map(msgHdr => ({messageId: msgHdr.messageId})),
+      forceSelect: false
+    };
   },
 
   /**
@@ -345,14 +345,30 @@ FolderDisplayWidget.prototype = {
     // which ends up being O(sn)
     var msgHdr;
     let messages =
-      [msgHdr for each
-        ([, savedInfo] in Iterator(this._savedSelection.messages)) if
-        ((msgHdr = this.view.getMsgHdrForMessageID(savedInfo.messageId)))];
+      this._savedSelection.messages.
+      map(savedInfo => this.view.getMsgHdrForMessageID(savedInfo.messageId)).
+      filter(msgHdr => !!msgHdr);
 
     this.selectMessages(messages, this._savedSelection.forceSelect, true);
     this._savedSelection = null;
 
     return this.selectedCount != 0;
+  },
+
+  /**
+   * Restore the last expandAll/collapseAll state, for both grouped and threaded
+   * views. Not all views respect viewFlags, ie single folder non-virtual.
+   */
+  restoreThreadState: function() {
+    if (!this._active || !this.tree || !this.view.dbView.viewFolder)
+      return;
+
+    if (this.view._threadExpandAll &&
+        !(this.view.dbView.viewFlags & nsMsgViewFlagsType.kExpandAll))
+      this.view.dbView.doCommand(Components.interfaces.nsMsgViewCommandType.expandAll);
+    if (!this.view._threadExpandAll &&
+        this.view.dbView.viewFlags & nsMsgViewFlagsType.kExpandAll)
+      this.view.dbView.doCommand(Components.interfaces.nsMsgViewCommandType.collapseAll);
   },
   //@}
 
@@ -361,6 +377,39 @@ FolderDisplayWidget.prototype = {
    * @protected Folder Display
    */
   //@{
+
+  /**
+   * The map of all stock sortable columns and their sortType. The key must
+   * match the column's xul <treecol> id.
+   */
+  COLUMNS_MAP: new Map([
+    ["accountCol",       "byAccount"],
+    ["attachmentCol",    "byAttachments"],
+    ["senderCol",        "byAuthor"],
+    ["correspondentCol", "byCorrespondent"],
+    ["dateCol",          "byDate"],
+    ["flaggedCol",       "byFlagged"],
+    ["idCol",            "byId"],
+    ["junkStatusCol",    "byJunkStatus"],
+    ["locationCol",      "byLocation"],
+    ["priorityCol",      "byPriority"],
+    ["receivedCol",      "byReceived"],
+    ["recipientCol",     "byRecipient"],
+    ["sizeCol",          "bySize"],
+    ["statusCol",        "byStatus"],
+    ["subjectCol",       "bySubject"],
+    ["tagsCol",          "byTags"],
+    ["threadCol",        "byThread"],
+    ["unreadButtonColHeader", "byUnread"]
+  ]),
+
+  /**
+   * The map of stock non-sortable columns. The key must match the column's
+   *  xul <treecol> id.
+   */
+  COLUMNS_MAP_NOSORT: new Set([
+    "totalCol", "unreadCol"
+  ]),
 
   /**
    * The set of potential default columns in their default display order.  Each
@@ -373,8 +422,9 @@ FolderDisplayWidget.prototype = {
     "flaggedCol",
     "subjectCol",
     "unreadButtonColHeader",
-    "senderCol", // incoming folders
-    "recipientCol", // outgoing folders
+    "senderCol", // news folders or incoming folders when correspondents not in use
+    "recipientCol", // outgoing folders when correspondents not in use
+    "correspondentCol", // mail folders
     "junkStatusCol",
     "dateCol",
     "locationCol", // multiple-folder backed folders
@@ -392,12 +442,27 @@ FolderDisplayWidget.prototype = {
    *  displayed by default.
    */
   COLUMN_DEFAULT_TESTERS: {
-    // senderCol = From.  You only care in incoming folders.
+    correspondentCol: function (viewWrapper) {
+      if (Services.prefs.getBoolPref("mail.threadpane.use_correspondents")) {
+        // Don't show the correspondent for news or RSS where it doesn't make sense.
+        return viewWrapper.isMailFolder && !viewWrapper.isFeedFolder;
+      }
+      return false;
+    },
     senderCol: function (viewWrapper) {
+      if (Services.prefs.getBoolPref("mail.threadpane.use_correspondents")) {
+        // Show the sender even if correspondent is enabled for news and feeds.
+        return viewWrapper.isNewsFolder || viewWrapper.isFeedFolder;
+      }
+      // senderCol = From. You only care in incoming folders.
       return viewWrapper.isIncomingFolder;
     },
-    // recipient = To. You only care in outgoing folders.
     recipientCol: function (viewWrapper) {
+      if (Services.prefs.getBoolPref("mail.threadpane.use_correspondents")) {
+        // No recipient column if we use correspondent.
+        return false;
+      }
+      // recipientCol = To. You only care in outgoing folders.
       return viewWrapper.isOutgoingFolder;
     },
     // Only show the location column for non-single-folder results
@@ -482,8 +547,7 @@ FolderDisplayWidget.prototype = {
    * Either inherit the column state of another folder or use heuristics to
    *  figure out the best column state for the current folder.
    */
-  _getDefaultColumnsForCurrentFolder:
-      function FolderDisplayWidget__getDefaultColumnsForCurrentFolder() {
+  _getDefaultColumnsForCurrentFolder: function(aDoNotInherit) {
     const InboxFlag = Components.interfaces.nsMsgFolderFlags.Inbox;
 
     // If the view is synthetic, try asking it for its default columns. If it
@@ -501,13 +565,16 @@ FolderDisplayWidget.prototype = {
     // - It's a virtual folder (single or multi-folder backed).  Who knows what
     //    the intent of the user is in this case.  This should also be bounded
     //    in number and our default heuristics should be pretty good.
+    // - It's a multiple folder; this is either a search view (which has no
+    //   displayed folder) or a virtual folder (which we eliminated above).
     // - News folders.  There is no inbox so there's nothing to inherit from.
     //    (Although we could try and see if they have opened any other news
     //    folders in the same account.  But it's not all that important to us.)
     // - It's an inbox!
-    let doNotInherit =
+    let doNotInherit = aDoNotInherit ||
       this.view.isOutgoingFolder ||
       this.view.isVirtual ||
+      this.view.isMultiFolder ||
       this.view.isNewsFolder ||
       this.displayedFolder.flags & InboxFlag;
 
@@ -1052,6 +1119,9 @@ FolderDisplayWidget.prototype = {
     if (this._aboutToSelectMessage)
       return;
 
+    // - restore user's last expand/collapse choice.
+    this.restoreThreadState();
+
     // - restore selection
     // Attempt to restore the selection (if we saved it because the view was
     //  being destroyed or otherwise manipulated in a fashion that the normal
@@ -1300,6 +1370,9 @@ FolderDisplayWidget.prototype = {
     //  our notification when the message load is initiated, rather than when
     //  the message completes loading.
     this._nextViewIndexAfterDelete = null;
+
+    // If we're displaying a different message, reset the override.
+    msgWindow.charsetOverride = false;
   },
 
   /**
@@ -1490,7 +1563,7 @@ FolderDisplayWidget.prototype = {
       aNotificationFunc.call(this);
     }
     else {
-      if (this._notificationsPendingActivation.indexOf(aNotificationFunc) == -1)
+      if (!this._notificationsPendingActivation.includes(aNotificationFunc))
         this._notificationsPendingActivation.push(aNotificationFunc);
     }
   },
@@ -1508,7 +1581,7 @@ FolderDisplayWidget.prototype = {
 
     let pendingNotifications = this._notificationsPendingActivation;
     this._notificationsPendingActivation = [];
-    for each (let [, notif] in Iterator(pendingNotifications)) {
+    for (let notif of pendingNotifications) {
       notif.call(this);
     }
   },
@@ -1996,9 +2069,7 @@ FolderDisplayWidget.prototype = {
    *  conceptually have all of the messages in that thread selected.
    */
   get selectedCount() {
-    if (!this.view.dbView)
-      return 0;
-    return this.view.dbView.numSelected;
+    return this.selectedMessages.length;
   },
 
   /**
@@ -2220,7 +2291,7 @@ FolderDisplayWidget.prototype = {
       treeSelection.selectEventsSuppressed = true;
       treeSelection.clearSelection();
 
-      for each (let [, msgHdr] in Iterator(aMessages)) {
+      for (let msgHdr of aMessages) {
         let viewIndex = this.view.getViewIndexForMsgHdr(msgHdr, aForceSelect);
 
         if (viewIndex != nsMsgViewIndex_None) {
@@ -2256,10 +2327,10 @@ FolderDisplayWidget.prototype = {
     // 2. The tree selection is there, and we needed to find all messages, but
     //    we didn't.
     if (!treeSelection || (!aDoNotNeedToFindAll && !foundAll)) {
-      this._savedSelection = {messages:
-                              [{messageId: msgHdr.messageId} for each
-                              ([, msgHdr] in Iterator(aMessages))],
-                              forceSelect: aForceSelect};
+      this._savedSelection = {
+        messages: aMessages.map(msgHdr => ({messageId: msgHdr.messageId})),
+        forceSelect: aForceSelect
+      };
       if (!this.active)
         this._notifyWhenActive(this._restoreSelection);
     }
@@ -2352,7 +2423,7 @@ FolderDisplayWidget.prototype = {
     let selectedIndices = this.selectedIndices;
     let newSelectedMessages = [];
     let dbView = this.view.dbView;
-    for each (let [, index] in Iterator(selectedIndices)) {
+    for (let index of selectedIndices) {
       let thread = dbView.getThreadContainingIndex(index);
       // We use getChildHdrAt instead of getRootHdr because getRootHdr has
       //  a useless out-param and just calls getChildHdrAt anyways.

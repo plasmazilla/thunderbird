@@ -2,6 +2,8 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
@@ -12,10 +14,10 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 function publishCalendarData()
 {
    var args = new Object();
-   
+
    args.onOk =  self.publishCalendarDataDialogResponse;
-   
-   openDialog("chrome://calendar/content/publishDialog.xul", "caPublishEvents", 
+
+   openDialog("chrome://calendar/content/publishDialog.xul", "caPublishEvents",
               "chrome,titlebar,modal,resizable", args );
 }
 
@@ -26,7 +28,7 @@ function publishCalendarData()
  */
 function publishCalendarDataDialogResponse(CalendarPublishObject, aProgressDialog)
 {
-    publishItemArray(currentView().getSelectedItems({}), 
+    publishItemArray(currentView().getSelectedItems({}),
                      CalendarPublishObject.remotePath, aProgressDialog);
 }
 
@@ -49,12 +51,12 @@ function publishEntireCalendar(aCalendar)
         } else {
             // Ask user to select the calendar that should be published.
             // publishEntireCalendar() will be called again if OK is pressed
-            // in the dialog and the selected calendar will be passed in. 
+            // in the dialog and the selected calendar will be passed in.
             // Therefore return after openDialog().
             var args = new Object();
             args.onOk = publishEntireCalendar;
             args.promptText = calGetString("calendar", "publishPrompt");
-            openDialog("chrome://calendar/content/chooseCalendarDialog.xul", 
+            openDialog("chrome://calendar/content/chooseCalendarDialog.xul",
                        "_blank", "chrome,titlebar,modal,resizable", args);
             return;
         }
@@ -74,7 +76,7 @@ function publishEntireCalendar(aCalendar)
     }
 
     args.publishObject = publishObject;
-    openDialog("chrome://calendar/content/publishDialog.xul", "caPublishEvents", 
+    openDialog("chrome://calendar/content/publishDialog.xul", "caPublishEvents",
                "chrome,titlebar,modal,resizable", args );
 
     return;
@@ -88,11 +90,12 @@ function publishEntireCalendar(aCalendar)
 function publishEntireCalendarDialogResponse(CalendarPublishObject, aProgressDialog)
 {
     // store the selected remote ics path as a calendar preference
-    CalendarPublishObject.calendar.setProperty("remote-ics-path", 
+    CalendarPublishObject.calendar.setProperty("remote-ics-path",
                                            CalendarPublishObject.remotePath);
 
     var itemArray = [];
     var getListener = {
+        QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
         onOperationComplete: function(aCalendar, aStatus, aOperationType, aId, aDetail)
         {
             publishItemArray(itemArray, CalendarPublishObject.remotePath, aProgressDialog);
@@ -108,7 +111,7 @@ function publishEntireCalendarDialogResponse(CalendarPublishObject, aProgressDia
                     // Store a (short living) reference to the item.
                     var itemCopy = aItems[i].clone();
                     itemArray.push(itemCopy);
-                }  
+                }
             }
         }
     };
@@ -126,7 +129,12 @@ function publishItemArray(aItemArray, aPath, aProgressDialog) {
 
     var icsURL = makeURL(aPath);
 
-    var channel = Services.io.newChannelFromURI(icsURL);
+    var channel = Services.io.newChannelFromURI2(icsURL,
+                                                 null,
+                                                 Services.scriptSecurityManager.getSystemPrincipal(),
+                                                 null,
+                                                 Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                 Components.interfaces.nsIContentPolicy.TYPE_OTHER);
     if (icsURL.schemeIs('webcal'))
         icsURL.scheme = 'http';
     if (icsURL.schemeIs('webcals'))

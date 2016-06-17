@@ -32,6 +32,14 @@ class RematerializedFrame
     // Has a call object been pushed?
     bool hasCallObj_;
 
+    // Is this frame constructing?
+    bool isConstructing_;
+
+    // If true, this frame has been on the stack when
+    // |js::SavedStacks::saveCurrentStack| was called, and so there is a
+    // |js::SavedFrame| object cached for this frame.
+    bool hasCachedSavedFrame_;
+
     // The fp of the top frame associated with this possibly inlined frame.
     uint8_t* top_;
 
@@ -43,10 +51,11 @@ class RematerializedFrame
 
     JSScript* script_;
     JSObject* scopeChain_;
+    JSFunction* callee_;
     ArgumentsObject* argsObj_;
 
     Value returnValue_;
-    Value thisValue_;
+    Value thisArgument_;
     Value slots_[1];
 
     RematerializedFrame(JSContext* cx, uint8_t* top, unsigned numActualArgs,
@@ -115,7 +124,7 @@ class RematerializedFrame
     bool initFunctionScopeObjects(JSContext* cx);
 
     bool hasCallObj() const {
-        MOZ_ASSERT(fun()->isHeavyweight());
+        MOZ_ASSERT(fun()->needsCallObject());
         return hasCallObj_;
     }
     CallObject& callObj() const;
@@ -132,8 +141,11 @@ class RematerializedFrame
     bool isFunctionFrame() const {
         return !!script_->functionNonDelazifying();
     }
+    bool isModuleFrame() const {
+        return !!script_->module();
+    }
     bool isGlobalFrame() const {
-        return !isFunctionFrame();
+        return !isFunctionFrame() && !isModuleFrame();
     }
     bool isNonEvalFunctionFrame() const {
         // Ion doesn't support eval frames.
@@ -151,13 +163,26 @@ class RematerializedFrame
         return isFunctionFrame() ? fun() : nullptr;
     }
     JSFunction* callee() const {
-        return fun();
+        MOZ_ASSERT(isFunctionFrame());
+        return callee_;
     }
     Value calleev() const {
-        return ObjectValue(*fun());
+        return ObjectValue(*callee());
     }
-    Value& thisValue() {
-        return thisValue_;
+    Value& thisArgument() {
+        return thisArgument_;
+    }
+
+    bool isConstructing() const {
+        return isConstructing_;
+    }
+
+    bool hasCachedSavedFrame() const {
+        return hasCachedSavedFrame_;
+    }
+
+    void setHasCachedSavedFrame() {
+        hasCachedSavedFrame_ = true;
     }
 
     unsigned numFormalArgs() const {
@@ -171,7 +196,7 @@ class RematerializedFrame
         return slots_;
     }
     Value* locals() {
-        return slots_ + numActualArgs_;
+        return slots_ + numActualArgs_ + isConstructing_;
     }
 
     Value& unaliasedLocal(unsigned i) {
@@ -189,6 +214,15 @@ class RematerializedFrame
         MOZ_ASSERT_IF(checkAliasing, !script()->argsObjAliasesFormals());
         MOZ_ASSERT_IF(checkAliasing && i < numFormalArgs(), !script()->formalIsAliased(i));
         return argv()[i];
+    }
+
+    Value newTarget() {
+        MOZ_ASSERT(isFunctionFrame());
+        if (callee()->isArrow())
+            return callee()->getExtendedSlot(FunctionExtended::ARROW_NEWTARGET_SLOT);
+        if (isConstructing())
+            return argv()[numActualArgs()];
+        return UndefinedValue();
     }
 
     Value returnValue() const {

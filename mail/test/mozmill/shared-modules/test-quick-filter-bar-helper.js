@@ -2,10 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "quick-filter-bar-helper";
+var MODULE_NAME = "quick-filter-bar-helper";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers"];
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers"];
 
 var fdh, mc;
 
@@ -14,7 +14,7 @@ function setupModule() {
   mc = fdh.mc;
 }
 
-const EXPORT = [
+var EXPORT = [
   'assert_quick_filter_button_enabled',
   'assert_quick_filter_bar_visible',
   'toggle_quick_filter_bar',
@@ -58,7 +58,7 @@ function _afterEveryTest() {
 /**
  * Maps names to bar DOM ids to simplify checking.
  */
-const nameToBarDomId = {
+var nameToBarDomId = {
   sticky: "qfb-sticky",
   unread: "qfb-unread",
   starred: "qfb-starred",
@@ -95,7 +95,8 @@ function toggle_quick_filter_bar() {
  * that the search constraints are in effect.  Check that elsewhere.
  */
 function assert_constraints_expressed(aConstraints) {
-  for each (let [name, domId] in Iterator(nameToBarDomId)) {
+  for (let name in nameToBarDomId) {
+    let domId = nameToBarDomId[name];
     let expectedValue = (name in aConstraints) ? aConstraints[name] : false;
     let domNode = mc.e(domId);
     if (domNode.checked !== expectedValue) {
@@ -188,7 +189,7 @@ function assert_tag_constraints_checked() {
   }
 }
 
-const nameToTextDomId = {
+var nameToTextDomId = {
   sender: "qfb-qs-sender",
   recipients: "qfb-qs-recipients",
   subject: "qfb-qs-subject",

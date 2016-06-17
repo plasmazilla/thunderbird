@@ -1,0 +1,28 @@
+locale alerts bn-BD bn-BD/locale/bn-BD/alerts/
+locale autoconfig bn-BD bn-BD/locale/bn-BD/autoconfig/
+locale branding bn-BD bn-BD/locale/bn-BD/branding/
+locale chat bn-BD bn-BD/locale/bn-BD/chat/
+locale communicator bn-BD bn-BD/locale/bn-BD/communicator/
+locale cookie bn-BD bn-BD/locale/bn-BD/cookie/
+locale devtools-shared bn-BD bn-BD/locale/bn-BD/devtools/shared/
+locale editor bn-BD bn-BD/locale/bn-BD/editor/
+locale formautofill bn-BD bn-BD/locale/bn-BD/formautofill/
+locale global bn-BD bn-BD/locale/bn-BD/global/
+locale global-platform bn-BD bn-BD/locale/bn-BD/global-platform/
+locale global-region bn-BD bn-BD/locale/bn-BD/global-region/
+locale messenger bn-BD bn-BD/locale/bn-BD/messenger/
+locale messenger-mapi bn-BD bn-BD/locale/bn-BD/messenger-mapi/
+locale messenger-newsblog bn-BD bn-BD/locale/bn-BD/messenger-newsblog/
+locale messenger-region bn-BD bn-BD/locale/bn-BD/messenger-region/
+locale messenger-smime bn-BD bn-BD/locale/bn-BD/messenger-smime/
+locale mozapps bn-BD bn-BD/locale/bn-BD/mozapps/
+locale mozldap bn-BD bn-BD/locale/bn-BD/mozldap/
+locale necko bn-BD bn-BD/locale/bn-BD/necko/
+locale passwordmgr bn-BD bn-BD/locale/bn-BD/passwordmgr/
+locale pipnss bn-BD bn-BD/locale/bn-BD/pipnss/
+locale pippki bn-BD bn-BD/locale/bn-BD/pippki/
+locale places bn-BD bn-BD/locale/bn-BD/places/
+locale pluginproblem bn-BD bn-BD/locale/bn-BD/pluginproblem/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

@@ -3,7 +3,7 @@
 /* Test of accessing over 2 GiB local folder. */
 
 load("../../../resources/messageGenerator.js");
-const bugmail10 = do_get_file("../../../data/bugmail10");
+var bugmail10 = do_get_file("../../../data/bugmail10");
 
 Services.prefs.setCharPref("mail.serverDefaultStoreContractID",
                            "@mozilla.org/msgstore/berkeleystore;1");
@@ -58,13 +58,13 @@ function run_test()
   copyFileMessageInLocalFolder(bugmail10, 0, "", null, copyMessages);
 }
 
-// Get message whose msg key is over 2 GiB.
+// Get message whose offset is over 2 GiB.
 function getMessageHdr()
 {
   let msgEnum = localAccountUtils.inboxFolder.msgDatabase.EnumerateMessages();
   while (msgEnum.hasMoreElements()) {
     let header = msgEnum.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-    if (header.messageKey >= 0x80000000) {
+    if (header.messageOffset >= 0x80000000) {
       return header;
     }
   }
@@ -109,7 +109,7 @@ function accessOver2GBMsg()
   msgServ.streamMessage(msgURI, gStreamListener, null, null, false, "", true);
 }
 
-gStreamListener = {
+var gStreamListener = {
   QueryInterface : XPCOMUtils.generateQI([Ci.nsIStreamListener]),
   _stream : null,
   _data : null,

@@ -4,6 +4,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+<?xml-stylesheet href="chrome://messenger/skin/searchBox.css" type="text/css"?>
 <?xml-stylesheet href="chrome://messenger/skin/addressbook/addressbook.css" type="text/css"?>
 
 #ifdef XP_MACOSX
@@ -149,7 +150,7 @@
   <key id="key_delete" keycode="VK_DELETE" command="cmd_delete"/>
 #endif
   <key id="key_selectAll" key="&selectAllCmd.key;" modifiers="accel"/>
-#ifdef MOZ_WIDGET_GTK2
+#ifdef MOZ_WIDGET_GTK
   <key id="key_searchAddresses" key="&searchAddressesCmd.key;" oncommand="onAdvancedAbSearch();" modifiers="shift"/>
 #else
   <key id="key_searchAddresses" key="&searchAddressesCmd.key;" oncommand="onAdvancedAbSearch();" modifiers="accel, shift"/>
@@ -209,6 +210,10 @@
             accesskey="&newIM.accesskey;"
             command="cmd_chatWithCard"/>
   <menuseparator/>
+  <menuitem id="abResultsTreeContext-print"
+            label="&printButton.label;"
+            accesskey="&printButton.accesskey;"
+            command="cmd_printcard"/>
   <menuitem id="abResultsTreeContext-delete"
             label="&deleteButton2.label;"
             accesskey="&deleteButton2.accesskey;"
@@ -547,7 +552,9 @@
             <menuseparator/>
 #endif
             <menuitem label="&importCmd.label;" accesskey="&importCmd.accesskey;" oncommand="toImport()"/>
-            <menuitem label="&exportCmd.label;" accesskey="&exportCmd.accesskey;" oncommand="AbExport()"/>
+            <menuitem label="&exportCmd.label;"
+                      accesskey="&exportCmd.accesskey;"
+                      oncommand="AbExportSelection();"/>
 
 #ifndef XP_UNIX
             <menuseparator id="prefSep"/>
@@ -592,10 +599,14 @@
                      observes="button_delete" label="&deleteButton2.label;"
                      tooltiptext="&deleteButton2.tooltip;"
                      oncommand="goDoCommand('button_delete');"/>
-      <toolbaritem id="search-container" title="&searchItem.title;"
+      <toolbaritem id="search-container"
+                   title="&searchItem.title;"
                    align="center" flex="1"
                    class="chromeclass-toolbar-additional">
-        <textbox id="peopleSearchInput" flex="1" timeout="800"
+        <textbox id="peopleSearchInput"
+                 class="searchBox"
+                 flex="1"
+                 timeout="800"
                  type="search"
                  placeholder="&SearchNameOrEmail.label;"
                  oncommand="onEnterInSearchBar();"/>
@@ -729,7 +740,7 @@
           -->
         </treecols>
 
-        <treechildren ondraggesture="nsDragAndDrop.startDrag(event, abResultsPaneObserver);"/>
+        <treechildren ondragstart="nsDragAndDrop.startDrag(event, abResultsPaneObserver);"/>
       </tree>
 
       <splitter id="results-splitter" collapse="after" persist="state"/>
@@ -768,7 +779,13 @@
                       <description class="CardViewText" id="cvHomeCountry"/>
                     </vbox>
                     <vbox id="cvbHomeMapItBox" pack="end">
-                      <button id="cvHomeMapIt" url="" label="&mapItButton.label;" oncommand="MapIt('cvHomeMapIt');" tooltiptext="&mapIt.tooltip;"/>
+                      <button id="cvHomeMapIt"
+                              label="&mapItButton.label;"
+                              type="menu-button"
+                              oncommand="openLinkWithUrl(this.firstChild.mapURL);"
+                              tooltiptext="&mapIt.tooltip;">
+                        <menupopup class="map-list"/>
+                      </button>
                     </vbox>
                   </hbox>
                   <description class="CardViewLink" id="cvHomeWebPageBox">
@@ -833,7 +850,13 @@
                       <description class="CardViewText" id="cvWorkCountry"/>
                     </vbox>
                     <vbox id="cvbWorkMapItBox" pack="end">
-                      <button id="cvWorkMapIt" url="" label="&mapItButton.label;" oncommand="MapIt('cvWorkMapIt');" tooltiptext="&mapIt.tooltip;"/>
+                      <button id="cvWorkMapIt"
+                              label="&mapItButton.label;"
+                              type="menu-button"
+                              oncommand="openLinkWithUrl(this.firstChild.mapURL);"
+                              tooltiptext="&mapIt.tooltip;">
+                        <menupopup class="map-list"/>
+                      </button>
                     </vbox>
                   </hbox>
                   <description class="CardViewLink" id="cvWorkWebPageBox">

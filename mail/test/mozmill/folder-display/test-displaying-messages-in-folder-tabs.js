@@ -21,10 +21,10 @@ var folderC;
 
 var folderTab;
 
-let msgHdrsInFolderA = [], msgHdrsInFolderB = [];
+var msgHdrsInFolderA = [], msgHdrsInFolderB = [];
 
 // The number of messages in folderA/folderB.
-const NUM_MESSAGES_IN_FOLDER = 10;
+var NUM_MESSAGES_IN_FOLDER = 10;
 
 // A generator for indexes to load test.
 function _generateIndexes() {

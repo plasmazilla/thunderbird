@@ -1,0 +1,37 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:25 +0200
+Subject: Brand-es-AR
+
+---
+ iceowl-l10n/es-AR/locale/es-AR/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/es-AR/locale/es-AR/lightning/lightning.properties b/iceowl-l10n/es-AR/locale/es-AR/lightning/lightning.properties
+index 366ef20..5dada9b 100644
+--- a/iceowl-l10n/es-AR/locale/es-AR/lightning/lightning.properties
++++ b/iceowl-l10n/es-AR/locale/es-AR/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Un calendario integrado para Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Un calendario integrado para Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Proyecto Mozilla Calendar
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Tareas
+@@ -44,7 +44,7 @@ imipBarUpdateText=Este mensaje contiene una actualizaciþn a un evento existente
+ imipBarAlreadyProcessedText=Este mensaje contiene un evento que ya ha sido procesdo.
+ imipBarProcessedNeedsAction=Este mensaje contiene un evento al que no ha respondido.
+ imipBarReplyText=Este mensaje contiene una respuesta a una invitación.
+-imipBarUnsupportedText=Este mensaje contiene un evento que esta versión de Lightning no puede procesar.
++imipBarUnsupportedText=Este mensaje contiene un evento que esta versión de Iceowl no puede procesar.
+ imipBarProcessingFailed=Falla al procesar el mensaje. Estado: %1$S.
+ imipBarNotWritable=No hay calendarios que se puedan escribir configurados para invitaciones, verifique las propiedades del calendario.
+ imipSendMail.title=Notificación por correo electrónico

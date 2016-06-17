@@ -1,0 +1,23 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY  prefWindow.titleWin     "Mundësi">
+<!ENTITY  prefWindow.titleGNOME   "Parapëlqime &brandShortName;-i">
+<!ENTITY  prefWindow.titleMAC     "Parapëlqime">
+<!ENTITY  prefWindow.styleWindows "width: 60em; min-height: 38.5em;">
+<!ENTITY  prefWindow.styleMac     "width: 60em;">
+<!ENTITY  prefWindow.styleGNOME   "width: 60em; min-height: 38em;">
+
+<!ENTITY paneGeneral.title       "Të përgjithshme">
+<!ENTITY paneDisplay.title        "Paraqitje">
+<!ENTITY paneComposition.title    "Hartim">
+<!ENTITY paneChat.title           "Fjalosje">
+<!ENTITY paneAttachments.title    "Bashkëngjitje">
+<!ENTITY panePrivacy.title        "Privatësi">
+<!ENTITY paneAdvanced.title       "Të mëtejshme">
+<!ENTITY paneSecurity.title       "Siguri">
+<!ENTITY paneAccount.title        "Llogari">
+
+<!ENTITY okButton.title           "OK">
+<!ENTITY okButton.accesskey       "O">

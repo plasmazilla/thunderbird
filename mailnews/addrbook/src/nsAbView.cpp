@@ -87,7 +87,7 @@ NS_IMETHODIMP nsAbView::ClearView()
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
-  int32_t i = mCards.Count();
+  int32_t i = mCards.Length();
   while(i-- > 0)
     NS_ASSERTION(NS_SUCCEEDED(RemoveCardAt(i)), "remove card failed\n");
 
@@ -98,7 +98,7 @@ nsresult nsAbView::RemoveCardAt(int32_t row)
 {
   nsresult rv;
 
-  AbCard *abcard = (AbCard*) (mCards.ElementAt(row));
+  AbCard *abcard = mCards.ElementAt(row);
   NS_IF_RELEASE(abcard->card);
   mCards.RemoveElementAt(row);
   PR_FREEIF(abcard->primaryCollationKey);
@@ -113,7 +113,7 @@ nsresult nsAbView::RemoveCardAt(int32_t row)
   }
 
   if (mAbViewListener && !mSuppressCountChange) {
-    rv = mAbViewListener->OnCountChanged(mCards.Count());
+    rv = mAbViewListener->OnCountChanged(mCards.Length());
     NS_ENSURE_SUCCESS(rv,rv);
   }
   return NS_OK;
@@ -179,7 +179,7 @@ NS_IMETHODIMP nsAbView::SetView(nsIAbDirectory *aAddressBook,
   }
 
   // Clear out old cards
-  int32_t i = mCards.Count();
+  int32_t i = mCards.Length();
   while(i-- > 0)
   {
     rv = RemoveCardAt(i);
@@ -248,8 +248,8 @@ NS_IMETHODIMP nsAbView::SetView(nsIAbDirectory *aAddressBook,
   // It may not be, if you migrated from older versions, or switched between
   // a mozilla build and a commercial build, which have different columns.
   nsAutoString actualSortColumn;
-  if (!generatedNameColumnId.Equals(aSortColumn) && mCards.Count()) {
-    nsIAbCard *card = ((AbCard *)(mCards.ElementAt(0)))->card;
+  if (!generatedNameColumnId.Equals(aSortColumn) && mCards.Length()) {
+    nsIAbCard *card = mCards.ElementAt(0)->card;
     nsString value;
     // XXX todo
     // Need to check if _Generic is valid.  GetCardValue() will always return NS_OK for _Generic
@@ -269,7 +269,7 @@ NS_IMETHODIMP nsAbView::SetView(nsIAbDirectory *aAddressBook,
 
   mAbViewListener = aAbViewListener;
   if (mAbViewListener && !mSuppressCountChange) {
-    rv = mAbViewListener->OnCountChanged(mCards.Count());
+    rv = mAbViewListener->OnCountChanged(mCards.Length());
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -318,7 +318,7 @@ nsresult nsAbView::EnumerateCards()
         // If we knew how many cards there was going to be
         // we could allocate an array of the size,
         // instead of growing and copying as we append.
-        DebugOnly<bool> didAppend = mCards.AppendElement((void *)abcard);
+        DebugOnly<bool> didAppend = mCards.AppendElement(abcard);
         NS_ASSERTION(didAppend, "failed to append card");
       }
     }
@@ -329,7 +329,7 @@ nsresult nsAbView::EnumerateCards()
 
 NS_IMETHODIMP nsAbView::GetRowCount(int32_t *aRowCount)
 {
-  *aRowCount = mCards.Count();
+  *aRowCount = mCards.Length();
   return NS_OK;
 }
 
@@ -354,7 +354,7 @@ NS_IMETHODIMP nsAbView::GetCellProperties(int32_t row, nsITreeColumn* col, nsASt
 {
   NS_ENSURE_TRUE(row >= 0, NS_ERROR_UNEXPECTED);
 
-  if (mCards.Count() <= row)
+  if (mCards.Length() <= (size_t)row)
     return NS_OK;
 
   const char16_t* colID;
@@ -363,7 +363,7 @@ NS_IMETHODIMP nsAbView::GetCellProperties(int32_t row, nsITreeColumn* col, nsASt
   if (colID[0] != char16_t('G'))
     return NS_OK;
 
-  nsIAbCard *card = ((AbCard *)(mCards.ElementAt(row)))->card;
+  nsIAbCard *card = mCards.ElementAt(row)->card;
 
   bool isMailList;
   nsresult rv = card->GetIsMailList(&isMailList);
@@ -525,9 +525,9 @@ nsresult nsAbView::RefreshTree()
 
 NS_IMETHODIMP nsAbView::GetCellText(int32_t row, nsITreeColumn* col, nsAString& _retval)
 {
-  NS_ENSURE_TRUE(row >= 0 && row < mCards.Count(), NS_ERROR_UNEXPECTED);
+  NS_ENSURE_TRUE(row >= 0 && (size_t)row < mCards.Length(), NS_ERROR_UNEXPECTED);
 
-  nsIAbCard *card = ((AbCard *)(mCards.ElementAt(row)))->card;
+  nsIAbCard *card = mCards.ElementAt(row)->card;
   const char16_t* colID;
   col->GetIdConst(&colID);
   return GetCardValue(card, colID, _retval);
@@ -612,13 +612,12 @@ NS_IMETHODIMP nsAbView::PerformActionOnCell(const char16_t *action, int32_t row,
 NS_IMETHODIMP nsAbView::GetCardFromRow(int32_t row, nsIAbCard **aCard)
 {
   *aCard = nullptr;  
-  if (mCards.Count() <= row) {
+  NS_ENSURE_TRUE(row >= 0, NS_ERROR_UNEXPECTED);
+  if (mCards.Length() <= (size_t)row) {
     return NS_OK;
   }
 
-  NS_ENSURE_TRUE(row >= 0, NS_ERROR_UNEXPECTED);
-
-  AbCard *a = ((AbCard *)(mCards.ElementAt(row)));
+  AbCard *a = mCards.ElementAt(row);
   if (!a)
       return NS_OK;
 
@@ -637,13 +636,8 @@ typedef struct SortClosure
 } SortClosure;
 
 static int
-inplaceSortCallback(const void *data1, const void *data2, void *privateData)
+inplaceSortCallback(const AbCard *card1, const AbCard *card2, SortClosure *closure)
 {
-  AbCard *card1 = (AbCard *)data1;
-  AbCard *card2 = (AbCard *)data2;
-  
-  SortClosure *closure = (SortClosure *) privateData;
-  
   int32_t sortValue;
   
   // If we are sorting the "PrimaryEmail", swap the collation keys, as the secondary is always the
@@ -679,11 +673,27 @@ static void SetSortClosure(const char16_t *sortColumn, const char16_t *sortDirec
   return;
 }
 
+class CardComparator
+{
+public:
+  void SetClosure(SortClosure *closure) { m_closure = closure; };
+
+  bool Equals(const AbCard *a, const AbCard *b) const {
+    return inplaceSortCallback(a, b, m_closure) == 0;
+  }
+  bool LessThan(const AbCard *a, const AbCard *b) const{
+    return inplaceSortCallback(a, b, m_closure) < 0;
+  }
+
+private:
+  SortClosure *m_closure;
+};
+
 NS_IMETHODIMP nsAbView::SortBy(const char16_t *colID, const char16_t *sortDir, bool aResort = false)
 {
   nsresult rv;
 
-  int32_t count = mCards.Count();
+  int32_t count = mCards.Length();
 
   nsAutoString sortColumn;
   if (!colID)
@@ -707,10 +717,10 @@ NS_IMETHODIMP nsAbView::SortBy(const char16_t *colID, const char16_t *sortDir, b
       int32_t halfPoint = count / 2;
       for (int32_t i = 0; i < halfPoint; i++) {
         // Swap the elements.
-        void *ptr1 = mCards.ElementAt(i);
-        void *ptr2 = mCards.ElementAt(count - i - 1);
-        mCards.ReplaceElementAt(ptr2, i);
-        mCards.ReplaceElementAt(ptr1, count - i - 1);
+        AbCard *ptr1 = mCards.ElementAt(i);
+        AbCard *ptr2 = mCards.ElementAt(count - i - 1);
+        mCards.ReplaceElementAt(i, ptr2);
+        mCards.ReplaceElementAt(count - i - 1, ptr1);
       }
       mSortDirection = sortDir;
     }
@@ -718,7 +728,7 @@ NS_IMETHODIMP nsAbView::SortBy(const char16_t *colID, const char16_t *sortDir, b
   else {
     // Generate collation keys
     for (int32_t i = 0; i < count; i++) {
-      AbCard *abcard = (AbCard *)(mCards.ElementAt(i));
+      AbCard *abcard = mCards.ElementAt(i);
 
       rv = GenerateCollationKeysForCard(sortColumn.get(), abcard);
       NS_ENSURE_SUCCESS(rv,rv);
@@ -748,8 +758,10 @@ NS_IMETHODIMP nsAbView::SortBy(const char16_t *colID, const char16_t *sortDir, b
       }
     }
 
-    mCards.Sort(inplaceSortCallback, (void *)(&closure));
-    
+    CardComparator cardComparator;
+    cardComparator.SetClosure(&closure);
+    mCards.Sort(cardComparator);
+
     rv = ReselectCards(selectedCards, indexCard);
     NS_ENSURE_SUCCESS(rv, rv);
 
@@ -910,7 +922,7 @@ nsresult nsAbView::AddCard(AbCard *abcard, bool selectCardAfterAdding, int32_t *
   NS_ENSURE_ARG_POINTER(abcard);
   
   *index = FindIndexForInsert(abcard);
-  mCards.InsertElementAt((void *)abcard, *index);
+  mCards.InsertElementAt(*index, abcard);
 
   // This needs to happen after we insert the card, as RowCountChanged() will call GetRowCount()
   if (mTree)
@@ -923,7 +935,7 @@ nsresult nsAbView::AddCard(AbCard *abcard, bool selectCardAfterAdding, int32_t *
   }
 
   if (mAbViewListener && !mSuppressCountChange) {
-    rv = mAbViewListener->OnCountChanged(mCards.Count());
+    rv = mAbViewListener->OnCountChanged(mCards.Length());
     NS_ENSURE_SUCCESS(rv,rv);
   }
 
@@ -932,19 +944,16 @@ nsresult nsAbView::AddCard(AbCard *abcard, bool selectCardAfterAdding, int32_t *
 
 int32_t nsAbView::FindIndexForInsert(AbCard *abcard)
 {
-  int32_t count = mCards.Count();
+  int32_t count = mCards.Length();
   int32_t i;
 
-  void *item = (void *)abcard;
-  
   SortClosure closure;
   SetSortClosure(mSortColumn.get(), mSortDirection.get(), this, &closure);
   
   // XXX todo
   // Make this a binary search
   for (i=0; i < count; i++) {
-    void *current = mCards.ElementAt(i);
-    int32_t value = inplaceSortCallback(item, current, (void *)(&closure));
+    int32_t value = inplaceSortCallback(abcard, mCards.ElementAt(i), &closure);
     // XXX Fix me, this is not right for both ascending and descending
     if (value <= 0) 
       break;
@@ -1005,7 +1014,7 @@ nsresult nsAbView::RemoveCardAndSelectNextCard(nsISupports *item)
       NS_ENSURE_SUCCESS(rv,rv);
 
       if (selectNextCard) {
-      int32_t count = mCards.Count();
+      int32_t count = mCards.Length();
       if (count && mTreeSelection) {
         // If we deleted the last card, adjust so we select the new "last" card
         if (index >= (count - 1)) {
@@ -1022,14 +1031,14 @@ nsresult nsAbView::RemoveCardAndSelectNextCard(nsISupports *item)
 
 int32_t nsAbView::FindIndexForCard(nsIAbCard *card)
 {
-  int32_t count = mCards.Count();
+  int32_t count = mCards.Length();
   int32_t i;
  
   // You can't implement the binary search here, as all you have is the nsIAbCard
   // you might be here because one of the card properties has changed, and that property
   // could be the collation key.
   for (i=0; i < count; i++) {
-    AbCard *abcard = (AbCard*) (mCards.ElementAt(i));
+    AbCard *abcard = mCards.ElementAt(i);
     bool equals;
     nsresult rv = card->Equals(abcard->card, &equals);
     if (NS_SUCCEEDED(rv) && equals) {
@@ -1051,7 +1060,7 @@ NS_IMETHODIMP nsAbView::OnItemPropertyChanged(nsISupports *item, const char *pro
   if (index == -1)
     return NS_OK;
 
-  AbCard *oldCard = (AbCard*) (mCards.ElementAt(index));
+  AbCard *oldCard = mCards.ElementAt(index);
 
   // Malloc these from an arena
   AbCard *newCard = (AbCard *) PR_Calloc(1, sizeof(struct AbCard));
@@ -1078,9 +1087,9 @@ NS_IMETHODIMP nsAbView::OnItemPropertyChanged(nsISupports *item, const char *pro
     // We just need to clean up what we allocated.
     NS_IF_RELEASE(newCard->card);
     if (newCard->primaryCollationKey)
-      nsMemory::Free(newCard->primaryCollationKey);
+      free(newCard->primaryCollationKey);
     if (newCard->secondaryCollationKey)
-      nsMemory::Free(newCard->secondaryCollationKey);
+      free(newCard->secondaryCollationKey);
     PR_FREEIF(newCard);
 
     // Still need to invalidate, as the other columns may have changed.
@@ -1216,7 +1225,7 @@ nsresult nsAbView::GetSelectedCards(nsCOMPtr<nsIMutableArray> &aSelectedCards)
     int32_t endRange;
     rv = mTreeSelection->GetRangeAt(i, &startRange, &endRange);
     NS_ENSURE_SUCCESS(rv, NS_OK); 
-    int32_t totalCards = mCards.Count();
+    int32_t totalCards = mCards.Length();
     if (startRange >= 0 && startRange < totalCards)
     {
       for (int32_t rangeIndex = startRange; rangeIndex <= endRange && rangeIndex < totalCards; rangeIndex++) {
@@ -1282,7 +1291,7 @@ NS_IMETHODIMP nsAbView::SwapFirstNameLastName()
     int32_t endRange;
     rv = mTreeSelection->GetRangeAt(i, &startRange, &endRange);
     NS_ENSURE_SUCCESS(rv, NS_OK); 
-    int32_t totalCards = mCards.Count();
+    int32_t totalCards = mCards.Length();
     if (startRange >= 0 && startRange < totalCards)
     {
       for (int32_t rangeIndex = startRange; rangeIndex <= endRange && rangeIndex < totalCards; rangeIndex++) {

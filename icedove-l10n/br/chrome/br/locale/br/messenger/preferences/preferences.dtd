@@ -1,0 +1,23 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY  prefWindow.titleWin     "Dibarzhioù">
+<!ENTITY  prefWindow.titleGNOME   "Gwellvezioù &brandShortName; ">
+<!ENTITY  prefWindow.titleMAC     "Gwellvezioù">
+<!ENTITY  prefWindow.styleWindows "width: 59em; min-height: 38.5em;">
+<!ENTITY  prefWindow.styleMac     "width: 58em;">
+<!ENTITY  prefWindow.styleGNOME   "width: 58em; min-height: 38em;">
+
+<!ENTITY paneGeneral.title        "Hollek">
+<!ENTITY paneDisplay.title        "Skrammañ">
+<!ENTITY paneComposition.title    "Aozañ">
+<!ENTITY paneChat.title           "Postelerezh prim">
+<!ENTITY paneAttachments.title    "Kenstagadurioù">
+<!ENTITY panePrivacy.title        "Buhez prevez">
+<!ENTITY paneSecurity.title       "Diogelroez">
+<!ENTITY paneAdvanced.title       "Kempleshoc'h">
+<!ENTITY paneAccount.title        "Kontoù">
+
+<!ENTITY okButton.title           "Mat eo">
+<!ENTITY okButton.accesskey       "M">

@@ -2,10 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "newmailaccount-helpers";
+var MODULE_NAME = "newmailaccount-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers"];
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers"];
 
 var elib = {};
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
@@ -142,7 +142,7 @@ function assert_links_not_shown(aController, aLinks) {
 /* Waits for account provisioner search results to come in.
  */
 function wait_for_search_results(w) {
-  w.waitFor(function() w.e("results").childNodes.length > 0,
+  w.waitFor(() => w.e("results").childNodes.length > 0,
             "Timed out waiting for search results to arrive.");
 }
 
@@ -198,7 +198,7 @@ var gConsoleListener = {
     if (!this._msg)
       return;
 
-    this._sawMsg |= (aMsg.message.contains(this._msg));
+    this._sawMsg |= (aMsg.message.includes(this._msg));
   },
 
   listenFor: function(aMsg) {

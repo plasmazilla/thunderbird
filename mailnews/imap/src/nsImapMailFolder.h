@@ -57,7 +57,7 @@ public:
 
     nsCOMPtr<nsISupports> m_srcSupport; // source file spec or folder
     nsCOMPtr<nsIArray> m_messages; // array of source messages
-    nsRefPtr<nsImapMoveCopyMsgTxn> m_undoMsgTxn; // undo object with this copy operation
+    RefPtr<nsImapMoveCopyMsgTxn> m_undoMsgTxn; // undo object with this copy operation
     nsCOMPtr<nsIMsgDBHdr> m_message; // current message to be copied
     nsCOMPtr<nsIMsgCopyServiceListener> m_listener; // listener of this copy
                                                     // operation
@@ -283,8 +283,8 @@ public:
   NS_IMETHOD GetCanFileMessages(bool *aCanFileMessages) override;
   NS_IMETHOD GetCanDeleteMessages(bool *aCanDeleteMessages) override;
   NS_IMETHOD FetchMsgPreviewText(nsMsgKey *aKeysToFetch, uint32_t aNumKeys,
-                                                 bool aLocalOnly, nsIUrlListener *aUrlListener,
-                                                 bool *aAsyncResults) override;
+                                 bool aLocalOnly, nsIUrlListener *aUrlListener,
+                                 bool *aAsyncResults) override;
 
   NS_IMETHOD AddKeywordsToMessages(nsIArray *aMessages, const nsACString& aKeywords) override;
   NS_IMETHOD RemoveKeywordsFromMessages(nsIArray *aMessages, const nsACString& aKeywords) override;
@@ -321,6 +321,8 @@ public:
   *  @param aMsgFolder  required folder;
   */
   NS_IMETHOD GetOfflineMsgFolder(nsMsgKey msgKey, nsIMsgFolder **aMsgFolder) override;
+
+  NS_IMETHOD GetIncomingServerType(nsACString& serverType) override;
 
   nsresult AddSubfolderWithPath(nsAString& name, nsIFile *dbPath, nsIMsgFolder **child, bool brandNew = false);
   nsresult MoveIncorporatedMessage(nsIMsgDBHdr *mailHdr,
@@ -395,7 +397,6 @@ protected:
   nsresult AddDirectorySeparator(nsIFile *path);
   nsresult CreateSubFolders(nsIFile *path);
   nsresult GetDatabase() override;
-  virtual void GetIncomingServerType(nsCString& serverType) override { serverType.AssignLiteral("imap");}
 
   nsresult        GetFolderOwnerUserName(nsACString& userName);
   nsIMAPNamespace *GetNamespaceForFolder();
@@ -481,8 +482,8 @@ protected:
   bool m_urlRunning;
 
   // undo move/copy transaction support
-  nsRefPtr<nsMsgTxn> m_pendingUndoTxn;
-  nsRefPtr<nsImapMailCopyState> m_copyState;
+  RefPtr<nsMsgTxn> m_pendingUndoTxn;
+  RefPtr<nsImapMailCopyState> m_copyState;
   char m_hierarchyDelimiter;
   int32_t m_boxFlags;
   nsCString m_onlineFolderName;
@@ -517,7 +518,7 @@ protected:
   bool m_filterListRequiresBody;
 
   // auto-sync (automatic message download) support
-  nsRefPtr<nsAutoSyncState> m_autoSyncStateObj;
+  RefPtr<nsAutoSyncState> m_autoSyncStateObj;
 
   // Quota support
   nsCString m_folderQuotaRoot;
@@ -527,7 +528,7 @@ protected:
   // Pseudo-Offline Playback support
   nsPlaybackRequest *m_pendingPlaybackReq;
   nsCOMPtr<nsITimer> m_playbackTimer;
-  nsTArray<nsRefPtr<nsImapMoveCopyMsgTxn> > m_pendingOfflineMoves;
+  nsTArray<RefPtr<nsImapMoveCopyMsgTxn> > m_pendingOfflineMoves;
   // hash table of mapping between messageids and message keys
   // for pseudo hdrs.
   nsDataHashtable<nsCStringHashKey, nsMsgKey> m_pseudoHdrs;

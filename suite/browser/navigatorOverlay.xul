@@ -133,7 +133,7 @@
     <command id="Browser:UploadFile" oncommand="BrowserUploadFile();"/>
     <command id="Browser:Open" oncommand="BrowserOpenWindow();"/>
     <command id="cmd_printSetup" oncommand="PrintUtils.showPageSetup();"/>
-    <command id="cmd_print" oncommand="PrintUtils.print();"/>
+    <command id="cmd_print" oncommand="PrintUtils.printWindow(window.gBrowser.selectedBrowser.outerWindowID, window.gBrowser.selectedBrowser);"/>
     <command id="cmd_printpreview" oncommand="BrowserPrintPreview();"/>
     <command id="cmd_close" oncommand="BrowserCloseTabOrWindow()"/>
     <command id="cmd_closeOtherTabs" oncommand="BrowserCloseOtherTabs()"/>
@@ -158,7 +158,7 @@
     <command id="cmd_copyImage"/>
 
     <!-- View Menu -->
-    <command id="View:PageSource" oncommand="BrowserViewSourceOfDocument(content.document);" observes="isImage"/>
+    <command id="View:PageSource" oncommand="BrowserViewSource(gBrowser.selectedBrowser);" observes="isImage"/>
     <command id="View:PageInfo"   oncommand="BrowserPageInfo();"/>
     <command id="View:FullScreen" oncommand="BrowserFullScreen();"/>
     <command id="cmd_SwitchDocumentDirection" oncommand="SwitchDocumentDirection(window.content);" />

@@ -11,13 +11,14 @@
 
 var EXPORTED_SYMBOLS = ["MailMigrator"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/mailServices.js");
+Cu.import("resource:///modules/IOUtils.js");
 
 var MailMigrator = {
   /**
@@ -26,7 +27,7 @@ var MailMigrator = {
    */
   _switchDefaultFonts: function MailMigrator__switchDefaultFonts(aFonts,
                                                                  aEncodings) {
-    for each (let [, encoding] in Iterator(aEncodings)) {
+    for (let encoding of aEncodings) {
       let serifPref = "font.name.serif." + encoding;
       let sansPref = "font.name.sans-serif." + encoding;
       let variableSizePref = "font.size.variable." + encoding;
@@ -135,7 +136,7 @@ var MailMigrator = {
           "mail-bar3" : "mail-toolbar-menubar2";
         let cs = xulStore.getValue(MESSENGER_DOCURL, mailBarId, "currentset");
 
-        if (cs && cs.indexOf("throbber-box") != -1) {
+        if (cs && cs.includes("throbber-box")) {
           cs = cs.replace(/(^|,)throbber-box($|,)/, "$1$2");
           xulStore.setValue(MESSENGER_DOCURL, mailBarId, "currentset", cs);
         }
@@ -145,14 +146,14 @@ var MailMigrator = {
       // to the mail toolbar.
       if (currentUIVersion < 3) {
         let cs = xulStore.getValue(MESSENGER_DOCURL, "tabbar-toolbar", "currentset");
-        if (cs && cs.indexOf("qfb-show-filter-bar") != -1) {
+        if (cs && cs.includes("qfb-show-filter-bar")) {
           cs = cs.replace(/(^|,)qfb-show-filter-bar($|,)/, "$1$2");
           xulStore.setValue(MESSENGER_DOCURL, "tabbar-toolbar", "currentset", cs);
         }
 
         let cs3 = xulStore.getValue(MESSENGER_DOCURL, "mail-bar3", "currentset");
-        if (cs3 && cs3.indexOf("qfb-show-filter-bar") == -1) {
-          if (cs3.indexOf("gloda-search") != -1) {
+        if (cs3 && !cs3.includes("qfb-show-filter-bar")) {
+          if (cs3.includes("gloda-search")) {
             // Put the QFB toggle before the gloda-search and any of
             // spring / spacer / separator.
             cs3 = cs3.replace(/(^|,)([spring,|spacer,|separator,]*)gloda-search($|,)/,
@@ -168,12 +169,12 @@ var MailMigrator = {
       // In UI version 4, we add the chat button to the mail toolbar.
       if (currentUIVersion < 4) {
         let cs = xulStore.getValue(MESSENGER_DOCURL, "mail-bar3", "currentset");
-        if (cs && cs.indexOf("button-chat") == -1) {
-          if (cs.indexOf("button-newmsg") != -1) {
+        if (cs && !cs.includes("button-chat")) {
+          if (cs.includes("button-newmsg")) {
             // Put the chat button after the newmsg button.
             cs = cs.replace(/(^|,)button-newmsg($|,)/,
                             "$1button-newmsg,button-chat$2");
-          } else if (cs.indexOf("button-address") != -1) {
+          } else if (cs.includes("button-address")) {
             // If there's no newmsg button, put the chat button before the address book button.
             cs = cs.replace(/(^|,)button-address($|,)/,
                             "$1button-chat,button-address$2");
@@ -201,7 +202,7 @@ var MailMigrator = {
          */
         let addButtonToEnd = function(aToolbarID, aButtonID) {
           let cs = xulStore.getValue(MESSENGER_DOCURL, aToolbarID, "currentset");
-          if (cs && cs.indexOf(aButtonID) == -1) {
+          if (cs && !cs.includes(aButtonID)) {
             // Put the AppMenu button at the end.
             cs += "," + aButtonID;
             xulStore.setValue(MESSENGER_DOCURL, aToolbarID, "currentset", cs);
@@ -221,7 +222,7 @@ var MailMigrator = {
       // header-view-toolbar.
       if (currentUIVersion < 6) {
         let cs = xulStore.getValue(MESSENGER_DOCURL, "header-view-toolbar", "currentset");
-        if (cs && cs.indexOf("otherActionsButton") == -1) {
+        if (cs && !cs.includes("otherActionsButton")) {
           // Put the otherActionsButton button at the end.
           cs = cs + "," + "otherActionsButton";
           xulStore.setValue(MESSENGER_DOCURL, "header-view-toolbar", "currentset", cs);
@@ -271,29 +272,12 @@ var MailMigrator = {
 
       // Add an expanded entry for All Address Books.
       if (currentUIVersion < 10) {
-        let PERMS_FILE = parseInt("0644", 8);
-        let file = Services.dirsvc.get("ProfD", Ci.nsIFile);
-        file.append("directoryTree.json");
-        let data = "";
+        const DIR_TREE_FILE = "directoryTree.json";
 
         // If the file exists, read its contents, prepend the "All ABs" URI
         // and save it, else, just write the "All ABs" URI to the file.
-        if (file.exists()) {
-          let fstream = Cc["@mozilla.org/network/file-input-stream;1"]
-                        .createInstance(Ci.nsIFileInputStream);
-          let sstream = Cc["@mozilla.org/scriptableinputstream;1"]
-                        .createInstance(Ci.nsIScriptableInputStream);
-          fstream.init(file, -1, 0, 0);
-          sstream.init(fstream);
-          while (sstream.available()) {
-            data += sstream.read(4096);
-          }
-
-          sstream.close();
-          fstream.close();
-        }
-
-        if (data == "[]") {
+        let data = IOUtils.loadFileToString(DIR_TREE_FILE);
+        if (!data || data == "[]") {
           data = "";
         } else if (data.length > 0) {
           data = data.substring(1, data.length - 1);
@@ -302,13 +286,7 @@ var MailMigrator = {
         data = "[" + "\"moz-abdirectory://?\"" +
                ((data.length > 0) ? ("," + data) : "") + "]";
 
-        let foStream = Cc["@mozilla.org/network/safe-file-output-stream;1"]
-                       .createInstance(Ci.nsIFileOutputStream);
-
-        foStream.init(file, 0x02 | 0x08 | 0x20, PERMS_FILE, 0);
-        foStream.write(data, data.length);
-        foStream.QueryInterface(Ci.nsISafeOutputStream).finish();
-        foStream.close();
+        IOUtils.saveStringToFile(DIR_TREE_FILE, data);
       }
 
       // Several Latin language groups were consolidated into x-western.

@@ -11,12 +11,12 @@ Components.utils.import("resource:///modules/MailUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/PluralForm.jsm");
 
-const ADDR_DB_LARGE_COMMIT       = 1;
+var ADDR_DB_LARGE_COMMIT       = 1;
 
-const kClassicMailLayout = 0;
-const kWideMailLayout = 1;
-const kVerticalMailLayout = 2;
-const kMailLayoutCommandMap =
+var kClassicMailLayout = 0;
+var kWideMailLayout = 1;
+var kVerticalMailLayout = 2;
+var kMailLayoutCommandMap =
 {
   "cmd_viewClassicMailLayout": kClassicMailLayout,
   "cmd_viewWideMailLayout": kWideMailLayout,
@@ -27,9 +27,9 @@ const kMailLayoutCommandMap =
 // content for a particular message.
 // if you change or add more values to these constants, be sure to modify
 // the corresponding definitions in nsMsgContentPolicy.cpp
-const kNoRemoteContentPolicy = 0;
-const kBlockRemoteContent = 1;
-const kAllowRemoteContent = 2;
+var kNoRemoteContentPolicy = 0;
+var kBlockRemoteContent = 1;
+var kAllowRemoteContent = 2;
 
 // Timer to mark read, if the user has configured the app to mark a message as
 // read if it is viewed for more than n seconds.
@@ -249,7 +249,7 @@ function view_init()
                             "bodyFeedGlobalSummary",
                             "bodyFeedPerFolderPref"];
   let checked = FeedMessageHandler.onSelectPref;
-  for each (let [index, id] in Iterator(viewRssMenuItemIds)) {
+  for (let [index, id] of viewRssMenuItemIds.entries()) {
     document.getElementById(id)
             .setAttribute("checked", index == checked);
   }
@@ -268,10 +268,10 @@ function view_init()
 
   // Disable the charset item if there's nothing to enable
   document.getElementById("charsetMenu")
-          .setAttribute("disabled", !msgWindow.mailCharacterSet);
+          .setAttribute("disabled", !gMessageDisplay.displayedMessage);
   let appmenuCharset = document.getElementById("appmenu_charsetMenu");
   if (appmenuCharset)
-    appmenuCharset.setAttribute("disabled", !msgWindow.mailCharacterSet);
+    appmenuCharset.setAttribute("disabled", !gMessageDisplay.displayedMessage);
 }
 
 function InitViewLayoutStyleMenu(event)
@@ -322,15 +322,10 @@ function InitViewSortByMenu()
   setSortByMenuItemCheckState("sortByFromMenuitem", (sortType == nsMsgViewSortType.byAuthor));
   setSortByMenuItemCheckState("sortByRecipientMenuitem", (sortType == nsMsgViewSortType.byRecipient));
   setSortByMenuItemCheckState("sortByAttachmentsMenuitem", (sortType == nsMsgViewSortType.byAttachments));
+  setSortByMenuItemCheckState("sortByCorrespondentMenuitem", (sortType == nsMsgViewSortType.byCorrespondent));
 
   var sortOrder = gFolderDisplay.view.primarySortOrder;
-  var sortTypeSupportsGrouping = (sortType == nsMsgViewSortType.byAuthor ||
-      sortType == nsMsgViewSortType.byDate || sortType == nsMsgViewSortType.byReceived ||
-      sortType == nsMsgViewSortType.byPriority ||
-      sortType == nsMsgViewSortType.bySubject || sortType == nsMsgViewSortType.byTags ||
-      sortType == nsMsgViewSortType.byRecipient || sortType == nsMsgViewSortType.byAccount ||
-      sortType == nsMsgViewSortType.byStatus || sortType == nsMsgViewSortType.byFlagged ||
-      sortType == nsMsgViewSortType.byAttachments);
+  var sortTypeSupportsGrouping = isSortTypeValidForGrouping(sortType);
 
   setSortByMenuItemCheckState("sortAscending", (sortOrder == nsMsgViewSortOrder.ascending));
   setSortByMenuItemCheckState("sortDescending", (sortOrder == nsMsgViewSortOrder.descending));
@@ -369,17 +364,7 @@ function InitAppViewSortByMenu()
   setSortByMenuItemCheckState("appmenu_sortByAttachmentsMenuitem", (sortType == nsMsgViewSortType.byAttachments));
 
   let sortOrder = gFolderDisplay.view.primarySortOrder;
-  let sortTypeSupportsGrouping = (sortType == nsMsgViewSortType.byAuthor ||
-                                  sortType == nsMsgViewSortType.byDate ||
-                                  sortType == nsMsgViewSortType.byReceived ||
-                                  sortType == nsMsgViewSortType.byPriority ||
-                                  sortType == nsMsgViewSortType.bySubject ||
-                                  sortType == nsMsgViewSortType.byTags ||
-                                  sortType == nsMsgViewSortType.byRecipient ||
-                                  sortType == nsMsgViewSortType.byAccount ||
-                                  sortType == nsMsgViewSortType.byStatus ||
-                                  sortType == nsMsgViewSortType.byFlagged ||
-                                  sortType == nsMsgViewSortType.byAttachments);
+  let sortTypeSupportsGrouping = isSortTypeValidForGrouping(sortType);
 
   setSortByMenuItemCheckState("appmenu_sortAscending", (sortOrder == nsMsgViewSortOrder.ascending));
   setSortByMenuItemCheckState("appmenu_sortDescending", (sortOrder == nsMsgViewSortOrder.descending));
@@ -396,6 +381,24 @@ function InitAppViewSortByMenu()
 
   groupBySortOrderMenuItem.setAttribute("disabled", !sortTypeSupportsGrouping);
   groupBySortOrderMenuItem.setAttribute("checked", grouped);
+}
+
+function isSortTypeValidForGrouping(sortType)
+{
+  return Boolean(sortType == nsMsgViewSortType.byAccount ||
+                 sortType == nsMsgViewSortType.byAttachments ||
+                 sortType == nsMsgViewSortType.byAuthor ||
+                 sortType == nsMsgViewSortType.byCorrespondent ||
+                 sortType == nsMsgViewSortType.byDate ||
+                 sortType == nsMsgViewSortType.byFlagged ||
+                 sortType == nsMsgViewSortType.byLocation ||
+                 sortType == nsMsgViewSortType.byPriority ||
+                 sortType == nsMsgViewSortType.byReceived ||
+                 sortType == nsMsgViewSortType.byRecipient ||
+                 sortType == nsMsgViewSortType.byStatus ||
+                 sortType == nsMsgViewSortType.bySubject ||
+                 sortType == nsMsgViewSortType.byTags ||
+                 sortType == nsMsgViewSortType.byCustom);
 }
 
 function InitViewMessagesMenu()
@@ -762,7 +765,7 @@ function SetGetMsgButtonTooltip()
   var listSeparator = bundle.getString("getMsgButtonTooltip.listSeparator");
 
   // Push the usernames through a Set() to remove duplicates.
-  var names = new Set([v.server.prettyName for each (v in folders)]);
+  var names = new Set(folders.map(v => v.server.prettyName));
   var tooltipNames = Array.from(names).join(listSeparator);
   msgButton.tooltipText = bundle.getFormattedString("getMsgButtonTooltip",
                                                     [ tooltipNames ]);
@@ -832,7 +835,7 @@ function ToggleMessageTagKey(keyNumber)
   let curKeys = msgHdr.getStringProperty("keywords").split(" ");
   if (msgHdr.label)
     curKeys.push("$label" + msgHdr.label);
-  let addKey = curKeys.indexOf(key) < 0;
+  let addKey = !curKeys.includes(key);
 
   ToggleMessageTag(key, addKey);
 }
@@ -954,8 +957,8 @@ function InitMessageTags(menuPopup)
   for (var i = 0; i < tagCount; ++i)
   {
     var taginfo = tagArray[i];
-    let removeKey = (" " + curKeys + " ").contains(" " + taginfo.key + " ");
-    if (taginfo.ordinal.contains("~AUTOTAG") && !removeKey)
+    let removeKey = (" " + curKeys + " ").includes(" " + taginfo.key + " ");
+    if (taginfo.ordinal.includes("~AUTOTAG") && !removeKey)
       continue;
 
     // TODO we want to either remove or "check" the tags that already exist
@@ -1186,7 +1189,7 @@ function IsReplyAllEnabled()
   // Check to see if my email address is in the list of addresses.
   let myEmail = getIdentityForHeader(msgHdr).email;
   // We aren't guaranteed to have an email address, so guard against that.
-  let imInAddresses = myEmail && (addresses.toLowerCase().contains(
+  let imInAddresses = myEmail && (addresses.toLowerCase().includes(
                                     myEmail.toLowerCase()));
 
   // Now, let's get the number of unique addresses.
@@ -1202,7 +1205,7 @@ function IsReplyAllEnabled()
   // show up in the address at all.)
   for (var i in emailAddresses.value)
   {
-    if (emailAddresses.value[i].contains(":"))
+    if (emailAddresses.value[i].includes(":"))
       numAddresses--;
   }
 
@@ -1311,7 +1314,7 @@ function UpdateDeleteToolbarButton()
   // Never show "Undelete" in the 3-pane for folders, when delete would
   // apply to the selected folder.
   if (gFolderDisplay.focusedPane == document.getElementById("folderTree") &&
-      GetNumSelectedMessages() == 0)
+      gFolderDisplay.selectedCount == 0)
     deleteButtonDeck.selectedIndex = 0;
   else
     deleteButtonDeck.selectedIndex = SelectedMessagesAreDeleted() ? 1 : 0;
@@ -1321,7 +1324,7 @@ function UpdateDeleteCommand()
   var value = "value";
   if (SelectedMessagesAreDeleted())
     value += "IMAPDeleted";
-  if (GetNumSelectedMessages() < 2)
+  if (gFolderDisplay.selectedCount < 2)
     value += "Message";
   else
     value += "Messages";
@@ -1951,7 +1954,7 @@ function MsgCreateFilter()
   var msgHdr = gFolderDisplay.selectedMessage;
   let emailAddress = MailServices.headerParser.extractHeaderAddressMailboxes(msgHdr.author);
   if (emailAddress)
-    top.MsgFilters(emailAddress, null);
+    top.MsgFilters(emailAddress, msgHdr.folder);
 }
 
 function MsgNewFolder(callBackFunctionName)
@@ -2079,7 +2082,7 @@ function MsgSaveAsFile()
 
 function MsgSaveAsTemplate()
 {
-  if (GetNumSelectedMessages() == 1)
+  if (gFolderDisplay.selectedCount == 1)
     SaveAsTemplate(gFolderDisplay.selectedMessageUris[0]);
 }
 
@@ -2142,7 +2145,8 @@ function MsgOpenSelectedMessages()
   // Toggle message body (feed summary) and content-base url in message pane or
   // load in browser, per pref, otherwise open summary or web page in new window
   // or tab, per that pref.
-  if (gFolderDisplay.selectedMessageIsFeed) {
+  if (gFolderDisplay.treeSelection && gFolderDisplay.treeSelection.count == 1 &&
+      gFolderDisplay.selectedMessageIsFeed) {
     let msgHdr = gFolderDisplay.selectedMessage;
     if (document.documentElement.getAttribute("windowtype") == "mail:3pane" &&
         FeedMessageHandler.onOpenPref == FeedMessageHandler.kOpenToggleInMessagePane) {
@@ -2325,7 +2329,9 @@ function MsgMarkAllRead()
 }
 
 /**
- * Create a new filter with the passed in data prefilled.
+ * Opens the filter list.
+ * If an email address was passed, first a new filter is offered for creation
+ * with the data prefilled.
  *
  * @param emailAddress  An email address to use as value in the first search term.
  * @param folder        The filter will be created in this folder's filter list.
@@ -2351,9 +2357,6 @@ function MsgFilters(emailAddress, folder, fieldName)
       try
       {
         folder = gFolderDisplay.selectedMessage.folder;
-        // except for news, we define the filter on the account's root
-        if (!gFolderDisplay.selectedMessageIsNews)
-          folder = folder.rootFolder;
       }
       catch (ex) {}
     }
@@ -2374,11 +2377,12 @@ function MsgFilters(emailAddress, folder, fieldName)
     window.openDialog("chrome://messenger/content/FilterEditor.xul", "",
                       "chrome, modal, resizable,centerscreen,dialog=yes", args);
 
-    // If the user hits ok in the filterEditor dialog we set args.refresh=true
-    // there we check this here in args to show filterList dialog.
+    // If the user hits OK in the filterEditor dialog we set args.refresh=true
+    // there and we check this here in args to show filterList dialog.
+    // We also received the filter created via args.newFilter.
     if ("refresh" in args && args.refresh)
     {
-      args = { refresh: true, folder: folder };
+      args = { refresh: true, folder: folder, filter: args.newFilter };
       MsgFilterList(args);
     }
   }
@@ -2608,7 +2612,7 @@ function SpaceHit(event)
     // These elements should always take priority over scrolling.
     const importantElements = ["otherActionsButton", "attachmentToggle"];
     contentWindow = window.content;
-    if (focusedElement && importantElements.indexOf(focusedElement.id) != -1)
+    if (focusedElement && importantElements.includes(focusedElement.id))
       return;
   }
   else if (focusedElement && !hRefForClickEvent(event))
@@ -2878,8 +2882,8 @@ function HandleJunkStatusChanged(folder)
 
   // If multiple message are selected and we change the junk status
   // we don't want to show the junk bar (since the message pane is blank).
-  let msgHdr = (GetNumSelectedMessages() == 1) ?
-    gMessageDisplay.displayedMessage : null;
+  let msgHdr = gFolderDisplay.selectedCount == 1 ?
+                 gMessageDisplay.displayedMessage : null;
   let junkBarWasDisplayed = gMessageNotificationBar.isShowingJunkNotification();
   gMessageNotificationBar.setJunkMsg(msgHdr);
 
@@ -3020,12 +3024,14 @@ var gMessageNotificationBar =
         buttons);
     }
 
-    // The popup value is a space separated list of all the blocked hosts.
+    // The popup value is a space separated list of all the blocked origins.
     let popup = document.getElementById("remoteContentOptions");
-    let hosts = popup.value ? popup.value.split(" ") : [];
-    if (hosts.indexOf(aContentURI.host) == -1)
-      hosts.push(aContentURI.host);
-    popup.value = hosts.join(" ");
+    let principal = Services.scriptSecurityManager
+      .createCodebasePrincipal(aContentURI, {});
+    let origins = popup.value ? popup.value.split(" ") : [];
+    if (!origins.includes(principal.origin))
+      origins.push(principal.origin);
+    popup.value = origins.join(" ");
   },
 
   isShowingRemoteContentNotification: function() {
@@ -3154,16 +3160,21 @@ function LoadMsgWithRemoteContent()
  * Populate the remote content options for the current message.
  */
 function onRemoteContentOptionsShowing(aEvent) {
-  let hosts = aEvent.target.value ? aEvent.target.value.split(" ") : [];
+  let origins = aEvent.target.value ? aEvent.target.value.split(" ") : [];
 
   let addresses = {};
   MailServices.headerParser.parseHeadersWithArray(
     gMessageDisplay.displayedMessage.author, addresses, {}, {});
-  let authorEmailAddress = addresses.value[0];
-  // Needs bug 457296 policy patch to actually work, but I don't want to
-  // keep this bug hostage for that, so just if-false it for now.
-  if (authorEmailAddress)
-    hosts.splice(0, 0, authorEmailAddress);
+  let adrCount = addresses.value[0] ? 1 : 0;
+  // If there is an author's email, put it also in the menu.
+  if (adrCount > 0) {
+    let authorEmailAddress = addresses.value[0];
+    let authorEmailAddressURI = Services.io.newURI(
+      "chrome://messenger/content/?email=" + authorEmailAddress, null, null);
+    let mailPrincipal = Services.scriptSecurityManager
+      .createCodebasePrincipal(authorEmailAddressURI, {});
+    origins.push(mailPrincipal.origin);
+  }
 
   let messengerBundle = document.getElementById("bundle_messenger");
 
@@ -3174,28 +3185,58 @@ function onRemoteContentOptionsShowing(aEvent) {
       childNodes[i].remove();
   }
 
-  // ... and in with the new.
-  for (let host of hosts) {
-    let uri = Services.io.newURI(
-      host.contains("@") ? "mailto:" + host : "http://" + host, null, null);
 
+  let urlSepar = document.getElementById("remoteContentAllMenuSeparator");
+
+  // ... and in with the new.
+  for (let origin of origins) {
     let menuitem = document.createElement("menuitem");
     menuitem.setAttribute("label",
-      messengerBundle.getFormattedString("remoteAllow", [host]));
-    menuitem.setAttribute("value", uri.spec);
+      messengerBundle.getFormattedString("remoteAllowResource",
+        [origin.replace("chrome://messenger/content/?email=", "")]));
+    menuitem.setAttribute("value", origin);
     menuitem.setAttribute("class", "allow-remote-uri");
     menuitem.setAttribute("oncommand", "allowRemoteContentForURI(this.value);");
-    aEvent.target.appendChild(menuitem);
+    if (origin.startsWith("chrome://messenger/content/?email="))
+      aEvent.target.appendChild(menuitem);
+    else
+      aEvent.target.insertBefore(menuitem, urlSepar);
   }
+
+  let URLcount = origins.length - adrCount;
+  let allowAllItem = document.getElementById("remoteContentOptionAllowAll");
+  let allURLLabel = messengerBundle.getString("remoteAllowAll");
+  allowAllItem.label = PluralForm.get(URLcount, allURLLabel).replace("#1", URLcount);
+
+  allowAllItem.collapsed = (URLcount < 2);
+  document.getElementById("remoteContentOriginsMenuSeparator").collapsed =
+    urlSepar.collapsed = allowAllItem.collapsed && (adrCount == 0);
 }
 
 /**
  * Add privileges to display remote content for the given uri.
+ *
  * @param aUriSpec |String| uri for the site to add permissions for.
+ * @param aReload  Reload the message display after allowing the URI.
  */
-function allowRemoteContentForURI(aUriSpec) {
+function allowRemoteContentForURI(aUriSpec, aReload = true) {
   let uri = Services.io.newURI(aUriSpec, null, null);
   Services.perms.add(uri, "image", Services.perms.ALLOW_ACTION);
+  if (aReload)
+    ReloadMessage();
+}
+
+/**
+ * Add privileges to display remote content for the given uri.
+ *
+ * @param aListNode  The menulist element containing the URIs to allow.
+ */
+function allowRemoteContentForAll(aListNode) {
+  let uriNodes = aListNode.querySelectorAll(".allow-remote-uri");
+  for (let uriNode of uriNodes) {
+    if (!uriNode.value.startsWith("chrome://messenger/content/?email="))
+      allowRemoteContentForURI(uriNode.value, false);
+  }
   ReloadMessage();
 }
 
@@ -3289,7 +3330,7 @@ function OnMsgParsed(aUrl)
   Services.obs.notifyObservers(msgWindow.msgHeaderSink, "MsgMsgDisplayed", msgURI);
 
   // Scale any overflowing images, exclude http content.
-  let browser = getBrowser();
+  let browser = getMessagePaneBrowser();
   let doc = browser && browser.contentDocument ? browser.contentDocument : null;
   let imgs = doc && !doc.URL.startsWith("http") ? doc.images : [];
   for (let img of imgs)

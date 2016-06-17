@@ -41,7 +41,7 @@ function logHelperHasInterestedListeners() {
  *
  * This is based on my (asuth') exmmad extension.
  */
-let _errorConsoleTunnel = {
+var _errorConsoleTunnel = {
   initialize: function () {
     Services.console.registerListener(this);
 
@@ -64,7 +64,7 @@ let _errorConsoleTunnel = {
       // meh, let's just use mark_failure for now.
       // and let's avoid feedback loops (happens in mozmill)
       if ((aMessage instanceof Components.interfaces.nsIScriptError) &&
-        (!aMessage.errorMessage.contains("Error console says")))
+        (!aMessage.errorMessage.includes("Error console says")))
         {
           // Unfortunately changes to mozilla-central are throwing lots
           // of console errors during testing, so disable (we hope temporarily)
@@ -171,7 +171,7 @@ _init_log_helper();
 
 function _cleanup_log_helper() {
   let rootLogger = Log4Moz.repository.rootLogger;
-  for each (let [, appender] in Iterator(rootLogger.appenders)) {
+  for (let appender of rootLogger.appenders) {
     if ("closeStream" in appender)
       appender.closeStream();
   }
@@ -278,7 +278,8 @@ function mark_all_tests_run() {
 function _explode_flags(aFlagWord, aFlagDefs) {
   let flagList = [];
 
-  for each (let [flagName, flagVal] in Iterator(aFlagDefs)) {
+  for (let flagName in aFlagDefs) {
+    let flagVal = aFlagDefs[flagName];
     if (flagVal & aFlagWord)
       flagList.push(flagName);
   }
@@ -286,7 +287,7 @@ function _explode_flags(aFlagWord, aFlagDefs) {
   return flagList;
 }
 
-let _registered_json_normalizers = [];
+var _registered_json_normalizers = [];
 
 /**
  * Copy natives or objects, deferring to _normalize_for_json for objects.
@@ -308,7 +309,7 @@ function __value_copy(aObj, aDepthAllowed) {
 function __simple_obj_copy(aObj, aDepthAllowed) {
   let oot = {};
   let nextDepth = aDepthAllowed - 1;
-  for each (let key in Iterator(aObj, true)) {
+  for (let key in aObj) {
     // avoid triggering getters
     if (aObj.__lookupGetter__(key)) {
       oot[key] = "*getter*";
@@ -329,8 +330,7 @@ function __simple_obj_copy(aObj, aDepthAllowed) {
     // array?  (not directly counted, but we will terminate because the
     //  child copying occurs using nextDepth...)
     else if (Array.isArray(value)) {
-      oot[key] = [__value_copy(v, nextDepth) for each
-                   ([, v] in Iterator(value))];
+      oot[key] = value.map(v => __value_copy(v, nextDepth));
     }
     // it's another object! woo!
     else {
@@ -344,7 +344,7 @@ function __simple_obj_copy(aObj, aDepthAllowed) {
   return oot;
 }
 
-const _INTERESTING_MESSAGE_HEADER_PROPERTIES = {
+var _INTERESTING_MESSAGE_HEADER_PROPERTIES = {
   "gloda-id": 0,
   "gloda-dirty": 0,
   "junkscore": "",
@@ -374,8 +374,7 @@ function _normalize_for_json(aObj, aDepthAllowed, aJsonMeNotNeeded) {
 
   // recursively transform arrays outright
   if (Array.isArray(aObj))
-      return [__value_copy(v, aDepthAllowed - 1) for each
-              ([, v] in Iterator(aObj))];
+      return aObj.map(v => __value_copy(v, aDepthAllowed - 1));
 
   // === Mail Specific ===
   // (but common and few enough to not split out)
@@ -391,8 +390,8 @@ function _normalize_for_json(aObj, aDepthAllowed, aJsonMeNotNeeded) {
   }
   else if (aObj instanceof Ci.nsIMsgDBHdr) {
     let properties = {};
-    for each (let [name, propType] in
-              Iterator(_INTERESTING_MESSAGE_HEADER_PROPERTIES)) {
+    for (let name in _INTERESTING_MESSAGE_HEADER_PROPERTIES) {
+      let propType = _INTERESTING_MESSAGE_HEADER_PROPERTIES[name];
       if (propType === 0)
         properties[name] = (aObj.getStringProperty(name) != "") ?
                              aObj.getUint32Property(name) : null;
@@ -504,8 +503,7 @@ function _normalize_for_json(aObj, aDepthAllowed, aJsonMeNotNeeded) {
     };
   }
   else {
-    for each (let [, [checkType, handler]] in
-              Iterator(_registered_json_normalizers)) {
+    for (let [checkType, handler] of _registered_json_normalizers) {
       if (aObj instanceof checkType)
         return handler(aObj);
     }
@@ -546,7 +544,7 @@ _MarkAction.prototype = {
     let argStr;
     if (this.args) {
       argStr = ":";
-      for each (let [, arg] in Iterator(this.args)) {
+      for (let arg of this.args) {
         if (arg != null && (typeof(arg) == "object") && ("type" in arg)) {
           if ("name" in arg)
             argStr += " " + arg.type + ": " + arg.name;
@@ -580,8 +578,7 @@ _MarkAction.prototype = {
 function mark_action(aWho, aWhat, aArgs) {
   let logger = Log4Moz.repository.getLogger("test." + aWho);
 
-  aArgs = [_normalize_for_json(arg, undefined, true) for each
-           ([, arg] in Iterator(aArgs))];
+  aArgs = aArgs.map(arg => _normalize_for_json(arg, undefined, true));
   logger.info(_testLoggerActiveContext, new _MarkAction(aWho, aWhat, aArgs));
 }
 
@@ -628,7 +625,7 @@ _Failure.prototype = {
 function mark_failure(aRichString) {
   let args = [_testLoggerActiveContext];
   let text = "";
-  for each (let [i, richThing] in Iterator(aRichString)) {
+  for (let [i, richThing] of aRichString.entries()) {
     text += (i ? " " : "");
     if (richThing == null || typeof(richThing) != "object") {
       text += richThing;

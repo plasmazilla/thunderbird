@@ -2,10 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 Cu.import("resource:///modules/imServices.jsm");
 
-const PREF_EXTENSIONS_GETMOREPROTOCOLSURL = "extensions.getMoreProtocolsURL";
+var PREF_EXTENSIONS_GETMOREPROTOCOLSURL = "extensions.getMoreProtocolsURL";
 
 var accountWizard = {
   onload: function aw_onload() {
@@ -13,9 +13,16 @@ var accountWizard = {
     let bundle = document.getElementById("topProtocolsBundle");
     let topProtocols = bundle.getString("topProtocol.list").split(",");
 
-    for each (let topProto in topProtocols) {
+    for (let topProto of topProtocols) {
       let proto = Services.core.getProtocolById(topProto);
       if (proto == null)
+        continue;
+
+      // If the preference is set to disable this prpl, don't show it in the
+      // full list of protocols.
+      let pref = "chat.prpls." + topProto + ".disable";
+      if (Services.prefs.getPrefType(pref) == Services.prefs.PREF_BOOL &&
+          Services.prefs.getBoolPref(pref))
         continue;
 
       let item = document.createElement("richlistitem");
@@ -50,7 +57,7 @@ var accountWizard = {
     if (!this.userNameBoxes[0].value)
       return "";
 
-    return this.userNameBoxes.reduce(function(prev, elt) prev + elt.value, "");
+    return this.userNameBoxes.reduce((prev, elt) => prev + elt.value, "");
   },
 
   checkUsername: function aw_checkUsername() {
@@ -478,12 +485,15 @@ var accountWizard = {
     while (aEnumerator.hasMoreElements())
       yield aEnumerator.getNext();
   },
-  getProtocols: function aw_getProtocols()
-    this.getIter(Services.core.getProtocols()),
-  getProtoOptions: function aw_getProtoOptions()
-    this.getIter(this.proto.getOptions()),
-  getProtoUserSplits: function aw_getProtoUserSplits()
-    this.getIter(this.proto.getUsernameSplit()),
+  getProtocols: function aw_getProtocols() {
+    return this.getIter(Services.core.getProtocols());
+  },
+  getProtoOptions: function aw_getProtoOptions() {
+    return this.getIter(this.proto.getOptions());
+  },
+  getProtoUserSplits: function aw_getProtoUserSplits() {
+    return this.getIter(this.proto.getUsernameSplit());
+  },
 
   onGroupboxKeypress: function aw_onGroupboxKeypress(aEvent) {
     let target = aEvent.target;
@@ -572,7 +582,7 @@ var accountWizard = {
     let protos = [];
     for (let proto in accountWizard.getProtocols())
       protos.push(proto);
-    protos.sort(function(a, b) a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+    protos.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
 
     protos.forEach(function(proto) {
       let item = protoList.appendItem(proto.name, proto.id);

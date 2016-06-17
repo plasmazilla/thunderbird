@@ -13,11 +13,11 @@ Components.utils.import("resource://testing-common/mailnews/PromiseTestUtils.jsm
 Services.prefs.setCharPref("mail.serverDefaultStoreContractID",
                            "@mozilla.org/msgstore/maildirstore;1");
 
-let gInboxFolder, gTestFolder;
+var gInboxFolder, gTestFolder;
 
 gPOP3Pump.files = ["../../../data/bugmail1",
                    "../../../data/draft1"];
-let gTestSubjects = ["[Bug 397009] A filter will let me tag, but not untag",
+var gTestSubjects = ["[Bug 397009] A filter will let me tag, but not untag",
                      "Hello, did you receive my bugmail?"];
 
 add_task(function* setupFolders() {
@@ -77,7 +77,7 @@ add_task(function* maildirToMbox() {
   // Check for subjects. maildir order for messages may not match
   // order for creation, hence the array.includes.
   for (let subject of gTestSubjects) {
-    do_check_true(subjects.indexOf(subject) >= 0);
+    do_check_true(subjects.includes(subject));
   }
 
   // Make sure the body matches the message.
@@ -125,7 +125,7 @@ add_task(function* mboxToMaildir() {
   // Check for subjects. maildir order for messages may not match
   // order for creation, hence the array.includes.
   for (let subject of gTestSubjects) {
-    do_check_true(subjects.indexOf(subject) >= 0);
+    do_check_true(subjects.includes(subject));
   }
 
   // Make sure the body matches the message.

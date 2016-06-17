@@ -10,7 +10,7 @@ Components.utils.import("resource://gre/modules/Preferences.jsm");
  * Authentication helper code
  */
 
-EXPORTED_SYMBOLS = ["cal"]; // even though it's defined in calUtils.jsm, import needs this
+this.EXPORTED_SYMBOLS = ["cal"]; // even though it's defined in calUtils.jsm, import needs this
 cal.auth = {
     /**
      * Auth prompt implementation - Uses password manager if at all possible.
@@ -335,7 +335,7 @@ cal.auth.Prompt.prototype = {
 // listener is called without further information. If the password is not
 // saved, there is no way to retrieve it. We use ref counting to avoid keeping
 // the password in memory longer than needed.
-let gAuthCache = {
+var gAuthCache = {
     _authInfoCache: new Map(),
     planForAuthInfo: function(hostKey) {
         let authInfo = this._authInfoCache.get(hostKey);

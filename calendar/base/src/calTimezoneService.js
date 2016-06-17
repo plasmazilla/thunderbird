@@ -38,8 +38,8 @@ function calTimezoneService() {
 
     ICAL.TimezoneService = this.wrappedJSObject;
 }
-const calTimezoneServiceClassID = Components.ID("{e736f2bd-7640-4715-ab35-887dc866c587}");
-const calTimezoneServiceInterfaces = [
+var calTimezoneServiceClassID = Components.ID("{e736f2bd-7640-4715-ab35-887dc866c587}");
+var calTimezoneServiceInterfaces = [
     Components.interfaces.calITimezoneService,
     Components.interfaces.calITimezoneProvider,
     Components.interfaces.calIStartupService
@@ -61,7 +61,7 @@ calTimezoneService.prototype = {
     }),
 
     // ical.js TimezoneService methods
-    has: function(id) this.getTimezone(id) != null,
+    has: function(id) { return this.getTimezone(id) != null; },
     get: function(id) {
         return id ? unwrapSingle(ICAL.Timezone, this.getTimezone(id)) : null;
     },
@@ -74,7 +74,15 @@ calTimezoneService.prototype = {
             cal.LOG("[calTimezoneService] Loading " + aURL);
 
             return new Promise((resolve, reject) => {
-                NetUtil.asyncFetch(aURL, (inputStream, status) => {
+                let uri = Services.io.newURI(aURL, null, null);
+                let channel = Services.io.newChannelFromURI2(uri,
+                                                             null,
+                                                             Services.scriptSecurityManager.getSystemPrincipal(),
+                                                             null,
+                                                             Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                             Components.interfaces.nsIContentPolicy.TYPE_OTHER);
+
+                NetUtil.asyncFetch(channel, (inputStream, status) => {
                     if (!Components.isSuccessCode(status)) {
                         reject(status);
                         return;
@@ -176,7 +184,7 @@ calTimezoneService.prototype = {
             cal.ERROR("Unknown timezone requested\n" + cal.STACK(10));
             return null;
         }
-        if (tzid.indexOf("/mozilla.org/") == 0) {
+        if (tzid.startsWith("/mozilla.org/")) {
             // We know that our former tzids look like "/mozilla.org/<dtstamp>/continent/..."
             // The ending of the mozilla prefix is the index of that slash before the
             // continent. Therefore, we start looking for the prefix-ending slash
@@ -215,6 +223,12 @@ calTimezoneService.prototype = {
     get timezoneIds() {
         return new calStringEnumerator([
             k for ([k, v] of this.mZones.entries()) if (!v.aliasTo && k != "UTC" && k != "floating")
+        ]);
+    },
+
+    get aliasIds() {
+        return new calStringEnumerator([
+            k for ([k, v] of this.mZones.entries()) if (v.aliasTo && k != "UTC" && k != "floating")
         ]);
     },
 
@@ -288,6 +302,11 @@ function guessSystemTimezone() {
     const offsetDec = dateDec.match(offsetRegex)[0];
 
     const tzSvc = cal.getTimezoneService();
+
+    var continent = "Africa|America|Antarctica|Asia|Australia|Europe";
+    var ocean     = "Arctic|Atlantic|Indian|Pacific";
+    var tzRegex   = new RegExp(".*((?:"+continent+"|"+ocean+")"+
+                               "(?:[/][-A-Z_a-z]+)+)");
 
     function getIcalString(component, property) {
         var prop = (component && component.getFirstProperty(property));
@@ -481,6 +500,69 @@ function guessSystemTimezone() {
         return null;
     }
 
+    function environmentVariableValue(varName) {
+        let envSvc = Components.classes["@mozilla.org/process/environment;1"]
+                                .getService(Components.interfaces.nsIEnvironment);
+        let value = envSvc.get(varName);
+        if (!value) return "";
+        if (!value.match(tzRegex)) return "";
+        return varName+"="+value;
+    }
+
+    function symbolicLinkTarget(filepath) {
+        try {
+            let file = Components.classes["@mozilla.org/file/local;1"]
+                                 .createInstance(Components.interfaces.nsILocalFile);
+            file.initWithPath(filepath);
+            file.QueryInterface(Components.interfaces.nsIFile);
+            if (!file.exists()) return "";
+            if (!file.isSymlink()) return "";
+            if (!file.target.match(tzRegex)) return "";
+            return filepath +" -> "+file.target;
+        } catch (ex) {
+            Components.utils.reportError(filepath+": "+ex);
+            return "";
+        }
+    }
+
+    function fileFirstZoneLineString(filepath) {
+        // return first line of file that matches tzRegex (ZoneInfo id),
+        // or "" if no file or no matching line.
+        try {
+            let file = Components.classes["@mozilla.org/file/local;1"]
+                                 .createInstance(Components.interfaces.nsILocalFile);
+            file.initWithPath(filepath);
+            file.QueryInterface(Components.interfaces.nsIFile);
+            if (!file.exists()) return "";
+            let fileInstream = Components.classes["@mozilla.org/network/file-input-stream;1"]
+                                         .createInstance(Components.interfaces.nsIFileInputStream);
+            const PR_RDONLY = 0x1;
+            fileInstream.init(file, PR_RDONLY, 0, 0);
+            fileInstream.QueryInterface(Components.interfaces.nsILineInputStream);
+            try {
+                let line = {}, hasMore = true, MAXLINES = 10;
+                for (let i = 0; hasMore && i < MAXLINES; i++) {
+                    hasMore = fileInstream.readLine(line);
+                    if (line.value && line.value.match(tzRegex)) {
+                        return filepath+": "+line.value;
+                    }
+                }
+                return ""; // not found
+            } finally {
+                fileInstream.close();
+            }
+        } catch (ex) {
+            Components.utils.reportError(filepath+": "+ex);
+            return "";
+        }
+    }
+
+    function weekday(icsDate, tz) {
+        let calDate = cal.createDateTime(icsDate);
+        calDate.timezone = tz;
+        return cal.dateTimeToJsDate(calDate).toLocaleFormat("%a");
+    }
+
     // Try to find a tz that matches OS/JSDate timezone.  If no name match,
     // will use first of probable timezone(s) with highest score.
     var probableTZId = "floating"; // default fallback tz if no tz matches.
@@ -559,74 +641,12 @@ function guessSystemTimezone() {
             // the values are similar (but cannot have a leading colon).
             // (Note: the OS ZoneInfo database may be a different version from
             // the one we use, so still need to check that DST dates match.)
-            var continent = "Africa|America|Antarctica|Asia|Australia|Europe";
-            var ocean     = "Arctic|Atlantic|Indian|Pacific";
-            var tzRegex   = new RegExp(".*((?:"+continent+"|"+ocean+")"+
-                                       "(?:[/][-A-Z_a-z]+)+)");
-            const CC = Components.classes;
-            const CI = Components.interfaces;
-            var envSvc = (CC["@mozilla.org/process/environment;1"]
-                          .getService(Components.interfaces.nsIEnvironment));
-            function environmentVariableValue(varName) {
-                var value = envSvc.get(varName);
-                if (!value) return "";
-                if (!value.match(tzRegex)) return "";
-                return varName+"="+value;
-            }
-            function symbolicLinkTarget(filepath) {
-                try {
-                    var file = (CC["@mozilla.org/file/local;1"]
-                                .createInstance(CI.nsILocalFile));
-                    file.initWithPath(filepath);
-                    file.QueryInterface(CI.nsIFile);
-                    if (!file.exists()) return "";
-                    if (!file.isSymlink()) return "";
-                    if (!file.target.match(tzRegex)) return "";
-                    return filepath +" -> "+file.target;
-                } catch (ex) {
-                    Components.utils.reportError(filepath+": "+ex);
-                    return "";
-                }
-            }
-            function fileFirstZoneLineString(filepath) {
-                // return first line of file that matches tzRegex (ZoneInfo id),
-                // or "" if no file or no matching line.
-                try {
-                    var file = (CC["@mozilla.org/file/local;1"]
-                                .createInstance(CI.nsILocalFile));
-                    file.initWithPath(filepath);
-                    file.QueryInterface(CI.nsIFile);
-                    if (!file.exists()) return "";
-                    var fileInstream =
-                        (CC["@mozilla.org/network/file-input-stream;1"].
-                         createInstance(CI.nsIFileInputStream));
-                    const PR_RDONLY = 0x1;
-                    fileInstream.init(file, PR_RDONLY, 0, 0);
-                    fileInstream.QueryInterface(CI.nsILineInputStream);
-                    try {
-                        var line = {}, hasMore = true, MAXLINES = 10;
-                        for (var i = 0; hasMore && i < MAXLINES; i++) {
-                            hasMore = fileInstream.readLine(line);
-                            if (line.value && line.value.match(tzRegex)) {
-                                return filepath+": "+line.value;
-                            }
-                        }
-                        return ""; // not found
-                    } finally {
-                        fileInstream.close();
-                    }
-                } catch (ex) {
-                    Components.utils.reportError(filepath+": "+ex);
-                    return "";
-                }
-
-            }
             osUserTimeZone = (environmentVariableValue("TZ") ||
                               symbolicLinkTarget("/etc/localtime") ||
                               fileFirstZoneLineString("/etc/TIMEZONE") ||
                               fileFirstZoneLineString("/etc/timezone") ||
                               fileFirstZoneLineString("/etc/sysconfig/clock"));
-            var results = osUserTimeZone.match(tzRegex);
+            let results = osUserTimeZone.match(tzRegex);
             if (results) {
                 zoneInfoIdFromOSUserTimeZone = results[1];
             }
@@ -749,20 +769,14 @@ function guessSystemTimezone() {
             if (probableTZScore == 1) {
                 // score 1 means has daylight time,
                 // but transitions start on different weekday from os timezone.
-                function weekday(icsDate) {
-                    var calDate = cal.createDateTime();
-                    calDate.icalString = icsDate;
-                    calDate.timezone = tz;
-                    return cal.dateTimeToJsDate(calDate).toLocaleFormat("%a");
-                }
                 var standardStart = getIcalString(standard, "DTSTART");
-                var standardStartWeekday = weekday(standardStart);
+                var standardStartWeekday = weekday(standardStart, tz);
                 var standardRule  = getIcalString(standard, "RRULE");
                 var standardText =
                     ("  Standard: "+standardStart+" "+standardStartWeekday+"\n"+
                      "            "+standardRule+"\n");
                 var daylightStart = getIcalString(daylight, "DTSTART");
-                var daylightStartWeekday = weekday(daylightStart);
+                var daylightStartWeekday = weekday(daylightStart, tz);
                 var daylightRule  = getIcalString(daylight, "RRULE");
                 var daylightText =
                     ("  Daylight: "+daylightStart+" "+daylightStartWeekday+"\n"+

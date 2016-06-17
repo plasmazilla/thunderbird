@@ -13,7 +13,7 @@ CuImport("resource://gre/modules/Preferences.jsm", this);
 
 CuImport("resource://calendar/modules/calUtils.jsm", this);
 
-const cIE = Components.interfaces.calIErrors;
+var cIE = Components.interfaces.calIErrors;
 
 var API_BASE = {
     EVENTS: "https://www.googleapis.com/calendar/v3/",
@@ -54,7 +54,7 @@ calGoogleRequest.DELETE = "DELETE";
 calGoogleRequest.GET = "GET";
 calGoogleRequest.PATCH = "PATCH";
 
-const GDATA_ERROR_BASE = Components.interfaces.calIErrors.ERROR_BASE + 0x400;
+var GDATA_ERROR_BASE = Components.interfaces.calIErrors.ERROR_BASE + 0x400;
 calGoogleRequest.LOGIN_FAILED = GDATA_ERROR_BASE + 1;
 calGoogleRequest.CONFLICT_DELETED = GDATA_ERROR_BASE + 2;
 calGoogleRequest.CONFLICT_MODIFY = GDATA_ERROR_BASE + 3;
@@ -126,11 +126,11 @@ calGoogleRequest.prototype = {
      * The type of this reqest. Must be one of
      * GET, ADD, MODIFY, DELETE
      */
-    get type() this.method,
+    get type() { return this.method; },
 
     set type(v) {
         let valid = [this.GET, this.ADD, this.MODIFY, this.PATCH, this.DELETE];
-        if (valid.indexOf(v) < 0) {
+        if (!valid.includes(v)) {
             throw new Components.Exception("Invalid request type: " + v,
                                             Components.results.NS_ERROR_ILLEGAL_VALUE);
         }
@@ -197,7 +197,20 @@ calGoogleRequest.prototype = {
                 uristring += "?" + params.join("&");
             }
             let uri = Services.io.newURI(uristring, null, null);
-            let channel = Services.io.newChannelFromURI(uri);
+            let channel;
+            if ("newChannelFromURI2" in Services.io) {
+                // Lightning 4.3+
+                channel = Services.io.newChannelFromURI2(uri,
+                                                         null,
+                                                         Services.scriptSecurityManager.getSystemPrincipal(),
+                                                         null,
+                                                         Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                         Components.interfaces.nsIContentPolicy.TYPE_OTHER);
+            } else {
+                // Lightning 4.2 and older
+                channel = Services.io.newChannelFromURI(uri);
+            }
+
             cal.LOG("[calGoogleRequest] Requesting " + this.method + " " +
                     channel.URI.spec);
 
@@ -429,11 +442,7 @@ calGoogleRequest.prototype = {
                         if (this.reauthenticate) {
                             cal.LOG("[calGoogleRequest] The access token is not authorized, trying to refresh token.")
                             this.reauthenticate = false;
-                            this.mSession.asyncItemRequest(this).then(function(aOperation, aData) {
-                                this.succeed(aData);
-                            }.bind(this), function(e) {
-                                this.fail(e.result, e.message || e);
-                            }.bind(this));
+                            this.mSession.asyncItemRequest(this);
                         } else {
                             cal.LOG("[calGoogleRequest] Even refreshed token is not authorized, looks like the client is outdated");
                             this.mSession.notifyOutdated();
@@ -467,11 +476,7 @@ calGoogleRequest.prototype = {
                         this.mSession.invalidate();
                         if (this.reauthenticate) {
                             this.reauthenticate = false;
-                            this.mSession.asyncItemRequest(this).then(function(aOperation, aData) {
-                                this.succeed(aData);
-                            }.bind(this), function(e) {
-                                this.fail(e.result, e.message || e);
-                            }.bind(this));
+                            this.mSession.asyncItemRequest(this);
                         } else {
                             this.fail(calGoogleRequest.LOGIN_FAILED, reason);
                         }

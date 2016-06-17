@@ -33,7 +33,7 @@ Components.utils.import("resource://gre/modules/Services.jsm");
  *     global value.
  *
  */
-let mailTabType = {
+var mailTabType = {
   name: "mail",
   panelId: "mailContent",
   modes: {
@@ -225,7 +225,7 @@ let mailTabType = {
             let tabmail = document.getElementById("tabmail");
             let restoreState = tabmail._restoringTabState;
             let tab = tabmail.tabInfo[0];
-            for each (let [, tabMonitor] in Iterator(tabmail.tabMonitors)) {
+            for (let tabMonitor of tabmail.tabMonitors) {
               if (("onTabRestored" in tabMonitor) &&
                   (tabMonitor.monitorName in restoreState.ext)) {
                 tabMonitor.onTabRestored(tab,
@@ -355,6 +355,12 @@ let mailTabType = {
         let background = ("background" in aArgs) && aArgs.background;
 
         if (viewWrapperToClone) {
+          // The original view must have a collapsed group header thread's
+          // message(s) found in expand mode before it's cloned, for any to
+          // be selected.
+          if (viewWrapperToClone.showGroupedBySort)
+            viewWrapperToClone.dbView.findIndexOfMsgHdr(aArgs.msgHdr, true);
+
           aTab.folderDisplay.cloneView(viewWrapperToClone);
         }
         else {

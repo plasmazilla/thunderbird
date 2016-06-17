@@ -17,7 +17,7 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/mailServices.js");
 
-let abController = null;
+var abController = null;
 var addrBook1, addrBook2, addrBook3, addrBook4;
 var mListA, mListB, mListC, mListD, mListE;
 var windowHelper;
@@ -66,7 +66,7 @@ function setupModule(module)
   // and Collected Address Book.  So let's ensure that those address books
   // exist in the tree view before executing our tests.
   abController.waitFor(
-    function () (abController.window.gDirectoryTreeView.rowCount == 8),
+    () => abController.window.gDirectoryTreeView.rowCount == 8,
     "Timeout waiting for all 8 rows in address books list to show up in the tree view",
     1000, 10);
 }
@@ -355,8 +355,8 @@ function test_writing_to_mailing_list() {
   let to = composeWin.window.gMsgCompose.compFields.to;
 
   // Make sure we're writing to all contacts in the mailing list.
-  for each (contact in contacts) {
-    assert_not_equals(-1, to.indexOf(contact.primaryEmail));
-    assert_not_equals(-1, to.indexOf(contact.displayName));
+  for (let contact of contacts) {
+    assert_true(to.includes(contact.primaryEmail));
+    assert_true(to.includes(contact.displayName));
   }
 }

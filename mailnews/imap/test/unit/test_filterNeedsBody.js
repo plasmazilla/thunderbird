@@ -11,7 +11,7 @@ load("../../../resources/logHelper.js");
 // Globals
 var gFilter; // a message filter with a subject search
 var gAction; // current message action (reused)
-const gMessage = "draft1"; // message file used as the test message
+var gMessage = "draft1"; // message file used as the test message
 
 // Definition of tests
 var tests = [
@@ -77,7 +77,7 @@ function run_test() {
 }
 
 // custom action to test offline status
-let actionTestOffline =
+var actionTestOffline =
 {
   id: "mailnews@mozilla.org#testOffline",
   name: "test if offline",

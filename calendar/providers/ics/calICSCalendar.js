@@ -19,10 +19,10 @@ Components.utils.import("resource://calendar/modules/calProviderUtils.jsm");
 //
 // XXX Should do locks, so that external changes are not overwritten.
 
-const CI = Components.interfaces;
-const calIOperationListener = Components.interfaces.calIOperationListener;
-const calICalendar = Components.interfaces.calICalendar;
-const calIErrors = Components.interfaces.calIErrors;
+var CI = Components.interfaces;
+var calIOperationListener = Components.interfaces.calIOperationListener;
+var calICalendar = Components.interfaces.calICalendar;
+var calIErrors = Components.interfaces.calIErrors;
 
 function icsNSResolver(prefix) {
     const ns = {
@@ -48,8 +48,8 @@ function calICSCalendar() {
     this.queue = new Array();
     this.mModificationActions = [];
 }
-const calICSCalendarClassID = Components.ID("{f8438bff-a3c9-4ed5-b23f-2663b5469abf}");
-const calICSCalendarInterfaces = [
+var calICSCalendarClassID = Components.ID("{f8438bff-a3c9-4ed5-b23f-2663b5469abf}");
+var calICSCalendarInterfaces = [
     Components.interfaces.calICalendarProvider,
     Components.interfaces.calICalendar,
     Components.interfaces.calISchedulingSupport,
@@ -116,7 +116,12 @@ calICSCalendar.prototype = {
 
         // Use the ioservice, to create a channel, which makes finding the
         // right hooks to use easier.
-        var channel = Services.io.newChannelFromURI(this.mUri);
+        var channel = Services.io.newChannelFromURI2(this.mUri,
+                                                     null,
+                                                     Services.scriptSecurityManager.getSystemPrincipal(),
+                                                     null,
+                                                     Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                     Components.interfaces.nsIContentPolicy.TYPE_OTHER);
         let wHttpChannel = cal.wrapInstance(channel, Components.interfaces.nsIHttpChannel);
         let wFileChannel = cal.wrapInstance(channel, Components.interfaces.nsIFileChannel);
 
@@ -173,7 +178,12 @@ calICSCalendar.prototype = {
                                  .createInstance(Components.interfaces.nsISupportsPRBool);
         prbForce.data = aForce;
 
-        var channel = Services.io.newChannelFromURI(this.mUri);
+        var channel = Services.io.newChannelFromURI2(this.mUri,
+                                                     null,
+                                                     Services.scriptSecurityManager.getSystemPrincipal(),
+                                                     null,
+                                                     Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                     Components.interfaces.nsIContentPolicy.TYPE_OTHER);
         this.prepareChannel(channel, aForce);
 
         var streamLoader = Components.classes["@mozilla.org/network/stream-loader;1"]
@@ -310,6 +320,7 @@ calICSCalendar.prototype = {
         var listener =
         {
             serializer: null,
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onOperationComplete: function(aCalendar, aStatus, aOperationType, aId, aDetail)
             {
                 var inLastWindowClosingSurvivalArea = false;
@@ -317,7 +328,12 @@ calICSCalendar.prototype = {
                     // All events are returned. Now set up a channel and a
                     // streamloader to upload.  onStopRequest will be called
                     // once the write has finished
-                    var channel = Services.io.newChannelFromURI(savedthis.mUri);
+                    var channel = Services.io.newChannelFromURI2(savedthis.mUri,
+                                                                 null,
+                                                                 Services.scriptSecurityManager.getSystemPrincipal(),
+                                                                 null,
+                                                                 Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                                 Components.interfaces.nsIContentPolicy.TYPE_OTHER);
 
                     // Allow the hook to add things to the channel, like a
                     // header that checks etags
@@ -451,14 +467,14 @@ calICSCalendar.prototype = {
         this.adoptItem(aItem.clone(), aListener);
     },
     adoptItem: function (aItem, aListener) {
-        if (this.readOnly) 
+        if (this.readOnly)
             throw calIErrors.CAL_IS_READONLY;
         this.queue.push({action:'add', item:aItem, listener:aListener});
         this.processQueue();
     },
 
     modifyItem: function (aNewItem, aOldItem, aListener) {
-        if (this.readOnly) 
+        if (this.readOnly)
             throw calIErrors.CAL_IS_READONLY;
         this.queue.push({action:'modify', oldItem: aOldItem,
                          newItem: aNewItem, listener:aListener});
@@ -466,7 +482,7 @@ calICSCalendar.prototype = {
     },
 
     deleteItem: function (aItem, aListener) {
-        if (this.readOnly) 
+        if (this.readOnly)
             throw calIErrors.CAL_IS_READONLY;
         this.queue.push({action:'delete', item:aItem, listener:aListener});
         this.processQueue();
@@ -496,6 +512,7 @@ calICSCalendar.prototype = {
             this.mAction = action;
         }
         modListener.prototype = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onGetResult: function() {},
             onOperationComplete: function() {
                 this.mAction.opCompleteArgs = arguments;
@@ -649,9 +666,7 @@ calICSCalendar.prototype = {
         function purgeBackupsByType(files, type) {
             // filter out backups of the type we care about.
             var filteredFiles = files.filter(
-                function f(v) {
-                    return (v.name.indexOf("calBackupData_"+pseudoID+"_"+type) != -1)
-                });
+                v => v.name.includes("calBackupData_"+pseudoID+"_"+type));
             // Sort by lastmodifed
             filteredFiles.sort(
                 function s(a,b) {
@@ -767,7 +782,12 @@ calICSCalendar.prototype = {
         purgeOldBackups();
 
         // Now go download the remote file, and store it somewhere local.
-        var channel = Services.io.newChannelFromURI(this.mUri);
+        var channel = Services.io.newChannelFromURI2(this.mUri,
+                                                     null,
+                                                     Services.scriptSecurityManager.getSystemPrincipal(),
+                                                     null,
+                                                     Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                                     Components.interfaces.nsIContentPolicy.TYPE_OTHER);
         channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
         channel.notificationCallbacks = this;
 
@@ -892,12 +912,16 @@ function httpHooks(calendar) {
 
 httpHooks.prototype = {
     onBeforeGet: function(aChannel, aForceRefresh) {
+        var httpchannel = aChannel.QueryInterface(Components.interfaces.nsIHttpChannel);
+        httpchannel.setRequestHeader("Accept", "text/calendar,text/plain;q=0.8,*/*;q=0.5", false);
+
         if (this.mEtag && !aForceRefresh) {
-            var httpchannel = aChannel.QueryInterface(Components.interfaces.nsIHttpChannel);
             // Somehow the webdav header 'If' doesn't work on apache when
             // passing in a Not, so use the http version here.
-            httpchannel.setRequestHeader("Accept", "text/calendar,text/plain;q=0.8,*/*;q=0.5", false);
             httpchannel.setRequestHeader("If-None-Match", this.mEtag, false);
+        } else if (!aForceRefresh && this.mLastModified) {
+            // Only send 'If-Modified-Since' if no ETag is available
+            httpchannel.setRequestHeader("If-Modified-Since", this.mLastModified, false);
         }
 
         return true;
@@ -946,6 +970,13 @@ httpHooks.prototype = {
             // No etag header. Now what?
             this.mEtag = null;
         }
+
+        try {
+            this.mLastModified = httpchannel.getResponseHeader("Last-Modified");
+        } catch(e) {
+            this.mLastModified = null;
+        }
+
         return true;
     },
 
@@ -1076,7 +1107,7 @@ fileHooks.prototype = {
 };
 
 /** Module Registration */
-const scriptLoadOrder = [
+var scriptLoadOrder = [
     "calUtils.js",
 ];
 

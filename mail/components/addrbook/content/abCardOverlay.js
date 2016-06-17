@@ -6,16 +6,16 @@
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
 
-const kNonVcardFields =
+var kNonVcardFields =
         ["NickNameContainer", "SecondaryEmailContainer", "ScreenNameContainer",
          "customFields", "preferDisplayName"];
 
-const kPhoneticFields =
+var kPhoneticFields =
         ["PhoneticLastName", "PhoneticLabel1", "PhoneticSpacer1",
          "PhoneticFirstName", "PhoneticLabel2", "PhoneticSpacer2"];
 
 // Item is |[dialogField, cardProperty]|.
-const kVcardFields =
+var kVcardFields =
         [ // Contact > Name
          ["FirstName", "FirstName"],
          ["LastName", "LastName"],
@@ -583,7 +583,7 @@ function CheckAndSetCardValues(cardproperty, doc, check)
 function CleanUpWebPage(webPage)
 {
   // no :// yet so we should add something
-  if (webPage.length && !webPage.contains("://"))
+  if (webPage.length && !webPage.includes("://"))
   {
     // check for missing / on http://
     if (webPage.startsWith("http:/"))
@@ -698,9 +698,10 @@ function calculateAge(aEvent, aElement) {
   // if the datepicker was updated, update the year element
   if (aElement == datepicker && !(datepicker.year == kDefaultYear && !yearElem.value))
     yearElem.value = datepicker.year;
+
   var year = yearElem.value;
   // if the year element's value is invalid set the year and age elements to null
-  if (isNaN(year) || year < 1 || year > 9999) {
+  if (isNaN(year) || year < kMinYear || year > kMaxYear) {
     yearElem.value = null;
     ageElem.value = null;
     datepicker.year = kDefaultYear;
@@ -739,10 +740,10 @@ function calculateYear(aEvent, aElement) {
   if (aEvent)
     aElement = this;
   if (aElement.id == "Age") {
-    yearElem = document.getElementById("BirthYear");
     datepicker = document.getElementById("Birthday");
+    yearElem = document.getElementById("BirthYear");
   }
-  if (!yearElem || !datepicker)
+  if (!datepicker || !yearElem)
     return;
 
   // if the age is null, remove the year from the year element, and set the
@@ -766,7 +767,9 @@ function calculateYear(aEvent, aElement) {
     datepicker.year = kDefaultYear;
     // if there was an error (like invalid year) set the year and age to null
     yearElem.value = null;
-    ageElem.value = null;
+    let ageElem = document.getElementById("Age");
+    if (ageElem)
+      ageElem.value = null;
   }
 }
 
@@ -816,7 +819,7 @@ function modifyDatepicker(aDatepicker) {
       var dt = new Date(this.year, currentMonth, aValue);
       return dt.getMonth() != currentMonth ? 1 : aValue;
     }
-    var max = (aField == this.monthField) ? 11 : 9999;
+    var max = (aField == this.monthField) ? 11 : kMaxYear;
     // make sure the value isn't too high
     if (aValue > max)
       return aNoWrap ? max : min;
@@ -825,7 +828,7 @@ function modifyDatepicker(aDatepicker) {
   // sets the specified field to the given value, but allows blank fields
   // from: mozilla/toolkit/content/widgets/datetimepicker.xml#698
   aDatepicker._setFieldValue = function setValue(aField, aValue) {
-    if (aField == this.yearField && aValue > 0 && aValue < 10000) {
+    if (aField == this.yearField && aValue >= kMinYear && aValue <= kMaxYear) {
       var oldDate = this._dateValue;
       this._dateValue.setFullYear(aValue);
       if (oldDate != this._dateValue) {
@@ -869,7 +872,7 @@ function modifyDatepicker(aDatepicker) {
   }
 }
 
-const chatNameFieldIds =
+var chatNameFieldIds =
   ["Gtalk", "AIM", "Yahoo", "Skype", "QQ", "MSN", "ICQ", "XMPP", "IRC"];
 
 /**
@@ -880,7 +883,7 @@ function showChat()
 {
   document.getElementById('abTabPanels').parentNode.selectedTab =
     document.getElementById('chatTabButton');
-  for each (let id in chatNameFieldIds) {
+  for (let id of chatNameFieldIds) {
     let elt = document.getElementById(id);
     if (elt.value) {
       elt.focus();
@@ -897,7 +900,7 @@ function showChat()
 function updateChatName()
 {
   let value = "";
-  for each (let id in chatNameFieldIds) {
+  for (let id of chatNameFieldIds) {
     let val = document.getElementById(id).value;
     if (val) {
       value = val;

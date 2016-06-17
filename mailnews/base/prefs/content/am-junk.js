@@ -7,7 +7,7 @@ Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/iteratorUtils.jsm");
 Components.utils.import("resource:///modules/MailUtils.js");
 
-let gDeferredToAccount = "";
+var gDeferredToAccount = "";
 
 function onInit(aPageId, aServerId)
 {
@@ -255,7 +255,7 @@ function buildServerFilterMenuList()
       menuEntries.push.apply(menuEntries, buildServerFilterListFromDir(ispDirectory, menuEntries));
   }
 
-  menuEntries.sort(function(a,b) a.localeCompare(b));
+  menuEntries.sort((a, b) => a.localeCompare(b));
   for (let entry of menuEntries) {
     ispHeaderList.appendItem(entry, entry);
   }

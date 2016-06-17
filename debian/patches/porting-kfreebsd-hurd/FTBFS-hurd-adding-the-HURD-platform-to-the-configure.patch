@@ -9,15 +9,15 @@ the needed configure related files.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/build/autoconf/icu.m4 b/mozilla/build/autoconf/icu.m4
-index 8bd8fbe..10aaeb8 100644
+index 65d10cd..943a378 100644
 --- a/mozilla/build/autoconf/icu.m4
 +++ b/mozilla/build/autoconf/icu.m4
-@@ -95,7 +95,7 @@ if test -n "$USE_ICU"; then
+@@ -99,7 +99,7 @@ if test -n "$USE_ICU"; then
                      MOZ_ICU_DBG_SUFFIX=d
                  fi
                  ;;
--            Darwin|Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD)
-+            Darwin|Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|GNU)
+-            Darwin|Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|SunOS|Android)
++            Darwin|Linux|DragonFly|FreeBSD|NetBSD|OpenBSD|GNU/kFreeBSD|SunOS|Android|GNU)
                  ICU_LIB_NAMES="icui18n icuuc icudata"
                  ;;
              *)

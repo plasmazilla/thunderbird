@@ -1,0 +1,36 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sat, 6 Jun 2015 18:30:53 +0200
+Subject: Brand-ta-LK
+
+---
+ iceowl-l10n/ta-LK/locale/ta-LK/lightning/lightning.properties | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/iceowl-l10n/ta-LK/locale/ta-LK/lightning/lightning.properties b/iceowl-l10n/ta-LK/locale/ta-LK/lightning/lightning.properties
+index c4dc95a..768ffa2 100644
+--- a/iceowl-l10n/ta-LK/locale/ta-LK/lightning/lightning.properties
++++ b/iceowl-l10n/ta-LK/locale/ta-LK/lightning/lightning.properties
+@@ -38,12 +38,12 @@
+ # ***** END LICENSE BLOCK *****
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Thunderbird இற்கான ஒன்றிணைக்கப்பட்ட ஒரு நாட்காட்டி
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Mozilla நாட்காட்டிப் பணித்திட்டம்
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=செயற்பாடுகள்
+@@ -68,7 +68,7 @@ imipBarRequestText=இந்தச் செய்தி ஒரு நிகழ
+ imipBarUpdateText=இந்தச் செய்தி காணப்படும் ஒரு நிகழ்ச்சிக்கான ஒரு இற்றைப்படுத்தலைக் கொண்டுள்ளது.
+ imipBarAlreadyProcessedText=இந்தச் செய்தி கொண்டுள்ள ஒரு நிகழ்ச்சி ஏற்கனவே செய்முறைப்படுத்தப்பட்டது.
+ imipBarReplyText=இந்தச் செய்தி ஒரு அழைப்பிதழுக்கான பதிலுரையைக் சொண்டுள்ளது.
+-imipBarUnsupportedText=இந்தச் செய்தி கொண்டுள்ள ஒரு நிகழ்ச்சி Lightning இனுடைய இந்தப் பதிப்பால் செய்முறைப்படுத்த முடியாது.
++imipBarUnsupportedText=இந்தச் செய்தி கொண்டுள்ள ஒரு நிகழ்ச்சி LightniIceowl இனுடைய இந்தப் பதிப்பால் செய்முறைப்படுத்த முடியாது.
+ imipBarProcessingFailed=செய்தியை செய்முறைப்படுத்தல் வெற்றியளிக்கவில்லை. நிலை: %1$S.
+ imipAcceptInvitation.label=ஏற்றுக்கொள்க
+ imipCancelInvitation.label=நீக்குக

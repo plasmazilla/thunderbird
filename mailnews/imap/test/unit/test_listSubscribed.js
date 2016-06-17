@@ -22,7 +22,7 @@ load("../../../resources/alertTestUtils.js");
 Components.utils.import("resource://gre/modules/Services.jsm");
 
 // Globals
-let nsMsgFolderFlags = Ci.nsMsgFolderFlags;
+var nsMsgFolderFlags = Ci.nsMsgFolderFlags;
 
 // Zimbra is one of the servers that supports LIST-EXTENDED
 // it also has a bug that causes a server crash in certain setups
@@ -135,7 +135,7 @@ function specForFileName(aFileName)
 
 function recursiveDeleteMailboxes(aMailbox)
 {
-  for each (var child in aMailbox.allChildren) {
+  for (var child of aMailbox.allChildren) {
     recursiveDeleteMailboxes(child);
   }
   IMAPPump.daemon.deleteMailbox(aMailbox);

@@ -12,7 +12,6 @@
 #include "nsIMsgDatabase.h"
 #include "nsIMsgHdr.h"
 #include "MailNewsTypes.h"
-#include "nsTArray.h"
 #include "nsIDBChangeListener.h"
 #include "nsITreeView.h"
 #include "nsITreeBoxObject.h"
@@ -29,12 +28,12 @@
 #include "nsMsgTagService.h"
 #include "nsCOMArray.h"
 #include "nsTArray.h"
+#include "nsTHashtable.h"
+#include "nsHashKeys.h"
 #include "nsIMsgCustomColumnHandler.h"
 #include "nsAutoPtr.h"
 #include "nsIWeakReferenceUtils.h"
 #define MESSENGER_STRING_URL       "chrome://messenger/locale/messenger.properties"
-
-class nsVoidArray;
 
 typedef nsAutoTArray<nsMsgViewIndex, 1> nsMsgViewIndexArray;
 static_assert(nsMsgViewIndex(nsMsgViewIndexArray::NoIndex) ==
@@ -64,6 +63,8 @@ public:
 #define MSG_VIEW_FLAG_HASCHILDREN 0x40000000
 #define MSG_VIEW_FLAG_DUMMY 0x20000000
 #define MSG_VIEW_FLAG_ISTHREAD 0x8000000
+#define MSG_VIEW_FLAG_OUTGOING 0x2000000
+#define MSG_VIEW_FLAG_INCOMING 0x1000000
 
 /* There currently only 5 labels defined */
 #define PREF_LABELS_MAX 5
@@ -160,6 +161,7 @@ protected:
   nsresult FetchRowKeywords(nsMsgViewIndex aRow, nsIMsgDBHdr *aHdr,
                             nsACString & keywordString);
   nsresult FetchAccount(nsIMsgDBHdr * aHdr, nsAString& aAccount);
+  bool IsOutgoingMsg(nsIMsgDBHdr * aHdr);
   nsresult CycleThreadedColumn(nsIDOMElement * aElement);
 
   // The default enumerator is over the db, but things like
@@ -243,6 +245,7 @@ protected:
   void ReverseSort();
   void ReverseThreads();
   nsresult SaveSortInfo(nsMsgViewSortTypeValue sortType, nsMsgViewSortOrderValue sortOrder);
+  nsresult RestoreSortInfo();
   nsresult PersistFolderInfo(nsIDBFolderInfo **dbFolderInfo);
   void     SetMRUTimeForFolder(nsIMsgFolder *folder);
 
@@ -319,11 +322,20 @@ protected:
   bool JunkControlsEnabled(nsMsgViewIndex aViewIndex);
 
   // for sorting
-  nsresult GetFieldTypeAndLenForSort(nsMsgViewSortTypeValue sortType, uint16_t *pMaxLen, eFieldType *pFieldType);
-  nsresult GetCollationKey(nsIMsgDBHdr *msgHdr, nsMsgViewSortTypeValue sortType, uint8_t **result, 
-                          uint32_t *len, nsIMsgCustomColumnHandler* colHandler = nullptr);
-  nsresult GetLongField(nsIMsgDBHdr *msgHdr, nsMsgViewSortTypeValue sortType, uint32_t *result, 
+  nsresult GetFieldTypeAndLenForSort(nsMsgViewSortTypeValue sortType,
+                                        uint16_t *pMaxLen,
+                                        eFieldType *pFieldType,
+                                        nsIMsgCustomColumnHandler* colHandler = nullptr);
+  nsresult GetCollationKey(nsIMsgDBHdr *msgHdr,
+                             nsMsgViewSortTypeValue sortType,
+                             uint8_t **result,
+                             uint32_t *len,
+                             nsIMsgCustomColumnHandler* colHandler = nullptr);
+  nsresult GetLongField(nsIMsgDBHdr *msgHdr,
+                          nsMsgViewSortTypeValue sortType,
+                          uint32_t *result,
                           nsIMsgCustomColumnHandler* colHandler = nullptr);
+
   static int FnSortIdKey(const void *pItem1, const void *pItem2, void *privateData);
   static int FnSortIdKeyPtr(const void *pItem1, const void *pItem2, void *privateData);
   static int FnSortIdUint32(const void *pItem1, const void *pItem2, void *privateData);
@@ -361,7 +373,7 @@ protected:
   nsresult GetDBForHeader(nsIMsgDBHdr *msgHdr, nsIMsgDatabase **db);
 
   bool AdjustReadFlag(nsIMsgDBHdr *msgHdr, uint32_t *msgFlags);
-  void FreeAll(nsVoidArray *ptrs);
+  void FreeAll(nsTArray<void*> *ptrs);
   void ClearHdrCache();
   nsTArray<nsMsgKey> m_keys;
   nsTArray<uint32_t> m_flags;
@@ -393,6 +405,7 @@ protected:
   bool mShowSizeInLines;    // for news we show lines instead of size when true
   bool mSortThreadsByRoot;  // as opposed to by the newest message
   bool m_sortValid;
+  bool m_checkedCustomColumns;
   bool mSelectionSummarized;
   // we asked the front end to summarize the selection and it did not.
   bool mSummarizeFailed;
@@ -405,8 +418,10 @@ protected:
   nsTArray <MsgViewSortColumnInfo> m_sortColumns;
   nsMsgViewSortTypeValue  m_sortType;
   nsMsgViewSortOrderValue m_sortOrder;
+  nsString m_curCustomColumn;
   nsMsgViewSortTypeValue m_secondarySort;
   nsMsgViewSortOrderValue m_secondarySortOrder;
+  nsString m_secondaryCustomColumn;
   nsMsgViewFlagsTypeValue m_viewFlags;
 
   // I18N date formatter service which we'll want to cache locally.
@@ -434,6 +449,8 @@ protected:
   
   nsTArray<uint32_t> mIndicesToNoteChange;
 
+  nsTHashtable<nsCStringHashKey> mEmails;
+
   // the saved search views keep track of the XX most recently deleted msg ids, so that if the 
   // delete is undone, we can add the msg back to the search results, even if it no longer
   // matches the search criteria (e.g., a saved search over unread messages).
@@ -449,7 +466,9 @@ protected:
   nsTArray<nsString> m_customColumnHandlerIDs;
   
   nsIMsgCustomColumnHandler* GetColumnHandler(const char16_t*);
-  nsIMsgCustomColumnHandler* GetCurColumnHandlerFromDBInfo();
+  nsIMsgCustomColumnHandler* GetCurColumnHandler();
+  bool CustomColumnsInSortAndNotRegistered();
+  void EnsureCustomColumnsValid();
 
 #ifdef DEBUG_David_Bienvenu
 void InitEntryInfoForIndex(nsMsgViewIndex i, IdKeyPtr &EntryInfo);
@@ -483,7 +502,7 @@ private:
     // nsMsgThreadEnumerator methods:
     nsMsgViewHdrEnumerator(nsMsgDBView *view);
 
-    nsRefPtr <nsMsgDBView> m_view;
+    RefPtr<nsMsgDBView> m_view;
     nsMsgViewIndex m_curHdrIndex;
 
   private:

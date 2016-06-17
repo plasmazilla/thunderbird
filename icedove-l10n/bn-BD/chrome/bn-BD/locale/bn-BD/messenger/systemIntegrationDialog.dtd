@@ -1,0 +1,18 @@
+<!ENTITY systemIntegration.title  "সিস্টেম ইন্টিগ্রেশন">
+<!ENTITY defaultClient.intro  "যার জন্য ডিফল্ট ক্লায়েন্ট হিসেবে &brandShortName; ব্যবহার করা হবে:">
+
+<!ENTITY email.label "ইমেইল">
+<!ENTITY newsgroups.label "নিউজগ্রুপ">
+<!ENTITY feeds.label "ফিড">
+
+<!ENTITY checkOnStartup.label "&brandShortName; শুরু করার সময় প্রতিবার এই পরীক্ষা করা হবে (A)">
+<!ENTITY checkOnStartup.accesskey "A">
+
+<!ENTITY searchIntegration.label "বার্তা খুঁজতে &searchIntegration.engineName; কে অনুমোদন দেয়া হবে (s)">
+<!ENTITY searchIntegration.accesskey "s">
+
+<!ENTITY acceptIntegration.label  "Set as Default">
+<!ENTITY cancelIntegration.label  "Skip Integration">
+<!ENTITY cancelIntegration2.label  "Cancel">
+
+<!ENTITY unsetDefault.tooltip "It is not possible to unset &brandShortName; as the default client within &brandShortName;. To make another application the default you must use its 'Set as default' dialog.">

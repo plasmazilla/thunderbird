@@ -27,7 +27,7 @@ var StarUI = {
   get _blockedCommands() {
     delete this._blockedCommands;
     return this._blockedCommands =
-      ["cmd_close", "cmd_closeWindow"].map(function (id) this._element(id), this);
+      ["cmd_close", "cmd_closeWindow"].map(id => this._element(id));
   },
 
   _blockCommands: function SU__blockCommands() {
@@ -736,7 +736,7 @@ var PlacesStarButton = {
       // calls back.  For such an edge case, retain all unique entries from both
       // arrays.
       this._itemIds = this._itemIds.filter(
-        function (id) aItemIds.indexOf(id) == -1
+        id => aItemIds.indexOf(id) == -1
       ).concat(aItemIds);
       this._updateStateInternal();
 
@@ -828,7 +828,7 @@ var PlacesStarButton = {
 // This object handles the initialization and uninitialization of the bookmarks
 // toolbar.  updateState is called when the browser window is opened and
 // after closing the toolbar customization dialog.
-let PlacesToolbarHelper = {
+var PlacesToolbarHelper = {
   _place: "place:folder=TOOLBAR",
   get _viewElt() {
     return document.getElementById("PlacesToolbar");
@@ -863,7 +863,7 @@ let PlacesToolbarHelper = {
 
 
 // Handles the bookmarks menu popup
-let BookmarksMenu = {
+var BookmarksMenu = {
   _popupInitialized: {},
   onPopupShowing: function BM_onPopupShowing(aEvent, aPrefix) {
     if (!(aPrefix in this._popupInitialized)) {

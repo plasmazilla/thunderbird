@@ -162,9 +162,9 @@ nsMimeHtmlDisplayEmitter::GetHeaderSink(nsIMsgHeaderSink ** aHeaderSink)
 nsresult nsMimeHtmlDisplayEmitter::BroadcastHeaders(nsIMsgHeaderSink * aHeaderSink, int32_t aHeaderMode, bool aFromNewsgroup)
 {
   // two string enumerators to pass out to the header sink
-  nsRefPtr<nsMimeStringEnumerator> headerNameEnumerator = new nsMimeStringEnumerator();
+  RefPtr<nsMimeStringEnumerator> headerNameEnumerator = new nsMimeStringEnumerator();
   NS_ENSURE_TRUE(headerNameEnumerator, NS_ERROR_OUT_OF_MEMORY);
-  nsRefPtr<nsMimeStringEnumerator> headerValueEnumerator = new nsMimeStringEnumerator();
+  RefPtr<nsMimeStringEnumerator> headerValueEnumerator = new nsMimeStringEnumerator();
   NS_ENSURE_TRUE(headerValueEnumerator, NS_ERROR_OUT_OF_MEMORY);
 
   nsCString extraExpandedHeaders;
@@ -184,9 +184,9 @@ nsresult nsMimeHtmlDisplayEmitter::BroadcastHeaders(nsIMsgHeaderSink * aHeaderSi
     }
   }
 
-  for (int32_t i=0; i<mHeaderArray->Count(); i++)
+  for (size_t i = 0; i < mHeaderArray->Length(); i++)
   {
-    headerInfoType * headerInfo = (headerInfoType *) mHeaderArray->ElementAt(i);
+    headerInfoType * headerInfo = mHeaderArray->ElementAt(i);
     if ( (!headerInfo) || (!headerInfo->name) || (!(*headerInfo->name)) || (!headerInfo->value) || (!(*headerInfo->value)))
       continue;
 
@@ -251,9 +251,9 @@ NS_IMETHODIMP nsMimeHtmlDisplayEmitter::WriteHTMLHeaders(const nsACString &name)
     mFirstHeaders = false;
 
   bool bFromNewsgroups = false;
-  for (int32_t j=0; j < mHeaderArray->Count(); j++)
+  for (size_t j = 0; j < mHeaderArray->Length(); j++)
   {
-    headerInfoType *headerInfo = (headerInfoType *)mHeaderArray->ElementAt(j);
+    headerInfoType *headerInfo = mHeaderArray->ElementAt(j);
     if (!(headerInfo && headerInfo->name && *headerInfo->name))
       continue;
 
@@ -302,7 +302,7 @@ nsMimeHtmlDisplayEmitter::EndHeader(const nsACString &name)
         PR_snprintf(buf, bufLen, "<title>%s</title>", subject);
         UtilityWriteCRLF(buf);
         delete [] buf;
-        nsMemory::Free(subject);
+        free(subject);
       }
     }
 

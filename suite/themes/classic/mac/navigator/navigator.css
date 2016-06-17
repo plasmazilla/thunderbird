@@ -233,6 +233,14 @@ toolbar[mode="text"] > #window-controls > toolbarbutton > .toolbarbutton-icon {
   display: none;
 }
 
+#urlbar-search-splitter {
+  min-width: 8px;
+  margin: 0 -4px;
+  background-image: none;
+  position: relative;
+  height: 22px;
+}
+
 /* ::::: notification popups ::::: */
 
 .popup-notification-icon {
@@ -267,8 +275,7 @@ toolbar[mode="text"] > #window-controls > toolbarbutton > .toolbarbutton-icon {
   list-style-image: url("chrome://global/skin/icons/question-64.png");
 }
 
-.popup-notification-icon[popupid="password-change"],
-.popup-notification-icon[popupid="password-save"] {
+.popup-notification-icon[popupid="password"] {
   list-style-image: url("chrome://mozapps/skin/passwordmgr/key-64.png");
 }
 

@@ -7,12 +7,8 @@
 <!DOCTYPE overlay [
 <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">
 <!ENTITY % displayDTD SYSTEM "chrome://messenger/locale/preferences/display.dtd" >
-<!ENTITY % advancedDTD SYSTEM "chrome://messenger/locale/preferences/advanced.dtd">
-<!ENTITY % preferencesDTD SYSTEM "chrome://messenger/locale/preferences/preferences.dtd">
 %brandDTD;
 %displayDTD;
-%advancedDTD;
-%preferencesDTD;
 ]>
 
 <overlay id="DisplayPaneOverlay"
@@ -64,7 +60,7 @@
       <tabs id="displayPrefsTabs">
         <tab id="formattingTab" label="&itemFormatting.label;"/>
         <tab id="tagTab" label="&itemTags.label;"/>
-        <tab id="displayTab" label="&paneAdvanced.title;"/>
+        <tab id="displayTab" label="&itemAdvanced.label;"/>
       </tabs>
 
       <tabpanels id="displayPrefsPanels" flex="1">

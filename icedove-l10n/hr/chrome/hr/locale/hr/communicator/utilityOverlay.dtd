@@ -1,0 +1,58 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<!-- LOCALIZATION NOTE : FILE This file contains the global menu items -->
+
+
+<!ENTITY fileMenu.label          "Datoteka">
+<!ENTITY fileMenu.accesskey        "D">
+<!ENTITY newMenu.label            "Novi">
+<!ENTITY newMenu.accesskey          "N">
+
+<!ENTITY editMenu.label          "Uredi">
+<!ENTITY editMenu.accesskey        "U">
+<!ENTITY undoCmd.label            "Vrati">
+<!ENTITY undoCmd.key            "Z">
+<!ENTITY undoCmd.accesskey          "V">
+<!ENTITY redoCmd.label            "Ponovi">
+<!ENTITY redoCmd.key            "Y">
+<!ENTITY redoCmd.accesskey          "P">
+<!ENTITY cutCmd.label            "Izreži">
+<!ENTITY cutCmd.key              "X">
+<!ENTITY cutCmd.accesskey          "I">
+<!ENTITY copyCmd.label            "Kopiraj">
+<!ENTITY copyCmd.key            "C">
+<!ENTITY copyCmd.accesskey          "K">
+<!ENTITY pasteCmd.label            "Zalijepi">
+<!ENTITY pasteCmd.key            "V">
+<!ENTITY pasteCmd.accesskey          "e">
+<!ENTITY deleteCmd.label          "Obriši">
+<!ENTITY deleteCmd.accesskey        "O">
+<!ENTITY selectAllCmd.label          "Označi sve">
+<!ENTITY selectAllCmd.key          "A">
+<!ENTITY selectAllCmd.accesskey        "a">
+<!ENTITY preferencesCmd2.label "Mogućnosti">
+<!ENTITY preferencesCmd2.accesskey "M">
+<!ENTITY preferencesCmdUnix.label       "Postavke">
+<!ENTITY preferencesCmdUnix.accesskey     "s">
+
+<!ENTITY viewMenu.label          "Pogled">
+<!ENTITY viewMenu.accesskey        "g">
+<!ENTITY viewToolbarsMenu.label        "Alatne trake">
+<!ENTITY viewToolbarsMenu.accesskey      "t">
+<!ENTITY showTaskbarCmd.label          "Traka stanja">
+<!ENTITY showTaskbarCmd.accesskey        "r">
+
+<!ENTITY closeCmd.label      "Zatvori">
+<!ENTITY closeCmd.key      "W">
+<!ENTITY closeCmd.accesskey    "Z">
+
+<!ENTITY quitApplicationCmd.label  "Izlaz">
+<!ENTITY quitApplicationCmd.key    "Q">
+<!ENTITY quitApplicationCmd.accesskey  "I">
+
+<!ENTITY quitApplicationCmdUnix.label  "Izlaz">
+<!ENTITY quitApplicationCmdUnix.accesskey  "l">
+
+<!ENTITY quitApplicationCmdMac.label  "Napusti &brandShortName;">
+<!ENTITY quitApplicationCmdMac.accesskey  "t">

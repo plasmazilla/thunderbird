@@ -157,7 +157,7 @@ tabProgressListener.prototype =
                                          Components.interfaces.nsISupportsWeakReference])
 };
 
-const DOMLinkHandler = {
+var DOMLinkHandler = {
   handleEvent: function (event) {
     switch (event.type) {
     case "DOMLinkAdded":
@@ -171,7 +171,7 @@ const DOMLinkHandler = {
     if (!link || !link.ownerDocument || !rel || !link.href)
       return;
 
-    if (rel.split(/\s+/).indexOf("icon") != -1) {
+    if (rel.split(/\s+/).includes("icon")) {
       if (!Services.prefs.getBoolPref("browser.chrome.site_icons"))
         return;
 
@@ -238,12 +238,12 @@ const DOMLinkHandler = {
   }
 };
 
-const kTelemetryPrompted    = "toolkit.telemetry.prompted";
-const kTelemetryEnabled     = "toolkit.telemetry.enabled";
-const kTelemetryRejected    = "toolkit.telemetry.rejected";
-const kTelemetryServerOwner = "toolkit.telemetry.server_owner";
+var kTelemetryPrompted    = "toolkit.telemetry.prompted";
+var kTelemetryEnabled     = "toolkit.telemetry.enabled";
+var kTelemetryRejected    = "toolkit.telemetry.rejected";
+var kTelemetryServerOwner = "toolkit.telemetry.server_owner";
 // This is used to reprompt/renotify users when privacy message changes
-const kTelemetryPromptRev   = 2;
+var kTelemetryPromptRev   = 2;
 
 var contentTabBaseType = {
   inContentWhitelist: ['about:addons', 'about:preferences'],
@@ -296,7 +296,7 @@ var contentTabBaseType = {
   },
 
   hideChromeForLocation: function hideChromeForLocation(aLocation) {
-    return this.inContentWhitelist.indexOf(aLocation) != -1;
+    return this.inContentWhitelist.includes(aLocation);
   },
 
   /* _setUpLoadListener attaches a load listener to the tab browser that
@@ -425,7 +425,8 @@ var contentTabBaseType = {
         PrintUtils.showPageSetup();
         break;
       case "cmd_print":
-        PrintUtils.print();
+        let browser = this.getBrowser(aTab);
+        PrintUtils.printWindow(browser.outerWindowID, browser);
         break;
       // XXX print preview not currently supported - bug 497994 to implement.
       //case "cmd_printpreview":
@@ -725,7 +726,7 @@ var specialTabs = {
     }
 
     let actions = update.getProperty("actions");
-    if (actions && actions.indexOf("silent") != -1)
+    if (actions && actions.includes("silent"))
       return;
 
     openWhatsNew();
@@ -985,7 +986,7 @@ var specialTabs = {
       }
     },
 
-    shouldSwitchTo: function ({ chromePage: x })
+    shouldSwitchTo: ({ chromePage: x }) =>
       contentTabBaseType.shouldSwitchTo({ contentPage: x }),
 
     /**
@@ -1148,7 +1149,8 @@ var specialTabs = {
           PrintUtils.showPageSetup();
           break;
         case "cmd_print":
-          PrintUtils.print();
+          let browser = this.getBrowser(aTab);
+          PrintUtils.printWindow(browser.outerWindowID, browser);
           break;
         // XXX print preview not currently supported - bug 497994 to implement.
         //case "cmd_printpreview":
@@ -1438,7 +1440,8 @@ var specialTabs = {
     if (aIcon && this.mFaviconService)
       this.mFaviconService.setAndFetchFaviconForPage(
         aTab.browser.currentURI, makeURI(aIcon), false,
-        this.mFaviconService.FAVICON_LOAD_NON_PRIVATE);
+        this.mFaviconService.FAVICON_LOAD_NON_PRIVATE,
+        null, aTab.browser.contentPrincipal);
 
     // Save this off so we know about it later,
     aTab.browser.mIconURL = aIcon;

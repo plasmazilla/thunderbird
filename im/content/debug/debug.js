@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const configWindow = "chrome://global/content/config.xul";
+var configWindow = "chrome://global/content/config.xul";
 
 var debug = {
   aboutMemory: function debug_aboutMemory() {
@@ -74,8 +74,8 @@ function debug_connectAccount(aProto, aName, aPassword)
 
 function debug_dumpBuddyList()
 {
-  let formatBuddy = (function(buddy) "  " + buddy.name + "\n   " + buddy.getAccounts().map(function(a) a.name).join(" "));
-  let formatGroup = (function(aGroup) " Group " + aGroup.id + ": " + aGroup.name + "\n" + aGroup.getBuddies().map(formatBuddy).join("\n"));
+  let formatBuddy = (buddy => "  " + buddy.name + "\n   " + buddy.getAccounts().map(a => a.name).join(" "));
+  let formatGroup = (aGroup => " Group " + aGroup.id + ": " + aGroup.name + "\n" + aGroup.getBuddies().map(formatBuddy).join("\n"));
   dump("Buddy list:\n\n" + Services.tags.getTags().map(formatGroup).join("\n\n") + "\n\n");
 }
 

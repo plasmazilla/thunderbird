@@ -10,6 +10,8 @@
 
 #include "nsSubDocumentFrame.h"
 
+#include "gfxPrefs.h"
+
 #include "mozilla/layout/RenderFrameParent.h"
 
 #include "nsCOMPtr.h"
@@ -80,6 +82,7 @@ public:
   explicit AsyncFrameInit(nsIFrame* aFrame) : mFrame(aFrame) {}
   NS_IMETHOD Run()
   {
+    PROFILER_LABEL("mozilla", "AsyncFrameInit::Run", js::ProfileEntry::Category::OTHER);
     if (mFrame.IsAlive()) {
       static_cast<nsSubDocumentFrame*>(mFrame.GetFrame())->ShowViewer();
     }
@@ -127,7 +130,7 @@ nsSubDocumentFrame::Init(nsIContent*       aContent,
   // it into the view tree. This happens when we've been reframed, and
   // ensures the presentation persists across reframes. If the frame element
   // has changed documents however, we blow away the presentation.
-  nsRefPtr<nsFrameLoader> frameloader = FrameLoader();
+  RefPtr<nsFrameLoader> frameloader = FrameLoader();
   if (frameloader) {
     nsCOMPtr<nsIDocument> oldContainerDoc;
     nsView* detachedViews =
@@ -160,9 +163,9 @@ nsSubDocumentFrame::ShowViewer()
     // create the inner view for it to use.
     (void) EnsureInnerView();
   } else {
-    nsRefPtr<nsFrameLoader> frameloader = FrameLoader();
+    RefPtr<nsFrameLoader> frameloader = FrameLoader();
     if (frameloader) {
-      nsIntSize margin = GetMarginAttributes();
+      CSSIntSize margin = GetMarginAttributes();
       nsWeakFrame weakThis(this);
       mCallingShow = true;
       const nsAttrValue* attrValue =
@@ -245,11 +248,11 @@ nsSubDocumentFrame::GetSubdocumentPresShellForPainting(uint32_t aFlags)
 
 
 
-nsIntSize
+ScreenIntSize
 nsSubDocumentFrame::GetSubdocumentSize()
 {
   if (GetStateBits() & NS_FRAME_FIRST_REFLOW) {
-    nsRefPtr<nsFrameLoader> frameloader = FrameLoader();
+    RefPtr<nsFrameLoader> frameloader = FrameLoader();
     if (frameloader) {
       nsCOMPtr<nsIDocument> oldContainerDoc;
       nsView* detachedViews =
@@ -257,13 +260,13 @@ nsSubDocumentFrame::GetSubdocumentSize()
       if (detachedViews) {
         nsSize size = detachedViews->GetBounds().Size();
         nsPresContext* presContext = detachedViews->GetFrame()->PresContext();
-        return nsIntSize(presContext->AppUnitsToDevPixels(size.width),
-                         presContext->AppUnitsToDevPixels(size.height));
+        return ScreenIntSize(presContext->AppUnitsToDevPixels(size.width),
+                             presContext->AppUnitsToDevPixels(size.height));
       }
     }
     // Pick some default size for now.  Using 10x10 because that's what the
     // code used to do.
-    return nsIntSize(10, 10);
+    return ScreenIntSize(10, 10);
   } else {
     nsSize docSizeAppUnits;
     nsPresContext* presContext = PresContext();
@@ -286,8 +289,8 @@ nsSubDocumentFrame::GetSubdocumentSize()
       docSizeAppUnits = destRect.Size();
     }
 
-    return nsIntSize(presContext->AppUnitsToDevPixels(docSizeAppUnits.width),
-                     presContext->AppUnitsToDevPixels(docSizeAppUnits.height));
+    return ScreenIntSize(presContext->AppUnitsToDevPixels(docSizeAppUnits.width),
+                         presContext->AppUnitsToDevPixels(docSizeAppUnits.height));
   }
 }
 
@@ -345,7 +348,7 @@ nsSubDocumentFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   nsFrameLoader* frameLoader = FrameLoader();
   RenderFrameParent* rfp = nullptr;
   if (frameLoader) {
-    rfp = frameLoader->GetCurrentRemoteFrame();
+    rfp = frameLoader->GetCurrentRenderFrame();
   }
 
   // If we are pointer-events:none then we don't need to HitTest background
@@ -411,21 +414,16 @@ nsSubDocumentFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     // get the dirty rect relative to the root frame of the subdoc
     dirty = aDirtyRect + GetOffsetToCrossDoc(subdocRootFrame);
     // and convert into the appunits of the subdoc
-    dirty = dirty.ConvertAppUnitsRoundOut(parentAPD, subdocAPD);
+    dirty = dirty.ScaleToOtherAppUnitsRoundOut(parentAPD, subdocAPD);
 
     if (nsIFrame* rootScrollFrame = presShell->GetRootScrollFrame()) {
-      if (gfxPrefs::LayoutUseContainersForRootFrames()) {
-        // for root content documents we want the base to be the composition bounds
-        nsRect displayportBase = presContext->IsRootContentDocument() ?
-            nsRect(nsPoint(0,0), nsLayoutUtils::CalculateCompositionSizeForFrame(rootScrollFrame)) :
-            dirty.Intersect(nsRect(nsPoint(0,0), subdocRootFrame->GetSize()));
-        nsRect displayPort;
-        if (aBuilder->IsPaintingToWindow() &&
-            nsLayoutUtils::GetOrMaybeCreateDisplayPort(
-              *aBuilder, rootScrollFrame, displayportBase, &displayPort)) {
-          haveDisplayPort = true;
-          dirty = displayPort;
-        }
+      nsIScrollableFrame* rootScrollableFrame = presShell->GetRootScrollFrameAsScrollable();
+      MOZ_ASSERT(rootScrollableFrame);
+      haveDisplayPort = rootScrollableFrame->DecideScrollableLayer(aBuilder,
+                          &dirty, /* aAllowCreateDisplayPort = */ true);
+
+      if (!gfxPrefs::LayoutUseContainersForRootFrames()) {
+        haveDisplayPort = false;
       }
 
       ignoreViewportScrolling = presShell->IgnoringViewportScrolling();
@@ -444,6 +442,11 @@ nsSubDocumentFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 
     aBuilder->EnterPresShell(subdocRootFrame,
                              pointerEventsNone && !passPointerEventsToChildren);
+
+    if (!haveDisplayPort) {
+      // Remove nsPresShell resolution
+      dirty = dirty.RemoveResolution(presShell->ScaleToResolution() ? presShell->GetResolution () : 1.0f);
+    }
   } else {
     dirty = aDirtyRect;
   }
@@ -455,7 +458,7 @@ nsSubDocumentFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 
   nsIScrollableFrame *sf = presShell->GetRootScrollFrameAsScrollable();
   bool constructResolutionItem = subdocRootFrame &&
-    (presShell->GetXResolution() != 1.0 || presShell->GetYResolution() != 1.0);
+    (presShell->GetResolution() != 1.0);
   bool constructZoomItem = subdocRootFrame && parentAPD != subdocAPD;
   bool needsOwnLayer = false;
   if (constructResolutionItem ||
@@ -463,6 +466,11 @@ nsSubDocumentFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
       haveDisplayPort ||
       presContext->IsRootContentDocument() ||
       (sf && sf->IsScrollingActive(aBuilder)))
+  {
+    needsOwnLayer = true;
+  }
+  if (!needsOwnLayer && aBuilder->IsBuildingLayerEventRegions() &&
+      nsLayoutUtils::HasDocumentLevelListenersForApzAwareEvents(presShell))
   {
     needsOwnLayer = true;
   }
@@ -500,7 +508,7 @@ nsSubDocumentFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
       nsRect bounds = GetContentRectRelativeToSelf() +
         aBuilder->ToReferenceFrame(this);
       if (subdocRootFrame) {
-        bounds = bounds.ConvertAppUnitsRoundOut(parentAPD, subdocAPD);
+        bounds = bounds.ScaleToOtherAppUnitsRoundOut(parentAPD, subdocAPD);
       }
 
       // If we are in print preview/page layout we want to paint the grey
@@ -587,19 +595,23 @@ nscoord
 nsSubDocumentFrame::GetIntrinsicISize()
 {
   if (!IsInline()) {
-    return 0;  // HTML <frame> has no useful intrinsic width
+    return 0;  // HTML <frame> has no useful intrinsic isize
   }
 
-  if (mContent->IsXUL()) {
-    return 0;  // XUL <iframe> and <browser> have no useful intrinsic width
+  if (mContent->IsXULElement()) {
+    return 0;  // XUL <iframe> and <browser> have no useful intrinsic isize
   }
 
   NS_ASSERTION(ObtainIntrinsicSizeFrame() == nullptr,
-               "Intrinsic width should come from the embedded document.");
+               "Intrinsic isize should come from the embedded document.");
 
-  // We must be an HTML <iframe>.  Default to a width of 300, for IE
+  // We must be an HTML <iframe>.  Default to size of 300px x 150px, for IE
   // compat (and per CSS2.1 draft).
-  return nsPresContext::CSSPixelsToAppUnits(300);
+  // This depends on the applied styles, which the comments in nsLeafFrame.h
+  // say it should not, but we know it cannot change during the lifetime of
+  // the frame because changing writing-mode leads to frame reconstruction.
+  WritingMode wm = GetWritingMode();
+  return nsPresContext::CSSPixelsToAppUnits(wm.IsVertical() ? 150 : 300);
 }
 
 nscoord
@@ -608,15 +620,16 @@ nsSubDocumentFrame::GetIntrinsicBSize()
   // <frame> processing does not use this routine, only <iframe>
   NS_ASSERTION(IsInline(), "Shouldn't have been called");
 
-  if (mContent->IsXUL()) {
+  if (mContent->IsXULElement()) {
     return 0;
   }
 
   NS_ASSERTION(ObtainIntrinsicSizeFrame() == nullptr,
-               "Intrinsic height should come from the embedded document.");
+               "Intrinsic bsize should come from the embedded document.");
 
-  // Use 150px, for compatibility with IE, and per CSS2.1 draft.
-  return nsPresContext::CSSPixelsToAppUnits(150);
+  // Use size of 300px x 150px, for compatibility with IE, and per CSS2.1 draft.
+  WritingMode wm = GetWritingMode();
+  return nsPresContext::CSSPixelsToAppUnits(wm.IsVertical() ? 300 : 150);
 }
 
 #ifdef DEBUG_FRAME_DUMP
@@ -758,6 +771,7 @@ nsSubDocumentFrame::Reflow(nsPresContext*           aPresContext,
                            const nsHTMLReflowState& aReflowState,
                            nsReflowStatus&          aStatus)
 {
+  MarkInReflow();
   DO_GLOBAL_REFLOW_COUNT("nsSubDocumentFrame");
   DISPLAY_REFLOW(aPresContext, this, aReflowState, aDesiredSize, aStatus);
   NS_FRAME_TRACE(NS_FRAME_TRACE_CALLS,
@@ -859,7 +873,7 @@ nsSubDocumentFrame::AttributeChanged(int32_t aNameSpaceID,
   if (aAttribute == nsGkAtoms::noresize) {
     // Note that we're not doing content type checks, but that's ok -- if
     // they'd fail we will just end up with a null framesetFrame.
-    if (mContent->GetParent()->Tag() == nsGkAtoms::frameset) {
+    if (mContent->GetParent()->IsHTMLElement(nsGkAtoms::frameset)) {
       nsIFrame* parentFrame = GetParent();
 
       if (parentFrame) {
@@ -883,15 +897,15 @@ nsSubDocumentFrame::AttributeChanged(int32_t aNameSpaceID,
            aAttribute == nsGkAtoms::marginheight) {
 
     // Retrieve the attributes
-    nsIntSize margins = GetMarginAttributes();
+    CSSIntSize margins = GetMarginAttributes();
 
     // Notify the frameloader
-    nsRefPtr<nsFrameLoader> frameloader = FrameLoader();
+    RefPtr<nsFrameLoader> frameloader = FrameLoader();
     if (frameloader)
       frameloader->MarginsChanged(margins.width, margins.height);
   }
   else if (aAttribute == nsGkAtoms::mozpasspointerevents) {
-    nsRefPtr<nsFrameLoader> frameloader = FrameLoader();
+    RefPtr<nsFrameLoader> frameloader = FrameLoader();
     if (frameloader) {
       if (aModType == nsIDOMMutationEvent::ADDITION) {
         frameloader->ActivateUpdateHitRegion();
@@ -949,7 +963,7 @@ public:
   }
 private:
   nsCOMPtr<nsIContent> mFrameElement;
-  nsRefPtr<nsFrameLoader> mFrameLoader;
+  RefPtr<nsFrameLoader> mFrameLoader;
   nsCOMPtr<nsIPresShell> mPresShell;
   bool mHideViewerIfFrameless;
 };
@@ -985,10 +999,10 @@ nsSubDocumentFrame::DestroyFrom(nsIFrame* aDestructRoot)
   nsLeafFrame::DestroyFrom(aDestructRoot);
 }
 
-nsIntSize
+CSSIntSize
 nsSubDocumentFrame::GetMarginAttributes()
 {
-  nsIntSize result(-1, -1);
+  CSSIntSize result(-1, -1);
   nsGenericHTMLElement *content = nsGenericHTMLElement::FromContent(mContent);
   if (content) {
     const nsAttrValue* attr = content->GetParsedAttr(nsGkAtoms::marginwidth);
@@ -1140,7 +1154,7 @@ EndSwapDocShellsForDocument(nsIDocument* aDocument, void*)
     nsCOMPtr<nsIContentViewer> cv;
     ds->GetContentViewer(getter_AddRefs(cv));
     while (cv) {
-      nsRefPtr<nsPresContext> pc;
+      RefPtr<nsPresContext> pc;
       cv->GetPresContext(getter_AddRefs(pc));
       if (pc && pc->GetPresShell()) {
         pc->GetPresShell()->SetNeverPainting(ds->IsInvisible());
@@ -1273,25 +1287,4 @@ nsSubDocumentFrame::ObtainIntrinsicSizeFrame()
     }
   }
   return nullptr;
-}
-
-nsIntPoint
-nsSubDocumentFrame::GetChromeDisplacement()
-{
-  nsIFrame* nextFrame = nsLayoutUtils::GetCrossDocParentFrame(this);
-  if (!nextFrame) {
-    NS_WARNING("Couldn't find window chrome to calculate displacement to.");
-    return nsIntPoint();
-  }
-
-  nsIFrame* rootFrame = nextFrame;
-  while (nextFrame) {
-    rootFrame = nextFrame;
-    nextFrame = nsLayoutUtils::GetCrossDocParentFrame(rootFrame);
-  }
-
-  nsPoint offset = GetOffsetToCrossDoc(rootFrame);
-  int32_t appUnitsPerDevPixel = rootFrame->PresContext()->AppUnitsPerDevPixel();
-  return nsIntPoint((int)(offset.x/appUnitsPerDevPixel),
-                    (int)(offset.y/appUnitsPerDevPixel));
 }

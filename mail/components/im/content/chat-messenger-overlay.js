@@ -137,12 +137,14 @@ var chatTabType = {
   },
   openTab: function(aTab, aArgs) {
     if (!this.hasBeenOpened) {
-      let convs = imServices.conversations.getUIConversations();
-      if (convs.length != 0) {
-        convs.sort(function(a, b)
-                   a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
-        for each (let conv in convs)
-          chatHandler._addConversation(conv);
+      if (chatHandler.ChatCore && chatHandler.ChatCore.initialized) {
+        let convs = imServices.conversations.getUIConversations();
+        if (convs.length != 0) {
+          convs.sort((a, b) =>
+                     a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
+          for (let conv of convs)
+            chatHandler._addConversation(conv);
+        }
       }
 
       // The tab monitor will inform us when a different tab is selected.
@@ -179,6 +181,12 @@ var chatTabType = {
     tabmail.unregisterTabMonitor(this.tabMonitor);
     window.removeEventListener("deactivate", chatTabType._onWindowDeactivated);
     window.removeEventListener("activate", chatTabType._onWindowActivated);
+  },
+  persistTab: function(aTab) {
+    return {};
+  },
+  restoreTab: function(aTabmail, aPersistedState) {
+    aTabmail.openTab("chat", {});
   },
 
   supportsCommand: function ct_supportsCommand(aCommand, aTab) {
@@ -290,7 +298,7 @@ var chatHandler = {
 
   _hasConversationForContact: function(aContact) {
     let convs = document.getElementById("conversationsGroup").contacts;
-    return convs.some(function(aConversation)
+    return convs.some(aConversation =>
       aConversation.hasOwnProperty("imContact") &&
       aConversation.imContact.id == aContact.id);
   },
@@ -333,7 +341,7 @@ var chatHandler = {
     let convs = imServices.conversations.getUIConversations();
     let unreadTargettedCount = 0;
     let unreadTotalCount = 0;
-    for each (let conv in convs) {
+    for (let conv of convs) {
       unreadTargettedCount += conv.unreadTargetedMessageCount;
       unreadTotalCount += conv.unreadIncomingMessageCount;
     }
@@ -404,9 +412,42 @@ var chatHandler = {
     if (aSearchTerm)
       this._pendingSearchTerm = aSearchTerm;
     Services.obs.addObserver(this, "conversation-loaded", false);
+
     // Conversation title may not be set yet if this is a search result.
     let cti = document.getElementById("conv-top-info");
     cti.setAttribute("displayName", aConversation.title);
+
+    // Find and display the contact for this log.
+    let accounts = imServices.accounts.getAccounts();
+    while (accounts.hasMoreElements()) {
+      let account = accounts.getNext();
+      if (account.normalizedName == aConversation.account.normalizedName &&
+          account.protocol.normalizedName == aConversation.account.protocol.name) {
+        if (aConversation.isChat) {
+          // Display information for MUCs.
+          let proto = account.protocol;
+          cti.setAttribute("status", "chat");
+          cti.setAttribute("prplIcon", proto.iconBaseURI + "icon.png");
+          return;
+        }
+        // Display information for contacts.
+        let accountBuddy =
+          imServices.contacts
+                    .getAccountBuddyByNameAndAccount(aConversation.normalizedName,
+                                                     account);
+        if (!accountBuddy)
+          return;
+        let contact = accountBuddy.buddy.contact;
+        if (!contact)
+          return;
+        if (this.observedContact &&
+            this.observedContact.id == contact.id)
+          return;
+        this.showContactInfo(contact);
+        this.observedContact = contact;
+        return;
+      }
+    }
   },
   _makeFriendlyDate: function(aDate) {
     let dts = Components.classes["@mozilla.org/intl/scriptabledateformat;1"]
@@ -513,7 +554,7 @@ var chatHandler = {
     }
   },
   _observedContact: null,
-  get observedContact() this._observedContact,
+  get observedContact() { return this._observedContact; },
   set observedContact(aContact) {
     if (aContact == this._observedContact)
       return aContact;
@@ -602,6 +643,7 @@ var chatHandler = {
       document.getElementById("contextPane").removeAttribute("chat");
       let cti = document.getElementById("conv-top-info");
       cti.removeAttribute("userIcon");
+      cti.removeAttribute("prplIcon");
       cti.removeAttribute("statusMessageWithDash");
       cti.removeAttribute("statusMessage");
       cti.removeAttribute("status");
@@ -787,26 +829,26 @@ var chatHandler = {
       this._placeHolderButtonId =
         hasAccount ? "openIMAccountManagerButton" : "openIMAccountWizardButton";
     }
-    for each (let id in ["statusTypeIcon", "statusMessage", "button-chat-accounts"]) {
+    for (let id of ["statusTypeIcon", "statusMessage", "button-chat-accounts"]) {
       let elt = document.getElementById(id);
       if (elt)
         elt.disabled = !hasAccount;
     }
-    for each (let id in ["button-add-buddy", "newIMContactMenuItem",
-                         "appmenu_newIMContactMenuItem"]) {
+    for (let id of ["button-add-buddy", "newIMContactMenuItem",
+                    "appmenu_newIMContactMenuItem"]) {
       let elt = document.getElementById(id);
       if (elt)
         elt.disabled = !connected;
     }
-    for each (let id in ["button-join-chat", "joinChatMenuItem",
-                         "appmenu_joinChatMenuItem"]) {
+    for (let id of ["button-join-chat", "joinChatMenuItem",
+                    "appmenu_joinChatMenuItem"]) {
       let elt = document.getElementById(id);
       if (elt)
         elt.disabled = !canJoinChat;
     }
     let groupIds = ["conversations", "onlinecontacts", "offlinecontacts"];
     let contactlist = document.getElementById("contactlistbox");
-    if (!hasAccount || !connected && groupIds.every(function(id)
+    if (!hasAccount || !connected && groupIds.every(id =>
         document.getElementById(id + "Group").contacts.length)) {
       contactlist.disabled = true;
     }
@@ -857,7 +899,7 @@ var chatHandler = {
 
     // Select the first visible group header.
     let groupIds = ["conversations", "onlinecontacts", "offlinecontacts"];
-    for each (let id in groupIds) {
+    for (let id of groupIds) {
       let item = document.getElementById(id + "Group");
       if (item.collapsed)
         continue;
@@ -902,7 +944,7 @@ var chatHandler = {
       if (aSubject != browser)
         return;
 
-      for each (let msg in browser._conv.getMessages()) {
+      for (let msg of browser._conv.getMessages()) {
         if (!msg.system)
           msg.color = "color: hsl(" + this._computeColor(msg.who) + ", 100%, 40%);";
         browser.appendMessage(msg);
@@ -1031,7 +1073,8 @@ var chatHandler = {
     let onGroup = document.getElementById("onlinecontactsGroup");
     let offGroup = document.getElementById("offlinecontactsGroup");
 
-    for each (let contact in chatHandler.allContacts) {
+    for (let name in chatHandler.allContacts) {
+      let contact = chatHandler.allContacts[name];
       let group = contact.online ? onGroup : offGroup;
       group.addContact(contact);
     }
@@ -1055,7 +1098,7 @@ var chatHandler = {
     chatHandler._observedTopics.push(aTopic);
   },
   _removeObservers: function() {
-    for each (let topic in this._observedTopics)
+    for (let topic of this._observedTopics)
       imServices.obs.removeObserver(this, topic);
   },
   init: function() {
@@ -1111,7 +1154,7 @@ var chatHandler = {
     });
     window.addEventListener("resize", this.onConvResize.bind(this));
     document.getElementById("conversationsGroup").sortComparator =
-      function(a, b) a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+      (a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase());
 
     Components.utils.import("resource:///modules/chatHandler.jsm", this);
     if (this.ChatCore.initialized)
@@ -1126,18 +1169,18 @@ var chatHandler = {
 function chatLogTreeGroupItem(aTitle, aLogItems) {
   this._title = aTitle;
   this._children = aLogItems;
-  for each (let child in this._children)
+  for (let child of this._children)
     child._parent = this;
   this._open = false;
 }
 chatLogTreeGroupItem.prototype = {
-  getText: function() this._title,
-  get id() this._title,
-  get open() this._open,
-  get level() 0,
-  get _parent() null,
-  get children() this._children,
-  getProperties: function() ""
+  getText: function() { return this._title; },
+  get id() { return this._title; },
+  get open() { return this._open; },
+  get level() { return 0; },
+  get _parent() { return null; },
+  get children() { return this._children; },
+  getProperties: function() { return ""; }
 };
 
 function chatLogTreeLogItem(aLog, aText, aLevel) {
@@ -1146,12 +1189,12 @@ function chatLogTreeLogItem(aLog, aText, aLevel) {
   this._level = aLevel;
 }
 chatLogTreeLogItem.prototype = {
-  getText: function() this._text,
-  get id() this.log.title,
-  get open() false,
-  get level() this._level,
-  get children() [],
-  getProperties: function() ""
+  getText: function() { return this._text; },
+  get id() { return this.log.title; },
+  get open() { return false; },
+  get level() { return this._level; },
+  get children() { return []; },
+  getProperties: function() { return ""; }
 };
 
 function chatLogTreeView(aTree, aLogs) {
@@ -1194,9 +1237,9 @@ chatLogTreeView.prototype = {
       return placesBundle.getFormattedString("finduri-MonthYear",
                                              [month, aDate.getFullYear()]);
     };
-    let formatMonth = function(aDate)
+    let formatMonth = aDate =>
       dateFormatBundle.getString("month." + (aDate.getMonth() + 1) + ".name");
-    let formatWeekday = function(aDate)
+    let formatWeekday = aDate =>
       dateFormatBundle.getString("day." + (aDate.getDay() + 1) + ".name");
 
     let nowDate = new Date();
@@ -1278,7 +1321,8 @@ chatLogTreeView.prototype = {
     let groupIDs = Object.keys(groups).sort().reverse();
 
     // Add firstgroups to groups and groupIDs.
-    for each (let [groupID, group] in Iterator(firstgroups)) {
+    for (let groupID in firstgroups) {
+      let group = firstgroups[groupID];
       if (!group.length)
         continue;
       groupIDs.unshift(groupID);
@@ -1295,7 +1339,7 @@ chatLogTreeView.prototype = {
       this._rowMap.push(yesterday);
     groupIDs.forEach(function (aGroupID) {
       let group = groups[aGroupID];
-      group.entries.sort(function(l1, l2) l2.log.time - l1.log.time);
+      group.entries.sort((l1, l2) => l2.log.time - l1.log.time);
       this._rowMap.push(new chatLogTreeGroupItem(group.name, group.entries));
     }, this);
 

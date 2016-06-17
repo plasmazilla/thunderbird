@@ -14,8 +14,8 @@ function calBackendLoader() {
     }
 }
 
-const calBackendLoaderClassID = Components.ID("{0314c271-7168-40fa-802e-83c8c46a557e}");
-const calBackendLoaderInterfaces = [Components.interfaces.nsIObserver];
+var calBackendLoaderClassID = Components.ID("{0314c271-7168-40fa-802e-83c8c46a557e}");
+var calBackendLoaderInterfaces = [Components.interfaces.nsIObserver];
 calBackendLoader.prototype = {
     classID: calBackendLoaderClassID,
     QueryInterface: XPCOMUtils.generateQI(calBackendLoaderInterfaces),
@@ -38,10 +38,8 @@ calBackendLoader.prototype = {
             return;
         }
 
-        let backend = "libical";
-        if (Services.prefs.prefHasUserValue("calendar.icaljs")) {
-            backend = Services.prefs.getBoolPref("calendar.icaljs") ? "icaljs" : "libical";
-        }
+        let backend = Services.prefs.getBoolPref("calendar.icaljs") ? "icaljs" : "libical";
+
         let uri = Services.io.getProtocolHandler("resource")
                           .QueryInterface(Components.interfaces.nsIResProtocolHandler)
                           .getSubstitution("calendar");

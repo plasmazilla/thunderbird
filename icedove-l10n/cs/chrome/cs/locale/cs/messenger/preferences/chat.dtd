@@ -1,0 +1,41 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY startupAction.label         "Při startu aplikace &brandShortName;:">
+<!ENTITY startupAction.accesskey     "s">
+<!ENTITY startupOffline.label        "Ponechat mé účty chatu offline">
+<!ENTITY startupConnectAuto.label    "Automaticky připojit mé účty chatu">
+
+<!-- LOCALIZATION NOTE: reportIdleAfter.label is displayed first, then
+there's a field where the user can enter a number, and itemTime is
+displayed at the end of the line. The translations of the
+reportIdleAfter.label and idleTime parts don't have to mean the exact
+same thing as in English; please try instead to translate the whole
+sentence. -->
+<!ENTITY reportIdleAfter.label         "Zobrazit se mým kontaktům jako Nečinný po">
+<!ENTITY reportIdleAfter.accesskey     "N">
+<!ENTITY idleTime                      "minutách nečinnosti">
+
+<!ENTITY andSetStatusToAway.label      "a nastavit stav Pryč s touto zprávou:">
+<!ENTITY andSetStatusToAway.accesskey  "r">
+
+<!ENTITY sendTyping.label              "Odesílat v konverzaci upozornění, že píši">
+<!ENTITY sendTyping.accesskey          "a">
+
+<!ENTITY  chatNotifications.label             "Při přijetí zprávy určené mně:">
+<!ENTITY  desktopChatNotifications.label      "Zobrazit upozornění">
+<!ENTITY  desktopChatNotifications.accesskey  "Z">
+<!ENTITY  completeNotification.label          "se jménem odesílatele a náhledem zprávy">
+<!ENTITY  buddyInfoOnly.label                 "pouze se jménem odesílatele">
+<!ENTITY  dummyNotification.label             "bez dalších informací">
+<!ENTITY  chatSound.label                     "Přehrát zvuk">
+<!ENTITY  chatSound.accesskey                 "P">
+<!ENTITY  play.label                          "Přehrát">
+<!ENTITY  play.accesskey                      "h">
+<!ENTITY  systemSound.label                   "Zvuk nové pošty v systému">
+<!ENTITY  systemSound.accesskey               "u">
+<!ENTITY  customsound.label                   "Vlastní .wav soubor">
+<!ENTITY  customsound.accesskey               "V">
+<!ENTITY  browse.label                        "Procházet…">
+<!ENTITY  browse.accesskey                    "c">

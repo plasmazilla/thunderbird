@@ -65,6 +65,9 @@
 #include "nsDirectoryServiceUtils.h"
 #include "mozilla/Services.h"
 #include <algorithm>
+#include "nsIFileStreams.h"
+#include "nsIOutputStream.h"
+#include "nsISafeOutputStream.h"
 
 #define PREF_MAIL_ACCOUNTMANAGER_ACCOUNTS "mail.accountmanager.accounts"
 #define PREF_MAIL_ACCOUNTMANAGER_DEFAULTACCOUNT "mail.accountmanager.defaultaccount"
@@ -89,26 +92,6 @@ const char *kSearchFolderUriProp = "searchFolderUri";
 
 bool nsMsgAccountManager::m_haveShutdown = false;
 bool nsMsgAccountManager::m_shutdownInProgress = false;
-
-// use this to search for all servers with the given hostname/iid and
-// put them in "servers"
-struct findServerEntry {
-  const nsACString& hostname;
-  const nsACString& username;
-  const nsACString& type;
-  const int32_t port;
-  const bool useRealSetting;
-  nsIMsgIncomingServer *server;
-  findServerEntry(const nsACString& aHostName, const nsACString& aUserName,
-                  const nsACString& aType, int32_t aPort, bool aUseRealSetting)
-    : hostname(aHostName),
-      username(aUserName),
-      type(aType),
-      port(aPort),
-      useRealSetting(aUseRealSetting),
-      server(nullptr)
-    {}
-};
 
 static PLDHashOperator
 hashCleanupDeferral(nsCStringHashKey::KeyType aKey,
@@ -186,8 +169,8 @@ nsresult nsMsgAccountManager::Shutdown()
   nsCOMPtr<nsIMsgDBService> msgDBService = do_GetService(NS_MSGDB_SERVICE_CONTRACTID, &rv);
   if (msgDBService)
   {
-    nsTObserverArray<nsRefPtr<VirtualFolderChangeListener> >::ForwardIterator iter(m_virtualFolderListeners);
-    nsRefPtr<VirtualFolderChangeListener> listener;
+    nsTObserverArray<RefPtr<VirtualFolderChangeListener> >::ForwardIterator iter(m_virtualFolderListeners);
+    RefPtr<VirtualFolderChangeListener> listener;
 
     while (iter.HasMore())
     {
@@ -467,10 +450,7 @@ nsMsgAccountManager::CreateIncomingServer(const nsACString&  username,
 
     // From when we first create the account until we have created some folders,
     // we can change the store type.
-    //(*_retval)->SetBoolValue("canChangeStoreType", true);
-    //
-    // This is disabled because of maildir issues in Thunderbird 38
-    (*_retval)->SetBoolValue("canChangeStoreType", false);
+    (*_retval)->SetBoolValue("canChangeStoreType", true);
   }
   return rv;
 }
@@ -918,7 +898,7 @@ void nsMsgAccountManager::LogoutOfServer(nsIMsgIncomingServer *aServer)
 {
   if (!aServer)
     return;
-  nsresult rv = aServer->Shutdown();
+  mozilla::DebugOnly<nsresult> rv = aServer->Shutdown();
   NS_ASSERTION(NS_SUCCEEDED(rv), "Shutdown of server failed");
   rv = aServer->ForgetSessionPassword();
   NS_ASSERTION(NS_SUCCEEDED(rv), "failed to remove the password associated with server");
@@ -951,132 +931,6 @@ hashWriteFolderCache(nsCStringHashKey::KeyType aKey, nsCOMPtr<nsIMsgIncomingServ
   nsIMsgFolderCache *folderCache = (nsIMsgFolderCache *) aClosure;
   aServer->WriteToFolderCache(folderCache);
   return PL_DHASH_NEXT;
-}
-
-static PLDHashOperator
-hashCleanupOnExit(nsCStringHashKey::KeyType aKey, nsCOMPtr<nsIMsgIncomingServer>& aServer, void* aClosure)
-{
-  bool emptyTrashOnExit = false;
-  bool cleanupInboxOnExit = false;
-  nsresult rv;
-
-  if (WeAreOffline())
-    return PL_DHASH_STOP;
-
-  if (!aServer)
-    return PL_DHASH_NEXT;
-
-  aServer->GetEmptyTrashOnExit(&emptyTrashOnExit);
-  nsCOMPtr <nsIImapIncomingServer> imapserver = do_QueryInterface(aServer);
-  if (imapserver)
-  {
-    imapserver->GetCleanupInboxOnExit(&cleanupInboxOnExit);
-    imapserver->SetShuttingDown(true);
-  }
-  if (emptyTrashOnExit || cleanupInboxOnExit)
-  {
-    nsCOMPtr<nsIMsgFolder> root;
-    aServer->GetRootFolder(getter_AddRefs(root));
-    nsCString type;
-    aServer->GetType(type);
-    if (root)
-    {
-      nsCOMPtr<nsIMsgFolder> folder;
-      folder = do_QueryInterface(root);
-      if (folder)
-      {
-         nsCString passwd;
-         bool serverRequiresPasswordForAuthentication = true;
-         bool isImap = type.EqualsLiteral("imap");
-         if (isImap)
-         {
-           aServer->GetServerRequiresPasswordForBiff(&serverRequiresPasswordForAuthentication);
-           aServer->GetPassword(passwd);
-         }
-         if (!isImap || (isImap && (!serverRequiresPasswordForAuthentication || !passwd.IsEmpty())))
-         {
-           nsCOMPtr<nsIUrlListener> urlListener;
-           nsCOMPtr<nsIMsgAccountManager> accountManager =
-                    do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
-           NS_ENSURE_SUCCESS(rv, PL_DHASH_NEXT);
-
-           if (isImap)
-             urlListener = do_QueryInterface(accountManager, &rv);
-
-           if (isImap && cleanupInboxOnExit)
-           {
-             nsCOMPtr<nsISimpleEnumerator> enumerator;
-             rv = folder->GetSubFolders(getter_AddRefs(enumerator));
-             if (NS_SUCCEEDED(rv))
-             {
-               bool hasMore;
-               while (NS_SUCCEEDED(enumerator->HasMoreElements(&hasMore)) &&
-                      hasMore)
-               {
-                 nsCOMPtr<nsISupports> item;
-                 enumerator->GetNext(getter_AddRefs(item));
-
-                 nsCOMPtr<nsIMsgFolder> inboxFolder(do_QueryInterface(item));
-                 if (!inboxFolder)
-                   continue;
-
-                 uint32_t flags;
-                 inboxFolder->GetFlags(&flags);
-                 if (flags & nsMsgFolderFlags::Inbox)
-                 {
-                   rv = inboxFolder->Compact(urlListener, nullptr /* msgwindow */);
-                   if (NS_SUCCEEDED(rv))
-                     accountManager->SetFolderDoingCleanupInbox(inboxFolder);
-                   break;
-                 }
-               }
-             }
-           }
-
-           if (emptyTrashOnExit)
-           {
-             rv = folder->EmptyTrash(nullptr, urlListener);
-             if (isImap && NS_SUCCEEDED(rv))
-               accountManager->SetFolderDoingEmptyTrash(folder);
-           }
-
-           if (isImap && urlListener)
-           {
-             nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
-
-             bool inProgress = false;
-             if (cleanupInboxOnExit)
-             {
-               int32_t loopCount = 0; // used to break out after 5 seconds
-               accountManager->GetCleanupInboxInProgress(&inProgress);
-               while (inProgress && loopCount++ < 5000)
-               {
-                 accountManager->GetCleanupInboxInProgress(&inProgress);
-                 PR_CEnterMonitor(folder);
-                 PR_CWait(folder, PR_MicrosecondsToInterval(1000UL));
-                 PR_CExitMonitor(folder);
-                 NS_ProcessPendingEvents(thread, PR_MicrosecondsToInterval(1000UL));
-               }
-             }
-             if (emptyTrashOnExit)
-             {
-               accountManager->GetEmptyTrashInProgress(&inProgress);
-               int32_t loopCount = 0;
-               while (inProgress && loopCount++ < 5000)
-               {
-                 accountManager->GetEmptyTrashInProgress(&inProgress);
-                 PR_CEnterMonitor(folder);
-                 PR_CWait(folder, PR_MicrosecondsToInterval(1000UL));
-                 PR_CExitMonitor(folder);
-                 NS_ProcessPendingEvents(thread, PR_MicrosecondsToInterval(1000UL));
-               }
-             }
-           }
-         }
-       }
-     }
-   }
-   return PL_DHASH_NEXT;
 }
 
 static PLDHashOperator
@@ -1662,8 +1516,135 @@ nsMsgAccountManager::CleanupOnExit()
   // So add some protection against that.
   if (m_shutdownInProgress)
     return NS_OK;
+
   m_shutdownInProgress = true;
-  m_incomingServers.Enumerate(hashCleanupOnExit, nullptr);
+
+  for (auto iter = m_incomingServers.Iter(); !iter.Done(); iter.Next()) {
+    nsCOMPtr<nsIMsgIncomingServer>& server = iter.Data();
+
+    bool emptyTrashOnExit = false;
+    bool cleanupInboxOnExit = false;
+    nsresult rv;
+
+    if (WeAreOffline())
+      break;
+
+    if (!server)
+      continue;
+
+    server->GetEmptyTrashOnExit(&emptyTrashOnExit);
+    nsCOMPtr <nsIImapIncomingServer> imapserver = do_QueryInterface(server);
+    if (imapserver)
+    {
+      imapserver->GetCleanupInboxOnExit(&cleanupInboxOnExit);
+      imapserver->SetShuttingDown(true);
+    }
+    if (emptyTrashOnExit || cleanupInboxOnExit)
+    {
+      nsCOMPtr<nsIMsgFolder> root;
+      server->GetRootFolder(getter_AddRefs(root));
+      nsCString type;
+      server->GetType(type);
+      if (root)
+      {
+        nsCOMPtr<nsIMsgFolder> folder;
+        folder = do_QueryInterface(root);
+        if (folder)
+        {
+          nsCString passwd;
+          bool serverRequiresPasswordForAuthentication = true;
+          bool isImap = type.EqualsLiteral("imap");
+          if (isImap)
+          {
+            server->GetServerRequiresPasswordForBiff(&serverRequiresPasswordForAuthentication);
+            server->GetPassword(passwd);
+          }
+          if (!isImap || (isImap && (!serverRequiresPasswordForAuthentication || !passwd.IsEmpty())))
+          {
+            nsCOMPtr<nsIUrlListener> urlListener;
+            nsCOMPtr<nsIMsgAccountManager> accountManager =
+                     do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
+            if (NS_FAILED(rv))
+              continue;
+
+            if (isImap)
+              urlListener = do_QueryInterface(accountManager, &rv);
+
+            if (isImap && cleanupInboxOnExit)
+            {
+              nsCOMPtr<nsISimpleEnumerator> enumerator;
+              rv = folder->GetSubFolders(getter_AddRefs(enumerator));
+              if (NS_SUCCEEDED(rv))
+              {
+                bool hasMore;
+                while (NS_SUCCEEDED(enumerator->HasMoreElements(&hasMore)) &&
+                       hasMore)
+                {
+                  nsCOMPtr<nsISupports> item;
+                  enumerator->GetNext(getter_AddRefs(item));
+
+                  nsCOMPtr<nsIMsgFolder> inboxFolder(do_QueryInterface(item));
+                  if (!inboxFolder)
+                    continue;
+
+                  uint32_t flags;
+                  inboxFolder->GetFlags(&flags);
+                  if (flags & nsMsgFolderFlags::Inbox)
+                  {
+                    rv = inboxFolder->Compact(urlListener, nullptr /* msgwindow */);
+                    if (NS_SUCCEEDED(rv))
+                      accountManager->SetFolderDoingCleanupInbox(inboxFolder);
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (emptyTrashOnExit)
+            {
+              rv = folder->EmptyTrash(nullptr, urlListener);
+              if (isImap && NS_SUCCEEDED(rv))
+                accountManager->SetFolderDoingEmptyTrash(folder);
+            }
+
+            if (isImap && urlListener)
+            {
+              nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
+
+              bool inProgress = false;
+              if (cleanupInboxOnExit)
+              {
+                int32_t loopCount = 0; // used to break out after 5 seconds
+                accountManager->GetCleanupInboxInProgress(&inProgress);
+                while (inProgress && loopCount++ < 5000)
+                {
+                  accountManager->GetCleanupInboxInProgress(&inProgress);
+                  PR_CEnterMonitor(folder);
+                  PR_CWait(folder, PR_MicrosecondsToInterval(1000UL));
+                  PR_CExitMonitor(folder);
+                  NS_ProcessPendingEvents(thread, PR_MicrosecondsToInterval(1000UL));
+                }
+              }
+              if (emptyTrashOnExit)
+              {
+                accountManager->GetEmptyTrashInProgress(&inProgress);
+                int32_t loopCount = 0;
+                while (inProgress && loopCount++ < 5000)
+                {
+                  accountManager->GetEmptyTrashInProgress(&inProgress);
+                  PR_CEnterMonitor(folder);
+                  PR_CWait(folder, PR_MicrosecondsToInterval(1000UL));
+                  PR_CExitMonitor(folder);
+                  NS_ProcessPendingEvents(thread, PR_MicrosecondsToInterval(1000UL));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Try to do this early on in the shutdown process before
   // necko shuts itself down.
   CloseCachedConnections();
@@ -1897,18 +1878,64 @@ nsMsgAccountManager::findServerInternal(const nsACString& username,
     return NS_OK;
   }
 
-  findServerEntry serverInfo(hostname, username, type, port, aRealFlag);
-  m_incomingServers.Enumerate(findServerUrl, (void *)&serverInfo);
+  nsIMsgIncomingServer *foundServer;
 
-  if (!serverInfo.server)
-    return NS_ERROR_UNEXPECTED;
+  for (auto iter = m_incomingServers.Iter(); !iter.Done(); iter.Next()) {
+    // Find matching server by user+host+type+port.
+    nsCOMPtr<nsIMsgIncomingServer>& server = iter.Data();
 
-  // cache for next time
-  if (!aRealFlag)
-    SetLastServerFound(serverInfo.server, hostname, username, port, type);
+    if (!server)
+      continue;
 
-  NS_ADDREF(*aResult = serverInfo.server);
-  return NS_OK;
+    nsresult rv;
+    nsCString thisHostname;
+    if (aRealFlag)
+      rv = server->GetRealHostName(thisHostname);
+    else
+      rv = server->GetHostName(thisHostname);
+    if (NS_FAILED(rv))
+      continue;
+
+    nsCString thisUsername;
+    if (aRealFlag)
+      rv = server->GetRealUsername(thisUsername);
+    else
+      rv = server->GetUsername(thisUsername);
+    if (NS_FAILED(rv))
+      continue;
+
+    nsCString thisType;
+    rv = server->GetType(thisType);
+    if (NS_FAILED(rv))
+      continue;
+
+    int32_t thisPort = -1; // use the default port identifier
+    // Don't try and get a port for the 'none' scheme
+    if (!thisType.EqualsLiteral("none"))
+    {
+      rv = server->GetPort(&thisPort);
+      if (NS_FAILED(rv)) {
+        continue;
+      }
+    }
+
+    // treat "" as a wild card, so if the caller passed in "" for the desired attribute
+    // treat it as a match
+    if ((type.IsEmpty() || thisType.Equals(type)) &&
+        (hostname.IsEmpty() || thisHostname.Equals(hostname, nsCaseInsensitiveCStringComparator())) &&
+        (!(port != 0) || (port == thisPort)) &&
+        (username.IsEmpty() || thisUsername.Equals(username)))
+    {
+      // stop on first find; cache for next time
+      if (!aRealFlag)
+        SetLastServerFound(server, hostname, username, port, type);
+
+      NS_ADDREF(*aResult = server);
+      return NS_OK;
+    }
+  }
+
+  return NS_ERROR_UNEXPECTED;
 }
 
 NS_IMETHODIMP
@@ -1980,61 +2007,6 @@ nsMsgAccountManager::FindAccountForServer(nsIMsgIncomingServer *server,
 
   findAccountByServerKey(key, aResult);
   return NS_OK;
-}
-
-// find matching server by user+host+type+port.
-PLDHashOperator
-nsMsgAccountManager::findServerUrl(nsCStringHashKey::KeyType key,
-                                   nsCOMPtr<nsIMsgIncomingServer>& server,
-                                   void *data)
-{
-  nsresult rv;
-
-  if (!server)
-    return PL_DHASH_NEXT;
-
-  findServerEntry *entry = (findServerEntry*) data;
-
-  nsCString thisHostname;
-  if (entry->useRealSetting)
-    rv = server->GetRealHostName(thisHostname);
-  else
-    rv = server->GetHostName(thisHostname);
-  if (NS_FAILED(rv))
-    return PL_DHASH_NEXT;
-
-  nsCString thisUsername;
-  if (entry->useRealSetting)
-    rv = server->GetRealUsername(thisUsername);
-  else
-    rv = server->GetUsername(thisUsername);
-  if (NS_FAILED(rv))
-    return PL_DHASH_NEXT;
-
-  nsCString thisType;
-  rv = server->GetType(thisType);
-  if (NS_FAILED(rv))
-    return PL_DHASH_NEXT;
-
-  int32_t thisPort = -1; // use the default port identifier
-  // Don't try and get a port for the 'none' scheme
-  if (!thisType.EqualsLiteral("none"))
-  {
-    rv = server->GetPort(&thisPort);
-    NS_ENSURE_SUCCESS(rv, PL_DHASH_NEXT);
-  }
-
-  // treat "" as a wild card, so if the caller passed in "" for the desired attribute
-  // treat it as a match
-  if ((entry->type.IsEmpty() || thisType.Equals(entry->type)) &&
-      (entry->hostname.IsEmpty() || thisHostname.Equals(entry->hostname, nsCaseInsensitiveCStringComparator())) &&
-      (!(entry->port != 0) || (entry->port == thisPort)) &&
-      (entry->username.IsEmpty() || thisUsername.Equals(entry->username)))
-  {
-    entry->server = server;
-    return PL_DHASH_STOP; // stop on first find
-  }
-  return PL_DHASH_NEXT;
 }
 
 NS_IMETHODIMP
@@ -2591,7 +2563,7 @@ public:
   }
 
 private:
-  nsRefPtr<VirtualFolderChangeListener> mVFChangeListener;
+  RefPtr<VirtualFolderChangeListener> mVFChangeListener;
   nsCOMPtr<nsIMsgFolder> mFolder;
   nsCOMPtr<nsIMsgDatabase> mDB;
 };
@@ -3276,7 +3248,7 @@ nsresult nsMsgAccountManager::AddVFListenersForVF(nsIMsgFolder *virtualFolder,
     nsCOMPtr <nsIMsgFolder> realFolder = do_QueryInterface(resource);
     if (!realFolder)
       continue;
-    nsRefPtr<VirtualFolderChangeListener> dbListener = new VirtualFolderChangeListener();
+    RefPtr<VirtualFolderChangeListener> dbListener = new VirtualFolderChangeListener();
     NS_ENSURE_TRUE(dbListener, NS_ERROR_OUT_OF_MEMORY);
     dbListener->m_virtualFolder = virtualFolder;
     dbListener->m_folderWatching = realFolder;
@@ -3300,8 +3272,8 @@ nsresult nsMsgAccountManager::RemoveVFListenerForVF(nsIMsgFolder *virtualFolder,
   nsCOMPtr<nsIMsgDBService> msgDBService(do_GetService(NS_MSGDB_SERVICE_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsTObserverArray<nsRefPtr<VirtualFolderChangeListener> >::ForwardIterator iter(m_virtualFolderListeners);
-  nsRefPtr<VirtualFolderChangeListener> listener;
+  nsTObserverArray<RefPtr<VirtualFolderChangeListener> >::ForwardIterator iter(m_virtualFolderListeners);
+  RefPtr<VirtualFolderChangeListener> listener;
 
   while (iter.HasMore())
   {
@@ -3396,8 +3368,8 @@ NS_IMETHODIMP nsMsgAccountManager::OnItemAdded(nsIMsgFolder *parentItem, nsISupp
   if (addToSmartFolders)
   {
     // quick way to enumerate the saved searches.
-    nsTObserverArray<nsRefPtr<VirtualFolderChangeListener> >::ForwardIterator iter(m_virtualFolderListeners);
-    nsRefPtr<VirtualFolderChangeListener> listener;
+    nsTObserverArray<RefPtr<VirtualFolderChangeListener> >::ForwardIterator iter(m_virtualFolderListeners);
+    RefPtr<VirtualFolderChangeListener> listener;
 
     while (iter.HasMore())
     {
@@ -3509,8 +3481,8 @@ NS_IMETHODIMP nsMsgAccountManager::OnItemRemoved(nsIMsgFolder *parentItem, nsISu
   removedFolderURI.Append('|');
 
   // Enumerate the saved searches.
-  nsTObserverArray<nsRefPtr<VirtualFolderChangeListener> >::ForwardIterator iter(m_virtualFolderListeners);
-  nsRefPtr<VirtualFolderChangeListener> listener;
+  nsTObserverArray<RefPtr<VirtualFolderChangeListener> >::ForwardIterator iter(m_virtualFolderListeners);
+  RefPtr<VirtualFolderChangeListener> listener;
 
   while (iter.HasMore())
   {
@@ -3627,8 +3599,8 @@ nsMsgAccountManager::RemoveFolderFromSmartFolder(nsIMsgFolder *aFolder,
   NS_ASSERTION(!(flags & flagsChanged), "smart folder flag should not be set");
   // Flag was removed. Look for smart folder based on that flag,
   // and remove this folder from its scope.
-  nsTObserverArray<nsRefPtr<VirtualFolderChangeListener> >::ForwardIterator iter(m_virtualFolderListeners);
-  nsRefPtr<VirtualFolderChangeListener> listener;
+  nsTObserverArray<RefPtr<VirtualFolderChangeListener> >::ForwardIterator iter(m_virtualFolderListeners);
+  RefPtr<VirtualFolderChangeListener> listener;
 
   while (iter.HasMore())
   {

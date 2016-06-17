@@ -21,6 +21,8 @@
 #include "nsNetUtil.h"
 #include "EudoraDebugLog.h"
 #include "nsISeekableStream.h"
+#include "nsIInputStream.h"
+#include "nsIOutputStream.h"
 
 #define  kCopyBufferSize    8192
 #define  kMailReadBufferSize  16384
@@ -1216,10 +1218,10 @@ nsresult nsEudoraMailbox::WriteFromSep(nsIOutputStream *pDst)
 
 void nsEudoraMailbox::EmptyAttachments(void)
 {
-  int32_t max = m_attachments.Count();
+  int32_t max = m_attachments.Length();
   ImportAttachment *  pAttach;
   for (int32_t i = 0; i < max; i++) {
-    pAttach = (ImportAttachment *) m_attachments.ElementAt(i);
+    pAttach = m_attachments.ElementAt(i);
     if (pAttach) {
       NS_Free(pAttach->description);
       NS_Free(pAttach->mimeType);

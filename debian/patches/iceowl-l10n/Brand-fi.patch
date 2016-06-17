@@ -1,0 +1,37 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sun, 17 Aug 2014 09:46:58 +0200
+Subject: Brand-fi
+
+---
+ iceowl-l10n/fi/locale/fi/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/fi/locale/fi/lightning/lightning.properties b/iceowl-l10n/fi/locale/fi/lightning/lightning.properties
+index 675bc9a..f060ace 100644
+--- a/iceowl-l10n/fi/locale/fi/lightning/lightning.properties
++++ b/iceowl-l10n/fi/locale/fi/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Integroitu kalenteri Thunderbirdille
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Integroitu kalenteri Icedoveille
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Mozillan kalenteriprojekti
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Tehtävät
+@@ -42,7 +42,7 @@ imipBarUpdateText=Tässä viestissä on päivitys olemassaolevaan tapahtumaan.
+ imipBarAlreadyProcessedText=Tässä viestissä oleva tapahtuma on jo käsitelty.
+ imipBarProcessedNeedsAction=Tässä viestissä olevaan tapahtumakutsuun ei ole vielä vastattu.
+ imipBarReplyText=Tässä viestissä on vastaus kutsuun.
+-imipBarUnsupportedText=Tässä viestissä on tapahtuma, jota tämä Lightningin versio ei voi lukea.
++imipBarUnsupportedText=Tässä viestissä on tapahtuma, jota tämä Iceowlin versio ei voi lukea.
+ imipBarProcessingFailed=Viestin käsittely epäonnistui. Tila: %1$S.
+ imipBarNotWritable=Kutsuja varten ei ole määritetty kalenteria, johon voisi kirjoittaa. Ole hyvä ja tarkista kalenterin asetukset.
+ imipSendMail.title=Sähköposti-ilmoitus

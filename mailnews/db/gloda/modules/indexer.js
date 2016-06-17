@@ -10,12 +10,12 @@
  *  benefit readability/size as well.
  */
 
-const EXPORTED_SYMBOLS = ['GlodaIndexer', 'IndexingJob'];
+this.EXPORTED_SYMBOLS = ['GlodaIndexer', 'IndexingJob'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -451,7 +451,7 @@ var GlodaIndexer = {
     this._indexers.push(aIndexer);
 
     try {
-      for each (let [iWorker, workerInfo] in Iterator(aIndexer.workers)) {
+      for (let workerInfo of aIndexer.workers) {
         let workerCode = workerInfo[0];
         let workerDef = workerInfo[1];
         workerDef.name = workerCode;
@@ -495,7 +495,7 @@ var GlodaIndexer = {
 
       this._enabled = true;
 
-      for each (let [iIndexer, indexer] in Iterator(this._indexers)) {
+      for (let indexer of this._indexers) {
         try {
           indexer.enable();
         } catch (ex) {
@@ -516,7 +516,7 @@ var GlodaIndexer = {
       }
     }
     else if (this._enabled && !aEnable) {
-      for each (let [iIndexer, indexer] in Iterator(this._indexers)) {
+      for (let indexer of this._indexers) {
         try {
           indexer.disable();
         } catch (ex) {
@@ -615,7 +615,7 @@ var GlodaIndexer = {
     if (GlodaIndexer._initialSweepPerformed)
       return;
     GlodaIndexer._initialSweepPerformed = true;
-    for each (let [, indexer] in Iterator(GlodaIndexer._indexers)) {
+    for (let indexer of GlodaIndexer._indexers) {
       indexer.initialSweep();
     }
   },

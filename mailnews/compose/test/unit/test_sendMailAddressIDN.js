@@ -13,13 +13,13 @@ var sentFolder;
 var originalData;
 var expectedAlertMessage;
 
-const kSender     = "from@foo.invalid";
-const kToASCII    = "to@foo.invalid";
-const kToValid    = "to@v\u00E4lid.foo.invalid";
-const kToValidACE = "to@xn--vlid-loa.foo.invalid";
-const kToInvalid  = "b\u00F8rken.to@invalid.foo.invalid";
-const kToInvalidWithoutDomain = "b\u00F8rken.to";
-const NS_ERROR_BUT_DONT_SHOW_ALERT = 0x805530ef;
+var kSender     = "from@foo.invalid";
+var kToASCII    = "to@foo.invalid";
+var kToValid    = "to@v\u00E4lid.foo.invalid";
+var kToValidACE = "to@xn--vlid-loa.foo.invalid";
+var kToInvalid  = "b\u00F8rken.to@invalid.foo.invalid";
+var kToInvalidWithoutDomain = "b\u00F8rken.to";
+var NS_ERROR_BUT_DONT_SHOW_ALERT = 0x805530ef;
 
 
 // nsIPrompt
@@ -54,7 +54,7 @@ msgListener.prototype =
       do_check_eq(aStatus, 0);
       do_check_transaction(server.playTransaction(),
                            ["EHLO test",
-                            "MAIL FROM:<" + kSender + "> SIZE=" + originalData.length,
+                            "MAIL FROM:<" + kSender + "> BODY=8BITMIME SIZE=" + originalData.length,
                             "RCPT TO:<" + this.rcpt + ">",
                             "DATA"]);
       // Compare data file to what the server received

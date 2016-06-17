@@ -1,0 +1,81 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!-- extracted from am-server-top.xul -->
+
+<!ENTITY messageStorage.label "Meddelelsesopbevaring">
+<!ENTITY securitySettings.label "Sikkerhedsindstillinger">
+<!ENTITY serverSettings.label "Serverindstillinger">
+<!ENTITY serverType.label "Servertype:">
+<!ENTITY serverName.label "Servernavn:">
+<!ENTITY serverName.accesskey "S">
+<!ENTITY userName.label "Brugernavn:">
+<!ENTITY userName.accesskey "B">
+<!ENTITY port.label "Port:">
+<!ENTITY port.accesskey "P">
+<!ENTITY serverPortDefault.label "Standard:">
+<!ENTITY biffStart.label "Kontroller for nye meddelelser hvert">
+<!ENTITY biffStart.accesskey "o">
+<!ENTITY biffEnd.label "minut">
+<!ENTITY useIdleNotifications.label "Tillad øjeblikkelige servermeddelelser ved modtagelse af nye meddelelser">
+<!ENTITY useIdleNotifications.accesskey "T">
+<!ENTITY connectionSecurity.label "Forbindelsessikkerhed:">
+<!ENTITY connectionSecurity.accesskey "F">
+<!ENTITY connectionSecurityType-0.label "Ingen">
+<!ENTITY connectionSecurityType-1.label "STARTTLS, hvis tilgængelig">
+<!ENTITY connectionSecurityType-2.label "STARTTLS">
+<!ENTITY connectionSecurityType-3.label "SSL/TLS">
+<!ENTITY authMethod.label "Godkendelsesmetode:">
+<!ENTITY authMethod.accesskey "G">
+<!ENTITY leaveOnServer.label "Gem meddelelser på serveren">
+<!ENTITY leaveOnServer.accesskey "e">
+<!ENTITY headersOnly.label "Hent kun meddelelseshoveder">
+<!ENTITY headersOnly.accesskey "H">
+<!ENTITY deleteByAgeFromServer.label "I højest">
+<!ENTITY deleteByAgeFromServer.accesskey "I">
+<!ENTITY daysEnd.label "dage">
+<!ENTITY deleteOnServer2.label "Indtil jeg sletter dem">
+<!ENTITY deleteOnServer2.accesskey "d">
+<!ENTITY downloadOnBiff.label "Hent automatisk alle nye meddelelser">
+<!ENTITY downloadOnBiff.accesskey "m">
+<!ENTITY username.label "Dit loginnavn">
+<!ENTITY deleteMessagePrefix.label "Når jeg sletter en meddelelse:">
+<!ENTITY modelMoveToTrash.label "Flyt den til mappen Papirkurv">
+<!ENTITY modelMoveToTrash.accesskey "i">
+<!ENTITY modelMarkDeleted.label "Marker den som slettet">
+<!ENTITY modelMarkDeleted.accesskey "m">
+<!ENTITY modelDeleteImmediately.label "Fjern den øjeblikkeligt">
+<!ENTITY modelDeleteImmediately.accesskey "j">
+<!ENTITY expungeOnExit.label "Ryd op i (optimer) Indbakke ved afslutning">
+<!ENTITY expungeOnExit.accesskey "E">
+<!ENTITY emptyTrashOnExit.label "Tøm Papirkurv ved afslutning">
+<!ENTITY emptyTrashOnExit.accesskey "T">
+<!ENTITY loginAtStartup.label "Kontroller for nye meddelelser ved opstart">
+<!ENTITY loginAtStartup.accesskey "K">
+<!ENTITY maxMessagesStart.label "Spørg mig før hentning af mere end">
+<!ENTITY maxMessagesStart.accesskey "m">
+<!ENTITY maxMessagesEnd.label "meddelelser">
+<!ENTITY alwaysAuthenticate.label "Kræv altid godkendelse ved tilslutning til denne server">
+<!ENTITY alwaysAuthenticate.accesskey "æ">
+<!ENTITY newsrcFilePath.label "newsrc fil:">
+<!ENTITY localPath.label "Lokal mappe:">
+<!ENTITY abbreviate.label "Vis nyhedsgruppenavne i mappeoversigten som:">
+<!ENTITY abbreviateOn.label "Fulde navne (fx &quot;netscape.public.mozilla.mail-news&quot;)">
+<!ENTITY abbreviateOff.label "Forkortede navne (fx &quot;n.p.m.mail-news&quot;)">
+<!ENTITY advancedButton.label "Avanceret…">
+<!ENTITY serverDefaultCharset2.label "Standardtegnkodning:">
+<!ENTITY advancedButton.accesskey "A">
+<!ENTITY localFolderPicker.label "Vælg lokal mappe">
+<!ENTITY browseFolder.label "Gennemse…">
+<!ENTITY browseFolder.accesskey "G">
+<!ENTITY newsrcPicker.label "Vælg newsrc fil">
+<!ENTITY browseNewsrc.label "Gennemse…">
+<!ENTITY browseNewsrc.accesskey "e">
+
+<!ENTITY accountTitle.label "Kontoindstillinger">
+<!ENTITY accountSettingsDesc.label "Det følgende er en speciel konto. Der er ingen identiteter knyttet til den.">
+<!ENTITY storeType.label "Lagertype for meddelelser:">
+<!ENTITY storeType.accesskey "L">
+<!ENTITY mboxStore2.label "Fil pr. mappe (mbox)">
+<!ENTITY maildirStore.label "Fil pr. meddelelse (maildir)">

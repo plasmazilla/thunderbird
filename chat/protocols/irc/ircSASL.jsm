@@ -8,9 +8,9 @@
  *   https://github.com/ircv3/ircv3-specifications/blob/master/extensions/sasl-3.1
  */
 
-const EXPORTED_SYMBOLS = ["ircSASL", "capSASL"];
+this.EXPORTED_SYMBOLS = ["ircSASL", "capSASL"];
 
-const Cu = Components.utils;
+var Cu = Components.utils;
 
 Cu.import("resource:///modules/ircHandlers.jsm");
 Cu.import("resource:///modules/ircUtils.jsm");
@@ -18,7 +18,7 @@ Cu.import("resource:///modules/ircUtils.jsm");
 var ircSASL = {
   name: "SASL AUTHENTICATE",
   priority: ircHandlers.DEFAULT_PRIORITY,
-  isEnabled: function() true,
+  isEnabled: () => true,
 
   commands: {
     "AUTHENTICATE": function(aMessage) {
@@ -126,7 +126,7 @@ var ircSASL = {
 var capSASL = {
   name: "SASL CAP",
   priority: ircHandlers.DEFAULT_PRIORITY,
-  isEnabled: function() true,
+  isEnabled: () => true,
 
   commands: {
     "sasl": function(aMessage) {

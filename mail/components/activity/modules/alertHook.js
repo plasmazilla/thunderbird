@@ -3,13 +3,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ['alertHook'];
+this.EXPORTED_SYMBOLS = ['alertHook'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
 
-const nsActWarning = Components.Constructor("@mozilla.org/activity-warning;1",
+var nsActWarning = Components.Constructor("@mozilla.org/activity-warning;1",
                                             "nsIActivityWarning", "init");
 
 Components.utils.import("resource://gre/modules/Services.jsm");
@@ -18,7 +18,7 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 // This module provides a link between the send later service and the activity
 // manager.
-let alertHook =
+var alertHook =
 {
   get activityMgr() {
     delete this.activityMgr;

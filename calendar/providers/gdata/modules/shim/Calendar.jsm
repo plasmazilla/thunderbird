@@ -7,10 +7,11 @@ var EXPORTED_SYMBOLS = ["calendarShim", "gdataRegisterCalendar", "promisifyCalen
 Components.utils.import("resource://gdata-provider/modules/shim/Loader.jsm");
 CuImport("resource://calendar/modules/calUtils.jsm", this);
 CuImport("resource://gre/modules/PromiseUtils.jsm", this);
+CuImport("resource://gre/modules/XPCOMUtils.jsm", this);
 
-const cIOL = Components.interfaces.calIOperationListener;
-const cICL = Components.interfaces.calIChangeLog;
-const cIC = Components.interfaces.calICalendar;
+var cIOL = Components.interfaces.calIOperationListener;
+var cICL = Components.interfaces.calIChangeLog;
+var cIC = Components.interfaces.calICalendar;
 
 /**
  * Shim functions that can be injected into an object implementing calICalendar
@@ -25,6 +26,7 @@ var calendarShim = {
     adoptItemOrUseCache: function(aItem, useCache, aListener) {
         let self = this;
         let addOfflineListener = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onGetResult: function() {},
             onOperationComplete: function(calendar, status, opType, id, detail) {
                 if (Components.isSuccessCode(status)) {
@@ -37,6 +39,7 @@ var calendarShim = {
         };
 
         let intermediateListener = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onGetResult: function() {},
             onOperationComplete: function(aCalendar, aStatus, aOp, aId, aInnerItem) {
                 if (useCache) {
@@ -58,6 +61,7 @@ var calendarShim = {
         let self = this;
         let storage = this.mOfflineStorage.QueryInterface(Components.interfaces.calIOfflineStorage);
         let modifyOfflineListener = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onGetResult: function(calendar, status, itemType, detail, count, items) {},
             onOperationComplete: function(calendar, status, opType, id, detail) {
                 storage.modifyOfflineItem(detail, aListener);
@@ -65,6 +69,7 @@ var calendarShim = {
         };
 
         let offlineFlagListener = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onGetResult: function(calendar, status, itemType, detail, count, items) {},
             onOperationComplete: function(calendar, status, opType, id, detail) {
                 let offline_flag = detail;
@@ -83,6 +88,7 @@ var calendarShim = {
         let self = this;
         let storage = this.mOfflineStorage.QueryInterface(Components.interfaces.calIOfflineStorage);
         let deleteOfflineListener = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onGetResult: function(calendar, status, itemType, detail, count, items) {},
             onOperationComplete: function(calendar, status, opType, id, detail) {
                 if (aListener) {
@@ -92,6 +98,7 @@ var calendarShim = {
         };
 
         let offlineFlagListener = {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             onGetResult: function(calendar, status, itemType, detail, count, items) {},
             onOperationComplete: function(calendar, status, opType, id, detail) {
                 let offline_flag = detail;
@@ -197,6 +204,7 @@ function gdataRegisterCalendar(calendar) {
 function promisifyCalendar(aCalendar) {
     function promiseOperationListener(deferred) {
         return {
+            QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
             items: [],
             itemStatus: Components.results.NS_OK,
             onGetResult: function(aCalendar, aStatus, aItemType, aDetail,
@@ -259,11 +267,11 @@ function promisifyCalendar(aCalendar) {
     };
     return {
         // Backwards compat, we can use |new Proxy(aCalendar, promisifyProxyHandler);| in the future.
-        adoptItem: function(aItem) promisifyProxyHandler.get(aCalendar, "adoptItem").apply(this, arguments),
-        addItem: function(aItem) promisifyProxyHandler.get(aCalendar, "addItem").apply(this, arguments),
-        modifyItem: function(aItem) promisifyProxyHandler.get(aCalendar, "modifyItem").apply(this, arguments),
-        deleteItem: function(aItem) promisifyProxyHandler.get(aCalendar, "deleteItem").apply(this, arguments),
-        getItem: function(aItem) promisifyProxyHandler.get(aCalendar, "getItem").apply(this, arguments),
-        getItems: function(aItems) promisifyProxyHandler.get(aCalendar, "getItems").apply(this, arguments),
+        adoptItem: function(aItem) { return promisifyProxyHandler.get(aCalendar, "adoptItem").apply(this, arguments); },
+        addItem: function(aItem) { return promisifyProxyHandler.get(aCalendar, "addItem").apply(this, arguments); },
+        modifyItem: function(aItem) { return promisifyProxyHandler.get(aCalendar, "modifyItem").apply(this, arguments); },
+        deleteItem: function(aItem) { return promisifyProxyHandler.get(aCalendar, "deleteItem").apply(this, arguments); },
+        getItem: function(aItem) { return promisifyProxyHandler.get(aCalendar, "getItem").apply(this, arguments); },
+        getItems: function(aItems) { return promisifyProxyHandler.get(aCalendar, "getItems").apply(this, arguments); },
     };
 }

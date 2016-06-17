@@ -449,7 +449,7 @@
                    label="&newlistButton.label;"
                    tooltiptext="&newlistButton.tooltip;"
                    removable="true"
-                   oncommand="AbNewList();"/>
+                   command="cmd_newlist"/>
     <toolbarbutton id="button-editcard"
                    class="toolbarbutton-1"
                    label="&editItemButton.label;"
@@ -475,11 +475,13 @@
                    removable="true"
                    oncommand="goDoCommand('button_delete');"/>
     <toolbaritem id="searchBox"
+                 flex="1"
                  title="&searchBox.title;"
                  removable="true"
                  align="center"
                  class="toolbaritem-noline chromeclass-toolbar-additional">
       <textbox id="searchInput"
+               flex="1"
                type="search"
                aria-controls="abResultsTree"
                placeholder="&searchNameAndEmail.placeholder;"
@@ -585,10 +587,12 @@
                     </vbox>
                     <vbox id="cvbHomeMapItBox" pack="end">
                       <button id="cvHomeMapIt"
-                              url=""
                               label="&mapItButton.label;"
-                              oncommand="MapIt('cvHomeMapIt');"
-                              tooltiptext="&mapIt.tooltip;"/>
+                              type="menu-button"
+                              oncommand="openLinkWithUrl(this.firstChild.mapURL);"
+                              tooltiptext="&mapIt.tooltip;">
+                        <menupopup class="map-list"/>
+                      </button>
                     </vbox>
                   </hbox>
                   <description class="CardViewLink" id="cvHomeWebPageBox">
@@ -647,10 +651,12 @@
                     </vbox>
                     <vbox id="cvbWorkMapItBox" pack="end">
                       <button id="cvWorkMapIt"
-                              url=""
                               label="&mapItButton.label;"
-                              oncommand="MapIt('cvWorkMapIt');"
-                              tooltiptext="&mapIt.tooltip;"/>
+                              type="menu-button"
+                              oncommand="openLinkWithUrl(this.firstChild.mapURL);"
+                              tooltiptext="&mapIt.tooltip;">
+                        <menupopup class="map-list"/>
+                      </button>
                     </vbox>
                   </hbox>
                   <description class="CardViewLink" id="cvWorkWebPageBox">

@@ -42,11 +42,7 @@ class PatchInfo:
             of the file exists.  This was ported from
             mozilla/tools/update-packaging/common.sh's make_add_instruction.
         """
-
-        # TODO HACK - bug 1175063 - temporarily disable conditional add for Thunderbird 38
-        # m = re.match("((?:|.*/)distribution/extensions/.*)/", filename)
-        m = False
-
+        m = re.match("((?:|.*/)distribution/extensions/.*)/", filename)
         if m:
             # Directory immediately following extensions is used for the test
             testdir = m.group(1)

@@ -1,22 +1,113 @@
-icedove (38.8.0-1~deb7u1.1) oldstable-security; urgency=medium
+icedove (1:45.1.0-1~deb8u1) stable-security; urgency=medium
 
-  * Upload by the Debian LTS team
-  * Backport armhf build fixes to oldstable-security as well
-    (Closes: #823430)
-  * Let mozconfig figure out the number of parallel builds to get the proper
-    build ordering when building the internal nspr to unbreak the armhf build.
+  [ Carsten Schoenert ]
+  * [fb43fac] Imported Upstream version 45.1.0
+    - MFSA 2016-16 aka CVE-2016-1952, CVE-2016-1953
+    - MFSA 2016-17 aka CVE-2016-1954
+    - MFSA 2016-18 aka CVE-2016-1955
+    - MFSA 2016-19 aka CVE-2016-1956
+    - MFSA 2016-20 aka CVE-2016-1957
+    - MFSA 2016-23 aka CVE-2016-1960
+    - MFSA 2016-24 aka CVE-2016-1961
+    - MFSA 2016-27 aka CVE-2016-1964
+    - MFSA 2016-34 aka CVE-2016-1974
+    - MFSA 2016-35 aka CVE-2016-1950
+    - MFSA 2016-36 aka CVE-2016-1979
+    - MFSA 2016-37 aka CVE-2016-1977, CVE-2016-2790, CVE-2016-2791,
+      CVE-2016-2792, CVE-2016-2793, CVE-2016-2794, CVE-2016-2795,
+      CVE-2016-2796, CVE-2016-2797, CVE-2016-2798, CVE-2016-2799,
+      CVE-2016-2800, CVE-2016-2801, CVE-2016-2802
+    - MFSA 2016-39 aka CVE-2016-2807, CVE-2016-2806
+  * [2f41836] debian/vendor.js: adjust to new version related wiki site
+  * [695d480] Icedove Branding: adopt usptream changes to branding
+  * [ff8a29d] d/icedove.install: remove no longer existing parts
+  * [a93f81f] debian/rules: remove obsolet dpkg-shlibdeps call
+  * [47e35db] debian/control: adding the current icedove-l10n-* packages
+  * [dbfa1c6] debian/rules: adding icedove.l10n install to targets
+  * [3c53b2d] debian/control: adding a B-D on libpng-dev
+  * [e564202] debian/rules: adding iceowl-l10n related rules
+  * [679d2c5] debian/control: adding the current iceowl-l10n-* packages
+  * [11cf262] d/icedove.install: searchplugins isn't alive anymore
+  * [bbd1f2c] adopting needed changes for GTK3 into the Debian branding
+  * [c4766ca] adding changes due ldap restructure
+  * [59eac2e] debian/mozconfig.default: switching back to gtk2 as default
+    (Closes: #821744)
+  * [4d2462c] debian/iceowl-*.in: adding needed base files
 
- -- Guido Günther <agx@sigxcpu.org>  Sun, 15 May 2016 17:48:23 +0200
+  [ Guido Günther ]
+  * [772cd63] icedove-dev: Drop dependencies on nspr, nss
 
-icedove (38.8.0-1~deb7u1) oldstable-security; urgency=medium
+  [ Christoph Goehre ]
+  * [566d769] debian/control: make depends between icedove-l10n and icedove
+    dynamic
+  * [38d43e9] debian/control: add section localization to all l10n packages
+  * [b1c0f93] debian/NEWS: rename to icedove.NEWS to ship only in icedove core
+    package
+  * [2c8467e] build against internal sqlite
+  * [389571a] rebuild patch queue from patch-queue branch
+    added patches:
+    - icedove-l10n/*
+    - iceowl-l10n/*
+    - p-kfreebsd-hurd/CrossProcessMutex.h-fix-build-on-kfreebsd-and-GNU.patch
+    - porting-kfreebsd-hurd/adding-missed-HURD-adoptions.patch
+    modified patches:
+    - fixes/Allow-.js-preference-files-to-set-locked-prefs-with-lockP.patch
+    - fixes/Bug-628252-os2.cc-fails-to-compile-against-GCC-4.6-m.patch
+    - icedove/fix-branding-in-migration-wizard-and-the-addon-manag.patch
+    - p-kfreebsd-hurd/LDAP-support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    obsolete patches (fixed upstream):
+    - debian-hacks/Add-unminified-jquery-and-jquery-ui-files.patch
+    - debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
+    - fixes/Bug-1165654-Cleanup-how-libjpeg-turbo-assembly-build.patch
+    - fixes/Bug-1168231-Fixup-to-keep-file-type.patch
+    - fixes/Bug-1168231-Normalize-file-mode-in-jars.patch
+    - fixes/Bug-1194905-Build-libvpx-neon-code-without-mthumb-an.patch
+    - fixes/Followup-to-bug-1194905-add-mfloat-abi-softfp-when-t.patch
+    - fixes/Link-libldap-against-libpthread.patch
+    - icedove/no-dynamic-nss-softokn.patch
+    - porting/Remove-duplicate-SkDiscardableMemory_none.cpp-from-g.patch
+    - reproducible/Bug-1166243-Remove-build-function-from-js-and-xpc-sh.patch
+    - reproducible/Bug-1168316-Remove-build-machine-name-from-about-bui.patch
+    - reproducible/generate-sorted-output-while-header-creation.patch
+  * [8bce181] icedove.lintian-overrides: add override for embedded library
+    sqlite
 
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 08 Jun 2016 18:28:41 -0400
+
+icedove (38.8.0-1~deb8u1) stable-security; urgency=medium
+
+  [ Guido Günther ]
+  * [ee8dd49] Clarify relation between icedove and the calendar extensions
+    (Closes: #809017)
+
+  [ Christoph Goehre ]
   * [bac2d5b] Imported Upstream version 38.8.0
     - MFSA 2016-36 aka CVE-2016-1979
     - MFSA 2016-39 aka CVE-2016-2807, CVE-2016-2805
 
- -- Christoph Goehre <chris@sigxcpu.org>  Thu, 12 May 2016 19:58:49 -0400
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 11 May 2016 19:26:19 -0400
 
-icedove (38.7.0-1~deb7u1) oldstable-security; urgency=medium
+icedove (38.7.0-1~deb8u3) jessie; urgency=medium
+
+  * Non-maintainer upload.
+  * Try to fix the build on mips: disable jit.  Per the iceweasel changelog,
+    only mipsel is supported.
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 04 May 2016 23:53:17 +0200
+
+icedove (38.7.0-1~deb8u2) jessie; urgency=medium
+
+  * Non-maintainer upload: steal arm build fixes from the firefox package.
+
+  [ Mike Hommey ]
+  * media/libvpx/moz.build: Build libvpx neon code without -mthumb and
+    -mfloat-abi=softfp. Closes: #795337.
+  * configure.in: Build libvpx neon code with -mfloat-abi=softfp on armel.
+
+ -- Julien Cristau <jcristau@debian.org>  Wed, 04 May 2016 17:14:38 +0200
+
+icedove (38.7.0-1~deb8u1) stable-security; urgency=medium
 
   * [cb9c003] Imported Upstream version 38.7.0
     - MFSA 2016-16 aka CVE-2016-1952
@@ -33,9 +124,9 @@ icedove (38.7.0-1~deb7u1) oldstable-security; urgency=medium
       CVE-2016-2796, CVE-2016-2797, CVE-2016-2798, CVE-2016-2799,
       CVE-2016-2800, CVE-2016-2801, CVE-2016-2802
 
- -- Christoph Goehre <chris@sigxcpu.org>  Thu, 17 Mar 2016 13:04:30 +0100
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 16 Mar 2016 12:36:04 +0100
 
-icedove (38.6.0-1~deb7u1) oldstable-security; urgency=medium
+icedove (38.6.0-1~deb8u1) stable-security; urgency=medium
 
   * [988ce5b] Imported Upstream version 38.6.0
     - MFSA 2015-150 aka CVE-2015-7575
@@ -43,9 +134,9 @@ icedove (38.6.0-1~deb7u1) oldstable-security; urgency=medium
     - MFSA 2016-03 aka CVE-2016-1935
     - MFSA 2016-14 aka CVE-2016-1523
 
- -- Christoph Goehre <chris@sigxcpu.org>  Thu, 18 Feb 2016 14:55:38 -0500
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 18 Feb 2016 12:34:59 -0500
 
-icedove (38.5.0-1~deb7u1) oldstable-security; urgency=medium
+icedove (38.5.0-1~deb8u1) stable-security; urgency=medium
 
   * [6d45b0b] Imported Upstream version 38.5.0
     - MFSA 2015-134 aka CVE-2015-7201
@@ -54,9 +145,9 @@ icedove (38.5.0-1~deb7u1) oldstable-security; urgency=medium
     - MFSA 2015-146 aka CVE-2015-7213
     - MFSA 2015-149 aka CVE-2015-7214
 
- -- Christoph Goehre <chris@sigxcpu.org>  Sat, 26 Dec 2015 18:09:59 -0500
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 26 Dec 2015 15:21:37 -0500
 
-icedove (38.4.0-1~deb7u1) oldstable-security; urgency=medium
+icedove (38.4.0-1~deb8u1) stable-security; urgency=medium
 
   * [754392e] Imported Upstream version 38.4.0
     - MFSA 2015-116 aka CVE-2015-4513
@@ -67,75 +158,77 @@ icedove (38.4.0-1~deb7u1) oldstable-security; urgency=medium
     - MFSA 2015-131 aka CVE-2015-7198, CVE-2015-7199, CVE-2015-7200
     - MFSA 2015-132 aka CVE-2015-7197
     - MFSA 2015-133 aka CVE-2015-7181, CVE-2015-7182, CVE-2015-7183
-  * [2a139f9] debian/rules: build with gcc 4.7
 
- -- Christoph Goehre <chris@sigxcpu.org>  Sat, 28 Nov 2015 16:21:31 -0500
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 28 Nov 2015 13:45:01 -0500
 
-icedove (38.3.0-1~deb7u1) oldstable-security; urgency=medium
+icedove (38.3.0-1~deb8u1) stable-security; urgency=medium
 
   [ Carsten Schoenert ]
   * [0f8b6a4] Imported Upstream version 38.3.0
-  * [911052d] rebuild patch queue from patch-queue branch
+  * [1c01f2a] rebuild patch queue from patch-queue branch
     added patches:
     - debian-hacks/changing-the-default-search-engine.patch
     - debian-hacks/fix-identification-of-ObjdirMismatchException.patch
     - fixes/Bug-1165654-Cleanup-how-libjpeg-turbo-assembly-build.patch
     - fixes/Bug-1168231-Fixup-to-keep-file-type.patch
     - fixes/Bug-1168231-Normalize-file-mode-in-jars.patch
-    - p-kfree-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
-    - porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
     - porting/Remove-duplicate-SkDiscardableMemory_none.cpp-from-g.patch
-    - porting/ppc-fix-divide-page-size-in-jemalloc.patch
     - reproducible/Bug-1166243-Remove-build-function-from-js-and-xpc-sh.patch
     - reproducible/Bug-1168316-Remove-build-machine-name-from-about-bui.patch
-    - reproducible/generate-sorted-output-while-header-creation.patch
+    - reproducible/Generate-sorted-libical-header-list
+    - jessie-security/decrease-SQLVERSION-to-jessie-version.patch
     - porting-mips/Fix-build-error-in-MIPS-SIMD-when-compiling-with-mfp.patch
-    modified patches:
-    - debian-hacks/remove-non-free-W3C-icon-valid.png.patch
-    - p-kfree-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
-    - wheezy-security/sqlite-dev-revert-version-to-3.7.13.patch
-    deleted patches:
+    removed patches:
+    - debian-hacks/fixing-various-FTBFS-due-different-datatype-char-beh.patch
     - fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
     - iceowl/adjust-calendar-google-provider-to-Google-Calendar-A.patch
     - iceowl/get-rid-of-subdir-shim-in-gdata-provider.patch
     - porting-armel/disable-some-libopus-feature-for-ARCH-ARMv6.patch
-  * [590a0df] Revert "debian/rules: move some gdata modules into 'shim'
+    - porting-armhf/FTBFS-armhf-fixing-ARM-CPU-detection.patch
+  * [8de7b23] Revert "debian/rules: move some gdata modules into 'shim'
     subdir"
-  * [9b0e68b] lintian: adding one more source override
-  * [f914904] lintian: adding new override for the icedove package
-  * [63bd065] icedove branding: adopt upstream changes
-  * [b2d897c] debian/control: adding new package to Breaks field
-  * [2113754] mozconfig.default: adding some explicit configure options
-  * [b1ae394] complete rewrite of copyright information
-  * [98a5a00] debian/rules: setting MOZ_BUILD_DATE explicitly
-  * [c1e3dae] debian/copyright: more minor updates to the copyright file
-  * [bddd498] debian/rules: adding switch for no icedove-dbg build
-  * [68981d0] debian/control: icedove is now recommending iceowl-extension
-  * [5c9665c] adding release related information
-  * [1e683cd] debian/vendor.js: adjusting WhatNew link to more dedicated URL
-  * [1e449ff] mozconfig.default: don't use icu from system
-  * [18160f3] debian/iceowl-extension.lintian-overrides: remove file
-  * [76d32d8] debian/source.lintian-overrides: adding new entries
-  * [48c6c84] debian/icedove-dev.links: adding some extra links
-  * [fb1f375] debian/icedove.lintian-overrides: adding more overrides
-  * [10d441d] debian/mozconfig.default: order arch in alphabetical order
-  * [b600d0a] debian/copyright: fixup's and update
-  * [e72dc60] debian/source.filter: adopt filter list from master
-  * [96ec240] debian/rules: be more flexible on *.xpi files
+  * [8d744ab] debian/rules: be more flexible on *.xpi files
+  * [fbf3c49] d/icedove.install: mozilla-xremote-client was removed
+  * [b92379b] debian/control: increase package versions
+  * [8f37331] lintian: adding one more source override
+  * [b52a791] lintian: adding new override for the icedove package
+  * [cb23f5e] icedove branding: adopt upstream changes
+  * [33712e9] debian/control: increase b-d versions
+  * [9b536a7] debian/control: adding new package to Breaks field
+  * [ed27ae0] mozconfig.default: adding some explicit configure options
+  * [fabbf70] complete rewrite of copyright information
+  * [a82b740] switching to libgstreamer1.0*
+  * [a872e7b] debian/rules: setting MOZ_BUILD_DATE explicitly
+  * [7f4711f] debian/copyright: more minor updates to the copyright file
+  * [4288e0b] debian/rules: adding switch for no icedove-dbg build
+  * [1e5040f] debian/control: icedove is now recommending iceowl-extension
+  * [f76c02a] adding release related information
+  * [7aae173] debian/vendor.js: adjusting WhatNew link to more dedicated URL
+  * [08ef111] mozconfig.default: don't use icu from system
+  * [d909565] debian/iceowl-extension.lintian-overrides: remove file
+  * [7d730ac] debian/source.lintian-overrides: adding new entries
+  * [8ca9fa4] debian/icedove-dev.links: adding some extra links
+  * [18fd52b] debian/icedove.lintian-overrides: adding more overrides
+  * [9c0a259] debian/mozconfig.default: switch to use internal libs
+  * [5b0a7d6] debian/mozconfig.default: order arch in alphabetical order
+  * [68b5122] debian/rules: remove more dev-libs before linking
+  * [5e8c3d2] debian/copyright: fixup's and update
+  * [1ae0cc6] debian/control: adjust Build-Depends due usage of internal libs
+  * [644e9e4] debian/source.filter: adopt filter list from master
 
   [ Christoph Goehre ]
-  * [f3764f5] debian/NEWS: adding notes around new security changes
-  * [65d5220] debian/rules: fix icedove-dbg build switch
-  * [27d8f5f] lintian: fix spelling error in debian/README.Debian
-  * [64c635a] Add unminified jquery and jquery-ui files (Closes: #802281)
+  * [e6dc2df] debian/NEWS: adding notes around new security changes
+  * [b573ec6] add missing epoch in libnss3-dev build depends
+  * [39e5656] lintian: fix spelling error in debian/README.Debian
+  * [ff339ce] Add unminified jquery and jquery-ui files (Closes: #802281)
 
   [ Dominik George ]
-  * [bb837cd] debian/control: Upgrade Breaks relation to enigmail
+  * [0515ab0] debian/control: Upgrade Breaks relation to enigmail
     (Closes: #782686)
 
- -- Christoph Goehre <chris@sigxcpu.org>  Tue, 24 Nov 2015 21:03:11 -0500
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 19 Nov 2015 16:35:17 -0500
 
-icedove (31.8.0-1~deb7u1) oldstable-security; urgency=medium
+icedove (31.8.0-1~deb8u1) stable-security; urgency=medium
 
   * [d427fea] Imported Upstream version 31.8.0
     - MFSA 2015-59 aka CVE-2015-2724
@@ -143,11 +236,12 @@ icedove (31.8.0-1~deb7u1) oldstable-security; urgency=medium
       CVE-2015-2737, CVE-2015-2738, CVE-2015-2739, CVE-2015-2740
     - MFSA 2015-70 aka CVE-2015-4000
     - MFSA 2015-71 aka CVE-2015-2721
-  * [a906439] lintian: add override for libpng
+  * [6516780] lintian: add override for libpng
+  * [1c33ec2] build against internal libnss3
 
- -- Christoph Goehre <chris@sigxcpu.org>  Wed, 29 Jul 2015 19:24:48 -0400
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 30 Jul 2015 10:28:32 -0400
 
-icedove (31.7.0-1~deb7u1) oldstable-security; urgency=medium
+icedove (31.7.0-1~deb8u1) stable-security; urgency=medium
 
   * [c3c81df] Imported Upstream version 31.7.0
     - MFSA 2015-46 aka CVE-2015-2708
@@ -155,279 +249,476 @@ icedove (31.7.0-1~deb7u1) oldstable-security; urgency=medium
     - MFSA 2015-48 aka CVE-2015-2710
     - MFSA 2015-51 aka CVE-2015-2713
     - MFSA 2015-54 aka CVE-2015-2716
+  * [eb8cb5a] adjust gbp.conf for jessie-security branch
 
- -- Christoph Goehre <chris@sigxcpu.org>  Mon, 18 May 2015 14:30:45 -0400
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 18 May 2015 18:42:47 -0400
 
-icedove (31.6.0-1~deb7u1) stable-security; urgency=medium
+icedove (31.6.0-1) unstable; urgency=medium
 
   * [c71fc00] Imported Upstream version 31.6.0
-    - MFSA 2015-30 aka CVE-2015-0815
-    - MFSA 2015-31 aka CVE-2015-0813
-    - MFSA 2015-33 aka CVE-2015-0816
-    - MFSA 2015-37 aka CVE-2015-0807
-    - MFSA 2015-40 aka CVE-2015-0801
+  * [e13a5a1] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting/ppc-fix-divide-page-size-in-jemalloc.patch (Closes: #780404)
 
- -- Christoph Goehre <chris@sigxcpu.org>  Wed, 01 Apr 2015 20:30:57 -0400
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 01 Apr 2015 18:59:32 -0400
 
-icedove (31.5.0-1~deb7u1) stable-security; urgency=medium
+icedove (31.5.0-1) unstable; urgency=low
 
   * [f0e7673] Imported Upstream version 31.5.0
-    - MFSA 2015-11 aka CVE-2015-0836
-    - MFSA 2015-16 aka CVE-2015-0831
-    - MFSA 2015-19 aka CVE-2015-0827
-    - MFSA 2015-24 aka CVE-2015-0822
-  * [d2941e9] rebuild patch queue from patch-queue branch
+  * [4bf64fa] rebuild patch queue from patch-queue branch
+    modified patches:
+    - p-kfree-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 01 Mar 2015 18:04:13 -0500
+
+icedove (31.4.0-2) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [305b0fb] debian/icedove.desktop: correct StartupWMClass to 'Icedove'
+    (Closes: #773876)
+  * [8b4871a] rebuild patch queue from patch-queue branch
     added patches:
     - iceowl/adjust-calendar-google-provider-to-Google-Calendar-A.patch
       (Closes: #770008)
     - iceowl/get-rid-of-subdir-shim-in-gdata-provider.patch
-  * [738a72d] debian/rules: move some gdata modules into 'shim' subdir
-
- -- Christoph Goehre <chris@sigxcpu.org>  Mon, 02 Mar 2015 21:03:51 -0500
-
-icedove (31.4.0-1~deb7u1) stable-security; urgency=low
-
-  * [e93b49c] Imported Upstream version 31.4.0
-    - MFSA 2015-01 aka CVE-2014-8634
-    - MFSA 2015-03 aka CVE-2014-8638
-    - MFSA 2015-04 aka CVE-2014-8639
-
- -- Christoph Goehre <chris@sigxcpu.org>  Sun, 18 Jan 2015 14:26:55 -0500
-
-icedove (31.3.0-1~deb7u1) stable-security; urgency=low
+    modified patches:
+    - p-kfree-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
+    - p-kfree-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-configure.patch
+    - p-kfree-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - p-kfree-hurd/LDAP-support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - p-kfree-hurd/correcting-file-inclusion-for-kfreebsd-and-hurd.patch
+  * [573c8bb] debian/rules: move some gdata modules into 'shim' subdir
+  * [acf83d3] debian/icedove.desktop: add MimeType text/calendar
+    (Closes: #762190)
 
   [ Carsten Schoenert ]
-  * [e7f2141] debian/source.filter: more files to ignore
-  * [94a9552] debian/NEWS: fixing default SSL/TLS behavior description
-  * [21933ed] debian/NEWS: adding notes around new security changes
+  * [cf73d7e] debian/README.Debian: adding note around HTTPS Everythere
+    (Closes: #774790)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 24 Jan 2015 19:03:28 -0500
+
+icedove (31.4.0-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [c993970] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-kfreebsd-hurd/FTBFS-hurd-adding-the-HURD-platform-to-the-c.patch
+    - porting-powerpcspe/FTBFS-powerpcspe-disable-AltiVec-instructions.patch
+      (Closes: #772933)
+    modified patches:
+    - porting-kfreebsd-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS.patch
+
+  [ Christoph Goehre ]
+  * [e93b49c] Imported Upstream version 31.4.0
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 16 Jan 2015 18:44:57 -0500
+
+icedove (31.3.0-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [679d70d] debian/source.filter: more files to ignore
+  * [054b68a] debian/NEWS: fixing default SSL/TLS behavior description.
+  * [b5acb03] debian/NEWS: adding notes around new security changes.
 
   [ Christoph Goehre ]
   * [e2572a7] Imported Upstream version 31.3.0
-    - MFSA 2014-83 aka CVE-2014-1587
-    - MFSA 2014-85 aka CVE-2014-1590
-    - MFSA 2014-87 aka CVE-2014-1592
-    - MFSA 2014-88 aka CVE-2014-1593
-    - MFSA 2014-89 aka CVE-2014-1594
-    - MFSA 2014-90 aka CVE-2014-1595
+  * [10ce820] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian/patches/FTBFS-armhf-fixing-ARM-CPU-detection.patch
+    - debian/patches/fixing-various-FTBFS-due-different-datatype-char-beh.patch
 
- -- Christoph Goehre <chris@sigxcpu.org>  Fri, 05 Dec 2014 12:57:22 -0500
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 04 Dec 2014 12:57:59 -0500
 
-icedove (31.2.0-1~deb7u1) stable-security; urgency=low
+icedove (31.2.0-1) unstable; urgency=low
+
+  * [ae54a5c] Imported Upstream version 31.2.0
+  * [915864d] debian/NEWS: adding note around increased default TLS version 1.2
+    (Closes: #761245)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 23 Oct 2014 12:28:16 -0400
+
+icedove (31.1.2-1) unstable; urgency=low
 
   [ Christoph Goehre ]
-  * [ae54a5c] Imported Upstream version 31.2.0
-  * [106a703] replace duplicate .so files in icedove and icedove-dev with
-    symlinks
+  * [ebaaee5] adjust gbp.conf to use upstream branch 'upstream-31.x'
+  * [a041f0b] Imported Upstream version 31.1.2
+  * [1daecd9] rebuild patch queue from patch-queue branch
+    modified patches:
+    - porting-kfreebsd-hurd/FTBFS-hurd-adding-GNU-Hurd-to-the-list-of-OS-systems.patch
+    obsolete patches (fixed upstream):
+    - porting-armel/FTBFS-armel-fixing-usage-int-on-ARM-audio-backend.patch
+    - porting-armel/fix-skia-for-ARMv4.patch
+  * [066505b] linitan: bump up standards version to 3.9.6
 
   [ Carsten Schoenert ]
-  * [7011276] debian/mozconfig.default: changing internal build config
-  * [278bb9d] debian/control: removing build depencies due internal build
-  * [592ef26] rebuild patch queue from patch-queue branch
+  * [d17bf45] debian/gbp.conf: some instructions for git-dch
+  * [0139cb2] README.source: let's use xz while creating the orig.tar.xz
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 10 Oct 2014 19:55:54 -0400
+
+icedove (31.0-3) unstable; urgency=medium
+
+  * [65ad797] icedove.postinst: remove obsolete symlink handling
+    (Closes: #759502, #760012)
+  * [e2b5f63] rebuild patch queue from patch-queue branch
     added patches:
-    - wheezy-security/sqlite-dev-revert-version-to-3.7.13.patch
-
- -- Christoph Goehre <chris@sigxcpu.org>  Mon, 27 Oct 2014 20:47:34 -0400
-
-icedove (24.8.1-1~deb7u1) wheezy-security; urgency=high
-
-  * Non-maintainer upload by the Security Team.
-  * [4ed20ecd] Imported Upstream version 24.8.1
-    - MFSA 2014-73 aka CVE-2024-1568
-  * debian/patches:
-    - stable-security/libnss-tuning-mozilla-security-nss-.def-files updated
-      for new release symbol.
-
- -- Yves-Alexis Perez <corsac@debian.org>  Thu, 25 Sep 2014 20:38:23 +0200
-
-icedove (24.8.0-1~deb7u1) stable-security; urgency=low
-
-  * [a864274] Imported Upstream version 24.8.0
-    - MFSA 2014-67 aka CVE-2014-1562
-    - MFSA 2014-72 aka CVE-2014-1567
-
- -- Christoph Goehre <chris@sigxcpu.org>  Thu, 11 Sep 2014 20:35:02 -0400
-
-icedove (24.7.0-1~deb7u1) stable-security; urgency=low
-
-  * [e756d6f] Imported Upstream version 24.7.0
-    - MFSA 2014-56 aka CVE-2014-1547
-    - MFSA 2014-61 aka CVE-2014-1555
-    - MFSA 2014-62 aka CVE-2014-1556
-    - MFSA 2014-63 aka CVE-2014-1544
-    - MFSA 2014-64 aka CVE-2014-1557
-  * [9fef7d3] rebuild patch queue from patch-queue branch
+    - debian-hacks/pass-OS_LDFLAGS-to-all-ldap-libraries.patch
+    - porting-armel/FTBFS-armel-fixing-usage-int-on-ARM-audio-backend.patch
     modified patches:
-    - stable-security/libnss-tuning-mozilla-security-nss-.def-files.patch
+    - porting-alpha/fix-FTBFS-on-alpha.patch
 
- -- Christoph Goehre <chris@sigxcpu.org>  Fri, 25 Jul 2014 10:34:47 -0400
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 31 Aug 2014 16:30:57 -0700
 
-icedove (24.6.0-1~deb7u1) stable-security; urgency=low
+icedove (31.0-2) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [d2bc0ef] armel: correcting #if statement for skia fix
+  * [959b801] adding GNU/Hurd to gyp.mozbuild
+  * [215bc7d] kfreebsd*: adding CrossProcessMutex_posix.cpp to list
+  * [892c39c] d/icedove.links: remove unneeded link to /u/s/i/e
+    (Closes: #638489)
+  * [928158c] debian/source.filter: more files to ignore
+  * [b81c238] fixing lintian warning 'unused-override'
+  * [7bc2568] fixing lintian warning 'jar-not-in-usr-share'
+  * [cd0d289] fixing lintian warning 'image-file-in-usr-lib'
+  * [045a960] fixing lintian error 'source-is-missing'
+  * [1fe016a] correcting FTBFS patch for alpha
 
   [ Christoph Goehre ]
-  * [a93760d] Imported Upstream version 24.6.0
-    - MFSA 2014-48 aka CVE-2014-1533
-    - MFSA 2014-49 aka CVE-2014-1538
-    - MFSA 2014-52 aka CVE-2014-1541
-  * [ce354c4] don't build a shared js library
-    (Closes: #724688, #729073, #745593, #749037)
-  * [42b435d] icedove.pc: remove non-existent library mozjs (Closes: #748746)
-  * [dfbb25e] iceowl-extension: use breaks instead of conflicts against
+  * [c827d81] iceowl-extension: replace skin and icon dir with symlink
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 23 Aug 2014 18:42:23 -0700
+
+icedove (31.0-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [b7cdeb4] Imported Upstream version 31.0 (Closes: #756769)
+  * [1f2ff0b] debian/rules: fixing file permissions in iceowl-extension
+  * [c8d2036] adding fix for skia on armel
+  * [77093e2] fixing FTBFS on armel (Closes: #754633)
+  * [a458959] debian/control: increase b-d on libsqlite-dev
+  * [a98ebca] fix runtime error on alpha while jemalloc run
+  * [6f6b576] disable optimization on alpha while linking
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 04 Aug 2014 10:23:09 -0400
+
+icedove (31.0~b2-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [76059a9] debian/source.filter: more files to ignore
+  * [5067b0e] Imported Upstream version 31.0~b2 (Closes: #754464)
+  * [e31ac79] debian/control: remove build-dep on libnotify-dev
+  * [35324a5] debian/control: increase build-depends on libnss3-dev to 3.16.2~
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 18 Jul 2014 21:47:06 +0200
+
+icedove (31.0~b1-2) unstable; urgency=low
+
+  * [7ba4d01] lintian: add override for embedded srtp library
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 22 Jun 2014 18:18:04 -0400
+
+icedove (31.0~b1-1) unstable; urgency=low
+
+  * [02dc94c] remove example file, which cause git-archive to change the
+    source tree
+  * [ba233b1] Imported Upstream version 31.0~b1
+  * [4c2380f] rebuild patch queue from patch-queue branch
+    modified patches:
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-.patch
+    obsolete patches (fixed upstream):
+    - fixes/unbreak-with-system-pixman-in-mailnews.patch
+    - porting-hppa/FTBFS-hppa-correcting-code-inside-JS_STACK_GROWTH_DI.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 22 Jun 2014 11:50:07 -0400
+
+icedove (30.0~b1-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [b3eadf1] debian/source.filter: more files to ignore
+  * [fb71012] debian/control: bumping build-depends for debhelper
+  * [dc4ad0c] debian/control: add libpulse-dev build dependency
+  * [b8d3ee7] debian/control: bumping some version of build dependencies
+  * [3443df9] debian/icedove-dev.install: adopt upstream changes
+  * [d0f9d0e] icedove.lintian-overrides: adding libtheora
+  * [982c8a6] debian/rules: adding removing for temporary files
+
+  [ Christoph Goehre ]
+  * [f6292d5] Imported Upstream version 30.0~b1 (Closes: #743421)
+  * [dacd658] rebuild patch queue from patch-queue branch
+    modified patches:
+    - porting-hppa/FTBFS-hppa-correcting-code-inside-JS_STACK_GROWTH_DI.patch
+    - porting-kfreebsd-hurd/Allow-ipc-code-to-build-on-GNU-hurd.patch
+    - porting-kfreebsd-hurd/Allow-ipc-code-to-build-on-GNU-kfreebsd.patch
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    - porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-.patch
+    - prefs/Set-javascript.options.showInConsole.patch
+    - debian-hacks/Icedove-branding.patch
+    - fixes/unbreak-with-system-pixman-in-mailnews.patch
+    obsolete patches (fixed upstream):
+    - debian-hacks/Do-build-time-detection-of-2-bytes-wchar_t-and-char1.patch
+    - debian-hacks/Fix-build-failure-for-header.py-and-typelib.py.patch
+    - fixes/Make-system-cairo-work-again.patch
+    - porting-powerpcspe/FTBFS-Altivec-is-not-available-on-powerpcspe.patch
+  * [df93d26] branding: add jar.mn to moz.build
+  * [648853d] only copy debian/mozconfig.default into mozilla subdir
+  * [4f9dc9e] MOZ_OBJDIR need a absolute path, $(pwd) didn't work
+  * [33794c3] icedove.pc: remove non-existent library mozjs (Closes: #748746)
+  * [dcbce5c] iceowl-extension: use breaks instead of conflicts against
     calendar-timezones (Closes: #747532)
-  * [ddd0d7e] add breaks to enigmail (<< 2:1.6-4~deb7u1) which won't work with
+  * [545415a] add breaks to enigmail (<< 2:1.6-4~deb7u1) which won't work with
     us (Closes: #747546)
 
-  [ Guido Günther ]
-  * [ee5bfe8] Invoke repack.py directly
-  * [0cd715a] repack.py: port to python3
-  * [bd23d80] repack.py: allow to specify compression
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 30 May 2014 12:11:53 -0400
 
- -- Christoph Goehre <chris@sigxcpu.org>  Thu, 12 Jun 2014 20:00:44 -0400
+icedove (24.5.0-2) unstable; urgency=low
 
-icedove (24.5.0-1~deb7u1) stable-security; urgency=low
+  * [e4a43ed] debian/rules: remove duplicate LDFLAGS += -Wl,--stats
+  * [f9dba4b] debian/rules: export all compiler flags into build environment
+  * [8dc0712] debian/rules: run autoconf for all configue files
+  * [95d4b48] debian/rules: export MOZCONFIG onces
+  * [577bd03] debian/rules: update config.sub and config.guess before autoconf
+    run
+  * [7f958c7] parse DEB_BUILD_OPTIONS for how many parallel buildjobs to start
+    (Closes: #746984)
+  * [0f8b062] debian/rules: export MOZILLA_OFFICIAL
+  * [1c3d277] run configure with --build and --host
+  * [f190e19] don't build a shared js library (Closes: #724688, #729073,
+    #745593)
 
-  * [460818b] Imported Upstream version 24.5.0
-    - MFSA 2014-34 aka CVE-2014-1518
-    - MFSA 2014-37 aka CVE-2014-1523
-    - MFSA 2014-38 aka CVE-2014-1524
-    - MFSA 2014-42 aka CVE-2014-1529
-    - MFSA 2014-43 aka CVE-2014-1530
-    - MFSA 2014-44 aka CVE-2014-1531
-    - MFSA 2014-46 aka CVE-2014-1532
-  * [1683aef] debian/NEWS: add incompatibility info for Lightning
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 08 May 2014 20:07:06 -0400
 
- -- Christoph Goehre <chris@sigxcpu.org>  Sun, 04 May 2014 11:02:22 -0400
-
-icedove (24.4.0-1~deb7u1) stable-security; urgency=low
-
-  [ Christoph Goehre ]
-  * [a2b13c0] Imported Upstream version 24.4.0
-  * [8b392ad] rebuild patch queue from patch-queue branch
-    added patches:
-    - debian-hacks/creating-a-dummy-.deps-directory-to-get-make-happy.patch
-    - debian-hacks/remove-non-free-W3C-icon-valid.png.patch
-    - debian-hacks/use-system-jquery-jquery-ui.patch
-    - porting-hppa/FTBFS-hppa-correcting-code-inside-JS_STACK_GROWTH_DI.patch
-    - porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and-Hurd.patch
-    - porting-powerpcspe/FTBFS-Altivec-is-not-available-on-powerpcspe.patch
-    - stable-security/libnss-tuning-mozilla-security-nss-.def-files.patch
-    - stable-security/sqlite-dev-revert-version-to-3.7.13.patch
-    obsolete patches (fixed upstream):
-    - debian-hacks/virtualenv-changing-the-path-to-virtualenv.py.patch
-    - esr17-backport/Bug-746112-Don-t-decommit-if-page-size-is-too-large.patch
-    - esr17-backport/Bug-840242-Use-the-runtime-page-size-to-control-aren.patch
-    - fixes/Bug-720682-Don-t-crash-an-app-using-libxul-because-o.patch
-    - porting/Bug-814693-Allow-webrtc-to-build-on-more-architectur.patch
-    - porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
-    - porting/Fix-ipc-chromium-on-kFreeBSD-and-Hurd.patch
-  * [ec100ee] Reduce memory usage of the linker
-  * [dc499ae] ia64 don't like LDFLAG --no-keep-memory
-  * [0cf014b] make python scripts in /usr/lib/icedove-devel/sdk/bin executable
-  * [4ae79c3] ship python config scripts to make building of extensions easier
-    (Closes: #729431)
-  * [110b5dd] remove libxpcom.so from pkgconfig file (Closes: #729168)
-  * [dc1231e] add libldif60 to pkgconfig file
-  * [f13ee5c] lintian: remove prebuild javascript objects from upstream tarball
-    (Closes: #735234)
-  * [3216b93] a newer icedove will break iceowl-extension (Closes: #732742)
-  * [4e0ebde] remove ldif60 from pkgconfig file (Closes: #732652)
-  * [cd268e3] replace duplicate .so files in icedove and icedove-dev with symlinks.
+icedove (24.5.0-1) unstable; urgency=low
 
   [ Carsten Schoenert ]
-  * [8e60b3f] adopting dependencies for wheezy stable-security build
-  * [0729636] The vendorShortName is of course "Mozilla" and not "Icedove"
-    (Closes: #707207, #715326)
-  * [2167a1e] icedove-branding: adopting new build schema to Debian branding
-  * [11b2f51] icedove-branding: changing the target directory for preview.png
-  * [00d3dd1] debian/control: remove package calendar-timezones
-  * [bc344cd] debian/rules: catching any gdata-provider*.xpi file
-  * [39e6a3f] debian/rules: catching any lightning*.xpi file
-  * [14650d8] debian/thunderbird.install.in: remove
-    mozilla/components/binary.manifest
-  * [febd94d] debian/control: Build-Depend on gstreamer an yasm
-  * [c02d6de] Drop autoconf.mk mangling
-  * [4a939cb] debian/control: expanding icedove-dev dependency on python
-  * [358d8ab] thunderbird.install.in: shipping all files in /u/l/i/components
+  * [7c13dbf] calender-timezones: remove no longer needed helper files
+  * [2d4328c] debian/control: sort various fields alphabetically
+  * [436c212] debian/control: remove build-depens on cdbs
+  * [dae8b3e] icedove branding: adopt current Makefile.in style to upstream
+  * [045be10] debian/rules: switch to debhelper
+  * [b852c8c] debian/mozconfig*: adding mozconfig files
+  * [7bac68c] debian/icedove.configopts: Remove no longer needed file
+  * [6c597b9] Switch the old thunderbird*.in files to icedove.*
+  * [9781e61] debian/icedove.links: adding /u/b/i link
+  * [f325194] debian/icedove.dirs: add helper file for needed directories
+  * [fe0376a] debian/icedove.install: sort entrys alphabetical
+  * [0111ccc] debian/icedove.js: fix small typo and reformat
+  * [a7e5b05] debian/rules: add override for dh_fixperms
+  * [8e44df2] debian/rules: add override for dh_install
+  * [24fa03a] debian/rules: add override for dh_shlibdeps
+  * [2f22ed0] debian/rules: add override for dh_strip
+  * [259a6f4] debian/control: remove ${shlibs:Depends} from c-g-p depends
+  * [cdc9272] debian/rules: add additional LDFLAGS
+  * [9d620d5] debian/rules: correct Icedove version inside icedove.pc during
+    install
+
+  [ Christoph Goehre ]
+  * [460818b] Imported Upstream version 24.5.0
+  * [4c65ecc] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-kfreebsd-hurd/FTBFS-hurd-fixing-unsupported-platform-Hurd.patch
+    obsolete patches:
+    - porting-kfreebsd-hurd/Another-fix-to-build-ipc-code-on-GNU-hurd-an.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 29 Apr 2014 17:56:40 -0400
+
+icedove (24.4.0-1) unstable; urgency=low
+
+  * [a2b13c0] Imported Upstream version 24.4.0
+  * [fd90463] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-hppa/FTBFS-hppa-correcting-code-inside-JS_STACK_GROWTH_DI.patch
+      (Closes: #741245)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 22 Mar 2014 11:10:18 -0400
+
+icedove (24.3.0-2) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [122ffe9] remove ldif60 from pkgconfig file (Closes: #732652)
+  * [b64ccac] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-powerpcspe/FTBFS-Altivec-is-not-available-on-powerpcspe.patch
+    (Closes: #734859)
+
+  [ Carsten Schoenert ]
+  * [aa4f5b1] thunderbird.install.in: shipping all files in /u/l/i/components
     (Closes: #737811)
-  * [cb99d7e] debian/rules: remove -Wl,--as-needed linker option.
+  * [3bf4738] debian/rules: fix *.js file-permissions for iceowl-extension
+  * [50ab7a5] debian/rules: remove -Wl,--as-needed linker option
     (Closes: #732652, #730450, #724688)
 
-  [ Guido Günther ]
-  * [030f0e8] Don't use system jpeg
-  * [fca8246] Don't try to remove nonexistent libxpcom.so
-  * [b74b297] Add lintian override for our use of the embedded libjpeg
-  * [ad46a4d] Make sure xpcshell is executable
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 09 Mar 2014 15:33:05 -0400
 
- -- Christoph Goehre <chris@sigxcpu.org>  Mon, 31 Mar 2014 17:59:12 -0400
+icedove (24.3.0-1) unstable; urgency=low
 
-icedove (17.0.11-1~deb7u1) stable-security; urgency=low
+  * [a656560] lintian: remove non-free w3c valid.png icon (Closes: #735119)
+  * [f4e6c08] lintian: remove prebuild javascript objects from upstream
+    tarball (Closes: #735234)
+  * [adf9c96] Imported Upstream version 24.3.0
+  * [8419e65] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/remove-non-free-W3C-icon-valid.png.patch
+    - debian-hacks/use-system-jquery-jquery-ui.patch
+  * [948af3e] a newer icedove will break iceowl-extension (Closes: #732742)
 
-  * [a7e267e] Imported Upstream version 17.0.11
-    - MFSA 2013-103 aka CVE-2013-5605
-  * [3c457db] rebuild patch queue from patch-queue branch
-    modified patches:
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 10 Feb 2014 19:44:36 -0500
+
+icedove (24.2.0-1) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [963a61e] Imported Upstream version 24.2.0
+  * [852abe3] rebuild patch queue from patch-queue branch
+    obsolete patches (fixed upstream):
+    - fixes/Wrap-non-prefixed-freetype-headers-from-newer-freety.patch
     - porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
       (Closes: #734074)
+  * [a9d6680] lintian: remove prebuild-binaries from upstream tarball
+  * [fc25943] linitan: remove prebuilt-windows-binary from upstream tarball
+  * [faa24eb] lintian: fix comma separated files copyright
+  * [835790d] lintian: declare public-domain license at the beginning
 
- -- Christoph Goehre <chris@sigxcpu.org>  Sat, 04 Jan 2014 15:24:33 -0500
+  [ Carsten Schoenert ]
+  * [c583a2f] debian/copyright: fix indentation for 'public domain' license
+  * [78ddee2] linitan: bump up standards version to 3.9.5
 
-icedove (17.0.10-1~deb7u1) stable-security; urgency=low
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 11 Jan 2014 20:17:24 -0500
 
-  * [6f2593b] Imported Upstream version 17.0.10
-    - MFSA 2013-93 aka CVE-2013-5590
-    - MFSA 2013-95 aka CVE-2013-5604
-    - MFSA 2013-96 aka CVE-2013-5595
-    - MFSA 2013-98 aka CVE-2013-5597
-    - MFSA 2013-100 CVE-2013-5599, CVE-2013-5600, CVE-2013-5601
-    - MFSA 2013-101 aka CVE-2013-5602
+icedove (24.1.1-1) experimental; urgency=low
 
- -- Christoph Goehre <chris@sigxcpu.org>  Sun, 03 Nov 2013 18:22:24 -0500
+  [ Carsten Schoenert ]
+  * [e8cbac4] debian/copyright: correcting wrong comma usage.
+  * [d24a6be] debian/copyright: adjusting copyright infos
+  * [51a32a1] debian/copyright: correcting various lintian warning.
+  * [50874e0] debian/control: expanding icedove-dev dependency on python
+  * [2996a33] debian/control: adding a more specific description for
+    iceowl-extension and google-cal-prov.
+  * [85b4400] debian/control: adjust proper version dependencies.
+    (Closes: #729712)
+  * [4d6b204] debian/control: adding metadata for mozilla-devscripts.
+    (Closes: #562984)
 
-icedove (17.0.9-1~deb7u1) stable-security; urgency=low
+  [ Christoph Goehre ]
+  * [aa7782b] Imported Upstream version 24.1.1 (Closes: #720931, #723630)
+  * [e4ca9cd] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Wrap-non-prefixed-freetype-headers-from-newer-freety.patch
+    - porting-kfreebsd-hurd/ipc-chromium-fix-if-define-for-kFreeBSD-and.patch
+  * [849988b] make python scripts in /usr/lib/icedove-devel/sdk/bin executable
+  * [9890b1c] ship python config scripts to make building of extensions easier
+    (Closes: #729431)
+  * [8b08106] remove libxpcom.so from pkgconfig file (Closes: #729168)
+  * [4759bde] add libldif60 to pkgconfig file
+  * [db575b4] lintian: remove unsafe symlink from upstream tarball
 
-  * [f503b4d] Imported Upstream version 17.0.9
-    - MFSA 2013-76 aka CVE-2013-1718
-    - MFSA 2013-79 aka CVE-2013-1722
-    - MFSA 2013-82 aka CVE-2013-1725
-    - MFSA 2013-88 aka CVE-2013-1730
-    - MFSA 2013-89 aka CVE-2013-1732
-    - MFSA 2013-90 aka CVE-2013-1735, CVE-2013-1736
-    - MFSA 2013-91 aka CVE-2013-1737
-  * [5a8b5aa] rebuild patch queue from patch-queue branch
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 08 Dec 2013 10:08:19 -0500
 
- -- Christoph Goehre <chris@sigxcpu.org>  Sun, 22 Sep 2013 17:52:17 -0400
+icedove (24.0-1) experimental; urgency=low
 
-icedove (17.0.8-1~deb7u1) stable-security; urgency=low
+  [ Guido Günther ]
+  * [6f9d98e] New upstream version 24.0
+  * [ef58a98] Refresh patches
+  * [435516d] Switch to xz compressed upstream tarball
+  * [f529a99] repack.py: port to python3
+  * [50423d9] repack.py: allow to specify compression
+
+  [ Christoph Goehre ]
+  * [b45b2b9] remove superfluous gstreamer build depends
+  * [96ac1d0] Reduce memory usage of the linker. Thanks to Mike Hommey
+  * [af55374] ia64 don't like LDFLAG --no-keep-memory
+  * [c3cb093] remove export-subst in mozilla/addon-sdk/source/.gitattributes.
+
+  [ Carsten Schoenert ]
+  * [ac4caea] debian/copyright: correcting out-of-date-copyright-format-uri.
+  * [585bf84] debian/copyright: remove obsolete field 'Name:'
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 15 Oct 2013 18:51:16 -0400
+
+icedove (24.0~b3-2) experimental; urgency=low
+
+  * [47fe004] Add lintian override for our use of the embedded libjpeg
+  * [3c103e6] Make sure xpcshell is executable so dh_shlibdeps picks it up to
+    calculate lib dependencies
+
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 24 Sep 2013 20:03:33 +0200
+
+icedove (24.0~b3-1) experimental; urgency=low
+
+  [ Guido Günther ]
+  * Upload to experimental
+  * [eae533c] Adjust watch file once again
+  * [5280050] Invoke repack.py directly
+  * [0f4e8de] New upstream version 24.0~b3
+    (Closes: #706859, #720931, #723630)
+  * [3b6374b] Don't use system jpeg
+    since it doesn't have the needed features
+  * [f6aeba2] Don't try to remove nonexistent libxpcom.so
+
+  [ Carsten Schoenert ]
+  * [04844ae] icedove-branding: adopt new build schema to Debian branding
+    by using moz.build.
+  * [11c4677] icedove-branding: change the target directory for preview.png.
+  * [55f6762] debian/control: remove package calendar-timezones.
+    The calendar-timezones related files are now inside the lightning
+    package.
+  * [6f4948d] debian/rules: catch any gdata-provider*.xpi file.
+    The gdata-provider XPI file now has a version appended.
+  * [d5a63c9] debian/rules: catch any lightning*.xpi file.
+    The lightning XPI file now has a version appended.
+  * [e77e911] debian/thunderbird.install.in: 
+    remove mozilla/components/binary.manifest since it no longer exists.
+  * [ef3f3b1] debian/control: Build-Depend on gstreamer an yasm now used by
+    icedove.
+  * [9f5fe3e] Drop patches fixed upstream.
+        Bug-720682-Don-t-crash-an-app-using-libxul-because-o.patch
+        Bug-723497-Saving-message-to-disk-fails-silently-fai.patch
+        Bug-746112-Don-t-decommit-if-page-size-is-too-large.patch
+        Bug-814693-Allow-webrtc-to-build-on-more-architectur.patch
+        Bug-840242-Use-the-runtime-page-size-to-control-aren.patch
+        virtualenv-changing-the-path-to-virtualenv.py.patch
+  * [4503610] Adjust to build system changes:
+        debian-hacks/Don-t-build-example-component.patch
+  * [290f1e0] Partially applied upstream:
+        Support-building-on-GNU-kFreeBSD-and-GNU-Hurd.patch
+  * [2eaf6ae] Rediff remaining patches
+  * [4217c0e] Create missing .deps dir.
+    Workaround to make build complete
+  * [f95db9c] Drop autoconf.mk mangling since it confuses the build system
+
+ -- Guido Günther <agx@sigxcpu.org>  Thu, 19 Sep 2013 20:10:24 +0200
+
+icedove (17.0.8-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [af98dad] The vendorShortName is of course "Mozilla" and not "Icedove" The
+    packages in icedove-l10n already use the correct substition.
+    (Closes: #707207, #715326)
+  * [8ceae38] Sawfish: fix wrong size of resized window.
+    Backported from the TB20 release.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=813997 (Closes: #715464)
+  * [b69cb68] Fix error while saving a message to disk or network.
+    If the user tries to save a message to disk or network share without
+    enough user rights to write the message Icedove fails silently. This
+    backport from TB 21 fixes this.
+  * [fd8f588] Desktop file: shorten the icon name to 'Icedove' (Closes: #507962)
+  * [24b1b45] fix JS compiler segfault errors for various platforms
+    (Closes: #708331)
+
+  [ Christoph Goehre ]
+  * [01f6b7a] add README.Debian to describe upstream status of Thunderbird
+    (Closes: #710888)
+  * [7fa36d6] rebuild patch queue from patch-queue branch added patches:
+      - porting/Fix-ipc-chromium-on-kFreeBSD-and-Hurd.patch
 
   [ Guido Günther ]
   * [455bfe7] New upstream version 17.0.8
-    - MFSA 2013-63 aka CVE-2013-1701, CVE-2013-1702
-    - MFSA 2013-68 aka CVE-2013-1709
-    - MFSA 2013-69 aka CVE-2013-1710
-    - MFSA 2013-72 aka CVE-2013-1713
-    - MFSA 2013-73 aka CVE-2013-1714
-    - MFSA 2013-75 aka CVE-2013-1717
 
-  [ Christoph Goehre ]
-  * [19ed581] rebuild patch queue from patch-queue branch
-    added patches:
-    - esr17-backport/Bug-746112-Don-t-decommit-if-page-size-is-too-large.patch
-    - esr17-backport/Bug-840242-Use-the-runtime-page-size-to-control-aren.patch
-      (Closes: #708331)
-    - porting/Fix-ipc-chromium-on-kFreeBSD-and-Hurd.patch
+ -- Guido Günther <agx@sigxcpu.org>  Tue, 20 Aug 2013 16:12:17 +0200
 
- -- Christoph Goehre <chris@sigxcpu.org>  Tue, 27 Aug 2013 12:34:49 -0400
-
-icedove (17.0.7-1~deb7u1) stable-security; urgency=low
+icedove (17.0.7-1) unstable; urgency=low
 
   * [b8fd345] Imported Upstream version 17.0.7
-    - MFSA 2013-49 aka CVE-2013-1682
-    - MFSA 2013-50 aka CVE-2013-1684, CVE-2013-1685, CVE-2013-1686
-    - MFSA 2013-51 aka CVE-2013-1687
-    - MFSA 2013-53 aka CVE-2013-1690
-    - MFSA 2013-54 aka CVE-2013-1692
-    - MFSA 2013-55 aka CVE-2013-1693
-    - MFSA 2013-56 aka CVE-2013-1694
-    - MFSA 2013-59 aka CVE-2013-1697
   * [3133999] rebuild patch queue from patch-queue branch
     modified patches:
     - porting/Don-t-hardcode-page-size-on-ia64-sparc-or-mipsel.patch
@@ -438,7 +729,7 @@ icedove (17.0.7-1~deb7u1) stable-security; urgency=low
   * [2081e7e] lintian: add Keywords to icedove desktop file
   * [7f8333c] lintian: mask minus signs in manpage with a backslash
 
- -- Christoph Goehre <chris@sigxcpu.org>  Wed, 03 Jul 2013 14:38:39 -0400
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 30 Jun 2013 18:46:16 -0400
 
 icedove (17.0.5-2) unstable; urgency=low
 

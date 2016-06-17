@@ -21,15 +21,15 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 /* This is where functions related to the 3 pane window are kept */
 
 // from MailNewsTypes.h
-const nsMsgKey_None = 0xFFFFFFFF;
-const nsMsgViewIndex_None = 0xFFFFFFFF;
-const kMailCheckOncePrefName = "mail.startup.enabledMailCheckOnce";
+var nsMsgKey_None = 0xFFFFFFFF;
+var nsMsgViewIndex_None = 0xFFFFFFFF;
+var kMailCheckOncePrefName = "mail.startup.enabledMailCheckOnce";
 
-const kStandardPaneConfig = 0;
-const kWidePaneConfig = 1;
-const kVerticalPaneConfig = 2;
+var kStandardPaneConfig = 0;
+var kWidePaneConfig = 1;
+var kVerticalPaneConfig = 2;
 
-const kNumFolderViews = 4; // total number of folder views
+var kNumFolderViews = 4; // total number of folder views
 
 /** widget with id=messagepanebox, initialized by GetMessagePane() */
 var gMessagePane;
@@ -110,7 +110,7 @@ var folderListener = {
 /*
  * Listen for Lightweight Theme styling changes and update the theme accordingly.
  */
-let LightweightThemeListener = {
+var LightweightThemeListener = {
   _modifiedStyles: [],
 
   init: function () {
@@ -280,8 +280,14 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
     // doesn't fire when the element is removed from the document.  Manually
     // call destroy here to avoid a nasty leak.
     document.getElementById("messagepane").destroy();
-    desiredParent.appendChild(messagePaneSplitter);
-    desiredParent.appendChild(messagePaneBoxWrapper);
+    let footerBox = desiredParent.lastChild;
+    if (footerBox && footerBox.id == "msg-footer-notification-box") {
+      desiredParent.insertBefore(messagePaneSplitter, footerBox);
+      desiredParent.insertBefore(messagePaneBoxWrapper, footerBox);
+    } else {
+      desiredParent.appendChild(messagePaneSplitter);
+      desiredParent.appendChild(messagePaneBoxWrapper);
+    }
     hdrToolbox.palette  = cloneToolboxPalette;
     hdrToolbox.toolbarset = cloneToolbarset;
     hdrToolbar = document.getElementById("header-view-toolbar");
@@ -292,8 +298,7 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
     {
       messenger.setWindow(null, null);
       messenger.setWindow(window, msgWindow);
-      if (gDBView && GetNumSelectedMessages() == 1)
-        gDBView.reloadMessage();
+      ReloadMessage();
     }
 
     // The quick filter bar gets badly lied to due to standard XUL/XBL problems,
@@ -337,7 +342,7 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
   }
 }
 
-const MailPrefObserver = {
+var MailPrefObserver = {
   observe: function(subject, topic, prefName) {
     // verify that we're changing the mail pane config pref
     if (topic == "nsPref:changed")
@@ -356,7 +361,7 @@ const MailPrefObserver = {
                                   ++currentDisplayNameVersion);
 
         //refresh the thread pane
-        threadTree.treeBoxObject.invalid();
+        threadTree.treeBoxObject.invalidate();
       }
     }
   }
@@ -485,7 +490,7 @@ function OnLoadMessenger()
   let tabmail = document.getElementById('tabmail');
   if (tabmail)
   {
-    // mailTabType is defined in mailWindowOverlay.js
+    // mailTabType is defined in mailTabs.js
     tabmail.registerTabType(mailTabType);
     // glodaFacetTab* in glodaFacetTab.js
     tabmail.registerTabType(glodaFacetTabType);
@@ -511,6 +516,7 @@ function OnLoadMessenger()
   // This also registers the contentTabType ("contentTab")
   specialTabs.openSpecialTabsOnStartup();
   preferencesTabType.initialize();
+  // accountProvisionerTabType is defined in accountProvisionerTab.js
   tabmail.registerTabType(accountProvisionerTabType);
 
   // verifyAccounts returns true if the callback won't be called
@@ -1259,7 +1265,12 @@ function SelectFolder(folderUri)
 
 function ReloadMessage()
 {
-  gFolderDisplay.view.dbView.reloadMessage();
+  if (!gFolderDisplay.selectedMessage)
+    return;
+
+  let view = gFolderDisplay.view.dbView;
+  if (view)
+    view.reloadMessage();
 }
 
 // Some of the per account junk mail settings have been
@@ -1380,20 +1391,11 @@ function ThreadPaneOnDragStart(aEvent) {
   if (aEvent.originalTarget.localName != "treechildren")
     return;
 
-  let messages = gFolderDisplay.selectedMessageUris;
-  if (!messages)
-    return;
+  let messageUris = gFolderDisplay.selectedMessageUris;
+  if (!messageUris)
+     return;
 
   gFolderDisplay.hintAboutToDeleteMessages();
-  let fileNames = new Set();
-  let msgUrls = {};
-
-  // Dragging multiple messages to desktop does not currently work.
-  // When core fixes for multiple-drop-on-desktop support
-  // (e.g. bug 513464, bug 270292) are landed, generating of
-  // "application/x-moz-file-promise" values for i > 0 can be enabled.
-  // But first ensure suggestUniqueFileName is efficient enough on 10000+ dragged
-  // messages.
   let messengerBundle = document.getElementById("bundle_messenger");
   let noSubjectString = messengerBundle.getString("defaultSaveMessageAsFileName");
   if (noSubjectString.endsWith(".eml"))
@@ -1403,18 +1405,14 @@ function ThreadPaneOnDragStart(aEvent) {
   // see NS_MAX_FILEDESCRIPTOR in m-c/widget/windows/nsDataObj.cpp .
   const maxUncutNameLength = 124;
   let maxCutNameLength = maxUncutNameLength - longSubjectTruncator.length;
-  for (let i in messages) {
-    messenger.messageServiceFromURI(messages[i])
-             .GetUrlForUri(messages[i], msgUrls, null);
-    aEvent.dataTransfer.mozSetDataAt("text/x-moz-message", messages[i], i);
-    aEvent.dataTransfer.mozSetDataAt("text/x-moz-url",msgUrls.value.spec, i);
+  let messages = new Map();
+  for (let [index, msgUri] of messageUris.entries()) {
+    let msgService = messenger.messageServiceFromURI(msgUri);
+    let msgHdr = msgService.messageURIToMsgHdr(msgUri);
+    let subject = msgHdr.mime2DecodedSubject || "";
+    if (msgHdr.flags & Components.interfaces.nsMsgMessageFlags.HasRe)
+        subject = "Re: " + subject;
 
-    if (i > 0)
-      continue;
-
-    // Generate file name in case the object is dropped onto the desktop.
-    let subject = messenger.messageServiceFromURI(messages[i])
-                           .messageURIToMsgHdr(messages[i]).mime2DecodedSubject;
     let uniqueFileName;
     // If there is no subject, use a default name.
     // If subject needs to be truncated, add a truncation character to indicate it.
@@ -1422,18 +1420,77 @@ function ThreadPaneOnDragStart(aEvent) {
       uniqueFileName = noSubjectString;
     } else {
       uniqueFileName = (subject.length <= maxUncutNameLength) ?
-                       subject : subject.substr(0, maxCutNameLength) + longSubjectTruncator;
+        subject : subject.substr(0, maxCutNameLength) + longSubjectTruncator;
     }
-    uniqueFileName = suggestUniqueFileName(uniqueFileName, ".eml", fileNames);
-    fileNames.add(uniqueFileName);
+    let msgFileName = validateFileName(uniqueFileName);
+    let msgFileNameLowerCase = msgFileName.toLocaleLowerCase();
 
+    while (true) {
+      if (!messages[msgFileNameLowerCase]) {
+        messages[msgFileNameLowerCase] = 1;
+        break;
+      }
+      else {
+        let postfix = "-" + messages[msgFileNameLowerCase];
+        messages[msgFileNameLowerCase]++;
+        msgFileName = msgFileName + postfix;
+        msgFileNameLowerCase = msgFileNameLowerCase + postfix;
+      }
+    }
+
+    msgFileName = msgFileName + ".eml";
+
+    let msgUrl = {};
+    msgService.GetUrlForUri(msgUri, msgUrl, null);
+
+    aEvent.dataTransfer.mozSetDataAt("text/x-moz-message", msgUri, index);
+    aEvent.dataTransfer.mozSetDataAt("text/x-moz-url", msgUrl.value.spec, index);
     aEvent.dataTransfer.mozSetDataAt("application/x-moz-file-promise-url",
-                                     msgUrls.value.spec + "?fileName=" +
-                                     encodeURIComponent(uniqueFileName), i);
-    aEvent.dataTransfer.mozSetDataAt("application/x-moz-file-promise", null, i);
+                                     msgUrl.value.spec + "?fileName=" +
+                                     encodeURIComponent(msgFileName), index);
+    aEvent.dataTransfer.mozSetDataAt("application/x-moz-file-promise",
+                                     new messageFlavorDataProvider(), index);
+
   }
+
   aEvent.dataTransfer.effectAllowed = "copyMove";
   aEvent.dataTransfer.addElement(aEvent.originalTarget);
+}
+
+function messageFlavorDataProvider() {
+}
+
+messageFlavorDataProvider.prototype = {
+  QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsIFlavorDataProvider,
+                       Components.interfaces.nsISupports]),
+
+  getFlavorData : function(aTransferable, aFlavor, aData, aDataLen) {
+    if (aFlavor !== "application/x-moz-file-promise") {
+      return;
+    }
+    let fileUriPrimitive = {};
+    let dataSize = {};
+    aTransferable.getTransferData("application/x-moz-file-promise-url",
+                                  fileUriPrimitive, dataSize);
+
+    let fileUriStr = fileUriPrimitive.value.QueryInterface(Components.interfaces.nsISupportsString);
+    let fileUri = Services.io.newURI(fileUriStr.data, null, null);
+    let fileUrl = fileUri.QueryInterface(Components.interfaces.nsIURL);
+    let fileName = fileUrl.fileName;
+
+    let destDirPrimitive = {};
+    aTransferable.getTransferData("application/x-moz-file-promise-dir",
+                                  destDirPrimitive, dataSize);
+    let destDirectory = destDirPrimitive.value.QueryInterface(Components.interfaces.nsILocalFile);
+    let file = destDirectory.clone();
+    file.append(fileName);
+
+    let messageUriPrimitive = {};
+    aTransferable.getTransferData("text/x-moz-message", messageUriPrimitive, dataSize);
+    let messageUri = messageUriPrimitive.value.QueryInterface(Components.interfaces.nsISupportsString);
+
+    messenger.saveAs(messageUri.data, true, null, decodeURIComponent(file.path), true);
+  }
 }
 
 /**
@@ -1694,7 +1751,7 @@ function InitPageMenu(menuPopup, event) {
     event.preventDefault();
 }
 
-let TabsInTitlebar = {
+var TabsInTitlebar = {
   init: function () {
 #ifdef CAN_DRAW_IN_TITLEBAR
     // Don't trust the initial value of the sizemode attribute; wait for the
@@ -1797,9 +1854,9 @@ let TabsInTitlebar = {
   },
 
   _update: function (aForce=false) {
-    function $(id) document.getElementById(id);
-    function rect(ele) ele.getBoundingClientRect();
-    function verticalMargins(cstyle) parseFloat(cstyle.marginBottom) + parseFloat(cstyle.marginTop);
+    function $(id) { return document.getElementById(id); }
+    function rect(ele) { return ele.getBoundingClientRect(); }
+    function verticalMargins(cstyle) { return parseFloat(cstyle.marginBottom) + parseFloat(cstyle.marginTop); }
 
     if (!this._initialized || window.fullScreen)
       return;
@@ -1909,6 +1966,8 @@ let TabsInTitlebar = {
         titlebarContent.style.marginBottom = extraMargin + "px";
 #endif
         titlebarContentHeight += extraMargin;
+      } else {
+        titlebarContent.style.removeProperty("margin-bottom");
       }
 
       // Then we bring up the titlebar by the same amount, but we add any

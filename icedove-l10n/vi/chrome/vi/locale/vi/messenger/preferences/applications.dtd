@@ -1,0 +1,35 @@
+<!ENTITY  typeColumn.label            "Kiểu dữ liệu">
+<!ENTITY  typeColumn.accesskey        "K">
+
+<!ENTITY  actionColumn2.label         "Thao tác">
+<!ENTITY  actionColumn2.accesskey     "T">
+
+<!ENTITY  focusSearch1.key            "f">
+<!ENTITY  focusSearch2.key            "k">
+
+<!ENTITY  filter.placeholder          "Tìm kiếm">
+
+<!ENTITY saveTo.label                 "Lưu các tập tin vào">
+<!ENTITY saveTo.accesskey             "L">
+<!ENTITY alwaysAsk.label              "Luôn hỏi tôi nơi lưu tập tin">
+<!ENTITY alwaysAsk.accesskey          "h">
+<!ENTITY chooseFolderWin.label        "Duyệt…">
+<!ENTITY chooseFolderWin.accesskey    "D">
+<!ENTITY chooseFolderMac.label        "Chọn…">
+<!ENTITY chooseFolderMac.accesskey    "C">
+
+<!ENTITY addCloudFileAccount.accesskey    "A">
+<!ENTITY addCloudFileAccount.description  "Add a new Filelink storage service">
+
+<!ENTITY addCloudFileAccount.label        "Add">
+
+<!ENTITY attachments.incoming.label   "Incoming">
+<!ENTITY attachments.outgoing.label   "Outgoing">
+<!ENTITY authRequired.button.accesskey    "U">
+<!ENTITY authRequired.button.label        "Authorize">
+<!ENTITY authRequired.description         "Your authorization is required in order to see the settings for this storage service.">
+
+<!ENTITY enableCloudFileAccountOffer.label "Offer to share for files larger than">
+<!ENTITY enableCloudFileAccountOffer.mb "MB">
+<!ENTITY removeCloudFileAccount.accesskey "R">
+<!ENTITY removeCloudFileAccount.label     "Remove">

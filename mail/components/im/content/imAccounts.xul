@@ -20,7 +20,6 @@
 <window xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
         id="accountManager"
         windowtype="Messenger:Accounts"
-        onload="gAccountManager.load()"
         title="&accountsWindow.title;"
         style="&accountsWindow2.style;"
         persist="width height screenX screenY">
@@ -133,7 +132,6 @@
  <deck flex="1" id="accountsDesk" ondblclick="gAccountManager.new();">
    <vbox flex="1" id="noAccountScreen" align="center" pack="center">
      <hbox id="noAccountBox" align="top">
-       <image id="noAccountImage"/>
        <vbox id="noAccountInnerBox" flex="1">
          <label id="noAccountTitle" value="&accountManager.noAccount.title;"/>
          <description id="noAccountDesc">&accountManager.noAccount.description;</description>
@@ -146,7 +144,7 @@
                   ondragstart="nsDragAndDrop.startDrag(event, gAMDragAndDrop);"
                   ondragover="nsDragAndDrop.dragOver(event, gAMDragAndDrop);"
                   ondragend="gAMDragAndDrop.cleanBorders(true);"
-                  ondragdrop="nsDragAndDrop.drop(event, gAMDragAndDrop);"/>
+                  ondrop="nsDragAndDrop.drop(event, gAMDragAndDrop);"/>
    </notificationbox>
  </deck>
  <windowdragbox id="bottombuttons" align="center">

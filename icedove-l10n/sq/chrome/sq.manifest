@@ -1,0 +1,28 @@
+locale alerts sq sq/locale/sq/alerts/
+locale autoconfig sq sq/locale/sq/autoconfig/
+locale branding sq sq/locale/sq/branding/
+locale chat sq sq/locale/sq/chat/
+locale communicator sq sq/locale/sq/communicator/
+locale cookie sq sq/locale/sq/cookie/
+locale devtools-shared sq sq/locale/sq/devtools/shared/
+locale editor sq sq/locale/sq/editor/
+locale formautofill sq sq/locale/sq/formautofill/
+locale global sq sq/locale/sq/global/
+locale global-platform sq sq/locale/sq/global-platform/
+locale global-region sq sq/locale/sq/global-region/
+locale messenger sq sq/locale/sq/messenger/
+locale messenger-mapi sq sq/locale/sq/messenger-mapi/
+locale messenger-newsblog sq sq/locale/sq/messenger-newsblog/
+locale messenger-region sq sq/locale/sq/messenger-region/
+locale messenger-smime sq sq/locale/sq/messenger-smime/
+locale mozapps sq sq/locale/sq/mozapps/
+locale mozldap sq sq/locale/sq/mozldap/
+locale necko sq sq/locale/sq/necko/
+locale passwordmgr sq sq/locale/sq/passwordmgr/
+locale pipnss sq sq/locale/sq/pipnss/
+locale pippki sq sq/locale/sq/pippki/
+locale places sq sq/locale/sq/places/
+locale pluginproblem sq sq/locale/sq/pluginproblem/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+resource search-plugins chrome://messenger/locale/searchplugins/

@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-let gSyncUI = {
+var gSyncUI = {
   _obs: ["weave:notification:added",
          "weave:service:sync:start",
          "weave:service:sync:delayed",
@@ -235,7 +235,7 @@ let gSyncUI = {
 
   // Commands
   doSync: function SUI_doSync() {
-    setTimeout(function() Weave.Service.errorHandler.syncAndReportErrors(), 0);
+    setTimeout(() => Weave.Service.errorHandler.syncAndReportErrors(), 0);
   },
 
   handleToolbarButton: function SUI_handleToolbarButton() {

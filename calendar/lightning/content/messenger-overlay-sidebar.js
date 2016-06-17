@@ -80,10 +80,10 @@ var calendarTabType = {
         aTab.title = ltnGetString("lightning", "tabTitleCalendar");
       },
 
-      supportsCommand: function (aCommand, aTab) calendarController2.supportsCommand(aCommand),
-      isCommandEnabled: function (aCommand, aTab) calendarController2.isCommandEnabled(aCommand),
-      doCommand: function(aCommand, aTab) calendarController2.doCommand(aCommand),
-      onEvent: function(aEvent, aTab) calendarController2.onEvent(aEvent)
+      supportsCommand: (aCommand, aTab) => calendarController2.supportsCommand(aCommand),
+      isCommandEnabled: (aCommand, aTab) => calendarController2.isCommandEnabled(aCommand),
+      doCommand: (aCommand, aTab) => calendarController2.doCommand(aCommand),
+      onEvent: (aEvent, aTab) => calendarController2.onEvent(aEvent)
     },
 
     tasks: {
@@ -125,10 +125,10 @@ var calendarTabType = {
         aTab.title = ltnGetString("lightning", "tabTitleTasks");
       },
 
-      supportsCommand: function (aCommand, aTab) calendarController2.supportsCommand(aCommand),
-      isCommandEnabled: function (aCommand, aTab) calendarController2.isCommandEnabled(aCommand),
-      doCommand: function(aCommand, aTab) calendarController2.doCommand(aCommand),
-      onEvent: function(aEvent, aTab) calendarController2.onEvent(aEvent)
+      supportsCommand: (aCommand, aTab) => calendarController2.supportsCommand(aCommand),
+      isCommandEnabled: (aCommand, aTab) => calendarController2.isCommandEnabled(aCommand),
+      doCommand: (aCommand, aTab) => calendarController2.doCommand(aCommand),
+      onEvent: (aEvent, aTab) => calendarController2.onEvent(aEvent)
     }
   },
 
@@ -235,7 +235,10 @@ function ltnIntegrationNotification() {
 
     // call backs for the opt-out bar
     let cbLearnMore = function(aNotificationBar, aButton) {
-        openUILink(kSupportUri, {});
+        // In SeaMonkey the second parameter should be either null or an
+        // event object with a non null target.ownerDocument.
+        openUILink(kSupportUri, { button: 0,
+                                  target: { ownerDocument: document } });
         return true;
     };
     let cbKeepIt = function(aNotificationBar, aButton) {
@@ -427,14 +430,15 @@ function ltnFinish() {
 }
 
 // == invitations link
-const FIRST_DELAY_STARTUP = 100;
-const FIRST_DELAY_RESCHEDULE = 100;
-const FIRST_DELAY_REGISTER = 10000;
-const FIRST_DELAY_UNREGISTER = 0;
+var FIRST_DELAY_STARTUP = 100;
+var FIRST_DELAY_RESCHEDULE = 100;
+var FIRST_DELAY_REGISTER = 10000;
+var FIRST_DELAY_UNREGISTER = 0;
 
 var gInvitationsOperationListener = {
     mCount: 0,
 
+    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
     onOperationComplete: function sBOL_onOperationComplete(aCalendar,
                                                            aStatus,
                                                            aOperationType,
@@ -566,7 +570,7 @@ function ltnSwitch2Task() {
   }
 }
 
-const gCalSetupMailContext = {
+var gCalSetupMailContext = {
     popup: function gCalSetupMailContext_popup() {
         let hasSelection = (gFolderDisplay.selectedMessage != null);
         // Disable the convert menu altogether.
@@ -598,10 +602,11 @@ function onToolbarsPopupShowingWithMode(aEvent, aInsertPoint) {
         return;
     }
 
-    let toolbox = [gCurrentMode + "-toolbox"];
+    let toolbox = [];
     if (gCurrentMode != "mail") {
         toolbox.push("navigation-toolbox");
     }
+    toolbox.push(gCurrentMode + "-toolbox");
     onViewToolbarsPopupShowing(aEvent, toolbox, aInsertPoint);
 }
 

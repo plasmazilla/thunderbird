@@ -39,7 +39,7 @@ static void
 nsLDAPSSLFreeSocketClosure(nsLDAPSSLSocketClosure **aClosure)
 {
     if (aClosure && *aClosure) {
-	nsMemory::Free(*aClosure);
+	free(*aClosure);
 	*aClosure = nullptr;
     }
 }
@@ -145,7 +145,7 @@ nsLDAPSSLConnect(const char *hostlist, int defport, int timeout,
 
     // Allocate a structure to hold our socket-specific data.
     //
-    socketClosure = static_cast<nsLDAPSSLSocketClosure *>(nsMemory::Alloc(
+    socketClosure = static_cast<nsLDAPSSLSocketClosure *>(moz_xmalloc(
 				       sizeof(nsLDAPSSLSocketClosure)));
     if (!socketClosure) {
 	NS_WARNING("nsLDAPSSLConnect(): unable to allocate socket closure");
@@ -174,7 +174,7 @@ nsLDAPSSLConnect(const char *hostlist, int defport, int timeout,
     //
     rv = tlsSocketProvider->AddToSocket(PR_AF_INET,
                                         sessionClosure->hostname, defport,
-                                        nullptr, 0, 0, socketInfo.soinfo_prfd,
+                                        nullptr, 0, socketInfo.soinfo_prfd,
                                         getter_AddRefs(securityInfo));
     if (NS_FAILED(rv)) {
 	NS_ERROR("nsLDAPSSLConnect(): unable to add SSL layer to socket");
@@ -238,7 +238,7 @@ nsLDAPSSLFreeSessionClosure(nsLDAPSSLSessionClosure **aSessionClosure)
 
 	// free the structure itself
 	//
-	nsMemory::Free(*aSessionClosure);
+	free(*aSessionClosure);
 	*aSessionClosure = nullptr;
     }
 }
@@ -277,7 +277,7 @@ nsLDAPInstallSSL( LDAP *ld, const char *aHostName)
 
     // Allocate our own session information.
     //
-    sessionClosure = static_cast<nsLDAPSSLSessionClosure *>(nsMemory::Alloc(
+    sessionClosure = static_cast<nsLDAPSSLSessionClosure *>(moz_xmalloc(
 					sizeof(nsLDAPSSLSessionClosure)));
     if (!sessionClosure) {
 	return NS_ERROR_OUT_OF_MEMORY;
@@ -329,7 +329,7 @@ nsLDAPInstallSSL( LDAP *ld, const char *aHostName)
                                                  (sessionClosure);
     if (prldap_set_session_info(ld, nullptr, &sessionInfo) != LDAP_SUCCESS) {
 	NS_ERROR("nsLDAPInstallSSL(): error setting prldap session info");
-	nsMemory::Free(sessionClosure);
+	free(sessionClosure);
 	return NS_ERROR_UNEXPECTED;
     }
 

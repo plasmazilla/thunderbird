@@ -1,0 +1,38 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY  typeColumn.label            "Tip de conținut">
+<!ENTITY  typeColumn.accesskey        "T">
+
+<!ENTITY  actionColumn2.label         "Acțiune">
+<!ENTITY  actionColumn2.accesskey     "A">
+
+<!ENTITY  focusSearch1.key            "f">
+<!ENTITY  focusSearch2.key            "k">
+
+<!ENTITY  filter.placeholder          "Căutare">
+
+<!ENTITY saveTo.label                 "Salvează fișierele în">
+<!ENTITY saveTo.accesskey             "S">
+<!ENTITY alwaysAsk.label              "Întreabă-mă întotdeauna unde să fie salvate fișierele">
+<!ENTITY alwaysAsk.accesskey          "a">
+<!ENTITY chooseFolderWin.label        "Răsfoiește…">
+<!ENTITY chooseFolderWin.accesskey    "f">
+<!ENTITY chooseFolderMac.label        "Alege…">
+<!ENTITY chooseFolderMac.accesskey    "A">
+
+<!ENTITY attachments.incoming.label   "Primire">
+<!ENTITY attachments.outgoing.label   "Expediere">
+
+<!ENTITY addCloudFileAccount.label        "Adăugare">
+<!ENTITY addCloudFileAccount.accesskey    "A">
+<!ENTITY addCloudFileAccount.description  "Adaugă un serviciu nou de stocare Filelink">
+<!ENTITY removeCloudFileAccount.label     "Ștergere">
+<!ENTITY removeCloudFileAccount.accesskey "r">
+<!ENTITY authRequired.description         "Autorizația dumneavoastră este necesară pentru a vedea setările pentru acest serviciu de stocare.">
+<!ENTITY authRequired.button.label        "Autorizați">
+<!ENTITY authRequired.button.accesskey    "A">
+
+<!ENTITY enableCloudFileAccountOffer.label "Oferă partajarea fișierelor mai mari decât">
+<!ENTITY enableCloudFileAccountOffer.mb "MB">

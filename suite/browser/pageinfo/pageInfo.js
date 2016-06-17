@@ -223,23 +223,18 @@ const STRING_CONTRACTID         = "@mozilla.org/supports-string;1";
 // a number of services I'll need later
 // the cache services
 const OPEN_READONLY = Components.interfaces.nsICacheStorage.OPEN_READONLY;
+const ENTRY_WANTED = Components.interfaces.nsICacheEntryOpenCallback.ENTRY_WANTED;
+const LoadContextInfo = Components.classes["@mozilla.org/load-context-info-factory;1"]
+                                  .getService(Components.interfaces.nsILoadContextInfoFactory);
+var loadContextInfo = opener.gPrivate ? LoadContextInfo.private :
+                                        LoadContextInfo.default;
 const diskCacheStorage =
     Components.classes["@mozilla.org/netwerk/cache-storage-service;1"]
               .getService(Components.interfaces.nsICacheStorageService)
-              .diskCacheStorage({ isPrivate: opener.gPrivate }, false);
-
-const nsICookiePermission  = Components.interfaces.nsICookiePermission;
+              .diskCacheStorage(loadContextInfo, false);
 
 const nsICertificateDialogs = Components.interfaces.nsICertificateDialogs;
 const CERTIFICATEDIALOGS_CONTRACTID = "@mozilla.org/nsCertificateDialogs;1"
-
-// clipboard helper
-try {
-  const gClipboardHelper = Components.classes["@mozilla.org/widget/clipboardhelper;1"].getService(Components.interfaces.nsIClipboardHelper);
-}
-catch(e) {
-  // do nothing, later code will handle the error
-}
 
 // Interface for image loading content
 const nsIImageLoadingContent = Components.interfaces.nsIImageLoadingContent;
@@ -289,7 +284,6 @@ var onFinished = [ ];
 
 // These functions are called once when the Page Info window is closed.
 var onUnloadRegistry = [ ];
-
 
 /* Called when PageInfo window is loaded.  Arguments are:
  *  window.arguments[0] - (optional) an object consisting of
@@ -460,7 +454,7 @@ var cacheListener = {
     }
   },
   onCacheEntryCheck: function onCacheEntryCheck() {
-    return Components.interfaces.nsICacheEntryOpenCallback.ENTRY_WANTED;
+    return ENTRY_WANTED;
   }
 };
 
@@ -625,7 +619,7 @@ function onCacheEntryAvailable(cacheEntryDescriptor) {
 
 imgCacheListener.prototype.onCacheEntryCheck =
 function onCacheEntryCheck() {
-  return Components.interfaces.nsICacheEntryOpenCallback.ENTRY_WANTED;
+  return ENTRY_WANTED;
 };
 
 function addImage(url, type, alt, elem, isBg)
@@ -950,7 +944,7 @@ function onBlockImage(aChecked)
   if (aChecked)
     Services.perms.add(uri, "image", Services.perms.DENY_ACTION);
   else
-    Services.perms.remove(uri.host, "image");
+    Services.perms.remove(uri, "image");
 }
 
 function onImageSelect()
@@ -1221,7 +1215,7 @@ var imagePermissionObserver = {
         var row = imageTree.currentIndex;
         var item = gImageView.data[row][COL_IMAGE_NODE];
         var url = gImageView.data[row][COL_IMAGE_ADDRESS];
-        if (makeURI(url).host == permission.host)
+        if (permission.matchesURI(makeURI(url), true))
           makeBlockImage(url);
       }
     }
@@ -1369,12 +1363,11 @@ function getSelectedItems(linksMode)
 
 function doCopy(isLinkMode)
 {
-  if (!gClipboardHelper)
-    return;
-
   var text = getSelectedItems(isLinkMode);
 
-  gClipboardHelper.copyString(text.join("\n"), gDocument);
+  Components.classes["@mozilla.org/widget/clipboardhelper;1"]
+            .getService(Components.interfaces.nsIClipboardHelper)
+            .copyString(text.join("\n"), gDocument);
 }
 
 function doSelectAll()

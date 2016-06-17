@@ -87,6 +87,24 @@ Please read also:
 
  -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 12 Nov 2014 19:38:00 +0100
 
+Plugins and Icedove settings
+----------------------------
+
+There are at least one known plugin that conflict with the change of the
+security settings from above.
+The user Brent S. Elmer has reported that the plugin 'HTTPS Everywhere' from
+the Electronic Frontier Foundation is blocking a permanent change of the
+setting "security.tls.version.min". Note that this behavior is no Debian
+related issue.
+
+Please report other plugins and extensions that doesn't work well with the
+security settings.
+
+[1] https://www.eff.org/https-everywhere
+[2] https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=774790
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 18 Jan 2015 9:34:00 +0100
+
 New and Changed Features with Icedove version 38.x and above
 ------------------------------------------------------------
 

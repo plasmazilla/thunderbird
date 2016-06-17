@@ -175,7 +175,7 @@ function make_gradually_newer_sets_in_folder(aFolder, aArgs)
 {
   gMsgMinutes -= 1;
   if (!aArgs.age) {
-    for each (let arg in aArgs)
+    for (let arg of aArgs)
       arg.age = {minutes: gMsgMinutes};
   }
   make_new_sets_in_folder(aFolder, aArgs);
@@ -237,7 +237,7 @@ function test_show_oldest_new_unread_since_last_notification() {
                                       [{count: 1,
                                         body: {body: notifyFirst}}])
   assert_true(gMockAlertsService._didNotify, "Should have notified.");
-  assert_true(gMockAlertsService._text.contains(notifyFirst, 1),
+  assert_true(gMockAlertsService._text.includes(notifyFirst, 1),
               "Should have notified for the first message");
 
   be_in_folder(gFolder);
@@ -250,7 +250,7 @@ function test_show_oldest_new_unread_since_last_notification() {
                                       [{count: 1,
                                         body: {body: notifySecond}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified.");
-  assert_true(gMockAlertsService._text.contains(notifySecond, 1),
+  assert_true(gMockAlertsService._text.includes(notifySecond, 1),
               "Should have notified for the second message");
 }
 test_show_oldest_new_unread_since_last_notification.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -308,7 +308,7 @@ function test_show_subject() {
                                         subject: subject
                                        }]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.contains(subject),
+  assert_true(gMockAlertsService._text.includes(subject),
               "Should have displayed the subject");
 }
 test_show_subject.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -324,7 +324,7 @@ function test_hide_subject() {
                                         subject: subject
                                        }]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(!gMockAlertsService._text.contains(subject),
+  assert_true(!gMockAlertsService._text.includes(subject),
                 "Should not have displayed the subject");
 }
 test_hide_subject.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -347,11 +347,11 @@ function test_show_only_subject() {
                                         subject: subject,
                                         body: {body: messageBody}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.contains(subject),
+  assert_true(gMockAlertsService._text.includes(subject),
               "Should have displayed the subject");
-  assert_true(!gMockAlertsService._text.contains(messageBody),
+  assert_true(!gMockAlertsService._text.includes(messageBody),
                 "Should not have displayed the preview");
-  assert_true(!gMockAlertsService._text.contains(sender[0]),
+  assert_true(!gMockAlertsService._text.includes(sender[0]),
                 "Should not have displayed the sender");
 
 }
@@ -367,7 +367,7 @@ function test_show_sender() {
                                       [{count: 1,
                                         from: sender}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.contains(sender[0]),
+  assert_true(gMockAlertsService._text.includes(sender[0]),
               "Should have displayed the sender");
 }
 test_show_sender.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -382,7 +382,7 @@ function test_hide_sender() {
                                       [{count: 1,
                                         from: sender}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(!gMockAlertsService._text.contains(sender[0]),
+  assert_true(!gMockAlertsService._text.includes(sender[0]),
                 "Should not have displayed the sender");
 }
 test_hide_sender.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -405,11 +405,11 @@ function test_show_only_sender() {
                                         subject: subject,
                                         body: {body: messageBody}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.contains(sender[0]),
+  assert_true(gMockAlertsService._text.includes(sender[0]),
               "Should have displayed the sender");
-  assert_true(!gMockAlertsService._text.contains(messageBody),
+  assert_true(!gMockAlertsService._text.includes(messageBody),
                 "Should not have displayed the preview");
-  assert_true(!gMockAlertsService._text.contains(subject),
+  assert_true(!gMockAlertsService._text.includes(subject),
                 "Should not have displayed the subject");
 
 }
@@ -425,7 +425,7 @@ function test_show_preview() {
                                       [{count: 1,
                                         body: {body: messageBody}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.contains(messageBody),
+  assert_true(gMockAlertsService._text.includes(messageBody),
               "Should have displayed the preview");
 }
 test_show_preview.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -440,7 +440,7 @@ function test_hide_preview() {
                                       [{count: 1,
                                         body: {body: messageBody}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(!gMockAlertsService._text.contains(messageBody),
+  assert_true(!gMockAlertsService._text.includes(messageBody),
                 "Should not have displayed the preview");
 }
 test_hide_preview.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];
@@ -462,11 +462,11 @@ function test_show_only_preview() {
                                         subject: subject,
                                         body: {body: messageBody}}]);
   assert_true(gMockAlertsService._didNotify, "Should have notified");
-  assert_true(gMockAlertsService._text.contains(messageBody),
+  assert_true(gMockAlertsService._text.includes(messageBody),
               "Should have displayed the preview: " + gMockAlertsService._text);
-  assert_true(!gMockAlertsService._text.contains(sender[0]),
+  assert_true(!gMockAlertsService._text.includes(sender[0]),
                 "Should not have displayed the sender");
-  assert_true(!gMockAlertsService._text.contains(subject),
+  assert_true(!gMockAlertsService._text.includes(subject),
                 "Should not have displayed the subject");
 }
 test_show_only_preview.EXCLUDED_PLATFORMS = ['winnt', 'darwin'];

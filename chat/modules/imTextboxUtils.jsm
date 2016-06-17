@@ -2,16 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = [
+this.EXPORTED_SYMBOLS = [
   "MessageFormat",
   "TextboxSize",
   "TextboxSpellChecker"
 ];
 
 Components.utils.import("resource:///modules/imServices.jsm");
-const Ci = Components.interfaces;
+var Ci = Components.interfaces;
 
-let MessageFormat = {
+var MessageFormat = {
   _observedPrefs: [],
 
   getValues: function mf_getValues() {
@@ -107,7 +107,7 @@ let MessageFormat = {
   }
 };
 
-let TextboxSize = {
+var TextboxSize = {
   _textboxAutoResizePrefName: "messenger.conversations.textbox.autoResize",
   get autoResize() {
     delete this.autoResize;
@@ -121,7 +121,7 @@ let TextboxSize = {
   }
 };
 
-let TextboxSpellChecker = {
+var TextboxSpellChecker = {
 #ifndef MOZ_THUNDERBIRD
   _spellCheckPrefName: "layout.spellcheckDefault",
 #else

@@ -2,10 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const Ci = Components.interfaces;
-const Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cc = Components.classes;
 
-const ENGINE_FLAVOR = "text/x-moz-search-engine";
+var ENGINE_FLAVOR = "text/x-moz-search-engine";
 
 var gEngineView = null;
 
@@ -128,7 +128,7 @@ var gEngineManagerDialog = {
       if (alias.value != "") {
         // Check for duplicates in changes we haven't committed yet
         let engines = gEngineView._engineStore.engines;
-        for each (let engine in engines) {
+        for (let engine of engines) {
           if (engine.alias == alias.value &&
               engine.name != selectedEngine.name) {
             eduplicate = true;
@@ -286,7 +286,7 @@ EngineStore.prototype = {
   },
 
   _getEngineByName: function ES_getEngineByName(aName) {
-    for each (var engine in this._engines)
+    for (var engine of this._engines)
       if (engine.name == aName)
         return engine;
 

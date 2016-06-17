@@ -1,0 +1,37 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:25 +0200
+Subject: Brand-ca
+
+---
+ iceowl-l10n/ca/locale/ca/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/ca/locale/ca/lightning/lightning.properties b/iceowl-l10n/ca/locale/ca/lightning/lightning.properties
+index e8abfe5..2f3c5bb 100644
+--- a/iceowl-l10n/ca/locale/ca/lightning/lightning.properties
++++ b/iceowl-l10n/ca/locale/ca/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Un calendari integrat per al Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Un calendari integrat per al Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Projecte Mozilla Calendar
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Tasques
+@@ -79,7 +79,7 @@ imipBarUpdateText=Aquest missatge conté un canvi d'una cita ja existent.
+ imipBarAlreadyProcessedText=Aquest missatge conté una invitació a una cita que ja ha estat tractada.
+ imipBarProcessedNeedsAction=Aquest missatge conté una cita a la qual encara no heu respost.
+ imipBarReplyText=Aquest missatge conté una resposta a una invitació.
+-imipBarUnsupportedText=Aquest missatge conté una cita que aquesta versió del Lightning no ha pogut tractar.
++imipBarUnsupportedText=Aquest missatge conté una cita que aquesta versió del Iceowl no ha pogut tractar.
+ imipBarProcessingFailed=El tractament del missatge ha fallat. Estat: %1$S.
+ imipBarNotWritable=No hi cap calendari per a invitacions que es pugui escriure. Comproveu les propietats del calendari.
+ imipSendMail.title=Notificació via correu electrònic

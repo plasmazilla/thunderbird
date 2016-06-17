@@ -4,6 +4,10 @@
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calItipUtils.jsm");
+Components.utils.import("resource://calendar/modules/calXMLUtils.jsm");
+Components.utils.import("resource://calendar/modules/ltnInvitationUtils.jsm");
+Components.utils.import("resource://gre/modules/Preferences.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 /**
  * This bar lives inside the message window.
@@ -14,6 +18,7 @@ var ltnImipBar = {
     actionFunc: null,
     itipItem: null,
     foundItems: null,
+    msgOverlay: null,
 
     /**
      * Thunderbird Message listener interface, hide the bar before we begin
@@ -65,11 +70,14 @@ var ltnImipBar = {
     observe: function ltnImipBar_observe(subject, topic, state) {
         if (topic == "onItipItemCreation") {
             let itipItem = null;
+            let msgOverlay = null;
             try {
                 if (!subject) {
                     let sinkProps = msgWindow.msgHeaderSink.properties;
                     // This property was set by lightningTextCalendarConverter.js
-                    itipItem = sinkProps.getPropertyAsInterface("itipItem", Components.interfaces.calIItipItem);
+                    itipItem = sinkProps.getPropertyAsInterface("itipItem",
+                                                                Components.interfaces.calIItipItem);
+                    msgOverlay = sinkProps.getPropertyAsAUTF8String("msgOverlay");
                 }
             } catch (e) {
                 // This will throw on every message viewed that doesn't have the
@@ -77,7 +85,7 @@ var ltnImipBar = {
 
                 // XXX TODO: Only swallow the errors we need to. Throw all others.
             }
-            if (!itipItem || !gMessageDisplay.displayedMessage) {
+            if (!itipItem || !msgOverlay || !gMessageDisplay.displayedMessage) {
                 return;
             }
 
@@ -87,6 +95,8 @@ var ltnImipBar = {
             let imipBar = document.getElementById("imip-bar");
             imipBar.setAttribute("collapsed", "false");
             imipBar.setAttribute("label",  cal.itip.getMethodText(itipItem.receivedMethod));
+
+            ltnImipBar.msgOverlay = msgOverlay;
 
             cal.itip.processItipItem(itipItem, ltnImipBar.setupOptions);
         }
@@ -110,7 +120,7 @@ var ltnImipBar = {
     resetButtons: function ltnResetImipButtons() {
         let buttons = ltnImipBar.getButtons();
         buttons.forEach(hideElement);
-        buttons.forEach(function(aButton) ltnImipBar.getMenuItems(aButton).forEach(showElement));
+        buttons.forEach(aButton => ltnImipBar.getMenuItems(aButton).forEach(showElement));
     },
 
     /**
@@ -152,10 +162,10 @@ var ltnImipBar = {
     conformButtonType: function ltnConformButtonType() {
         // check only needed on visible and not simple buttons
         let buttons = ltnImipBar.getButtons()
-                                .filter(function(aElement) aElement.hasAttribute("type") && !aElement.hidden);
+                                .filter(aElement => aElement.hasAttribute("type") && !aElement.hidden);
         // change button if appropriate
         for (let button of buttons) {
-            let items = ltnImipBar.getMenuItems(button).filter(function(aItem) !aItem.hidden);
+            let items = ltnImipBar.getMenuItems(button).filter(aItem => !aItem.hidden);
             if (button.type == "menu" && items.length == 0) {
                 // hide non functional buttons
                 button.hidden = true;
@@ -181,7 +191,7 @@ var ltnImipBar = {
      * @param rc            The status code from processing
      * @param actionFunc    The action function called for execution
      * @param foundItems    An array of items found while searching for the item
-     *                        in subscribed calendars
+     *                      in subscribed calendars
      */
     setupOptions: function setupOptions(itipItem, rc, actionFunc, foundItems) {
         let imipBar =  document.getElementById("imip-bar");
@@ -193,15 +203,77 @@ var ltnImipBar = {
             ltnImipBar.foundItems = foundItems;
         }
 
+        // We need this to determine whether this is an outgoing or incoming message because
+        // Thunderbird doesn't provide a distinct flag on message level to do so. Relying on
+        // folder flags only may lead to false positives.
+        let isOutgoing = function(aMsgHdr) {
+            let author = aMsgHdr.mime2DecodedAuthor;
+            let isSentFolder = aMsgHdr.folder.flags & nsMsgFolderFlags.SentMail;
+            if (author && isSentFolder) {
+                let am = MailServices.accounts;
+                for (let identity in fixIterator(am.allIdentities,
+                                                 Components.interfaces.nsIMsgIdentity)) {
+                    if (author.includes(identity.email) && !identity.fccReplyFollowParent) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // We override the bar label for sent out invitations and in case the event does not exist
+        // anymore, we also clear the buttons if any to avoid e.g. accept/decline buttons
+        if (isOutgoing(gMessageDisplay.displayedMessage)) {
+            if (ltnImipBar.foundItems && ltnImipBar.foundItems[0]) {
+                data.label = ltn.getString("lightning", "imipBarSentText");
+            } else {
+                data = {label: ltn.getString("lightning", "imipBarSentButRemovedText"),
+                        buttons: [], hideMenuItems: []};
+            }
+        }
+
         imipBar.setAttribute("label", data.label);
         // let's reset all buttons first
         ltnImipBar.resetButtons();
         // menu items are visible by default, let's hide what's not available
-        data.hideMenuItems.forEach(function(aElementId) hideElement(document.getElementById(aElementId)));
+        data.hideMenuItems.forEach(aElementId => hideElement(document.getElementById(aElementId)));
         // buttons are hidden by default, let's make required buttons visible
-        data.buttons.forEach(function(aElementId) showElement(document.getElementById(aElementId)));
+        data.buttons.forEach(aElementId => showElement(document.getElementById(aElementId)));
         // adjust button style if necessary
         ltnImipBar.conformButtonType();
+        ltnImipBar.displayModifications();
+    },
+
+    /**
+     * Displays changes in case of invitation updates in invitation overlay
+     */
+    displayModifications: function () {
+        if (!ltnImipBar.msgOverlay || !msgWindow || !ltnImipBar.foundItems ||
+            !ltnImipBar.foundItems[0] || !ltnImipBar.itipItem) {
+            return;
+        }
+
+        let msgOverlay = ltnImipBar.msgOverlay;
+        let diff = cal.itip.compare(ltnImipBar.itipItem.getItemList({})[0], ltnImipBar.foundItems[0]);
+        // displaying chnages is only needed if that is enabled, an item already exists and there are
+        // differences
+        if (diff != 0 && Preferences.get('calendar.itip.displayInvitationChanges', false)) {
+            let foundOverlay = ltn.invitation.createInvitationOverlay(ltnImipBar.foundItems[0],
+                                                                      ltnImipBar.itipItem);
+            let serializedOverlay = cal.xml.serializeDOM(foundOverlay);
+            let organizerId = ltnImipBar.itipItem.targetCalendar.getProperty("organizerId");
+            if (diff == 1) {
+                // this is an update to previously accepted invitation
+                msgOverlay = ltn.invitation.compareInvitationOverlay(serializedOverlay, msgOverlay,
+                                                                     organizerId);
+            } else {
+                // this is a copy of a previously sent out invitation or a previous revision of a
+                // meanwhile accepted invitation, so we flip comparison order
+                msgOverlay = ltn.invitation.compareInvitationOverlay(msgOverlay, serializedOverlay,
+                                                                     organizerId);
+            }
+        }
+        msgWindow.displayHTMLInMessagePane('', msgOverlay, false);
     },
 
     executeAction: function ltnExecAction(partStat, extendResponse) {
@@ -218,6 +290,7 @@ var ltnImipBar = {
                 }
 
                 let opListener = {
+                    QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIOperationListener]),
                     onOperationComplete: function ltnItipActionListener_onOperationComplete(aCalendar,
                                                                                             aStatus,
                                                                                             aOperationType,

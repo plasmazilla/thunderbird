@@ -5,9 +5,14 @@
 
 EXPORTS += [
     'nsComposeStrings.h',
+    'nsMsgAttachmentHandler.h',
+    'nsMsgCompFields.h',
+    'nsMsgCompose.h',
+    'nsMsgSend.h',
 ]
 
 SOURCES += [
+    'nsComposeStrings.cpp',
     'nsMsgAttachment.cpp',
     'nsMsgAttachmentHandler.cpp',
     'nsMsgCompFields.cpp',

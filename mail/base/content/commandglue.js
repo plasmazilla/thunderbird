@@ -74,12 +74,12 @@ function SetNewsFolderColumns()
   if (gDBView.usingLines) {
      sizeColumn.setAttribute("label", bundle.getString("linesColumnHeader"));
      sizeColumn.setAttribute("tooltiptext",
-                             bundle.getString("linesColumnTooltip"));
+                             bundle.getString("linesColumnTooltip2"));
   }
   else {
      sizeColumn.setAttribute("label", bundle.getString("sizeColumnHeader"));
      sizeColumn.setAttribute("tooltiptext",
-                             bundle.getString("sizeColumnTooltip"));
+                             bundle.getString("sizeColumnTooltip2"));
   }
 }
 
@@ -104,7 +104,7 @@ function UpdateStatusMessageCounts(folder)
   var totalElement = document.getElementById("totalMessageCount");
   if (folder && !folder.isServer && unreadElement && totalElement)
   {
-    var numSelected = GetNumSelectedMessages();
+    var numSelected = gFolderDisplay.selectedCount;
     var bundle = document.getElementById("bundle_messenger");
 
     var numUnread = (numSelected > 1) ?
@@ -260,6 +260,9 @@ function ConvertSortTypeToColumnID(sortKey)
         columnID = "dateCol";
       }
 
+      break;
+    case nsMsgViewSortType.byCorrespondent:
+      columnID = "correspondentCol";
       break;
     default:
       dump("unsupported sort key: " + sortKey + "\n");

@@ -34,10 +34,12 @@
 #include "nsILineInputStream.h"
 #include "nsIAsyncInputStream.h"
 #include "nsIMsgIncomingServer.h"
+#include "nsIInputStreamPump.h"
 #include "nsMimeTypes.h"
 #include "nsAlgorithm.h"
 #include "mozilla/Services.h"
 #include <algorithm>
+#include "nsContentSecurityManager.h"
 
 #undef PostMessage // avoid to collision with WinUser.h
 
@@ -511,6 +513,14 @@ NS_IMETHODIMP nsMsgProtocol::Open(nsIInputStream **_retval)
   return NS_ImplementChannelOpen(this, _retval);
 }
 
+NS_IMETHODIMP nsMsgProtocol::Open2(nsIInputStream **_retval)
+{
+  nsCOMPtr<nsIStreamListener> listener;
+  nsresult rv = nsContentSecurityManager::doContentSecurityCheck(this, listener);
+  NS_ENSURE_SUCCESS(rv, rv);
+  return Open(_retval);
+}
+
 NS_IMETHODIMP nsMsgProtocol::AsyncOpen(nsIStreamListener *listener, nsISupports *ctxt)
 {
     int32_t port;
@@ -532,6 +542,14 @@ NS_IMETHODIMP nsMsgProtocol::AsyncOpen(nsIStreamListener *listener, nsISupports 
     m_channelContext = ctxt;
     m_channelListener = listener;
     return LoadUrl(m_url, nullptr);
+}
+
+NS_IMETHODIMP nsMsgProtocol::AsyncOpen2(nsIStreamListener *aListener)
+{
+    nsCOMPtr<nsIStreamListener> listener = aListener;
+    nsresult rv = nsContentSecurityManager::doContentSecurityCheck(this, listener);
+    NS_ENSURE_SUCCESS(rv, rv);
+    return AsyncOpen(listener, nullptr);
 }
 
 NS_IMETHODIMP nsMsgProtocol::GetLoadFlags(nsLoadFlags *aLoadFlags)
@@ -563,7 +581,7 @@ NS_IMETHODIMP nsMsgProtocol::GetContentType(nsACString &aContentType)
 NS_IMETHODIMP nsMsgProtocol::SetContentType(const nsACString &aContentType)
 {
   nsAutoCString charset;
-  nsresult rv = NS_ParseContentType(aContentType, m_ContentType, charset);
+  nsresult rv = NS_ParseResponseContentType(aContentType, m_ContentType, charset);
   if (NS_FAILED(rv) || m_ContentType.IsEmpty())
     m_ContentType.AssignLiteral(UNKNOWN_CONTENT_TYPE);
   return rv;
@@ -834,7 +852,7 @@ nsresult nsMsgProtocol::DoGSSAPIStep1(const char *service, const char *username,
             response.Adopt(base64Str);
         else
             rv = NS_ERROR_OUT_OF_MEMORY;
-        nsMemory::Free(outBuf);
+        free(outBuf);
     }
 
 #ifdef DEBUG_BenB
@@ -857,7 +875,7 @@ nsresult nsMsgProtocol::DoGSSAPIStep2(nsCString &commandResponse, nsCString &res
     if (len > 0) {
         // decode into the input secbuffer
         inBufLen = (len * 3)/4;      // sufficient size (see plbase64.h)
-        inBuf = nsMemory::Alloc(inBufLen);
+        inBuf = moz_xmalloc(inBufLen);
         if (!inBuf)
             return NS_ERROR_OUT_OF_MEMORY;
 
@@ -880,7 +898,7 @@ nsresult nsMsgProtocol::DoGSSAPIStep2(nsCString &commandResponse, nsCString &res
              ? m_authModule->GetNextToken(inBuf, inBufLen, &outBuf, &outBufLen)
              : NS_ERROR_FAILURE;
 
-        nsMemory::Free(inBuf);
+        free(inBuf);
     }
     else
     {
@@ -929,7 +947,7 @@ nsresult nsMsgProtocol::DoNtlmStep1(const char *username, const char *password, 
           response.Adopt(base64Str);
         else
           rv = NS_ERROR_OUT_OF_MEMORY;
-        nsMemory::Free(outBuf);
+        free(outBuf);
     }
 
     return rv;
@@ -944,7 +962,7 @@ nsresult nsMsgProtocol::DoNtlmStep2(nsCString &commandResponse, nsCString &respo
 
     // decode into the input secbuffer
     inBufLen = (len * 3)/4;      // sufficient size (see plbase64.h)
-    inBuf = nsMemory::Alloc(inBufLen);
+    inBuf = moz_xmalloc(inBufLen);
     if (!inBuf)
         return NS_ERROR_OUT_OF_MEMORY;
 
@@ -957,7 +975,7 @@ nsresult nsMsgProtocol::DoNtlmStep2(nsCString &commandResponse, nsCString &respo
          ? m_authModule->GetNextToken(inBuf, inBufLen, &outBuf, &outBufLen)
          : NS_ERROR_FAILURE;
 
-    nsMemory::Free(inBuf);
+    free(inBuf);
     if (NS_SUCCEEDED(rv) && outBuf)
     {
         char *base64Str = PL_Base64Encode((char *)outBuf, outBufLen, nullptr);

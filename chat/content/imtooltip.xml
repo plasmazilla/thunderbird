@@ -156,19 +156,29 @@
        <parameter name="aValue"/>
        <body>
        <![CDATA[
-         const XULNS =
-           "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
-
-         var row = document.createElementNS(XULNS, "row");
-         var label = document.createElementNS(XULNS, "label");
-         label.className = "header";
-         label.setAttribute("value", aLabel);
-         row.appendChild(label);
-         label = document.createElementNS(XULNS, "description");
-         label.textContent = aValue;
-         row.appendChild(label);
-         row.setAttribute("align", "baseline");
-         this.rows.appendChild(row);
+         let description;
+         let row = [...this.rows.querySelectorAll("row")].find(row => {
+           return row.querySelector("label").getAttribute("value") == aLabel;
+         });
+         if (!row) {
+           // Create a new row for this label.
+           const XULNS =
+             "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+           row = document.createElementNS(XULNS, "row");
+           let label = document.createElementNS(XULNS, "label");
+           label.className = "header";
+           label.setAttribute("value", aLabel);
+           row.appendChild(label);
+           description = document.createElementNS(XULNS, "description");
+           row.appendChild(description);
+           row.setAttribute("align", "baseline");
+           this.rows.appendChild(row);
+         }
+         else {
+           // Row with this label already exists - just update.
+           description = row.querySelector("description");
+         }
+         description.textContent = aValue;
        ]]>
        </body>
      </method>
@@ -193,6 +203,14 @@
        <parameter name="aObservedName"/>
        <body>
        <![CDATA[
+         // Libpurple prpls don't necessarily return data in response to
+         // requestBuddyInfo that is suitable for displaying inside a
+         // tooltip (e.g. too many objects, or <img> and <a> tags),
+         // so we only use it for JS prpls.
+         // This is a terrible, terrible hack to work around the fact that
+         // ClassInfo.implementationLanguage has gone.
+         if (!aAccount.prplAccount.wrappedJSObject)
+           return;
          this.observedUserInfo = aObservedName;
          Services.obs.addObserver(this, "user-info-received", false);
          aAccount.requestBuddyInfo(aObservedName);
@@ -223,22 +241,17 @@
 
          this.addRow(this.bundle.GetStringFromName("buddy.account"), account.name);
 
-         // Technically there is no reason to restrict this to JS-IRC. But
-         // there is currently no filtering mechanism in place to select which
-         // of the returned fields are to be added to the tooltip for the other
-         // protocols (libpurple in particular).
-         if (account.protocol.id == "prpl-irc")
-           this.requestBuddyInfo(account, aBuddy.normalizedName);
+         this.requestBuddyInfo(account, aBuddy.normalizedName);
 
          var tooltipInfo = aBuddy.getTooltipInfo();
          if (tooltipInfo)
-           this.appendTooltipInfo(tooltipInfo);
+           this.updateTooltipInfo(tooltipInfo);
          return true;
        ]]>
        </body>
      </method>
 
-     <method name="appendTooltipInfo">
+     <method name="updateTooltipInfo">
        <parameter name="aTooltipInfo"/>
        <body>
        <![CDATA[
@@ -257,6 +270,9 @@
                let statusType = parseInt(elt.label);
                this.setAttribute("status", Status.toAttribute(statusType));
                this.setMessage(Status.toLabel(statusType, elt.value));
+               break;
+             case Ci.prplITooltipInfo.icon:
+               this.setBuddyIcon(elt.value);
                break;
            }
          }
@@ -332,10 +348,13 @@
      <method name="updateTooltipFromParticipant">
        <parameter name="aNick"/>
        <parameter name="aConv"/>
+       <parameter name="aParticipant"/>
        <body>
        <![CDATA[
          if (!aConv.target)
            return false;     // We're viewing a log.
+         if (!aParticipant)
+           aParticipant = aConv.target.getParticipant(aNick);
 
          let account = aConv.account;
          let normalizedNick = aConv.target.getNormalizedChatBuddyName(aNick);
@@ -356,9 +375,7 @@
                            account.protocol.iconBaseURI + "icon.png");
          this.setAttribute("status", "unknown");
          this.setMessage(Status.toLabel("unknown"));
-         this.setBuddyIcon(null);
-         this.addRow(this.bundle.GetStringFromName("buddy.account"),
-                     account.name);
+         this.setBuddyIcon(aParticipant ? aParticipant.buddyIconFilename : null);
          this.requestBuddyInfo(account, normalizedNick);
          return true;
        ]]>
@@ -385,9 +402,7 @@
          }
          else if (aTopic == "user-info-received" &&
                   aData == this.observedUserInfo) {
-           this.appendTooltipInfo(aSubject.QueryInterface(Ci.nsISimpleEnumerator));
-           Services.obs.removeObserver(this, "user-info-received");
-           delete this.observedUserInfo;
+           this.updateTooltipInfo(aSubject.QueryInterface(Ci.nsISimpleEnumerator));
          }
        ]]>
        </body>
@@ -422,7 +437,8 @@
          if (localName == "listitem") {
            let contactlistbox = document.getElementById("contactlistbox");
            let conv = contactlistbox.selectedItem.conv;
-           return updateTooltipFromParticipant(elt.chatBuddy.name, conv);
+           return updateTooltipFromParticipant(elt.chatBuddy.name, conv,
+                                               elt.chatBuddy);
          }
 #else
          if (localName == "tab") {
@@ -442,13 +458,15 @@
 
          if (localName == "listitem") {
            let conv = document.getBindingParent(elt).conv;
-           return updateTooltipFromParticipant(elt.chatBuddy.name, conv);
+           return updateTooltipFromParticipant(elt.chatBuddy.name, conv,
+                                               elt.chatBuddy);
          }
 #endif
 
          let classList = elt.classList;
          if (classList.contains("ib-nick") ||
-             classList.contains("ib-sender")) {
+             classList.contains("ib-sender") ||
+             classList.contains("ib-person")) {
            let conv = getBrowser()._conv;
            if (conv.isChat)
              return updateTooltipFromParticipant(elt.textContent, conv);

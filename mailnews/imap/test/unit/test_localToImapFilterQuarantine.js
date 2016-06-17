@@ -30,7 +30,7 @@ var gSubfolder;
 
 // tests
 
-const quarantineTests = [
+var quarantineTests = [
   createSubfolder,
   getLocalMessages,
   updateSubfolderAndTest,
@@ -153,7 +153,7 @@ function endTest()
 
 // listeners
 
-let mfnListener =
+var mfnListener =
 {
   folderAdded: function folderAdded(aFolder)
   {

@@ -6,6 +6,7 @@
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource:///modules/IOUtils.js");
 
 var gDirTree;
 var abList = 0;
@@ -16,22 +17,23 @@ var gAddressBookBundle;
 // sidebar in compose window.
 var gShowAbColumnInComposeSidebar = false;
 
-const kDefaultSortColumn = "GeneratedName";
-const kDefaultAscending = "ascending";
-const kDefaultDescending = "descending";
+var kDefaultSortColumn = "GeneratedName";
+var kDefaultAscending = "ascending";
+var kDefaultDescending = "descending";
 // kDefaultYear will be used in birthday calculations when no year is given;
 // this is a leap year so that Feb 29th works.
-const kDefaultYear = 2000;
-const kAllDirectoryRoot = "moz-abdirectory://";
-const kLdapUrlPrefix = "moz-abldapdirectory://";
-const kPersonalAddressbookURI = "moz-abmdbdirectory://abook.mab";
-const kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
+const kDefaultYear = nearestLeap(new Date().getFullYear());
+const kMaxYear = 9999;
+const kMinYear = 1;
+var kAllDirectoryRoot = "moz-abdirectory://";
+var kLdapUrlPrefix = "moz-abldapdirectory://";
+var kPersonalAddressbookURI = "moz-abmdbdirectory://abook.mab";
+var kCollectedAddressbookURI = "moz-abmdbdirectory://history.mab";
 // The default, generic contact image is displayed via CSS when the photoURI is
 // blank.
-let defaultPhotoURI = "";
+var defaultPhotoURI = "";
 
-const PERMS_FILE = parseInt("0644", 8);
-const PERMS_DIRECTORY = parseInt("0755", 8);
+var PERMS_DIRECTORY = parseInt("0755", 8);
 
 // Controller object for Dir Pane
 var DirPaneController =
@@ -444,9 +446,14 @@ function GetAddressesForCards(cards)
 
 function SelectFirstAddressBook()
 {
-  gDirTree.view.selection.select(0);
-
-  ChangeDirectoryByURI(GetSelectedDirectory());
+  if (gDirTree.view.selection.currentIndex != 0) {
+    gDirTree.view.selection.select(0);
+    // If gPreviousDirTreeIndex == 0 then DirPaneSelectionChange() and
+    // ChangeDirectoryByURI() have already been run
+    // (e.g. by the onselect event on the tree) so skip the call.
+    if (gPreviousDirTreeIndex != 0)
+      ChangeDirectoryByURI(GetSelectedDirectory());
+  }
   gAbResultsTree.focus();
 }
 
@@ -483,7 +490,7 @@ function DirPaneSelectionChange()
 {
   let uri = GetSelectedDirectory();
   // clear out the search box when changing folders...
-  onAbClearSearch();
+  onAbClearSearch(false);
   if (gDirTree && gDirTree.view.selection && gDirTree.view.selection.count == 1) {
     gPreviousDirTreeIndex = gDirTree.currentIndex;
     ChangeDirectoryByURI(uri);
@@ -501,7 +508,8 @@ function ChangeDirectoryByURI(uri = kPersonalAddressbookURI)
 {
   SetAbView(uri);
 
-  // Actively de-selecting if there are any pre-existing selections.
+  // Actively de-selecting if there are any pre-existing selections
+  // in the results list.
   if (gAbView && gAbView.getCardFromRow(0))
     gAbView.selection.clearSelection();
   else
@@ -643,84 +651,21 @@ function GetSelectedDirectory()
 }
 
 /**
- * There is an exact replica of this method in mailnews/.
- * We need to remove this duplication with the help of a jsm in mailnews/
+ * Clears the contents of the search input field,
+ * possibly causing refresh of results.
  *
- * Parse the multiword search string to extract individual search terms
- * (separated on the basis of spaces) or quoted exact phrases to search
- * against multiple fields of the addressbook cards.
- *
- * @param aSearchString The full search string entered by the user.
- *
- * @return an array of separated search terms from the full search string.
+ * @param aRefresh  Set to false if the refresh isn't needed,
+ *                  e.g. window/AB is going away so user will not see anything.
  */
-function getSearchTokens(aSearchString)
+function onAbClearSearch(aRefresh = true)
 {
-  let searchString = aSearchString.trim();
-  if (searchString == "")
-    return [];
+  let searchInput = document.getElementById("peopleSearchInput");
+  if (!searchInput || !searchInput.value)
+    return;
 
-  let quotedTerms = [];
-
-  // Split up multiple search words to create a *foo* and *bar* search against
-  // search fields, using the OR-search template from modelQuery for each word.
-  // If the search query has quoted terms as "foo bar", extract them as is.
-  let startIndex;
-  while ((startIndex = searchString.indexOf('"')) != -1) {
-    let endIndex = searchString.indexOf('"', startIndex + 1);
-    if (endIndex == -1)
-      endIndex = searchString.length;
-
-    quotedTerms.push(searchString.substring(startIndex + 1, endIndex));
-    let query = searchString.substring(0, startIndex);
-    if (endIndex < searchString.length)
-      query += searchString.substr(endIndex + 1);
-
-    searchString = query.trim();
-  }
-
-  let searchWords = [];
-  if (searchString.length != 0) {
-    searchWords = quotedTerms.concat(searchString.split(/\s+/));
-  } else {
-    searchWords = quotedTerms;
-  }
-
-  return searchWords;
-}
-
-/*
- * Given a database model query and a list of search tokens,
- * return query URI.
- *
- * @param aModelQuery database model query
- * @param aSearchWords an array of search tokens.
- *
- * @return query URI.
- */
-function generateQueryURI(aModelQuery, aSearchWords)
-{
-  // If there are no search tokens, we simply return an empty string.
-  if (!aSearchWords || aSearchWords.length == 0)
-    return "";
-
-  let queryURI = "";
-  aSearchWords.forEach(searchWord =>
-    queryURI += aModelQuery.replace(/@V/g, encodeABTermValue(searchWord)));
-
-  // queryURI has all the (or(...)) searches, link them up with (and(...)).
-  queryURI = "?(and" + queryURI + ")";
-
-  return queryURI;
-}
-
-function onAbClearSearch()
-{
-  var searchInput = document.getElementById("peopleSearchInput");
-  if (searchInput)
-    searchInput.value = "";
-
-  onEnterInSearchBar();
+  searchInput.value = "";
+  if (aRefresh)
+    onEnterInSearchBar();
 }
 
 // sets focus into the quick search box
@@ -771,41 +716,6 @@ function getPhotoURI(aPhotoName) {
 }
 
 /**
- * Saves the given input stream to a file.
- *
- * @param aIStream The input stream to save.
- * @param aFile    The file to which the stream is saved.
- */
-function saveStreamToFile(aIStream, aFile) {
-  if (!(aIStream instanceof Components.interfaces.nsIInputStream))
-    throw "Invalid stream passed to saveStreamToFile";
-  if (!(aFile instanceof Components.interfaces.nsIFile))
-    throw "Invalid file passed to saveStreamToFile";
-  // Write the input stream to the file
-  var fstream = Components.classes["@mozilla.org/network/safe-file-output-stream;1"]
-                          .createInstance(Components.interfaces.nsIFileOutputStream);
-  var buffer  = Components.classes["@mozilla.org/network/buffered-output-stream;1"]
-                          .createInstance(Components.interfaces.nsIBufferedOutputStream);
-  fstream.init(aFile, 0x04 | 0x08 | 0x20, PERMS_FILE, 0); // write, create, truncate
-  buffer.init(fstream, 8192);
-
-  buffer.writeFrom(aIStream, aIStream.available());
-
-  // Close the output streams
-  if (buffer instanceof Components.interfaces.nsISafeOutputStream)
-      buffer.finish();
-  else
-      buffer.close();
-  if (fstream instanceof Components.interfaces.nsISafeOutputStream)
-      fstream.finish();
-  else
-      fstream.close();
-  // Close the input stream
-  aIStream.close();
-  return aFile;
-}
-
-/**
  * Copies the photo at the given URI in a folder named "Photos" in the current
  * profile folder.
  * The filename is randomly generated and is unique.
@@ -826,13 +736,18 @@ function storePhoto(aUri)
   let file = getPhotosDir();
 
   // Create a channel from the URI and open it as an input stream
-  let channel = Services.io.newChannelFromURI(Services.io.newURI(aUri, null, null));
+  let channel = Services.io.newChannelFromURI2(Services.io.newURI(aUri, null, null),
+                                               null,
+                                               Services.scriptSecurityManager.getSystemPrincipal(),
+                                               null,
+                                               Components.interfaces.nsILoadInfo.SEC_NORMAL,
+                                               Components.interfaces.nsIContentPolicy.TYPE_OTHER);
   let istream = channel.open();
 
   // Get the photo file
   file = makePhotoFile(file, findPhotoExt(channel));
 
-  return saveStreamToFile(istream, file);
+  return IOUtils.saveStreamToFile(istream, file);
 }
 
 /**
@@ -880,20 +795,22 @@ function makePhotoFile(aDir, aExtension) {
 }
 
 /**
- * Encode the string passed as value into an addressbook search term.
- * The '(' and ')' characters are special for the addressbook
- * search query language, but are not escaped in encodeURIComponent()
- * so must be done manually on top of it.
- */
-function encodeABTermValue(aString) {
-  return encodeURIComponent(aString).replace(/\(/g, "%28").replace(/\)/g, "%29");
-}
-
-/**
  * Validates the given year and returns it, if it looks sane.
  * Returns kDefaultYear (a leap year), if no valid date is given.
  * This ensures that month/day calculations still work.
  */
 function saneBirthYear(aYear) {
-  return aYear && aYear < 10000 && aYear > 0 ? aYear : kDefaultYear;
+  return aYear && (aYear <= kMaxYear) && (aYear >= kMinYear) ? aYear : kDefaultYear;
+}
+
+/**
+ * Returns the nearest leap year before aYear.
+ */
+function nearestLeap(aYear) {
+  for (let year = aYear; year > 0; year--) {
+    if (new Date(year, 1, 29).getMonth() == 1)
+      return year;
+  }
+
+  return 2000;
 }

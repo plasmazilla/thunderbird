@@ -12,7 +12,7 @@
 #include "nsMsgUtils.h" // for GetMessageServiceFromURI
 #include "prnetdb.h"
 #include "nsIMsgWindow.h"
-#include "prlog.h"
+#include "mozilla/Logging.h"
 #include "nsAppDirectoryServiceDefs.h"
 #include "nsUnicharUtils.h"
 #include "nsDirectoryServiceUtils.h"
@@ -26,6 +26,9 @@
 #include "nsIPrefBranch.h"
 #include "nsIStringEnumerator.h"
 #include "nsIObserverService.h"
+#include "nsIChannel.h"
+
+using namespace mozilla;
 
 // needed to mark attachment flag on the db hdr
 #include "nsIMsgHdr.h"
@@ -113,57 +116,39 @@ const uint32_t kTraitStoreCapacity = 16384;
 const uint32_t kTraitAutoCapacity = 10;
 
 TokenEnumeration::TokenEnumeration(PLDHashTable* table)
-    :   mIterator(table->Iterate())
+    :   mIterator(table->Iter())
 {
 }
 
 inline bool TokenEnumeration::hasMoreTokens()
 {
-    return mIterator.HasMoreEntries();
+    return !mIterator.Done();
 }
 
 inline BaseToken* TokenEnumeration::nextToken()
 {
-    return static_cast<BaseToken*>(mIterator.NextEntry());
-}
-
-struct VisitClosure {
-    bool (*f) (BaseToken*, void*);
-    void* data;
-};
-
-static PLDHashOperator VisitEntry(PLDHashTable* table, PLDHashEntryHdr* entry,
-                                  uint32_t number, void* arg)
-{
-    VisitClosure* closure = reinterpret_cast<VisitClosure*>(arg);
-    BaseToken* token = static_cast<BaseToken*>(entry);
-    return (closure->f(token, closure->data) ? PL_DHASH_NEXT : PL_DHASH_STOP);
+    auto token = static_cast<BaseToken*>(mIterator.Get());
+    mIterator.Next();
+    return token;
 }
 
 // member variables
 static const PLDHashTableOps gTokenTableOps = {
-    PL_DHashStringKey,
-    PL_DHashMatchStringKey,
-    PL_DHashMoveEntryStub,
-    PL_DHashClearEntryStub
+    PLDHashTable::HashStringKey,
+    PLDHashTable::MatchStringKey,
+    PLDHashTable::MoveEntryStub,
+    PLDHashTable::ClearEntryStub
 };
 
 TokenHash::TokenHash(uint32_t aEntrySize)
+  : mTokenTable(&gTokenTableOps, aEntrySize, 128)
 {
     mEntrySize = aEntrySize;
     PL_INIT_ARENA_POOL(&mWordPool, "Words Arena", 16384);
-    bool ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps,
-                                aEntrySize, mozilla::fallible_t(), 128);
-    mTableInitialized = ok;
-    NS_ASSERTION(ok, "mTokenTable failed to initialize");
-    if (!ok)
-      PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("mTokenTable failed to initialize"));
 }
 
 TokenHash::~TokenHash()
 {
-    if (mTableInitialized)
-        PL_DHashTableFinish(&mTokenTable);
     PL_FinishArenaPool(&mWordPool);
 }
 
@@ -171,19 +156,9 @@ nsresult TokenHash::clearTokens()
 {
     // we re-use the tokenizer when classifying multiple messages,
     // so this gets called after every message classification.
-    bool ok = true;
-    if (mTableInitialized)
-    {
-        PL_DHashTableFinish(&mTokenTable);
-        PL_FreeArenaPool(&mWordPool);
-        ok = PL_DHashTableInit(&mTokenTable, &gTokenTableOps,
-                               mEntrySize, mozilla::fallible_t(), 128);
-        mTableInitialized = ok;
-        NS_ASSERTION(ok, "mTokenTable failed to initialize");
-        if (!ok)
-          PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("mTokenTable failed to initialize in clearTokens()"));
-    }
-    return (ok) ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
+    mTokenTable.ClearAndPrepareForLength(128);
+    PL_FreeArenaPool(&mWordPool);
+    return NS_OK;
 }
 
 char* TokenHash::copyWord(const char* word, uint32_t len)
@@ -198,7 +173,7 @@ char* TokenHash::copyWord(const char* word, uint32_t len)
 
 inline BaseToken* TokenHash::get(const char* word)
 {
-    PLDHashEntryHdr* entry = PL_DHashTableSearch(&mTokenTable, word);
+    PLDHashEntryHdr* entry = mTokenTable.Search(word);
     if (entry)
         return static_cast<BaseToken*>(entry);
     return NULL;
@@ -212,36 +187,26 @@ BaseToken* TokenHash::add(const char* word)
       return nullptr;
     }
 
-    PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("add word: %s", word));
+    MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug, ("add word: %s", word));
 
-    PLDHashEntryHdr* entry = PL_DHashTableAdd(&mTokenTable, word);
+    PLDHashEntryHdr* entry = mTokenTable.Add(word, mozilla::fallible);
     BaseToken* token = static_cast<BaseToken*>(entry);
     if (token) {
         if (token->mWord == NULL) {
             uint32_t len = strlen(word);
             NS_ASSERTION(len != 0, "adding zero length word to tokenizer");
             if (!len)
-              PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("adding zero length word to tokenizer"));
+              MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug, ("adding zero length word to tokenizer"));
             token->mWord = copyWord(word, len);
             NS_ASSERTION(token->mWord, "copyWord failed");
             if (!token->mWord) {
-                PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("copyWord failed: %s (%d)", word, len));
-                PL_DHashTableRawRemove(&mTokenTable, entry);
+                MOZ_LOG(BayesianFilterLogModule, LogLevel::Error, ("copyWord failed: %s (%d)", word, len));
+                mTokenTable.RawRemove(entry);
                 return NULL;
             }
         }
     }
     return token;
-}
-
-void TokenHash::visit(bool (*f) (BaseToken*, void*), void* data)
-{
-    VisitClosure closure = { f, data };
-    uint32_t visitCount = PL_DHashTableEnumerate(&mTokenTable, VisitEntry, &closure);
-    NS_ASSERTION(visitCount == mTokenTable.EntryCount(), "visitCount != entryCount!");
-    if (visitCount != mTokenTable.EntryCount()) {
-      PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("visitCount != entryCount!: %d vs %d", visitCount, mTokenTable.EntryCount()));
-    }
 }
 
 inline uint32_t TokenHash::countTokens()
@@ -379,14 +344,14 @@ inline Token* Tokenizer::get(const char* word)
 
 Token* Tokenizer::add(const char* word, uint32_t count)
 {
-  PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("add word: %s (count=%d)",
+  MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug, ("add word: %s (count=%d)",
          word, count));
 
   Token* token = static_cast<Token*>(TokenHash::add(word));
   if (token)
   {
     token->mCount += count; // hash code initializes this to zero
-    PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug,
            ("adding word to tokenizer: %s (count=%d) (mCount=%d)",
            word, count, token->mCount));
   }
@@ -710,7 +675,7 @@ static bool isFWNumeral(const char16_t* p1, const char16_t* p2)
 // The japanese tokenizer was added as part of Bug #277354
 void Tokenizer::tokenize_japanese_word(char* chunk)
 {
-  PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("entering tokenize_japanese_word(%s)", chunk));
+  MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug, ("entering tokenize_japanese_word(%s)", chunk));
 
   nsString srcStr = NS_ConvertUTF8toUTF16(chunk);
   const char16_t* p1 = srcStr.get();
@@ -750,7 +715,7 @@ nsresult Tokenizer::stripHTML(const nsAString& inString, nsAString& outString)
 
 void Tokenizer::tokenize(const char* aText)
 {
-  PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("tokenize: %s", aText));
+  MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug, ("tokenize: %s", aText));
 
   // strip out HTML tags before we begin processing
   // uggh but first we have to blow up our string into UCS2
@@ -786,7 +751,7 @@ void Tokenizer::tokenize(const char* aText)
 
   nsCString strippedStr = NS_ConvertUTF16toUTF8(strippedUCS2);
   char * strippedText = strippedStr.BeginWriting();
-  PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("tokenize stripped html: %s", strippedText));
+  MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug, ("tokenize stripped html: %s", strippedText));
 
   char* word;
   char* next = strippedText;
@@ -1025,7 +990,6 @@ NS_IMETHODIMP TokenStreamListener::GetProperties(nsIWritablePropertyBag2 * *aPro
 NS_IMETHODIMP TokenStreamListener::OnStartRequest(nsIRequest *aRequest, nsISupports *aContext)
 {
     mLeftOverCount = 0;
-    NS_ENSURE_TRUE(mTokenizer, NS_ERROR_OUT_OF_MEMORY);
     if (!mBuffer)
     {
         mBuffer = new char[mBufferSize];
@@ -1131,7 +1095,7 @@ NS_IMETHODIMP TokenStreamListener::OnStopRequest(nsIRequest *aRequest, nsISuppor
     }
 
     /* finally, analyze the tokenized message. */
-    PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("analyze the tokenized message"));
+    MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug, ("analyze the tokenized message"));
     if (mAnalyzer)
         mAnalyzer->analyzeTokens(mTokenizer);
 
@@ -1160,7 +1124,7 @@ nsBayesianFilter::nsBayesianFilter()
     if (mJunkProbabilityThreshold == 0 || mJunkProbabilityThreshold >= 1)
       mJunkProbabilityThreshold = kDefaultJunkThreshold;
 
-    PR_LOG(BayesianFilterLogModule, PR_LOG_WARNING, ("junk probability threshold: %f", mJunkProbabilityThreshold));
+    MOZ_LOG(BayesianFilterLogModule, LogLevel::Warning, ("junk probability threshold: %f", mJunkProbabilityThreshold));
 
     mCorpus.readTrainingData();
 
@@ -1181,7 +1145,7 @@ nsBayesianFilter::nsBayesianFilter()
     rv = prefBranch->GetIntPref("mailnews.bayesian_spam_filter.junk_maxtokens", &mMaximumTokenCount);
     if (NS_FAILED(rv))
       mMaximumTokenCount = 0; // which means do not limit token counts
-    PR_LOG(BayesianFilterLogModule, PR_LOG_WARNING, ("maximum junk tokens: %d", mMaximumTokenCount));
+    MOZ_LOG(BayesianFilterLogModule, LogLevel::Warning, ("maximum junk tokens: %d", mMaximumTokenCount));
 
     mTimer = do_CreateInstance(NS_TIMER_CONTRACTID, &rv);
     NS_ASSERTION(NS_SUCCEEDED(rv), "unable to create a timer; training data will only be written on exit");
@@ -1258,7 +1222,7 @@ public:
     {
       mCurMessageToClassify = 0;
       mNumMessagesToClassify = aNumMessagesToClassify;
-      mMessageURIs = (char **) nsMemory::Alloc(sizeof(char *) * aNumMessagesToClassify);
+      mMessageURIs = (char **) moz_xmalloc(sizeof(char *) * aNumMessagesToClassify);
       for (uint32_t i = 0; i < aNumMessagesToClassify; i++)
         mMessageURIs[i] = PL_strdup(aMessageURIs[i]);
 
@@ -1279,7 +1243,7 @@ public:
     {
       mCurMessageToClassify = 0;
       mNumMessagesToClassify = aNumMessagesToClassify;
-      mMessageURIs = (char **) nsMemory::Alloc(sizeof(char *) * aNumMessagesToClassify);
+      mMessageURIs = (char **) moz_xmalloc(sizeof(char *) * aNumMessagesToClassify);
       for (uint32_t i = 0; i < aNumMessagesToClassify; i++)
         mMessageURIs[i] = PL_strdup(aMessageURIs[i]);
       mProTraits.AppendElement(kJunkTrait);
@@ -1311,7 +1275,7 @@ public:
     {
 
       if (++mCurMessageToClassify < mNumMessagesToClassify && mMessageURIs[mCurMessageToClassify]) {
-        PR_LOG(BayesianFilterLogModule, PR_LOG_WARNING, ("classifyNextMessage(%s)", mMessageURIs[mCurMessageToClassify]));
+        MOZ_LOG(BayesianFilterLogModule, LogLevel::Warning, ("classifyNextMessage(%s)", mMessageURIs[mCurMessageToClassify]));
         mFilter->tokenizeMessage(mMessageURIs[mCurMessageToClassify], mMsgWindow, this);
       }
       else
@@ -1469,7 +1433,7 @@ void nsBayesianFilter::classifyMessage(
     if (NS_FAILED(rv))
     {
       NS_ERROR("Failed to get trait service");
-      PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("Failed to get trait service"));
+      MOZ_LOG(BayesianFilterLogModule, LogLevel::Error, ("Failed to get trait service"));
     }
 
     // get aliases and message counts for the pro and anti traits
@@ -1487,7 +1451,7 @@ void nsBayesianFilter::classifyMessage(
         if (NS_FAILED(rv))
         {
           NS_ERROR("trait service failed to get aliases");
-          PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("trait service failed to get aliases"));
+          MOZ_LOG(BayesianFilterLogModule, LogLevel::Error, ("trait service failed to get aliases"));
         }
       }
       proAliasesLengths.AppendElement(proAliasesLength);
@@ -1507,7 +1471,7 @@ void nsBayesianFilter::classifyMessage(
         if (NS_FAILED(rv))
         {
           NS_ERROR("trait service failed to get aliases");
-          PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("trait service failed to get aliases"));
+          MOZ_LOG(BayesianFilterLogModule, LogLevel::Error, ("trait service failed to get aliases"));
         }
       }
       antiAliasesLengths.AppendElement(antiAliasesLength);
@@ -1562,7 +1526,7 @@ void nsBayesianFilter::classifyMessage(
         double distance = std::abs(prob - 0.5);
         if (distance >= .1)
         {
-          nsresult rv = setAnalysis(token, traitIndex, distance, prob);
+          mozilla::DebugOnly<nsresult> rv = setAnalysis(token, traitIndex, distance, prob);
           NS_ASSERTION(NS_SUCCEEDED(rv), "Problem in setAnalysis");
         }
       }
@@ -1627,7 +1591,7 @@ void nsBayesianFilter::classifyMessage(
             H = frexp(H, &e);
             Hexp += e;
           }
-          PR_LOG(BayesianFilterLogModule, PR_LOG_WARNING,
+          MOZ_LOG(BayesianFilterLogModule, LogLevel::Warning,
                  ("token probability (%s) is %f",
                   tokens[ta.mTokenIndex].mWord, ta.mProbability));
         }
@@ -1668,7 +1632,6 @@ void nsBayesianFilter::classifyMessage(
         for (uint32_t tokenIndex = 0; tokenIndex < usedTokenCount; tokenIndex++)
         {
           TraitAnalysis& ta = traitAnalyses[last - 1 - tokenIndex];
-          double S, H;
           int32_t chi_error;
           S = chi2P(-2.0 * sArray[tokenIndex], 2.0 * clueCount, &chi_error);
           if (!chi_error)
@@ -1700,7 +1663,7 @@ void nsBayesianFilter::classifyMessage(
       if (aProTraits[traitIndex] == kJunkTrait)
       {
         bool isJunk = (prob >= mJunkProbabilityThreshold);
-        PR_LOG(BayesianFilterLogModule, PR_LOG_ALWAYS,
+        MOZ_LOG(BayesianFilterLogModule, LogLevel::Info,
                ("%s is junk probability = (%f)  HAM SCORE:%f SPAM SCORE:%f",
                 messageURI, prob,H,S));
 
@@ -1995,7 +1958,6 @@ void nsBayesianFilter::observeMessage(
 {
 
     bool trainingDataWasDirty = mTrainingDataDirty;
-    TokenEnumeration tokens = tokenizer.getTokens();
 
     // Uhoh...if the user is re-training then the message may already be classified and we are classifying it again with the same classification.
     // the old code would have removed the tokens for this message then added them back. But this really hurts the message occurrence
@@ -2016,7 +1978,7 @@ void nsBayesianFilter::observeMessage(
       if (messageCount > 0)
       {
         mCorpus.setMessageCount(trait, messageCount - 1);
-        mCorpus.forgetTokens(tokens, trait, 1);
+        mCorpus.forgetTokens(tokenizer, trait, 1);
         mTrainingDataDirty = true;
       }
     }
@@ -2028,7 +1990,7 @@ void nsBayesianFilter::observeMessage(
     {
       uint32_t trait = newClassifications.ElementAt(index);
       mCorpus.setMessageCount(trait, mCorpus.getMessageCount(trait) + 1);
-      mCorpus.rememberTokens(tokens, trait, 1);
+      mCorpus.rememberTokens(tokenizer, trait, 1);
       mTrainingDataDirty = true;
 
       if (aJunkListener)
@@ -2071,8 +2033,8 @@ void nsBayesianFilter::observeMessage(
     {
         // if training data became dirty just now, schedule flush
         // mMinFlushInterval msec from now
-        PR_LOG(
-            BayesianFilterLogModule, PR_LOG_DEBUG,
+        MOZ_LOG(
+            BayesianFilterLogModule, LogLevel::Debug,
             ("starting training data flush timer %i msec", mMinFlushInterval));
         mTimer->InitWithFuncCallback(nsBayesianFilter::TimerCallback, this, mMinFlushInterval, nsITimer::TYPE_ONE_SHOT);
     }
@@ -2120,9 +2082,7 @@ NS_IMETHODIMP nsBayesianFilter::SetMessageClassification(
 
 NS_IMETHODIMP nsBayesianFilter::ResetTrainingData()
 {
-  if (mCorpus)
-    return mCorpus.resetTrainingData();
-  return NS_ERROR_FAILURE;
+  return mCorpus.resetTrainingData();
 }
 
 NS_IMETHODIMP nsBayesianFilter::DetailMessage(const char *aMsgURI,
@@ -2152,14 +2112,10 @@ NS_IMETHODIMP nsBayesianFilter::CorpusCounts(uint32_t aTrait,
                                              uint32_t *aTokenCount)
 {
   NS_ENSURE_ARG_POINTER(aTokenCount);
-  if (mCorpus)
-  {
-    *aTokenCount = mCorpus.countTokens();
-    if (aTrait && aMessageCount)
-      *aMessageCount = mCorpus.getMessageCount(aTrait);
-    return NS_OK;
-  }
-  return NS_ERROR_FAILURE;
+  *aTokenCount = mCorpus.countTokens();
+  if (aTrait && aMessageCount)
+    *aMessageCount = mCorpus.getMessageCount(aTrait);
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsBayesianFilter::ClearTrait(uint32_t aTrait)
@@ -2241,13 +2197,14 @@ inline int readUInt32(FILE* stream, uint32_t* value)
     return n;
 }
 
-void CorpusStore::forgetTokens(TokenEnumeration tokens,
+void CorpusStore::forgetTokens(Tokenizer& aTokenizer,
                     uint32_t aTraitId, uint32_t aCount)
 {
   // if we are forgetting the tokens for a message, should only
   // subtract 1 from the occurrence count for that token in the training set
   // because we assume we only bumped the training set count once per messages
   // containing the token.
+  TokenEnumeration tokens = aTokenizer.getTokens();
   while (tokens.hasMoreTokens())
   {
     CorpusToken* token = static_cast<CorpusToken*>(tokens.nextToken());
@@ -2255,9 +2212,10 @@ void CorpusStore::forgetTokens(TokenEnumeration tokens,
   }
 }
 
-void CorpusStore::rememberTokens(TokenEnumeration tokens,
+void CorpusStore::rememberTokens(Tokenizer& aTokenizer,
                     uint32_t aTraitId, uint32_t aCount)
 {
+  TokenEnumeration tokens = aTokenizer.getTokens();
   while (tokens.hasMoreTokens())
   {
     CorpusToken* token = static_cast<CorpusToken*>(tokens.nextToken());
@@ -2400,7 +2358,7 @@ static const char kTraitCookie[] = { '\xFC', '\xA9', '\x36', '\x01' };
 
 void CorpusStore::writeTrainingData(uint32_t aMaximumTokenCount)
 {
-  PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG, ("writeTrainingData() entered"));
+  MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug, ("writeTrainingData() entered"));
   if (!mTrainingFile)
     return;
 
@@ -2421,7 +2379,7 @@ void CorpusStore::writeTrainingData(uint32_t aMaximumTokenCount)
       (countTokens() > aMaximumTokenCount))
   {
     shrink = true;
-    PR_LOG(BayesianFilterLogModule, PR_LOG_WARNING, ("shrinking token data file"));
+    MOZ_LOG(BayesianFilterLogModule, LogLevel::Warning, ("shrinking token data file"));
   }
 
   // We implement shrink by dividing counts by two
@@ -2542,7 +2500,7 @@ void CorpusStore::readTrainingData()
          readTokens(stream, fileSize, kGoodTrait, true) &&
          readTokens(stream, fileSize, kJunkTrait, true))) {
       NS_WARNING("failed to read training data.");
-      PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("failed to read training data."));
+      MOZ_LOG(BayesianFilterLogModule, LogLevel::Error, ("failed to read training data."));
   }
   setMessageCount(kGoodTrait, goodMessageCount);
   setMessageCount(kJunkTrait, junkMessageCount);
@@ -2569,7 +2527,7 @@ void CorpusStore::readTrainingData()
   if (NS_FAILED(rv))
   {
     NS_WARNING("failed to read training data.");
-    PR_LOG(BayesianFilterLogModule, PR_LOG_ERROR, ("failed to read training data."));
+    MOZ_LOG(BayesianFilterLogModule, LogLevel::Error, ("failed to read training data."));
   }
   return;
 }
@@ -2669,7 +2627,7 @@ CorpusToken* CorpusStore::add(const char* word, uint32_t aTraitId, uint32_t aCou
 {
   CorpusToken* token = static_cast<CorpusToken*>(TokenHash::add(word));
   if (token) {
-    PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug,
            ("adding word to corpus store: %s (Trait=%d) (deltaCount=%d)",
             word, aTraitId, aCount));
     updateTrait(token, aTraitId, aCount);
@@ -2679,7 +2637,7 @@ CorpusToken* CorpusStore::add(const char* word, uint32_t aTraitId, uint32_t aCou
 
 void CorpusStore::remove(const char* word, uint32_t aTraitId, uint32_t aCount)
 {
-  PR_LOG(BayesianFilterLogModule, PR_LOG_DEBUG,
+  MOZ_LOG(BayesianFilterLogModule, LogLevel::Debug,
          ("remove word: %s (TraitId=%d) (Count=%d)",
          word, aTraitId, aCount));
   CorpusToken* token = get(word);
@@ -2723,15 +2681,16 @@ CorpusStore::UpdateData(nsIFile *aFile,
     NS_ENSURE_ARG_POINTER(aToTraits);
   }
 
-  FILE* stream;
-  nsresult rv = aFile->OpenANSIFileDesc("rb", &stream);
+  int64_t fileSize;
+  nsresult rv = aFile->GetFileSize(&fileSize);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  int64_t fileSize;
-  rv = aFile->GetFileSize(&fileSize);
+  FILE* stream;
+  rv = aFile->OpenANSIFileDesc("rb", &stream);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   bool error;
-  while(NS_SUCCEEDED(rv)) // break on error or done
+  do // break on error or done
   {
     char cookie[4];
     if ((error = (fread(cookie, sizeof(cookie), 1, stream) != 1)))
@@ -2768,10 +2727,11 @@ CorpusStore::UpdateData(nsIFile *aFile,
         break;
     }
     break;
-  }
+  } while (0);
 
   fclose(stream);
-  if (error || NS_FAILED(rv))
+
+  if (error)
     return NS_ERROR_FAILURE;
   return NS_OK;
 }

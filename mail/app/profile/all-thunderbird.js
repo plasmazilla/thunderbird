@@ -32,7 +32,7 @@ pref("mail.rights.override", true);
 // gtk2 (*nix) lacks transparent/translucent drag support (bug 376238), so we
 // want to disable it so people can see where they are dragging things.
 // (Stock gtk drag icons will be used instead.)
-#ifdef MOZ_WIDGET_GTK2
+#ifdef MOZ_WIDGET_GTK
 pref("nglayout.enable_drag_images", false);
 #endif
 
@@ -78,13 +78,11 @@ pref("app.update.cert.maxErrors", 5);
 // no update available. This validation will not be performed when using the
 // |app.update.url.override| preference for update checking.
 
-// Non-release builds (Nightly, Aurora, etc.) have been switched over to aus4.mozilla.org.
-// This condition protects us against accidentally using it for release builds.
-pref("app.update.certs.1.issuerName", "CN=DigiCert Secure Server CA,O=DigiCert Inc,C=US");
-pref("app.update.certs.1.commonName", "aus4.mozilla.org");
+pref("app.update.certs.1.issuerName", "CN=DigiCert SHA2 Secure Server CA,O=DigiCert Inc,C=US");
+pref("app.update.certs.1.commonName", "aus5.mozilla.org");
 
-pref("app.update.certs.2.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
-pref("app.update.certs.2.commonName", "aus4.mozilla.org");
+pref("app.update.certs.2.issuerName", "CN=thawte SSL CA - G2,O=\"thawte, Inc.\",C=US");
+pref("app.update.certs.2.commonName", "aus5.mozilla.org");
 
 // Whether or not app updates are enabled
 pref("app.update.enabled", true);
@@ -113,7 +111,7 @@ pref("app.update.silent", false);
 pref("app.update.staging.enabled", true);
 
 // Update service URL:
-pref("app.update.url", "https://aus4.mozilla.org/update/3/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
+pref("app.update.url", "https://aus5.mozilla.org/update/3/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
 
 // URL user can browse to manually if for some reason all update installation
 // attempts fail.
@@ -169,6 +167,7 @@ pref("extensions.update.autoUpdateDefault", true);
 pref("extensions.hotfix.id", "thunderbird-hotfix@mozilla.org");
 pref("extensions.hotfix.cert.checkAttributes", true);
 pref("extensions.hotfix.certs.1.sha1Fingerprint", "91:53:98:0C:C1:86:DF:47:8F:35:22:9E:11:C9:A7:31:04:49:A1:AA");
+pref("extensions.hotfix.certs.2.sha1Fingerprint", "39:E7:2B:7A:5B:CF:37:78:F9:5D:4A:E0:53:2D:2F:3D:68:53:C5:60");
 
 // Disable add-ons installed into the shared user and shared system areas by
 // default. This does not include the application directory. See the SCOPE
@@ -180,6 +179,8 @@ pref("extensions.getAddons.cache.enabled", true);
 pref("extensions.getAddons.maxResults", 15);
 pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/guid:%IDS%?src=thunderbird&appOS=%OS%&appVersion=%VERSION%");
 pref("extensions.getAddons.getWithPerformance.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/guid:%IDS%?src=thunderbird&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
+pref("extensions.getAddons.link.url", "https://addons.mozilla.org/%LOCALE%/%APP%/");
+pref("extensions.getAddons.recommended.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/list/recommended/all/%MAX_RESULTS%/%OS%/%VERSION%?src=thunderbird");
 pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search?q=%TERMS%");
 pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%/%COMPATIBILITY_MODE%?src=thunderbird");
 pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%LOCALE%/%APP%/discovery/pane/%VERSION%/%OS%");
@@ -281,7 +282,7 @@ pref("mailnews.headers.show_n_lines_before_more", 1);
 pref("mail.ui-rdf.version", 0);
 
 /////////////////////////////////////////////////////////////////
-// Overrides of the core mailnews.js prefs
+// Overrides of the core mailnews.js and composer.js prefs
 /////////////////////////////////////////////////////////////////
 pref("mail.showCondensedAddresses", true); // show the friendly display name for people I know
 
@@ -291,6 +292,7 @@ pref("mailnews.attachments.display.view", 0);
 pref("mail.pane_config.dynamic",            0);
 pref("mailnews.reuse_thread_window2",     true);
 pref("editor.singleLine.pasteNewlines", 4);  // substitute commas for new lines in single line text boxes
+pref("editor.CR_creates_new_p", true);
 
 // hidden pref to ensure a certain number of headers in the message pane
 // to avoid the height of the header area from changing when headers are present / not present
@@ -309,6 +311,9 @@ pref("mail.warn_on_shift_delete", true);
 // selected message.
 pref("mail.threadpane.padding.top_percent", 10);
 pref("mail.threadpane.padding.bottom_percent", 10);
+
+// Use correspondents column instead of from/recipient columns.
+pref("mail.threadpane.use_correspondents", false);  // Don't scare TB45 users.
 
 // only affects cookies from RSS articles
 // 0-Accept, 1-dontAcceptForeign, 2-dontUse
@@ -803,9 +808,6 @@ pref("browser.search.update", false);
 
 // Check whether we need to perform engine updates every 6 hours
 pref("browser.search.update.interval", 21600);
-
-// Disable search suggestions for now
-pref("browser.search.suggest.enabled", false);
 
 // Disable remote debugging protocol logging
 pref("devtools.debugger.log", false);

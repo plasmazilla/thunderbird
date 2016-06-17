@@ -2,11 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const MODULE_NAME = "account-manager-helpers";
+var MODULE_NAME = "account-manager-helpers";
 
-const RELATIVE_ROOT = "../shared-modules";
+var RELATIVE_ROOT = "../shared-modules";
 // we need this for the main controller
-const MODULE_REQUIRES = ["folder-display-helpers", "window-helpers"];
+var MODULE_REQUIRES = ["folder-display-helpers", "window-helpers"];
 
 var utils = {};
 Cu.import('resource://mozmill/modules/utils.js', utils);
@@ -63,14 +63,14 @@ function open_advanced_settings_from_account_wizard(aCallback, aController) {
  * @param rowIndex the row to click
  */
 function click_account_tree_row(controller, rowIndex) {
-  utils.waitFor(function () controller.window.currentAccount != null,
+  utils.waitFor(() => controller.window.currentAccount != null,
                 "Timeout waiting for currentAccount to become non-null");
 
   let tree = controller.window.document.getElementById("accounttree");
 
   fdh.click_tree_row(tree, rowIndex, controller);
 
-  utils.waitFor(function () controller.window.pendingAccount == null,
+  utils.waitFor(() => controller.window.pendingAccount == null,
                 "Timeout waiting for pendingAccount to become null");
 
   // Ensure the page is fully loaded (e.g. onInit functions).

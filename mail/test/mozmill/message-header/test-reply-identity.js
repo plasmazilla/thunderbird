@@ -6,10 +6,10 @@
  * Tests that actions such as replying choses the most suitable identity.
  */
 
-const MODULE_NAME = "test-reply-identity";
+var MODULE_NAME = "test-reply-identity";
 
-const RELATIVE_ROOT = "../shared-modules";
-const MODULE_REQUIRES = ["folder-display-helpers",
+var RELATIVE_ROOT = "../shared-modules";
+var MODULE_REQUIRES = ["folder-display-helpers",
                          "window-helpers", "compose-helpers"];
 
 var folderHelper = null;
@@ -18,8 +18,8 @@ var composeHelper = null;
 
 var testFolder = null;
 
-const identity1Email = "carl@example.com";
-const identity2Email = "lenny@springfield.invalid";
+var identity1Email = "carl@example.com";
+var identity2Email = "lenny@springfield.invalid";
 
 var setupModule = function (module) {
 
@@ -95,7 +95,7 @@ var addIdentitiesAndFolder = function() {
 
 var checkReply = function (replyWin, expectedFromEmail) {
   let identityList = replyWin.e("msgIdentity");
-  if (!identityList.selectedItem.label.contains(expectedFromEmail))
+  if (!identityList.selectedItem.label.includes(expectedFromEmail))
     throw new Error("The From address is not correctly selected! Expected: " +
                     expectedFromEmail + "; Actual: "  +
                     identityList.selectedItem.label);

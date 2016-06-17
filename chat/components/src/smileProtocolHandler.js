@@ -2,13 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource:///modules/imSmileys.jsm");
 
-const kSmileRegexp = /^smile:\/\//;
+var kSmileRegexp = /^smile:\/\//;
 
 function smileProtocolHandler() { }
 
@@ -36,7 +36,7 @@ smileProtocolHandler.prototype = {
     channel.originalURI = aURI;
     return channel;
   },
-  allowPort: function  SPH_allowPort(aPort, aScheme) false,
+  allowPort: function SPH_allowPort(aPort, aScheme) { return false; },
 
   classDescription: "Smile Protocol Handler",
   classID: Components.ID("{04e58eae-dfbc-4c9e-8130-6d9ef19cbff4}"),
@@ -44,4 +44,4 @@ smileProtocolHandler.prototype = {
   QueryInterface: XPCOMUtils.generateQI([Ci.nsIProtocolHandler])
 };
 
-const NSGetFactory = XPCOMUtils.generateNSGetFactory([smileProtocolHandler]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([smileProtocolHandler]);

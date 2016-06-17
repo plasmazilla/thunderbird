@@ -7,7 +7,7 @@ var FullScreen =
 {
   toggle: function()
   {
-    var show = window.fullScreen;
+    var show = !window.fullScreen;
     // show/hide all menubars, toolbars, and statusbars (except the full screen toolbar)
     this.showXULChrome("toolbar", show);
     this.showXULChrome("statusbar", show);
@@ -21,6 +21,18 @@ var FullScreen =
     var controls = document.getElementsByAttribute("fullscreencontrol", "true");
     for (let i = 0; i < controls.length; ++i)
       controls[i].hidden = show;
+
+    controls = document.getElementsByAttribute("domfullscreenhidden", "true");
+    if (document.mozFullScreen) {
+      for (let i = 0; i < controls.length; ++i)
+        controls[i].setAttribute("moz-collapsed", "true");
+      getBrowser().mStrip.setAttribute("moz-collapsed", "true");
+    } else {
+      for (let i = 0; i < controls.length; ++i)
+        controls[i].removeAttribute("moz-collapsed");
+      getBrowser().mStrip.removeAttribute("moz-collapsed");
+    }
+    getBrowser().getNotificationBox().notificationsHidden = document.mozFullScreen;
   },
 
   showXULChrome: function(aTag, aShow)
@@ -31,7 +43,8 @@ var FullScreen =
     var i;
     for (i = 0; i < els.length; ++i) {
       // XXX don't interfere with previously collapsed toolbars
-      if (els[i].getAttribute("fullscreentoolbar") == "true") {
+      if (els[i].getAttribute("fullscreentoolbar") == "true" &&
+          !document.mozFullScreen) {
         if (!aShow) {
           var toolbarMode = els[i].getAttribute("mode");
           if (toolbarMode != "text") {
@@ -54,26 +67,22 @@ var FullScreen =
           els[i].setAttribute("inFullscreen", true);
         }
         else {
-          function restoreAttr(attrName) {
-            var savedAttr = "saved-" + attrName;
-            if (els[i].hasAttribute(savedAttr)) {
-              var savedValue = els[i].getAttribute(savedAttr);
-              els[i].setAttribute(attrName, savedValue);
-              els[i].removeAttribute(savedAttr);
-            }
-          }
-
-          restoreAttr("mode");
-          restoreAttr("iconsize");
-          restoreAttr("context"); // XXX see above
+          this.restoreAttribute(els[i], "mode");
+          this.restoreAttribute(els[i], "iconsize");
+          this.restoreAttribute(els[i], "context"); // XXX see above
 
           els[i].removeAttribute("inFullscreen");
+          els[i].removeAttribute("moz-collapsed");
         }
       } else if (els[i].getAttribute("type") == "menubar") {
-        if (aShow)
-          els[i].removeAttribute("autohide");
-        else
+        if (aShow) {
+          this.restoreAttribute(els[i], "autohide");
+        }
+        else {
+          els[i].setAttribute("saved-autohide",
+                              els[i].getAttribute("autohide"));
           els[i].setAttribute("autohide", "true");
+        }
       } else {
         // use moz-collapsed so it doesn't persist hidden/collapsed,
         // so that new windows don't have missing toolbars
@@ -82,6 +91,16 @@ var FullScreen =
         else
           els[i].setAttribute("moz-collapsed", "true");
       }
+    }
+  },
+
+  restoreAttribute: function(element, attributeName)
+  {
+    var savedAttribute = "saved-" + attributeName;
+    if (element.hasAttribute(savedAttribute)) {
+      var savedValue = element.getAttribute(savedAttribute);
+      element.setAttribute(attributeName, savedValue);
+      element.removeAttribute(savedAttribute);
     }
   }
 

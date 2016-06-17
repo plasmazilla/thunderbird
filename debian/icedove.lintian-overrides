@@ -3,9 +3,10 @@ icedove: embedded-library usr/lib/icedove/libxul.so: libjpeg
 # Upstream code is not ready to use system library
 icedove: embedded-library usr/lib/icedove/libxul.so: srtp
 icedove: embedded-library usr/lib/icedove/libxul.so: libtheora
-# we use internal librarys due to old version in wheezy
-icedove: embedded-library usr/lib/icedove/libnspr4.so: nspr
-icedove: embedded-library usr/lib/icedove/libnssutil3.so: nspr
-icedove: embedded-library usr/lib/icedove/libnss3.so: nss
 # The embedded libpng is patched for APNG support
 icedove: embedded-library usr/lib/icedove/libxul.so: libpng
+# we use internal librarys due to old version in jessie
+icedove: embedded-library usr/lib/icedove/libnss3.so: nss
+icedove: embedded-library usr/lib/icedove/libnspr4.so: nspr
+icedove: embedded-library usr/lib/icedove/libnssutil3.so: nspr
+icedove: embedded-library usr/lib/icedove/libmozsqlite3.so: sqlite

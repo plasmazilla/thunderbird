@@ -51,6 +51,12 @@ static int MimePgpe_eof (void *, bool);
 static char* MimePgpe_generate (void *);
 static void MimePgpe_free (void *);
 
+/* Returns a string describing the location of the part (like "2.5.3").
+   This is not a full URL, just a part-number.
+ */
+static nsCString determineMimePart(MimeObject* obj);
+
+
 #define PGPMIME_PROPERTIES_URL        "chrome://messenger/locale/pgpmime.properties"
 #define PGPMIME_STR_NOT_SUPPORTED_ID  "pgpMimeNeedsAddon"
 #define PGPMIME_URL_PREF              "mail.pgpmime.addon_url"
@@ -91,10 +97,11 @@ static void PgpMimeGetNeedsAddonString(nsCString &aResult)
 static int
 MimeEncryptedPgpClassInitialize(MimeEncryptedPgpClass *clazz)
 {
-  MimeObjectClass    *oclass = (MimeObjectClass *)    clazz;
+  mozilla::DebugOnly<MimeObjectClass *> oclass = (MimeObjectClass *) clazz;
+  NS_ASSERTION(!oclass->class_initialized, "oclass is not initialized");
+
   MimeEncryptedClass *eclass = (MimeEncryptedClass *) clazz;
 
-  NS_ASSERTION(!oclass->class_initialized, "oclass is not initialized");
   eclass->crypto_init          = MimePgpe_init;
   eclass->crypto_write         = MimePgpe_write;
   eclass->crypto_eof           = MimePgpe_eof;
@@ -161,6 +168,12 @@ MimePgpe_init(MimeObject *obj,
   if (NS_FAILED(rv))
     return nullptr;
 
+  nsCString mimePart = determineMimePart(obj);
+
+  rv = data->mimeDecrypt->SetMimePart(mimePart);
+  if (NS_FAILED(rv))
+    return nullptr;
+
   mime_stream_data *msd = (mime_stream_data *) (data->self->options->stream_closure);
   nsIChannel *channel = msd->channel;
 
@@ -217,6 +230,38 @@ MimePgpe_generate(void *output_closure)
 static void
 MimePgpe_free(void *output_closure)
 {
+}
+
+/* Returns a string describing the location of the part (like "2.5.3").
+   This is not a full URL, just a part-number.
+ */
+static nsCString
+determineMimePart(MimeObject* obj)
+{
+  char mimePartNum[20];
+  MimeObject *kid;
+  MimeContainer *cont;
+  int32_t i;
+
+  nsCString mimePart;
+
+  while (obj->parent) {
+    cont = (MimeContainer *) obj->parent;
+    for (i = 0; i < cont->nchildren; i++) {
+      kid = cont->children[i];
+      if (kid == obj) {
+        sprintf(mimePartNum, ".%d", i + 1);
+        mimePart.Insert(mimePartNum, 0);
+      }
+    }
+    obj = obj->parent;
+  }
+
+  // remove leading "."
+  if (mimePart.Length() > 0)
+    mimePart.Cut(0, 1);
+
+  return mimePart;
 }
 
 
@@ -361,6 +406,21 @@ nsPgpMimeProxy::SetContentType(const nsACString &aContentType)
 {
   mContentType = aContentType;
 
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsPgpMimeProxy::GetMimePart(nsACString &aMimePart)
+{
+  aMimePart = mMimePart;
+  return NS_OK;
+}
+
+
+NS_IMETHODIMP
+nsPgpMimeProxy::SetMimePart(const nsACString &aMimePart)
+{
+  mMimePart = aMimePart;
   return NS_OK;
 }
 

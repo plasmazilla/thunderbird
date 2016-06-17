@@ -7,13 +7,13 @@
  */
 var EXPORTED_SYMBOLS = ["OAuth2"];
 
-const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 
 Cu.import("resource:///modules/Services.jsm");
 Cu.import("resource:///modules/XPCOMUtils.jsm");
 Cu.import("resource:///modules/gloda/log4moz.js");
 
-let httpRequest = (function() {
+var httpRequest = (function() {
   let scope = {};
   try {
     // Thunderbird 25+
@@ -118,7 +118,7 @@ OAuth2.prototype = {
         Array.prototype.push.apply(params, this.extraAuthParams);
 
         // Now map the parameters to a string
-        params = params.map(function([k,v]) k + "=" + encodeURIComponent(v)).join("&");
+        params = params.map(function([k, v]) { return k + "=" + encodeURIComponent(v); }).join("&");
 
         this._browserRequest = {
             account: this,

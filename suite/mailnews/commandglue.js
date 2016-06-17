@@ -487,11 +487,11 @@ function SetNewsFolderColumns()
   var sizeColumn = document.getElementById("sizeCol");
 
   if (gDBView.usingLines) {
-     sizeColumn.setAttribute("tooltiptext",gMessengerBundle.getString("linesColumnTooltip"));
+     sizeColumn.setAttribute("tooltiptext",gMessengerBundle.getString("linesColumnTooltip2"));
      sizeColumn.setAttribute("label",gMessengerBundle.getString("linesColumnHeader"));
   }
   else {
-     sizeColumn.setAttribute("tooltiptext", gMessengerBundle.getString("sizeColumnTooltip"));
+     sizeColumn.setAttribute("tooltiptext", gMessengerBundle.getString("sizeColumnTooltip2"));
      sizeColumn.setAttribute("label", gMessengerBundle.getString("sizeColumnHeader"));
   }
 }
@@ -980,7 +980,7 @@ function setupXFVirtualFolderSearch(folderUrisToSearch, searchTerms, searchOnlin
 
     var termsArray = searchTerms.QueryInterface(Components.interfaces.nsISupportsArray);
     const nsIMsgSearchTerm = Components.interfaces.nsIMsgSearchTerm;
-    for each (let term in fixIterator(termsArray, nsIMsgSearchTerm)) {
+    for (let term in fixIterator(termsArray, nsIMsgSearchTerm)) {
       gSearchSession.appendTerm(term);
     }
 }

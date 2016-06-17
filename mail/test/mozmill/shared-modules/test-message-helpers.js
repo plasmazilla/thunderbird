@@ -6,14 +6,14 @@
  * Helpers to deal with message (nsIMsgDBHdr) parsing.
  */
 
-const MODULE_NAME = "message-helpers";
+var MODULE_NAME = "message-helpers";
 
 var frame = {};
 Cu.import('resource://mozmill/modules/frame.js', frame);
 var utils = {};
 Cu.import('resource://mozmill/modules/utils.js', utils);
 
-Cu.import("resource://app/modules/gloda/mimemsg.js");
+Cu.import("resource:///modules/gloda/mimemsg.js");
 
 function installInto(module) {
   module.to_mime_message = to_mime_message;
@@ -41,5 +41,5 @@ function to_mime_message(aMsgHdr, aCallbackThis, aCallback, aAllowDownload, aOpt
         called = true;
       }
     }, aAllowDownload, aOptions);
-  utils.waitFor(function () called, "Timeout waiting for message to be parsed");
+  utils.waitFor(() => called, "Timeout waiting for message to be parsed");
 }

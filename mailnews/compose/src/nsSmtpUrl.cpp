@@ -484,6 +484,11 @@ NS_IMETHODIMP nsMailtoUrl::GetAsciiHost(nsACString &aHostA)
 	return m_baseURL->GetAsciiHost(aHostA);
 }
 
+NS_IMETHODIMP nsMailtoUrl::GetAsciiHostPort(nsACString &aHostPortA)
+{
+	return m_baseURL->GetAsciiHostPort(aHostPortA);
+}
+
 NS_IMETHODIMP nsMailtoUrl::GetAsciiSpec(nsACString &aSpecA)
 {
 	return m_baseURL->GetAsciiSpec(aSpecA);
@@ -514,7 +519,7 @@ NS_IMETHODIMP nsMailtoUrl::Clone(nsIURI **_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
 
-  nsRefPtr<nsMailtoUrl> clone = new nsMailtoUrl();
+  RefPtr<nsMailtoUrl> clone = new nsMailtoUrl();
 
   NS_ENSURE_TRUE(clone, NS_ERROR_OUT_OF_MEMORY);
 

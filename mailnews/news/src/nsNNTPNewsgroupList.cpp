@@ -18,6 +18,7 @@
 #include "nsINewsDatabase.h"
 #include "nsIMsgStatusFeedback.h"
 #include "nsCOMPtr.h"
+#include "nsPIDOMWindow.h"
 #include "nsIDOMWindow.h"
 #include "nsIMsgMailNewsUrl.h"
 #include "nsIMsgAccountManager.h"
@@ -225,8 +226,11 @@ openWindow(nsIMsgWindow *aMsgWindow, const char *chromeURL,
   if (NS_FAILED(rv))
       return rv;
 
-  nsCOMPtr<nsIDOMWindow> parentWindow(do_GetInterface(docShell));
+  nsCOMPtr<nsIDOMWindow> domWindow(do_GetInterface(docShell));
+  nsCOMPtr<nsPIDOMWindow> parentWindow(do_QueryInterface(domWindow));
   NS_ENSURE_TRUE(parentWindow, NS_ERROR_FAILURE);
+  parentWindow = parentWindow->GetOuterWindow();
+  NS_ENSURE_ARG_POINTER(parentWindow);
 
   nsCOMPtr<nsISupportsInterfacePointer> ifptr = do_CreateInstance(NS_SUPPORTS_INTERFACE_POINTER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -746,7 +750,6 @@ nsNNTPNewsgroupList::ProcessXOVERLINE(const char *line, uint32_t *status)
 {
   uint32_t message_number=0;
   //  int32_t lines;
-  bool read_p = false;
   nsresult rv = NS_OK;
 
   NS_ASSERTION(line, "null ptr");
@@ -799,7 +802,7 @@ nsNNTPNewsgroupList::ProcessXOVERLINE(const char *line, uint32_t *status)
     m_firstMsgNumber = message_number;
 
   if (m_set) {
-    read_p = m_set->IsMember(message_number);
+    (void) m_set->IsMember(message_number);
   }
 
   /* Update the progress meter with a percentage of articles retrieved */

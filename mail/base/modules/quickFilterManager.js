@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["QuickFilterState", "QuickFilterManager",
+this.EXPORTED_SYMBOLS = ["QuickFilterState", "QuickFilterManager",
                           "MessageTextFilter", "QuickFilterSearchListener"];
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
 
 Cu.import("resource://gre/modules/PluralForm.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -17,12 +17,12 @@ Cu.import("resource:///modules/errUtils.js");
 Cu.import("resource:///modules/mailServices.js");
 Cu.import("resource:///modules/searchSpec.js");
 
-const Application = Cc["@mozilla.org/steel/application;1"]
+var Application = Cc["@mozilla.org/steel/application;1"]
                       .getService(Ci.steelIApplication);
 
-const nsMsgSearchAttrib = Components.interfaces.nsMsgSearchAttrib;
-const nsMsgMessageFlags = Components.interfaces.nsMsgMessageFlags;
-const nsMsgSearchOp = Components.interfaces.nsMsgSearchOp;
+var nsMsgSearchAttrib = Components.interfaces.nsMsgSearchAttrib;
+var nsMsgMessageFlags = Components.interfaces.nsMsgMessageFlags;
+var nsMsgSearchOp = Components.interfaces.nsMsgSearchOp;
 
 // XXX we need to know whether the gloda indexer is enabled for upsell reasons,
 // but this should really just be exposed on the main Gloda public interface.
@@ -36,8 +36,8 @@ Cu.import("resource:///modules/gloda/msg_search.js");
  */
 function shallowObjCopy(obj) {
   let newObj = {};
-  for each (let [key, value] in Iterator(obj)) {
-    newObj[key] = value;
+  for (let key in obj) {
+    newObj[key] = obj[key];
   }
   return newObj;
 }
@@ -49,7 +49,7 @@ function shallowObjCopy(obj) {
  *  additional 3-panes will likely trigger this unless we go out of our way to
  *  implement propagation across those boundaries (and we're not).
  */
-const FILTER_VISIBILITY_DEFAULT = true;
+var FILTER_VISIBILITY_DEFAULT = true;
 
 /**
  * Represents the state of a quick filter bar.  This mainly decorates the
@@ -298,7 +298,7 @@ QuickFilterSearchListener.prototype = {
  * will want to do is register a normal filter and collapse the normal text
  * filter text-box.  You add your own text box, etc.
  */
-let QuickFilterManager = {
+var QuickFilterManager = {
   /**
    * List of filter definitions, potentially prioritized.
    */
@@ -423,7 +423,7 @@ let QuickFilterManager = {
     let values = {};
     let sticky = ("sticky" in aTemplValues) ? aTemplValues.sticky : false;
 
-    for each (let [, filterDef] in Iterator(this.filterDefs)) {
+    for (let filterDef of this.filterDefs) {
       if ("propagateState" in filterDef) {
         let curValue = (filterDef.name in aTemplValues) ?
                          aTemplValues[filterDef.name] : undefined;
@@ -447,7 +447,7 @@ let QuickFilterManager = {
    */
   getDefaultValues: function MFM_getDefaultValues() {
     let values = {};
-    for each (let [, filterDef] in Iterator(this.filterDefs)) {
+    for (let filterDef of this.filterDefs) {
       if ("getDefaults" in filterDef) {
         let newValue = filterDef.getDefaults();
         if (newValue != null)
@@ -492,7 +492,7 @@ let QuickFilterManager = {
    */
   clearAllFilterValues: function MFM_clearFilterValues(aFilterValues) {
     let didClearSomething = false;
-    for each (let [, filterDef] in Iterator(this.filterDefs)) {
+    for (let filterDef of this.filterDefs) {
       if (this.clearFilterValue(filterDef.name, aFilterValues))
         didClearSomething = true;
     }
@@ -508,7 +508,8 @@ let QuickFilterManager = {
   createSearchTerms: function MFM_createSearchTerms(aFilterValues,
                                                     aTermCreator) {
     let searchTerms = [], listeners = [];
-    for each (let [filterName, filterValue] in Iterator(aFilterValues)) {
+    for (let filterName in aFilterValues) {
+      let filterValue = aFilterValues[filterName];
       let filterDef = this.filterDefsByName[filterName];
       try {
         let listener =
@@ -627,7 +628,7 @@ QuickFilterManager.defineFilter({
  *    meaning don't constraint, true meaning yes should be present, false
  *    meaning no, don't be present
  */
-let TagFacetingFilter = {
+var TagFacetingFilter = {
   name: "tags",
   domId: "qfb-tags",
 
@@ -641,7 +642,8 @@ let TagFacetingFilter = {
       return true;
     // but also if the object contains no non-null values
     let simpleCase = true;
-    for each (let [key, value] in Iterator(aFilterValue.tags)) {
+    for (let key in aFilterValue.tags) {
+      let value = aFilterValue.tags[key];
       if (value !== null) {
         simpleCase = false;
         break;
@@ -688,7 +690,8 @@ let TagFacetingFilter = {
       let excludeTerms = [];
 
       let mode = aFilterValue.mode;
-      for each (let [key, shouldFilter] in Iterator(aFilterValue.tags)) {
+      for (let key in aFilterValue.tags) {
+        let shouldFilter = aFilterValue.tags[key];
         if (shouldFilter !== null) {
           term = aTermCreator.createTerm();
           term.attrib = Components.interfaces.nsMsgSearchAttrib.Keywords;
@@ -939,7 +942,7 @@ QuickFilterManager.defineFilter({
  * Our state looks like {text: "", states: {a: true, b: false}} where a and b
  * are text filters.
  */
-let MessageTextFilter = {
+var MessageTextFilter = {
   name: "text",
   domId: "qfb-qs-textbox",
   /**
@@ -1036,8 +1039,8 @@ let MessageTextFilter = {
   },
   getDefaults: function() {
     let states = {};
-    for each (let [name, value] in Iterator(this._defaultStates)) {
-      states[name] = value;
+    for (let name in this._defaultStates) {
+      states[name] = this._defaultStates[name];
     }
     return {
       text: null,
@@ -1106,7 +1109,8 @@ let MessageTextFilter = {
       aMuxer.updateSearch();
     }
 
-    for each (let [, textFilter] in Iterator(this.textFilterDefs)) {
+    for (let name in this.textFilterDefs) {
+      let textFilter  = this.textFilterDefs[name];
       aDocument.getElementById(textFilter.domId).addEventListener(
         "command", commandHandler, false);
     }
@@ -1171,7 +1175,8 @@ let MessageTextFilter = {
 
     // Update our expando buttons
     let states = aFilterValue.states;
-    for each (let [, textFilter] in Iterator(this.textFilterDefs)) {
+    for (let name in this.textFilterDefs) {
+      let textFilter  = this.textFilterDefs[name];
       aDocument.getElementById(textFilter.domId).checked =
         states[textFilter.name];
     }

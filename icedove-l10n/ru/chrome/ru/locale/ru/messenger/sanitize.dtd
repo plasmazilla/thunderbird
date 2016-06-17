@@ -1,0 +1,23 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY sanitizeDialog2.title "Стирание недавней истории">
+<!ENTITY clearTimeDuration.label "Очистить:">
+<!ENTITY clearTimeDuration.accesskey "и">
+<!ENTITY clearTimeDuration.lastHour "За последний час">
+<!ENTITY clearTimeDuration.last2Hours "За последние два часа">
+<!ENTITY clearTimeDuration.last4Hours "За последние четыре часа">
+<!ENTITY clearTimeDuration.today "За сегодня">
+<!ENTITY clearTimeDuration.everything "Всё">
+<!ENTITY clearTimeDuration.suffix "">
+<!ENTITY detailsProgressiveDisclosure.label "Подробности">
+<!ENTITY detailsProgressiveDisclosure.accesskey "о">
+<!ENTITY itemHistory.label "Журнал посещений">
+<!ENTITY itemHistory.accesskey "н">
+<!ENTITY itemCookies.label "Куки">
+<!ENTITY itemCookies.accesskey "к">
+<!ENTITY itemCache.label "Кэш">
+<!ENTITY itemCache.accesskey "ш">
+<!ENTITY sanitizeEverythingUndoWarning "Это действие не может быть отменено.">
+<!ENTITY dialog.width "28em">

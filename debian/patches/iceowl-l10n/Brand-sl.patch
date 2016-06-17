@@ -1,0 +1,37 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sat, 6 Jun 2015 18:19:15 +0200
+Subject: Brand-sl
+
+---
+ iceowl-l10n/sl/locale/sl/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/sl/locale/sl/lightning/lightning.properties b/iceowl-l10n/sl/locale/sl/lightning/lightning.properties
+index ef90fd4..85e846a 100644
+--- a/iceowl-l10n/sl/locale/sl/lightning/lightning.properties
++++ b/iceowl-l10n/sl/locale/sl/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Vgrajeni koledar za Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Vgrajeni koledar za Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Projekt Mozilla Calendar
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Opravila
+@@ -122,7 +122,7 @@ imipBarUpdateText=To sporočilo vsebuje posodobitev obstoječega dogodka.
+ imipBarAlreadyProcessedText=To sporočilo vsebuje dogodek, ki je že obdelan.
+ imipBarProcessedNeedsAction=To sporočilo vsebuje dogodek, na katerega še niste odgovorili.
+ imipBarReplyText=To sporočilo vsebuje odgovor na povabilo.
+-imipBarUnsupportedText=To sporočilo vsebuje dogodek, ki ga ta različica dodatka Lightning ne zmore obdelati.
++imipBarUnsupportedText=To sporočilo vsebuje dogodek, ki ga ta različica dodatka Iceowl ne zmore obdelati.
+ imipBarProcessingFailed=Obdelava sporočila ni uspela. Stanje: %1$S.
+ imipBarNotWritable=Noben zapisljiv koledar ni nastavljen za povabila, preverite lastnosti koledarja.
+ imipSendMail.title=Obvesti udeležence

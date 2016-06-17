@@ -4,10 +4,11 @@
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource:///modules/ABQueryUtils.jsm");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
-const ACR = Components.interfaces.nsIAutoCompleteResult;
-const nsIAbAutoCompleteResult = Components.interfaces.nsIAbAutoCompleteResult;
+var ACR = Components.interfaces.nsIAutoCompleteResult;
+var nsIAbAutoCompleteResult = Components.interfaces.nsIAbAutoCompleteResult;
 
 function nsAbAutoCompleteResult(aSearchString) {
   // Can't create this in the prototype as we'd get the same array for
@@ -15,6 +16,11 @@ function nsAbAutoCompleteResult(aSearchString) {
   this._searchResults = []; // final results
   this.searchString = aSearchString;
   this._collectedValues = new Map();  // temporary unsorted results
+  // Get model query from pref; this will return mail.addr_book.autocompletequery.format.phonetic
+  // if mail.addr_book.show_phonetic_fields == true
+  this.modelQuery = getModelQuery("mail.addr_book.autocompletequery.format");
+  // check if the currently active model query has been modified by user
+  this._modelQueryHasUserValue = modelQueryHasUserValue("mail.addr_book.autocompletequery.format");
 }
 
 nsAbAutoCompleteResult.prototype = {
@@ -22,6 +28,7 @@ nsAbAutoCompleteResult.prototype = {
 
   // nsIAutoCompleteResult
 
+  modelQuery: null,
   searchString: null,
   searchResult: ACR.RESULT_NOMATCH,
   defaultIndex: -1,
@@ -210,8 +217,9 @@ nsAbAutoCompleteSearch.prototype = {
   },
 
   /**
-   * Checks a card against the search parameters to see if it should be
-   * included in the result.
+   * Checks the parent card and email address of an autocomplete results entry
+   * from a previous result against the search parameters to see if that entry
+   * should still be included in the narrowed-down result.
    *
    * @param aCard        The card to check.
    * @param aEmailToUse  The email address to check against.
@@ -224,6 +232,11 @@ nsAbAutoCompleteSearch.prototype = {
     // search query can be fired on all of them at once. Separating them
     // using spaces so that field1=> "abc" and field2=> "def" on joining
     // shouldn't return true on search for "bcd".
+    // Note: This should be constructed from model query pref using
+    // getModelQuery("mail.addr_book.autocompletequery.format")
+    // but for now we hard-code the default value equivalent of the pref here
+    // or else bail out before and reconstruct the full c++ query if the pref
+    // has been customized (modelQueryHasUserValue), so that we won't get here.
     let cumulativeFieldText = aCard.displayName + " " +
                               aCard.firstName + " " +
                               aCard.lastName + " " +
@@ -233,7 +246,7 @@ nsAbAutoCompleteSearch.prototype = {
       cumulativeFieldText += " " + aCard.getProperty("Notes", "");
     cumulativeFieldText = cumulativeFieldText.toLocaleLowerCase();
 
-    return aSearchWords.every(String.prototype.contains,
+    return aSearchWords.every(String.prototype.includes,
                               cumulativeFieldText);
   },
 
@@ -335,7 +348,7 @@ nsAbAutoCompleteSearch.prototype = {
     // result ignored.
     // The comma check is so that we don't autocomplete against the user
     // entering multiple addresses.
-    if (!fullString || aSearchString.contains(",")) {
+    if (!fullString || aSearchString.includes(",")) {
       result.searchResult = ACR.RESULT_IGNORED;
       aListener.onSearchResult(this, result);
       return;
@@ -353,9 +366,20 @@ nsAbAutoCompleteSearch.prototype = {
 
     if (aPreviousResult instanceof nsIAbAutoCompleteResult &&
         aSearchString.startsWith(aPreviousResult.searchString) &&
-        aPreviousResult.searchResult == ACR.RESULT_SUCCESS) {
-      // We have successful previous matches, therefore iterate through the
-      // list and reduce as appropriate
+        aPreviousResult.searchResult == ACR.RESULT_SUCCESS &&
+        !result._modelQueryHasUserValue &&
+        result.modelQuery == aPreviousResult.modelQuery) {
+      // We have successful previous matches, and model query has not changed since
+      // previous search, therefore just iterate through the list of previous result
+      // entries and reduce as appropriate (via _checkEntry function).
+      // Test for model query change is required: when reverting back from custom to
+      // default query, result._modelQueryHasUserValue==false, but we must bail out.
+      // Todo: However, if autocomplete model query has been customized, we fall
+      // back to using the full query again instead of reducing result list in js;
+      // The full query might be less performant as it's fired against entire AB,
+      // so we should try morphing the query for js. We can't use the _checkEntry
+      // js query yet because it is hardcoded (mimic default model query).
+      // At least we now allow users to customize their autocomplete model query...
       for (let i = 0; i < aPreviousResult.matchCount; ++i) {
         let card = aPreviousResult.getCardAt(i);
         let email = aPreviousResult.getEmailToUse(i);
@@ -377,20 +401,17 @@ nsAbAutoCompleteSearch.prototype = {
     }
     else
     {
-      // Construct the search query; using a query means we can optimise
-      // on running the search through c++ which is better for string
+      // Construct the search query from pref; using a query means we can
+      // optimise on running the search through c++ which is better for string
       // comparisons (_checkEntry is relatively slow).
       // When user's fullstring search expression is a multiword query, search
       // for each word separately so that each result contains all the words
       // from the fullstring in the fields of the addressbook card
       // (see bug 558931 for explanations).
-      let modelQuery = "(or(DisplayName,c,@V)(FirstName,c,@V)(LastName,c,@V)" +
-                       "(NickName,c,@V)(PrimaryEmail,c,@V)(SecondEmail,c,@V)" +
-                       "(and(IsMailList,=,TRUE)(Notes,c,@V)))";
       // Use helper method to split up search query to multi-word search
       // query against multiple fields.
       let searchWords = getSearchTokens(fullString);
-      let searchQuery = generateQueryURI(modelQuery, searchWords);
+      let searchQuery = generateQueryURI(result.modelQuery, searchWords);
 
       // Now do the searching
       let allABs = this._abManager.directories;
@@ -439,90 +460,7 @@ nsAbAutoCompleteSearch.prototype = {
                                                    .nsIAutoCompleteSearch])
 };
 
-/**
- * Encode the string passed as value into an addressbook search term.
- * The '(' and ')' characters are special for the addressbook
- * search query language, but are not escaped in encodeURIComponent()
- * so it must be done manually on top of it.
- */
-function encodeABTermValue(aString) {
-  return encodeURIComponent(aString).replace(/\(/g, "%28").replace(/\)/g, "%29");
-}
-
-/**
- * This is an exact replica of the method in abCommon.js and needs to
- * be merged to remove this duplication.
- *
- * Parse the multiword search string to extract individual search terms
- * (separated on the basis of spaces) or quoted exact phrases to search
- * against multiple fields of the addressbook cards.
- *
- * @param aSearchString The full search string entered by the user.
- *
- * @return  an array of separated search terms from the full search string.
- */
-function getSearchTokens(aSearchString)
-{
-  let searchString = aSearchString.trim();
-
-  if (searchString == "")
-    return [];
-
-  let quotedTerms = [];
-
-  // Split up multiple search words to create a *foo* and *bar* search against
-  // search fields, using the OR-search template from modelQuery for each word.
-  // If the search query has quoted terms as "foo bar", extract them as is.
-  let startIndex;
-  while ((startIndex = searchString.indexOf('"')) != -1) {
-    let endIndex = searchString.indexOf('"', startIndex + 1);
-    if (endIndex == -1)
-      endIndex = searchString.length;
-
-    quotedTerms.push(searchString.substring(startIndex + 1, endIndex));
-    let query = searchString.substring(0, startIndex);
-    if (endIndex < searchString.length)
-      query += searchString.substr(endIndex + 1);
-
-    searchString = query.trim();
-  }
-
-  let searchWords = [];
-  if (searchString.length != 0) {
-    searchWords = quotedTerms.concat(searchString.split(/\s+/));
-  } else {
-    searchWords = quotedTerms;
-  }
-
-  return searchWords;
-}
-
-/*
- * Given a database model query and a list of search tokens,
- * return query URI.
- *
- * @param aModelQuery database model query
- * @param aSearchWords an array of search tokens.
- *
- * @return query URI.
- */
-function generateQueryURI(aModelQuery, aSearchWords)
-{
-  // If there are no search tokens, we simply return an empty string.
-  if (!aSearchWords || aSearchWords.length == 0)
-    return "";
-
-  let queryURI = "";
-  aSearchWords.forEach(searchWord =>
-    queryURI += aModelQuery.replace(/@V/g, encodeABTermValue(searchWord)));
-
-  // queryURI has all the (or(...)) searches, link them up with (and(...)).
-  queryURI = "?(and" + queryURI + ")";
-
-  return queryURI;
-}
-
 // Module
 
 var components = [nsAbAutoCompleteSearch];
-const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

@@ -8,7 +8,7 @@
 */
 
 #include "prprf.h"
-#include "prlog.h"
+#include "mozilla/Logging.h"
 #include "msgCore.h"
 #include "nsMsgMaildirStore.h"
 #include "nsIMsgFolder.h"
@@ -246,7 +246,7 @@ NS_IMETHODIMP nsMsgMaildirStore::CreateFolder(nsIMsgFolder *aParent,
     }
     else
     {
-      PR_LOG(MailDirLog, PR_LOG_ALWAYS,
+      MOZ_LOG(MailDirLog, mozilla::LogLevel::Info,
             ("CreateFolder - failed creating db for new folder\n"));
       path->Remove(true); // recursive
       rv = NS_MSG_CANT_CREATE_FOLDER;
@@ -611,7 +611,7 @@ nsMsgMaildirStore::GetNewMsgOutputStream(nsIMsgFolder *aFolder,
   bool exists;
   newFile->Exists(&exists);
   if (!exists) {
-    PR_LOG(MailDirLog, PR_LOG_ALWAYS,
+    MOZ_LOG(MailDirLog, mozilla::LogLevel::Info,
            ("GetNewMsgOutputStream - tmp subfolder does not exist!!\n"));
     rv = newFile->Create(nsIFile::DIRECTORY_TYPE, 0755);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -847,8 +847,16 @@ nsMsgMaildirStore::MoveNewlyDownloadedMessage(nsIMsgDBHdr *aHdr,
   if (notifier)
     notifier->NotifyMsgAdded(newHdr);
 
-  if (movedMsgIsNew)
+  if (movedMsgIsNew) {
     aDestFolder->SetHasNewMessages(true);
+
+    // Notify the message was moved.
+    if (notifier) {
+      notifier->NotifyItemEvent(folder,
+                                NS_LITERAL_CSTRING("UnincorporatedMessageMoved"),
+                                newHdr);
+    }
+  }
 
   nsCOMPtr<nsIMsgDatabase> sourceDB;
   rv = folder->GetMsgDatabase(getter_AddRefs(sourceDB));
@@ -884,7 +892,7 @@ nsMsgMaildirStore::GetMsgInputStream(nsIMsgFolder *aMsgFolder,
 
   if (aMsgToken.IsEmpty())
   {
-    PR_LOG(MailDirLog, PR_LOG_ALWAYS,
+    MOZ_LOG(MailDirLog, mozilla::LogLevel::Info,
            ("GetMsgInputStream - empty storeToken!!\n"));
     return NS_ERROR_FAILURE;
   }
@@ -895,7 +903,7 @@ nsMsgMaildirStore::GetMsgInputStream(nsIMsgFolder *aMsgFolder,
   bool exists;
   path->Exists(&exists);
   if (!exists) {
-    PR_LOG(MailDirLog, PR_LOG_ALWAYS,
+    MOZ_LOG(MailDirLog, mozilla::LogLevel::Info,
            ("GetMsgInputStream - oops! cur subfolder does not exist!\n"));
     rv = path->Create(nsIFile::DIRECTORY_TYPE, 0755);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -926,7 +934,7 @@ NS_IMETHODIMP nsMsgMaildirStore::DeleteMessages(nsIArray *aHdrArray)
 
     if (fileName.IsEmpty())
     {
-      PR_LOG(MailDirLog, PR_LOG_ALWAYS,
+      MOZ_LOG(MailDirLog, mozilla::LogLevel::Info,
              ("DeleteMessages - empty storeToken!!\n"));
       // Perhaps an offline store has not downloaded this particular message.
       continue;
@@ -940,7 +948,7 @@ NS_IMETHODIMP nsMsgMaildirStore::DeleteMessages(nsIArray *aHdrArray)
     path->Exists(&exists);
     if (!exists)
     {
-      PR_LOG(MailDirLog, PR_LOG_ALWAYS,
+      MOZ_LOG(MailDirLog, mozilla::LogLevel::Info,
              ("DeleteMessages - file does not exist !!\n"));
       // Perhaps an offline store has not downloaded this particular message.
       continue;
@@ -1012,7 +1020,7 @@ nsMsgMaildirStore::CopyMessages(bool aIsMove, nsIArray *aHdrArray,
 
   nsCOMPtr<nsIMsgDatabase> srcDB;
   srcFolder->GetMsgDatabase(getter_AddRefs(srcDB));
-  nsRefPtr<nsLocalMoveCopyMsgTxn> msgTxn = new nsLocalMoveCopyMsgTxn;
+  RefPtr<nsLocalMoveCopyMsgTxn> msgTxn = new nsLocalMoveCopyMsgTxn;
   NS_ENSURE_TRUE(msgTxn, NS_ERROR_OUT_OF_MEMORY);
   if (NS_SUCCEEDED(msgTxn->Init(srcFolder, aDstFolder, aIsMove)))
   {
@@ -1036,7 +1044,7 @@ nsMsgMaildirStore::CopyMessages(bool aIsMove, nsIArray *aHdrArray,
     nsCOMPtr<nsIMsgDBHdr> srcHdr = do_QueryElementAt(aHdrArray, i, &rv);
     if (NS_FAILED(rv))
     {
-      PR_LOG(MailDirLog, PR_LOG_ALWAYS,
+      MOZ_LOG(MailDirLog, mozilla::LogLevel::Info,
              ("srcHdr null\n"));
       continue;
     }
@@ -1047,7 +1055,7 @@ nsMsgMaildirStore::CopyMessages(bool aIsMove, nsIArray *aHdrArray,
     srcHdr->GetStringProperty("storeToken", getter_Copies(fileName));
     if (fileName.IsEmpty())
     {
-      PR_LOG(MailDirLog, PR_LOG_ALWAYS,
+      MOZ_LOG(MailDirLog, mozilla::LogLevel::Info,
              ("GetMsgInputStream - empty storeToken!!\n"));
       return NS_ERROR_FAILURE;
     }
@@ -1287,6 +1295,7 @@ NS_IMETHODIMP nsMsgMaildirStore::RebuildIndex(nsIMsgFolder *aFolder,
                                                           aListener);
   NS_ENSURE_TRUE(fileParser, NS_ERROR_OUT_OF_MEMORY);
   fileParser->StartTimer();
+  ResetForceReparse(aMsgDB);
   return NS_OK;
 }
 

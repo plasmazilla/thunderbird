@@ -667,7 +667,7 @@ mime_insert_all_headers(char            **body,
   MimeGetForwardHeaderDelimiter(replyHeader);
   if (htmlEdit)
   {
-    NS_MsgSACopy(&(newBody), "<HTML><BODY><BR><BR>");
+    NS_MsgSACopy(&(newBody), MIME_FORWARD_HTML_PREFIX);
     NS_MsgSACat(&newBody, replyHeader.get());
     NS_MsgSACat(&newBody, MIME_HEADER_TABLE);
   }
@@ -811,7 +811,7 @@ mime_insert_normal_headers(char             **body,
   MimeGetForwardHeaderDelimiter(replyHeader);
   if (htmlEdit)
   {
-    NS_MsgSACopy(&(newBody), "<HTML><BODY><BR><BR>");
+    NS_MsgSACopy(&(newBody), MIME_FORWARD_HTML_PREFIX);
     NS_MsgSACat(&newBody, replyHeader.get());
     NS_MsgSACat(&newBody, MIME_HEADER_TABLE);
   }
@@ -977,7 +977,7 @@ mime_insert_micro_headers(char            **body,
   MimeGetForwardHeaderDelimiter(replyHeader);
   if (htmlEdit)
   {
-    NS_MsgSACopy(&(newBody), "<HTML><BODY><BR><BR>");
+    NS_MsgSACopy(&(newBody), MIME_FORWARD_HTML_PREFIX);
     NS_MsgSACat(&newBody, replyHeader.get());
     NS_MsgSACat(&newBody, MIME_HEADER_TABLE);
   }
@@ -1448,7 +1448,6 @@ mime_parse_stream_complete (nsMIMESession *stream)
       //
       if (mdd->format_out == nsMimeOutput::nsMimeMessageEditorTemplate)
       {
-        fields->SetDraftId(mdd->url_name);
         MSG_ComposeType msgComposeType = PL_strstr(mdd->url_name,
                                                    "&redirect=true") ?
                                          nsIMsgCompType::Redirect :
@@ -1545,7 +1544,7 @@ mime_parse_stream_complete (nsMIMESession *stream)
 
   delete mdd->messageBody;
 
-  for (int i = 0; i < mdd->attachments.Length(); i++)
+  for (uint32_t i = 0; i < mdd->attachments.Length(); i++)
     mdd->attachments[i]->m_tmpFile = nullptr;
 
   PR_FREEIF(mdd->mailcharset);
@@ -1649,7 +1648,6 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
   //char *hdr_value = NULL;
   char *parm_value = NULL;
   bool creatingMsgBody = true;
-  bool bodyPart = false;
 
   NS_ASSERTION (mdd && headers, "null mime draft data and/or headers");
   if (!mdd || !headers)
@@ -1662,7 +1660,7 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
     if (mdd->curAttachment)
       mdd->curAttachment->m_type.Adopt(MimeHeaders_get(headers,
                                                        HEADER_CONTENT_TYPE,
-                                                       true, false));
+                                                       false, true));
     return 0;
   }
   else
@@ -1692,7 +1690,6 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
       return MIME_OUT_OF_MEMORY;
     newAttachment = mdd->messageBody;
     creatingMsgBody = true;
-    bodyPart = true;
   }
   else
   {
@@ -1810,7 +1807,6 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
 
   // This needs to be done so the attachment structure has a handle
   // on the temp file for this attachment...
-  // if ( (tmpFile) && (!bodyPart) )
   if (tmpFile)
   {
       nsAutoCString fileURL;
@@ -1898,7 +1894,7 @@ mime_decompose_file_output_fn (const char     *buf,
   {
     uint32_t bytesWritten;
     mdd->tmpFileStream->Write(buf, size, &bytesWritten);
-    if (bytesWritten < size)
+    if ((int32_t)bytesWritten < size)
       return MIME_ERROR_WRITING_FILE;
     mdd->curAttachment->m_size += size;
   }

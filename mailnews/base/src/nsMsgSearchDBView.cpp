@@ -75,23 +75,6 @@ NS_IMETHODIMP nsMsgSearchDBView::Open(nsIMsgFolder *folder,
     return rv;
 }
 
-
-PLDHashOperator
-nsMsgSearchDBView::ThreadTableCloner(const nsACString &aKey, nsIMsgThread* aThread, void* aArg)
-{
-  nsMsgSearchDBView* view = static_cast<nsMsgSearchDBView*>(aArg);
-  view->m_threadsTable.Put(aKey, aThread);
-  return PL_DHASH_NEXT;
-}
-
-PLDHashOperator
-nsMsgSearchDBView::MsgHdrTableCloner(const nsACString &aKey, nsIMsgDBHdr* aMsgHdr, void* aArg)
-{
-  nsMsgSearchDBView* view = static_cast<nsMsgSearchDBView*>(aArg);
-  view->m_hdrsTable.Put(aKey, aMsgHdr);
-  return PL_DHASH_NEXT;
-}
-
 NS_IMETHODIMP
 nsMsgSearchDBView::CloneDBView(nsIMessenger *aMessengerInstance, nsIMsgWindow *aMsgWindow, nsIMsgDBViewCommandUpdater *aCmdUpdater, nsIMsgDBView **_retval)
 {
@@ -134,8 +117,12 @@ nsMsgSearchDBView::CopyDBView(nsMsgDBView *aNewMsgDBView, nsIMessenger *aMesseng
   if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay)
   {
     // We need to clone the thread and msg hdr hash tables.
-    m_threadsTable.EnumerateRead(ThreadTableCloner, newMsgDBView);
-    m_hdrsTable.EnumerateRead(MsgHdrTableCloner, newMsgDBView);
+    for (auto iter = m_threadsTable.Iter(); !iter.Done(); iter.Next()) {
+      newMsgDBView->m_threadsTable.Put(iter.Key(), iter.UserData());
+    }
+    for (auto iter = m_hdrsTable.Iter(); !iter.Done(); iter.Next()) {
+      newMsgDBView->m_hdrsTable.Put(iter.Key(), iter.UserData());
+    }
   }
   return NS_OK;
 }
@@ -1094,20 +1081,11 @@ nsresult nsMsgSearchDBView::ProcessRequestsInAllFolders(nsIMsgWindow *window)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgSearchDBView::SetCurCustomColumn(const nsAString& aColID)
-{
-  m_curCustomColumn = aColID;
-  return NS_OK;
-}
-
-NS_IMETHODIMP nsMsgSearchDBView::GetCurCustomColumn(nsAString &result)
-{
-  result = m_curCustomColumn;
-  return NS_OK;
-}
-
 NS_IMETHODIMP nsMsgSearchDBView::Sort(nsMsgViewSortTypeValue sortType, nsMsgViewSortOrderValue sortOrder)
 {
+    if (!m_checkedCustomColumns && CustomColumnsInSortAndNotRegistered())
+      return NS_OK;
+
     int32_t rowCountBeforeSort = GetSize();
 
     if (!rowCountBeforeSort)

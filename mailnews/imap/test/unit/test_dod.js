@@ -81,7 +81,12 @@ function streamMessages() {
       let uri = {};
       imapS.GetUrlForUri("imap-message://user@localhost/INBOX#" + i,uri,null);
       uri.value.spec += "?header=quotebody";
-      let channel = Services.io.newChannelFromURI(uri.value);
+      let channel = Services.io.newChannelFromURI2(uri.value,
+                                                   null,
+                                                   Services.scriptSecurityManager.getSystemPrincipal(),
+                                                   null,
+                                                   Ci.nsILoadInfo.SEC_NORMAL,
+                                                   Ci.nsIContentPolicy.TYPE_OTHER);
       channel.asyncOpen(gStreamListener, null);
       yield false;
       let buf = gStreamListener._data;
@@ -91,7 +96,7 @@ function streamMessages() {
            "##########\nTesting--->" + fileNames[i-1] +
            "; 'prefer plain text': " + isPlain + "\n");
       try {
-        do_check_true(buf.contains(marker));
+        do_check_true(buf.includes(marker));
       }
       catch(e){}
     }
@@ -99,7 +104,7 @@ function streamMessages() {
   yield true;
 }
 
-let gStreamListener = {
+var gStreamListener = {
   QueryInterface : XPCOMUtils.generateQI([Ci.nsIStreamListener]),
   _stream : null,
   _data : null,

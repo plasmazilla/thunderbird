@@ -13,12 +13,12 @@ Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource://testing-common/mailnews/PromiseTestUtils.jsm");
 load("../../../resources/POP3pump.js");
 
-const gFiles = ["../../../data/bugmail1", "../../../data/bugmail10"];
+var gFiles = ["../../../data/bugmail1", "../../../data/bugmail10"];
 
 var gMoveFolder, gMoveFolder2;
 var gFilter; // the test filter
 var gFilterList;
-const gTestArray =
+var gTestArray =
 [
   function createFilters() {
     gFilterList = gPOP3Pump.fakeServer.getFilterList(null);
@@ -52,9 +52,9 @@ const gTestArray =
     let secondMsgHdr = enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
     // Check that the messages have content
     messageContent = getContentFromMessage(firstMsgHdr);
-    do_check_true(messageContent.contains("Some User <bugmail@example.org> changed"));
+    do_check_true(messageContent.includes("Some User <bugmail@example.org> changed"));
     messageContent = getContentFromMessage(secondMsgHdr);
-    do_check_true(messageContent.contains("https://bugzilla.mozilla.org/show_bug.cgi?id=436880"));
+    do_check_true(messageContent.includes("https://bugzilla.mozilla.org/show_bug.cgi?id=436880"));
   },
   function copyMovedMessages() {
     let messages = Cc["@mozilla.org/array;1"].createInstance(Ci.nsIMutableArray);
@@ -78,9 +78,9 @@ const gTestArray =
     let secondMsgHdr = enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
     // Check that the messages have content
     messageContent = getContentFromMessage(firstMsgHdr);
-    do_check_true(messageContent.contains("Some User <bugmail@example.org> changed"));
+    do_check_true(messageContent.includes("Some User <bugmail@example.org> changed"));
     messageContent = getContentFromMessage(secondMsgHdr);
-    do_check_true(messageContent.contains("https://bugzilla.mozilla.org/show_bug.cgi?id=436880"));
+    do_check_true(messageContent.includes("https://bugzilla.mozilla.org/show_bug.cgi?id=436880"));
   },
   function endTest() {
     dump("Exiting mail tests\n");

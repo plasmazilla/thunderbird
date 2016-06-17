@@ -18,6 +18,7 @@
 #include "nsIAuthModule.h"
 #include "nsArrayUtils.h"
 #include "nsMemory.h"
+#include "mozilla/Logging.h"
 
 // Helper function
 static nsresult TranslateLDAPErrorToNSError(const int ldapError)
@@ -48,7 +49,7 @@ static nsresult TranslateLDAPErrorToNSError(const int ldapError)
     return NS_ERROR_LDAP_FILTER_ERROR;
 
   default:
-    PR_LOG(gLDAPLogModule, PR_LOG_ERROR,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Error,
            ("TranslateLDAPErrorToNSError: "
             "Do not know how to translate LDAP error: 0x%x", ldapError));
     return NS_ERROR_UNEXPECTED;
@@ -193,7 +194,7 @@ nsLDAPOperation::SaslBind(const nsACString &service,
   const int lderrno = ldap_sasl_bind(mConnectionHandle, bindName.get(),
                                      mMechanism.get(), &creds, NULL, NULL,
                                      &mMsgID);
-  nsMemory::Free(creds.bv_val);
+  free(creds.bv_val);
 
   if (lderrno != LDAP_SUCCESS)
     return TranslateLDAPErrorToNSError(lderrno);
@@ -236,7 +237,7 @@ nsLDAPOperation::SaslStep(const char *token, uint32_t tokenLen)
                                      mMechanism.get(), &clientCreds, NULL,
                                      NULL, &mMsgID);
 
-  nsMemory::Free(clientCreds.bv_val);
+  free(clientCreds.bv_val);
 
   if (lderrno != LDAP_SUCCESS)
     return TranslateLDAPErrorToNSError(lderrno);
@@ -256,7 +257,7 @@ nsLDAPOperation::SaslStep(const char *token, uint32_t tokenLen)
 NS_IMETHODIMP
 nsLDAPOperation::SimpleBind(const nsACString& passwd)
 {
-    nsRefPtr<nsLDAPConnection> connection = mConnection;
+    RefPtr<nsLDAPConnection> connection = mConnection;
     // There is a possibilty that mConnection can be cleared by another
     // thread. Grabbing a local reference to mConnection may avoid this.
     // See https://bugzilla.mozilla.org/show_bug.cgi?id=557928#c1
@@ -279,13 +280,13 @@ nsLDAPOperation::SimpleBind(const nsACString& passwd)
     if (NS_FAILED(rv))
         return rv;
 
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("nsLDAPOperation::SimpleBind(): called; bindName = '%s'; ",
             bindName.get()));
 
     // this (nsLDAPOperation) may be released by RemovePendingOperation()
     // See https://bugzilla.mozilla.org/show_bug.cgi?id=1063829.
-    nsRefPtr<nsLDAPOperation> kungFuDeathGrip = this;
+    RefPtr<nsLDAPOperation> kungFuDeathGrip = this;
 
     // If this is a second try at binding, remove the operation from pending ops
     // because msg id has changed...
@@ -412,7 +413,7 @@ nsLDAPOperation::SearchExt(const nsACString& aBaseDn, int32_t aScope,
     }
 
     // XXX add control logging
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("nsLDAPOperation::SearchExt(): called with aBaseDn = '%s'; "
             "aFilter = '%s'; aAttributes = %s; aSizeLimit = %d",
             PromiseFlatCString(aBaseDn).get(),
@@ -424,7 +425,7 @@ nsLDAPOperation::SearchExt(const nsACString& aBaseDn, int32_t aScope,
     if (mServerControls) {
         rv = convertControlArray(mServerControls, &serverctls);
         if (NS_FAILED(rv)) {
-            PR_LOG(gLDAPLogModule, PR_LOG_ERROR,
+            MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Error,
                    ("nsLDAPOperation::SearchExt(): error converting server "
                     "control array: %x", rv));
             return rv;
@@ -435,7 +436,7 @@ nsLDAPOperation::SearchExt(const nsACString& aBaseDn, int32_t aScope,
     if (mClientControls) {
         rv = convertControlArray(mClientControls, &clientctls);
         if (NS_FAILED(rv)) {
-            PR_LOG(gLDAPLogModule, PR_LOG_ERROR,
+            MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Error,
                    ("nsLDAPOperation::SearchExt(): error converting client "
                     "control array: %x", rv));
             ldap_controls_free(serverctls);
@@ -607,7 +608,7 @@ nsLDAPOperation::AddExt(const char *base,
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (mods && modCount) {
-    attrs = static_cast<LDAPMod **>(nsMemory::Alloc((modCount + 1) *
+    attrs = static_cast<LDAPMod **>(moz_xmalloc((modCount + 1) *
                                                        sizeof(LDAPMod *)));
     if (!attrs) {
       NS_ERROR("nsLDAPOperation::AddExt: out of memory ");
@@ -660,7 +661,7 @@ nsLDAPOperation::AddExt(const char *base,
   for (uint32_t counter = 0; counter < modCount; ++counter)
     delete attrs[counter];
 
-  nsMemory::Free(attrs);
+  free(attrs);
 
   return NS_FAILED(rv) ? rv : TranslateLDAPErrorToNSError(retVal);
 }
@@ -681,7 +682,7 @@ NS_IMETHODIMP
 nsLDAPOperation::AddExt(const nsACString& aBaseDn,
                         nsIArray *aMods)
 {
-  PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+  MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
          ("nsLDAPOperation::AddExt(): called with aBaseDn = '%s'",
           PromiseFlatCString(aBaseDn).get()));
 
@@ -695,7 +696,7 @@ nsLDAPOperation::AddExt(const nsACString& aBaseDn,
 
   if (NS_FAILED(rv)) {
     (void)ldap_abandon_ext(mConnectionHandle, mMsgID, 0, 0);
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("nsLDAPOperation::AddExt(): abandoned due to rv %x",
             rv));
   }
@@ -731,7 +732,7 @@ nsLDAPOperation::DeleteExt(const char *base,
 NS_IMETHODIMP
 nsLDAPOperation::DeleteExt(const nsACString& aBaseDn)
 {
-  PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+  MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
          ("nsLDAPOperation::DeleteExt(): called with aBaseDn = '%s'",
           PromiseFlatCString(aBaseDn).get()));
 
@@ -745,7 +746,7 @@ nsLDAPOperation::DeleteExt(const nsACString& aBaseDn)
 
   if (NS_FAILED(rv)) {
     (void)ldap_abandon_ext(mConnectionHandle, mMsgID, 0, 0);
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("nsLDAPOperation::AddExt(): abandoned due to rv %x",
             rv));
   }
@@ -771,7 +772,7 @@ nsLDAPOperation::ModifyExt(const char *base,
   nsresult rv = mods->GetLength(&modCount);
   NS_ENSURE_SUCCESS(rv, rv);
   if (modCount && mods) {
-    attrs = static_cast<LDAPMod **>(nsMemory::Alloc((modCount + 1) *
+    attrs = static_cast<LDAPMod **>(moz_xmalloc((modCount + 1) *
                                                        sizeof(LDAPMod *)));
     if (!attrs) {
       NS_ERROR("nsLDAPOperation::ModifyExt: out of memory ");
@@ -822,7 +823,7 @@ nsLDAPOperation::ModifyExt(const char *base,
   for (uint32_t counter = 0; counter < modCount; ++counter)
     delete attrs[counter];
 
-  nsMemory::Free(attrs);
+  free(attrs);
 
   return NS_FAILED(rv) ? rv : TranslateLDAPErrorToNSError(retVal);
 }
@@ -843,7 +844,7 @@ NS_IMETHODIMP
 nsLDAPOperation::ModifyExt(const nsACString& aBaseDn,
                            nsIArray *aMods)
 {
-  PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+  MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
          ("nsLDAPOperation::ModifyExt(): called with aBaseDn = '%s'",
           PromiseFlatCString(aBaseDn).get()));
 
@@ -858,7 +859,7 @@ nsLDAPOperation::ModifyExt(const nsACString& aBaseDn,
 
   if (NS_FAILED(rv)) {
     (void)ldap_abandon_ext(mConnectionHandle, mMsgID, 0, 0);
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("nsLDAPOperation::AddExt(): abandoned due to rv %x",
             rv));
   }
@@ -904,7 +905,7 @@ nsLDAPOperation::Rename(const nsACString& aBaseDn,
                         const nsACString& aNewParent,
                         bool aDeleteOldRDn)
 {
-  PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+  MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
          ("nsLDAPOperation::Rename(): called with aBaseDn = '%s'",
           PromiseFlatCString(aBaseDn).get()));
 
@@ -921,7 +922,7 @@ nsLDAPOperation::Rename(const nsACString& aBaseDn,
 
   if (NS_FAILED(rv)) {
     (void)ldap_abandon_ext(mConnectionHandle, mMsgID, 0, 0);
-    PR_LOG(gLDAPLogModule, PR_LOG_DEBUG,
+    MOZ_LOG(gLDAPLogModule, mozilla::LogLevel::Debug,
            ("nsLDAPOperation::AddExt(): abandoned due to rv %x",
             rv));
   }
@@ -944,7 +945,7 @@ nsLDAPOperation::CopyValues(nsILDAPModification* aMod, berval*** aBValues)
   NS_ENSURE_SUCCESS(rv, rv);
 
   *aBValues = static_cast<berval **>
-                         (nsMemory::Alloc((valuesCount + 1) *
+                         (moz_xmalloc((valuesCount + 1) *
                                              sizeof(berval *)));
   if (!*aBValues)
     return NS_ERROR_OUT_OF_MEMORY;
@@ -960,7 +961,7 @@ nsLDAPOperation::CopyValues(nsILDAPModification* aMod, berval*** aBValues)
            ++counter)
         delete (*aBValues)[valueIndex];
 
-      nsMemory::Free(*aBValues);
+      free(*aBValues);
       delete bval;
       return NS_ERROR_OUT_OF_MEMORY;
     }

@@ -8,7 +8,7 @@
  *
  * This implements nsIServerSocketListener, nsIStreamListener,
  * nsIRequestObserver, nsITransportEventSink, nsIBadCertListener2,
- * nsISSLErrorListener, and nsIProtocolProxyCallback.
+ * and nsIProtocolProxyCallback.
  *
  * This uses nsISocketTransportServices, nsIServerSocket, nsIThreadManager,
  * nsIBinaryInputStream, nsIScriptableInputStream, nsIInputStreamPump,
@@ -75,42 +75,42 @@
  *     desired flood time?).
  */
 
-const EXPORTED_SYMBOLS = ["Socket"];
+this.EXPORTED_SYMBOLS = ["Socket"];
 
-const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
+var {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/ArrayBufferUtils.jsm");
 Cu.import("resource:///modules/imXPCOMUtils.jsm");
 
 // Network errors see: xpcom/base/nsError.h
-const NS_ERROR_MODULE_NETWORK = 2152398848;
-const NS_ERROR_CONNECTION_REFUSED = NS_ERROR_MODULE_NETWORK + 13;
-const NS_ERROR_NET_TIMEOUT = NS_ERROR_MODULE_NETWORK + 14;
-const NS_ERROR_NET_RESET = NS_ERROR_MODULE_NETWORK + 20;
-const NS_ERROR_UNKNOWN_HOST = NS_ERROR_MODULE_NETWORK + 30;
-const NS_ERROR_UNKNOWN_PROXY_HOST = NS_ERROR_MODULE_NETWORK + 42;
-const NS_ERROR_PROXY_CONNECTION_REFUSED = NS_ERROR_MODULE_NETWORK + 72;
+var NS_ERROR_MODULE_NETWORK = 2152398848;
+var NS_ERROR_CONNECTION_REFUSED = NS_ERROR_MODULE_NETWORK + 13;
+var NS_ERROR_NET_TIMEOUT = NS_ERROR_MODULE_NETWORK + 14;
+var NS_ERROR_NET_RESET = NS_ERROR_MODULE_NETWORK + 20;
+var NS_ERROR_UNKNOWN_HOST = NS_ERROR_MODULE_NETWORK + 30;
+var NS_ERROR_UNKNOWN_PROXY_HOST = NS_ERROR_MODULE_NETWORK + 42;
+var NS_ERROR_PROXY_CONNECTION_REFUSED = NS_ERROR_MODULE_NETWORK + 72;
 
-const BinaryInputStream =
+var BinaryInputStream =
   Components.Constructor("@mozilla.org/binaryinputstream;1",
                          "nsIBinaryInputStream", "setInputStream");
-const BinaryOutputStream =
+var BinaryOutputStream =
   Components.Constructor("@mozilla.org/binaryoutputstream;1",
                          "nsIBinaryOutputStream", "setOutputStream");
-const ScriptableInputStream =
+var ScriptableInputStream =
   Components.Constructor("@mozilla.org/scriptableinputstream;1",
                          "nsIScriptableInputStream", "init");
-const ServerSocket =
+var ServerSocket =
   Components.Constructor("@mozilla.org/network/server-socket;1",
                          "nsIServerSocket", "init");
-const InputStreamPump =
+var InputStreamPump =
   Components.Constructor("@mozilla.org/network/input-stream-pump;1",
                          "nsIInputStreamPump", "init");
-const ScriptableUnicodeConverter =
+var ScriptableUnicodeConverter =
   Components.Constructor("@mozilla.org/intl/scriptableunicodeconverter",
                          "nsIScriptableUnicodeConverter");
 
-const Socket = {
+var Socket = {
   // Use this to use binary mode for the
   binaryMode: false,
 
@@ -477,6 +477,10 @@ const Socket = {
    */
   // Signifies the beginning of an async request
   onStartRequest: function(aRequest, aContext) {
+    if (this.disconnected) {
+      // Ignore this if we're already disconnected.
+      return;
+    }
     this.DEBUG("onStartRequest");
   },
   // Called to signify the end of an asynchronous request.
@@ -523,14 +527,6 @@ const Socket = {
   // Whatever this function returns, NSS will close the connection.
   notifyCertProblem: function(aSocketInfo, aStatus, aTargetSite) {
     this.sslStatus = aStatus;
-    return true;
-  },
-
-  /*
-   * nsISSLErrorListener
-   */
-  notifySSLError: function(aSocketInfo, aError, aTargetSite) {
-    this.sslStatus = null;
     return true;
   },
 
@@ -590,8 +586,8 @@ const Socket = {
 
   // Open the incoming and outgoing streams, and init the nsISocketTransport.
   _openStreams: function() {
-    // Security notification callbacks (must support nsIBadCertListener2 and
-    // nsISSLErrorListener for SSL connections, and possibly other interfaces).
+    // Security notification callbacks (must support nsIBadCertListener2
+    // for SSL connections, and possibly other interfaces).
     this.transport.securityCallbacks = this;
 
     // Set the timeouts for the nsISocketTransport for both a connect event and
@@ -680,14 +676,13 @@ const Socket = {
   /* QueryInterface and nsIInterfaceRequestor implementations */
   _interfaces: [Ci.nsIServerSocketListener, Ci.nsIStreamListener,
                 Ci.nsIRequestObserver, Ci.nsITransportEventSink,
-                Ci.nsIBadCertListener2, Ci.nsISSLErrorListener,
-                Ci.nsIProtocolProxyCallback],
+                Ci.nsIBadCertListener2, Ci.nsIProtocolProxyCallback],
   QueryInterface: function(iid) {
     if (iid.equals(Ci.nsISupports) ||
-        this._interfaces.some(function(i) i.equals(iid)))
+        this._interfaces.some(i => i.equals(iid)))
       return this;
 
     throw Cr.NS_ERROR_NO_INTERFACE;
   },
-  getInterface: function(iid) this.QueryInterface(iid)
+  getInterface: function(iid) { return this.QueryInterface(iid); }
 };

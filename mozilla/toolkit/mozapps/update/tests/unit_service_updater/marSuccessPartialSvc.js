@@ -20,19 +20,18 @@ function run_test() {
   gTestFiles[gTestFiles.length - 2].comparePerms = 0o644;
   gTestDirs = gTestDirsPartialSuccess;
   setupUpdaterTest(FILE_PARTIAL_MAR);
-
-// This is commented out on mozilla-esr38 since it doesn't have the test updater
-//  createUpdaterINI(true);
-
-  // For Mac OS X set the last modified time for the root directory to a date in
-  // the past to test that the last modified time is updated on all updates since
-  // the precomplete file in the root of the bundle is renamed, etc. (bug 600098).
   if (IS_MACOSX) {
-    let now = Date.now();
-    let yesterday = now - (1000 * 60 * 60 * 24);
-    let applyToDir = getApplyDirFile();
-    applyToDir.lastModifiedTime = yesterday;
+    // Create files in the old distribution directory location to verify that
+    // the directory and its contents are removed when there is a distribution
+    // directory in the new location.
+    let testFile = getApplyDirFile(DIR_MACOS + "distribution/testFile", true);
+    writeFile(testFile, "test\n");
+    testFile = getApplyDirFile(DIR_MACOS + "distribution/test/testFile", true);
+    writeFile(testFile, "test\n");
   }
+
+  createUpdaterINI(true);
+  setAppBundleModTime();
 
   setupAppFilesAsync();
 }
@@ -46,14 +45,12 @@ function setupAppFilesFinished() {
  * support launching post update process.
  */
 function checkUpdateFinished() {
-// This is commented out on mozilla-esr38 since it doesn't have the test updater
-//  if (IS_WIN || IS_MACOSX) {
-//    gCheckFunc = finishCheckUpdateFinished;
-//    checkPostUpdateAppLog();
-//  } else {
-//    finishCheckUpdateFinished();
-//  }
-  do_timeout(TEST_HELPER_TIMEOUT, finishCheckUpdateFinished);
+  if (IS_WIN || IS_MACOSX) {
+    gCheckFunc = finishCheckUpdateFinished;
+    checkPostUpdateAppLog();
+  } else {
+    finishCheckUpdateFinished();
+  }
 }
 
 /**
@@ -62,15 +59,14 @@ function checkUpdateFinished() {
  */
 function finishCheckUpdateFinished() {
   if (IS_MACOSX) {
-    logTestInfo("testing last modified time on the apply to directory has " +
-                "changed after a successful update (bug 600098)");
-    let now = Date.now();
-    let applyToDir = getApplyDirFile();
-    let timeDiff = Math.abs(applyToDir.lastModifiedTime - now);
-    do_check_true(timeDiff < MAC_MAX_TIME_DIFFERENCE);
+    let distributionDir = getApplyDirFile(DIR_MACOS + "distribution", true);
+    Assert.ok(!distributionDir.exists(), MSG_SHOULD_NOT_EXIST);
+    checkUpdateLogContains("removing old distribution directory");
   }
 
+  checkAppBundleModTime();
   checkFilesAfterUpdateSuccess(getApplyDirFile, false, false);
   checkUpdateLogContents(LOG_PARTIAL_SUCCESS);
+  standardInit();
   checkCallbackServiceLog();
 }

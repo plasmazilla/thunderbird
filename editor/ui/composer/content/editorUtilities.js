@@ -351,8 +351,8 @@ function EditorGetTextProperty(property, attribute, value, firstHas, anyHas, all
     if (!gAtomService) GetAtomService();
     var propAtom = gAtomService.getAtom(property);
 
-    GetCurrentEditor().getInlineProperty(propAtom, attribute, value,
-                                         firstHas, anyHas, allHas);
+    return GetCurrentEditor().getInlinePropertyWithAttrValue(propAtom,
+                                attribute, value, firstHas, anyHas, allHas);
   }
   catch(e) {}
 }
@@ -875,11 +875,11 @@ function GetOS()
 
   var platform = navigator.platform.toLowerCase();
 
-  if (platform.contains("win"))
+  if (platform.includes("win"))
     gOS = gWin;
-  else if (platform.contains("mac"))
+  else if (platform.includes("mac"))
     gOS = gMac;
-  else if (platform.contains("unix") || platform.contains("linux") || platform.contains("sun"))
+  else if (platform.includes("unix") || platform.includes("linux") || platform.includes("sun"))
     gOS = gUNIX;
   else
     gOS = "";

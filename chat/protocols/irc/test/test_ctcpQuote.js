@@ -2,10 +2,10 @@
  * http://creativecommons.org/publicdomain/zero/1.0/ */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
-let irc = {};
+var irc = {};
 Services.scriptloader.loadSubScript("resource:///components/irc.js", irc);
 
-const input = [
+var input = [
   undefined,
   "test",
   "\\test",
@@ -24,9 +24,9 @@ const input = [
   "\\\\atest"
 ];
 
-const expectedOutputCommand = "PRIVMSG";
+var expectedOutputCommand = "PRIVMSG";
 
-const expectedOutputParams = [
+var expectedOutputParams = [
   "ACTION",
   "ACTION test",
   "ACTION \\\\test",
@@ -45,7 +45,7 @@ const expectedOutputParams = [
   "ACTION \\\\\\\\atest"
 ];
 
-let outputParams = [];
+var outputParams = [];
 
 irc.ircAccount.prototype.sendMessage = function(aCommand, aParams) {
   do_check_eq(expectedOutputCommand, aCommand);
@@ -53,7 +53,7 @@ irc.ircAccount.prototype.sendMessage = function(aCommand, aParams) {
 }
 
 function run_test() {
-  let output = input.map(function(aStr)
+  let output = input.map(aStr =>
     irc.ircAccount.prototype.sendCTCPMessage("", false, "ACTION", aStr));
 
   // Ensure both arrays have the same length.

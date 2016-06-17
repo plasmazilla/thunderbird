@@ -3,19 +3,19 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ['moveCopyModule'];
+this.EXPORTED_SYMBOLS = ['moveCopyModule'];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
 
-const nsActProcess = Components.Constructor("@mozilla.org/activity-process;1",
+var nsActProcess = Components.Constructor("@mozilla.org/activity-process;1",
                                             "nsIActivityProcess", "init");
-const nsActEvent = Components.Constructor("@mozilla.org/activity-event;1",
+var nsActEvent = Components.Constructor("@mozilla.org/activity-event;1",
                                           "nsIActivityEvent", "init");
-const nsActWarning = Components.Constructor("@mozilla.org/activity-warning;1",
+var nsActWarning = Components.Constructor("@mozilla.org/activity-warning;1",
                                             "nsIActivityWarning", "init");
-const nsMsgFolderFlags = Ci.nsMsgFolderFlags;
+var nsMsgFolderFlags = Ci.nsMsgFolderFlags;
 
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/mailServices.js");
@@ -25,7 +25,7 @@ Components.utils.import("resource:///modules/gloda/log4moz.js");
 
 // This module provides a link between the move/copy code and the activity
 // manager.
-let moveCopyModule =
+var moveCopyModule =
 {
   lastMessage: {},
   lastFolder: {},
@@ -299,6 +299,69 @@ let moveCopyModule =
   },
 
   itemEvent: function(aItem, aEvent, aData) {
+    if (aEvent == "UnincorporatedMessageMoved") {
+      let srcFolder = aItem.QueryInterface(Components.interfaces.nsIMsgFolder);
+      let msgHdr = aData.QueryInterface(Components.interfaces.nsIMsgDBHdr);
+
+      try {
+        this.log.info("in UnincorporatedMessageMoved");
+
+        // get the folder of the moved/copied messages
+        let destFolder = msgHdr.folder;
+        this.log.info("got folder");
+
+        let displayCount = 1;
+
+        let activities = this.activityMgr.getActivities({});
+        if (activities.length > 0 &&
+            activities[activities.length-1].id == this.lastMessage.id &&
+            this.lastMessage.type == "moveMail" &&
+            this.lastMessage.sourceFolder == srcFolder.prettiestName &&
+            this.lastMessage.destFolder == destFolder.prettiestName)
+        {
+          displayCount += this.lastMessage.count;
+          this.activityMgr.removeActivity(this.lastMessage.id);
+        }
+
+        let statusText = '';
+        if (srcFolder.server != destFolder.server)
+        {
+          statusText = this.getString("fromServerToServer");
+          statusText = statusText.replace("#1", srcFolder.server.prettyName);
+          statusText = statusText.replace("#2", destFolder.server.prettyName);
+        }
+        else
+        {
+          statusText = srcFolder.server.prettyName;
+        }
+
+        this.lastMessage = {};
+        let displayText;
+        displayText = PluralForm.get(displayCount,
+                                     this.getString("movedMessages"));
+
+        displayText = displayText.replace("#1", displayCount)
+        this.lastMessage.count = displayCount;
+        displayText = displayText.replace("#2", srcFolder.prettiestName)
+        this.lastMessage.sourceFolder = srcFolder.prettiestName;
+        displayText = displayText.replace("#3", destFolder.prettiestName)
+        this.lastMessage.destFolder = destFolder.prettiestName;
+
+        // create an activity event
+        let event = new nsActEvent(displayText,
+                                   srcFolder,
+                                   statusText,
+                                   Date.now(),    // start time
+                                   Date.now());   // completion time
+
+        event.iconClass = "moveMail";
+        this.lastMessage.type = event.iconClass;
+        event.addSubject(msgHdr.messageId);
+        this.lastMessage.id = this.activityMgr.addActivity(event);
+      } catch (e) {
+        this.log.error("Exception: " + e)
+      }
+    }
   },
 
   init: function() {
@@ -308,6 +371,7 @@ let moveCopyModule =
                                  MailServices.mfn.msgsMoveCopyCompleted |
                                  MailServices.mfn.folderDeleted |
                                  MailServices.mfn.folderMoveCopyCompleted |
-                                 MailServices.mfn.folderRenamed);
+                                 MailServices.mfn.folderRenamed |
+                                 MailServices.mfn.itemEvent);
   }
 }

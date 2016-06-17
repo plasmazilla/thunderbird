@@ -3,7 +3,7 @@
 After downlading the sources debian/repack.py is used 
 to repackage the tarball
 
-    icedove/debian/repack.py -p icedove -u 31.1.1 -c xz \
+    icedove/debian/repack.py -p icedove -u 16.0.1 -c xz \
            thunderbird-31.1.1.source.tar.bz2
     cd icedove
     git-import-orig ../icedove_31.1.1.orig.tar.xz

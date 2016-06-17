@@ -1,0 +1,37 @@
+From: =?utf-8?q?Guido_G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Sat, 24 May 2014 14:30:26 +0200
+Subject: Brand-sk
+
+---
+ iceowl-l10n/sk/locale/sk/lightning/lightning.properties | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iceowl-l10n/sk/locale/sk/lightning/lightning.properties b/iceowl-l10n/sk/locale/sk/lightning/lightning.properties
+index b1bcd2e..4f3667e 100644
+--- a/iceowl-l10n/sk/locale/sk/lightning/lightning.properties
++++ b/iceowl-l10n/sk/locale/sk/lightning/lightning.properties
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ # addon description:
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning
+-extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Integrovaný kalendár pre Thunderbird
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Iceowl
++extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.description=Integrovaný kalendár pre Icedove
+ extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.creator=Projekt Mozilla Calendar
+ 
+ # Lightning branding
+-brandShortName=Lightning
++brandShortName=Iceowl
+ 
+ # Task mode title
+ taskModeApplicationTitle=Úlohy
+@@ -122,7 +122,7 @@ imipBarUpdateText=Táto správa obsahuje aktualizáciu existujúcej udalosti.
+ imipBarAlreadyProcessedText=Táto správa obsahuje udalosť, ktorá už bola spracovaná.
+ imipBarProcessedNeedsAction=Táto správa obsahuje udalosť, na ktorú ste ešte neodpovedali.
+ imipBarReplyText=Táto správa obsahuje odpoveď na pozvánku.
+-imipBarUnsupportedText=Táto správa obsahuje udalosť, ktorú táto verzia rozšírenia Lightning nedokáže spracovať.
++imipBarUnsupportedText=Táto správa obsahuje udalosť, ktorú táto verzia rozšírenia Iceowl nedokáže spracovať.
+ imipBarProcessingFailed=Spracovanie správy zlyhalo. Stav: %1$S.
+ imipBarNotWritable=Nie sú dostupné žiadne kalendáre, do ktorých sa dá zapisovať. Skontrolujte nastavenia kalendárov.
+ imipSendMail.title=E-mailová notifikácia
