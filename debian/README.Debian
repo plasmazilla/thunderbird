@@ -1,3 +1,97 @@
+﻿De-Branding of Icedove, Reintroduce Thunderbird in Debian
+---------------------------------------------------------
+
+Debian and Mozilla has done some new rethinking and talking about the old legal
+questions about trademark issues [1].
+Based on this revaluation the Debian project got now an agreement from Mozilla
+Corp. that the rebranded packages Iceweasel, Debian rebranded version for
+Firefox, and Icedove, Debian rebranded version for Thunderbird are no longer
+needed.
+
+The maintainers of the Iceweasel package followed that agreement and did a
+de-branding of Iceweasel back to Firefox. More information on this process can
+be found on [1].
+For Icedove the maintainers followed too the new agreement and remove the old
+branding after almost 10 years for Icedove and Iceowl-Extension and switched
+back to the official branding from Mozilla. The according bug for this process
+can be found under [2].
+
+For versions greater 1:45.5.1-1 the following packages were introduced as a
+replacement.
+
+old package .... --> new package         usage
+---------------------------------------------------------------------------------
+icedove ........ --> thunderbird        (Thunderbird Main application)
+icedove-dev .... --> thunderbird-dev    (Thunderbird Development files)
+icedove-dbg .... --> thunderbird-dbg    (Thunderbird with debugging symbols)
+iceowl-extension --> lightning          (Lightning, aka Calendar for Thunderbird)
+icedove-l10n-* . --> thunderbird-l10n-* (l10n localization for Thunderbird)
+iceowl-l10n-* .. --> lightning-l10n-*   (l10n localization for Lightning)
+
+The old packages where changed to transitional packages and can be safely
+removed after the automatically installation of the new packages.
+
+= Profile Migration =
+=====================
+
+Due the removing of the rebranding for Icedove Thunderbird will use the default
+profile folder $HOME/.thunderbird for storing all the various user related
+stuff!
+With the new Thunderbird packages there is a wrapper script included placed as
+/usr/bin/thunderbird that will do a migration of the existing profile folder
+$HOME/.icedove into the new default folder for the user profile
+$HOME/.thunderbird if possible.
+
+The automatism in the script will check the following parts:
+
+  1. Check if there is a folder or a symbolic link $HOME/.icedove and there is
+     NO folder or symbolic link $HOME/.thunderbird. (Otherwise all other steps
+     will skipped and the script exit out with a error message and a logging
+	 to /var/log/syslog.)
+  2. Copy $HOME/.icedove into $HOME/.thunderbird
+  3. Check if the copy action was successful, if not abort the further
+     starting.
+  4. Rename the old profile folder to '$HOME/.icedove_moved_by_thunderbird_starter'.
+  5. Fixing Mime type registration for' http(s)' and 'file' inside mimeTypes.rdf if
+     they registered for iceweasel.
+  6. Now starting Thunderbird.
+
+If there is anything going wrong there will be a splash screen displayed with
+some additional notes, the logger mechanism will write some information about
+what's going wrong into /var/log/syslog.
+
+THE ORIGINAL PROFILE FOLDER WILL NEVER GET DELETED, ONLY RENAMED IF MIGRATION WAS
+SUCCESSFUL!
+
+So don't panic if there is something not working automatically. If the starter
+script can't do the migration you will need to look by yourself and solve the
+situation. Mostly there can be already a folder $HOME/.thunderbird that
+prevents a automatic migration. Save a existing folder $HOME/.thunderbird else
+where and restart the Thunderbird application.
+You can call '/usr/bin/thunderbird -v' from a command line to see a verbose output
+of the wrapper script. For more options see the thunderbird man page.
+
+For backward compatibility whithin the Stretch release there will be that
+migration functionality until the release of Buster (aka Debian 10).
+Afterwards you can still do this on your on by moving the folders manually.
+
+= Migration of global configurations =
+======================================
+
+If you have some own special preferences files placed in '/etc/icedove/pref/'
+they will be moved to '/etc/thunderbird/pref/'.
+In case you have a modified file '/etc/icedove/pref/icedove.js' it will be
+moved to '/etc/thunderbird/pref/icedove.js.dpkg-backup' to keep your changes.
+Please adjust this file to the Thunderbird specific configuration file
+'/etc/thunderbird/pref/thunderbird.js'. The old folder '/etc/icedove' is gone
+be removed only if it is completely empty.
+
+[1] https://en.wikipedia.org/wiki/Mozilla_software_rebranded_by_Debian
+[2] https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=815006
+[3] https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=816679
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 21 Aug 2016 10:12:00 +0200
+
 Icedove for Debian
 ------------------
 
