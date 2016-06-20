@@ -1,4 +1,16 @@
+#!/usr/bin/dh-exec
+debian/logo/thunderbird/mailicon16.png         => usr/share/icons/hicolor/16x16/apps/thunderbird.png
+debian/logo/thunderbird/mailicon22.png         => usr/share/icons/hicolor/22x22/apps/thunderbird.png
+debian/logo/thunderbird/mailicon24.png         => usr/share/icons/hicolor/24x24/apps/thunderbird.png
+debian/logo/thunderbird/mailicon32.png         => usr/share/icons/hicolor/32x32/apps/thunderbird.png
+debian/logo/thunderbird/mailicon48.png         => usr/share/icons/hicolor/48x48/apps/thunderbird.png
+debian/logo/thunderbird/mailicon64.png         => usr/share/icons/hicolor/64x64/apps/thunderbird.png
+debian/logo/thunderbird/mailicon128.png        => usr/share/icons/hicolor/128x128/apps/thunderbird.png
+debian/logo/thunderbird/mailicon256.png        => usr/share/icons/hicolor/256x256/apps/thunderbird.png
+debian/thunderbird-wrapper.sh                  => usr/bin/thunderbird
+
 debian/account-autoconfig/*                       usr/share/thunderbird/isp
+debian/logo/thunderbird/thunderbird.svg           usr/share/icons/hicolor/scalable/apps
 debian/thunderbird.desktop                        usr/share/applications
 debian/thunderbird.js                             etc/thunderbird/pref
 debian/tmp/usr/lib/thunderbird/*.ini

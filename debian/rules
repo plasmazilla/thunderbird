@@ -165,28 +165,6 @@ override_dh_install-arch:
 	# sometimes there are temporary build files in lightning
 	@echo "    --> searching for temporary build files in 'lightning' ..."
 	@for i in `find debian/lightning/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
-	# install Thunderbird icons
-	install -m 644 debian/logo/thunderbird/thunderbird.svg \
-		-t debian/thunderbird/usr/share/icons/hicolor/scalable/apps/
-	install -m 644 debian/logo/thunderbird/mailicon16.png \
-		debian/thunderbird/usr/share/icons/hicolor/16x16/apps/thunderbird.png
-	install -m 644 debian/logo/thunderbird/mailicon22.png \
-		debian/thunderbird/usr/share/icons/hicolor/22x22/apps/thunderbird.png
-	install -m 644 debian/logo/thunderbird/mailicon24.png \
-		debian/thunderbird/usr/share/icons/hicolor/24x24/apps/thunderbird.png
-	install -m 644 debian/logo/thunderbird/mailicon32.png \
-		debian/thunderbird/usr/share/icons/hicolor/32x32/apps/thunderbird.png
-	install -m 644 debian/logo/thunderbird/mailicon48.png \
-		debian/thunderbird/usr/share/icons/hicolor/48x48/apps/thunderbird.png
-	install -m 644 debian/logo/thunderbird/mailicon64.png \
-		debian/thunderbird/usr/share/icons/hicolor/64x64/apps/thunderbird.png
-	install -m 644 debian/logo/thunderbird/mailicon128.png \
-		debian/thunderbird/usr/share/icons/hicolor/128x128/apps/thunderbird.png
-	install -m 644 debian/logo/thunderbird/mailicon256.png \
-		debian/thunderbird/usr/share/icons/hicolor/256x256/apps/thunderbird.png
-	# install the thunderbird wrapper script
-	install -m 755 debian/thunderbird-wrapper.sh \
-		debian/thunderbird/usr/bin/thunderbird
 	# remove duplicate .so files in dev package
 	rm debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/lib/libxul.so
 	# install apparmor profile
