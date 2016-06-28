@@ -2,7 +2,7 @@
 .SH "NAME"
 thunderbird \- Mail User Agent (MUA) and newsgroup/RSS client for X11 derived from the Mozilla Thunderbird.
 .SH "SYNOPSIS"
-.B thunderbird
+.B /usr/lib/thunderbird/thunderbird
 [\fIOPTIONS\fR] [\fIURL\fR]
 
 .B /usr/lib/thunderbird/thunderbird\-bin
@@ -51,30 +51,33 @@ Print the Thunderbird version.
 \fB\-P\fR [\fIprofile\fR]
 Start with \fIprofile\fR. When no profile is given, displays the Profile Manager. May require \fB\-no\-remote\fR, see below.
 .TP
-.B \-migration
+.B \-\-profile [\fIpath\fR]
+Start with with [\fIprofile\fR] from the given [\fIpath\fR].
+.TP
+.B \-\-migration
 Start with migration wizard. May require \fB\-no\-remote\fR, see below.
 .TP
-.B \-ProfileManager
+.B \-\-ProfileManager
 Start with profile manager. May require \fB\-no\-remote\fR, see below.
 .TP
-.B \-no\-remote
+.B \-\-no\-remote
 Don't connect to a running Thunderbird instance. Don't accept or send remote
 commands. This option can be necessary in conjunction to several of the options
 above, that won't have any effect when an Thunderbird instance is running unless
 \fB\-no\-remote\fR is used at the same time.
 .TP
-.B \-new\-instance
+.B \-\-new\-instance
 Open a new instance instead of a new windows in the running instance.
 .TP
-\fB\-UILocale\fR \fIlocale\fR
+\fB\-\-UILocale\fR \fIlocale\fR
 Start with \fIlocale\fR resources as User Interface locale. By default, it is
 guessed from environment and available locales for Thunderbird.
 .TP
-.B \-safe\-mode
+.B \-\-safe\-mode
 Starts Thunderbird in safe mode, i.e. disabling all extensions and
 showing a bit more debugging messages.
 .TP
-.B \-jsconsole
+.B \-\-jsconsole
 Start with Javascript Console
 .TP
 .B \-addressbook
@@ -150,7 +153,7 @@ Starting Thunderbird without any extensions or themes, useful if extensions may 
 .RS 4
 .\}
 .nf
-thunderbird \-safe-mode
+thunderbird \-\-safe-mode
 .fi
 .if n \{\
 .RE
