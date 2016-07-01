@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# create-iceowl-l10n-tarball.sh
+# create-lightning-l10n-tarball.sh
 # Porpose:
 # Create an upstream tarball from the Lightning xpi language packs.
 # Current stable and beta version can be found on
@@ -16,10 +16,12 @@ ARG_COUNT=0
 LANG_COUNT=0
 CURDIR_FULL=`pwd`
 CURDIR=$(basename `pwd`)
+MOZILLA_CDN_PROTO="https://"
+MOZILLA_CDN_BASE="download-origin.cdn.mozilla.net/pub/calendar/"
 
 # default package name
 XPI=lightning.xpi
-SRCPKG="iceowl-l10n"
+BASE_PKG="lightning-l10n"
 
 # local functions
 usage () {
@@ -43,12 +45,12 @@ Usage: ${0##*/} [-h|-vd] [-e BETA_VER] VERSION
 Examples:
   ${0##*/} -d 45.1
     Download version '45.1' of the Lightning l10n packages from Mozilla and creates
-    a file 'icedove-45.1.orig-iceowl-l10n.tar.xz' that can be imported with
+    a file 'thunderbird-45.1.orig-lightning-l10n.tar.xz' that can be imported with
     'git-import-orig'.
 
   ${0##*/} -de 45.1b1 45.1~b1
     Download the beta version '45.1b1' of the Lightning l10n packages from Mozilla
-    and created a file 'icedove-45.1~b1.orig-iceowl-l10n.tar.xz'. This file can be
+    and created a file 'thunderbird-45.1~b1.orig-lightning-l10n.tar.xz'. This file can be
     automatically imported with 'git-import-orig'.
 
 EOF
@@ -74,8 +76,7 @@ test -f /usr/bin/wget || fail "wget is missing, please install first!"
 test -f /usr/bin/curl || fail "curl is missing, please install first!"
 test -f /usr/bin/python || fail "python2 is missing, please install first!"
 
-# check if we are inside iceowl-l10n/ and have a git environment
-#if [ "${CURDIR}" != "${SRCPKG}" ]; then
+# check if we are inside icedove/ and have a git environment
 if [ "${CURDIR}" != "icedove" ]; then
     echo "Not in icedove/.."
     exit ${EXIT_FAILURE}
@@ -160,7 +161,7 @@ debug "Lightning version: ... ${LN_VERSION}"
 
 export TMPDIR=$(mktemp --tmpdir=/tmp -d)/
        UNPACKDIR=${TMPDIR}unpack/
-       ORIGDIR="${TMPDIR}${SRCPKG}-${VERSION}/${SRCPKG}"
+       ORIGDIR="${TMPDIR}${BASE_PKG}-${VERSION}/${BASE_PKG}"
 
 # download Lightning from the CDN of Mozilla
 if [ -n "${DOWNLOAD}" ]; then
@@ -171,7 +172,8 @@ if [ -n "${DOWNLOAD}" ]; then
         # packages for every single language instead of one single file without
         # all languages.
         # getting the latest build inside a release candidates
-        RET=`curl --silent http://download.cdn.mozilla.net/pub/calendar/lightning/candidates/${LN_VERSION}-candidates/ \
+        debug "${MOZILLA_CDN_PROTO}${MOZILLA_CDN_BASE}/lightning/candidates/${LN_VERSION}-candidates/"        
+        RET=`curl -L --silent "${MOZILLA_CDN_PROTO}${MOZILLA_CDN_BASE}/lightning/candidates/${LN_VERSION}-candidates/" \
              | grep "build" | awk '{print $2}' | tr '<>/"' ' ' | awk '{print $8}' | tail -1`
         if [ "$?" = "0" -a "${RET}" != "" ]; then
             DIRECTORY=`echo ${RET} | tr ' ' '\n' | head -1`
@@ -179,16 +181,16 @@ if [ -n "${DOWNLOAD}" ]; then
             debug "found directory '${LN_VERsion}-candidates/${DIRECTORY}' from '${DATE}'"
             debug "creating ${UNPACKDIR}"
             mkdir ${UNPACKDIR}
-            debug "going downloading *.xpi files from http://download.cdn.mozilla.net/pub/calendar/lightning/candidates/${LN_VERSION}-candidates/${DIRECTORY}/linux-i686/"
+            debug "going downloading *.xpi files from ${MOZILLA_CDN_PROTO}${MOZILLA_CDN_BASE}/lightning/candidates/${LN_VERSION}-candidates/${DIRECTORY}/linux-i686/"
             cd /tmp
             # going to download the files, creating a list of the XPI files first
-            XPI_LIST=`curl --silent http://download.cdn.mozilla.net/pub/calendar/lightning/candidates/${LN_VERSION}-candidates/${DIRECTORY}/linux-i686/ | grep "lightning-" | awk '{print $2}' | tr '<>"' ' ' | awk '{print $2}'`
+            XPI_LIST=`curl -L --silent ${MOZILLA_CDN_PROTO}${MOZILLA_CDN_BASE}/lightning/candidates/${LN_VERSION}-candidates/${DIRECTORY}/linux-i686/ | grep "lightning-" | awk '{print $2}' | tr '<>"' ' ' | awk '{print $2}'`
             for i in ${XPI_LIST}; do
-                wget -m -r -l 1 -A xpi http://download.cdn.mozilla.net/${i}
+                wget -m -r -l 1 -A xpi https://download-origin.cdn.mozilla.net${i}
             done
 
-            # unpack alle files
-            for XPIFILE in `ls download.cdn.mozilla.net/pub/calendar/lightning/candidates/${LN_VERSION}-candidates/${DIRECTORY}/linux-i686/lightning-*.*.linux-i686.xpi`; do
+            # unpack all files
+            for XPIFILE in `ls download-origin.cdn.mozilla.net/pub/calendar/lightning/candidates/${LN_VERSION}-candidates/${DIRECTORY}/linux-i686/lightning-*.*.linux-i686.xpi`; do
                 LANG=`basename ${XPIFILE} | sed s/lightning-${LN_VERSION}.// | sed s/.linux-i686.xpi//`
                 debug "extracting '`basename ${XPIFILE}`' to '${UNPACKDIR}/${LANG}'"
                 mkdir ${UNPACKDIR}/${LANG}
@@ -200,7 +202,7 @@ if [ -n "${DOWNLOAD}" ]; then
         fi
     else
         # getting the stable version
-        wget -O${XPI} http://download.cdn.mozilla.net/pub/calendar/lightning/releases/${LN_VERSION}/linux/${XPI}
+        wget -O${XPI} ${MOZILLA_CDN_PROTO}${MOZILLA_CDN_BASE}/lightning/releases/${LN_VERSION}/linux/${XPI}
         XPI=$(readlink -f ${XPI})
         echo "XPI saved to: ${XPI}"
     fi
@@ -224,7 +226,7 @@ fi
 # getting the versions
 ICEDOVE_VER=$(grep -A2 '{3550f703-e582-4d05-9a08-453d09bdfdc6}' ${UNPACKDIR}/en-US/install.rdf)
 
-# shipped with iceowl-extension already, removing the folder 'en-US'
+# shipped with lightning-extension already, removing the folder 'en-US'
 debug "removing language 'en-US' ${UNPACKDIR}en-US"
 rm -rf ${UNPACKDIR}en-US
 
@@ -243,10 +245,10 @@ for i in ${LANG}; do
     mv ${UNPACKDIR}${i}/chrome/lightning-${i}/locale/${i}/lightning ${TARGET_DIR}
 done
 
-debug "creating 'icedove_${VERSION}.orig-${SRCPKG}.tar.xz'"
-TARBALL="../icedove_${VERSION}.orig-${SRCPKG}.tar.xz"
+debug "creating 'thunderbird_${VERSION}.orig-${BASE_PKG}.tar.xz'"
+TARBALL="../thunderbird_${VERSION}.orig-${BASE_PKG}.tar.xz"
 cd ${ORIGDIR}/..
-tar Jcf ${TARBALL} ${SRCPKG}
+tar Jcf ${TARBALL} ${BASE_PKG}
 TARBALL=$(readlink -f ${TARBALL})
 
 echo
@@ -259,7 +261,7 @@ LANG_COUNT=`ls -l ${ORIGDIR} | wc -l`
 # moving *-orig-*.tar.xz back
 cd ${CURDIR_FULL}
 mv $TARBALL ../
-TARBALL=$(readlink -f ../icedove_${VERSION}.orig-${SRCPKG}.tar.xz)
+TARBALL=$(readlink -f ../thunderbird_${VERSION}.orig-${BASE_PKG}.tar.xz)
 echo
 echo "Tarball created in:"
 echo "  -> ${TARBALL} <-"

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# create-upstream-tarball.sh
+# create-thunderbird-l10n-tarball.sh
 # Porpose: create an upstream tarball from the language pack xpi files
 # Current stable and beta versions of the l10n files can be found on
 #    https://download-origin.cdn.mozilla.net/pub/thunderbird
@@ -24,7 +24,7 @@ MOZILLA_CDN_BASE="download-origin.cdn.mozilla.net/pub/thunderbird/"
 # default package name in case the have a local file
 XPI=lightning.xpi
 # base package name
-SRCPKG="icedove"
+BASE_PKG="thunderbird"
 
 # local functions
 usage () {
@@ -46,20 +46,20 @@ Examples:
   ${0##*/} -d 45.0
 
     Download version '45.0' of the locales for Thunderbird from Mozilla and
-    creates a file 'icedove_45.0.orig-icedove-l10n.tar.xz'.
+    creates a file 'thunderbird_45.0.orig-thunderbird-l10n.tar.xz'.
 
 
   ${0##*/} -de 45.0b1 45.0~b1
 
     Download the beta version '45.0b1' of the locales for Thunderbird from
-    Mozilla and create a file 'icedove_45.0~b1.orig-icedove-l10n.tar.xz'.
+    Mozilla and create a file 'thunderbird_45.0~b1.orig-thunderbird-l10n.tar.xz'.
 
 
   ${0##*/} -vde 45.0b1 45.0~b1
 
     Same as above, download the beta version '45.0b1' of the locales for
     Thunderbird from Mozilla and create a file
-    'icedove_45.0~b1.orig-icedove-l10n.tar.xz'.
+    'thunderbird_45.0~b1.orig-thunderbird-l10n.tar.xz'.
     But this is done with some verbose output messages to see what's going
     on inside. Mostly useful for debugging the script.
 
@@ -85,9 +85,9 @@ fail () {
 test -f /usr/bin/wget || fail "wget is missing, please install first!"
 test -f /usr/bin/curl || fail "curl is missing, please install first!"
 
-# check if we are inside icedove-l10n/ and have a git environment
-if [ "${CURDIR}" != "${SRCPKG}" ]; then
-    echo "Not in ${SRCPKG}/.."
+# check if we are inside icedove/ and have a git environment
+if [ "${CURDIR}" != "icedove" ]; then
+    echo "Not in icedove/.."
     exit ${EXIT_FAILURE}
 else
     if [ ! -d .git ]; then
@@ -171,7 +171,7 @@ debug "Debian version: ...... ${VERSION}"
 
 export TMPDIR=$(mktemp --tmpdir=/tmp -d)/
        UPSTREAMDIR=${TMPDIR}upstream/
-       ORIGDIR="${TMPDIR}${SRCPKG}-${VERSION}/"
+       ORIGDIR="${TMPDIR}${BASE_PKG}-${VERSION}/"
 
 # download Lightning from the CDN of Mozilla
 if [ -n "${DOWNLOAD}" ]; then
@@ -295,22 +295,22 @@ for XPI in `ls ${UPSTREAMDIR}`; do
 done
 
 cd ${TMPDIR}
-mv upstream ${SRCPKG}-${VERSION}/icedove-l10n
+mv upstream ${BASE_PKG}-${VERSION}/${BASE_PKG}-l10n
 # counting languages
-LANG_COUNT=`ls ${SRCPKG}-${VERSION}/icedove-l10n/ | wc -l`
+LANG_COUNT=`ls ${BASE_PKG}-${VERSION}/${BASE_PKG}-l10n/ | wc -l`
 
 # doing the *.orig.tar.xz archive stuff
-TARBALL="${SRCPKG}_${VERSION}.orig-${SRCPKG}-l10n.tar.xz"
+TARBALL="${BASE_PKG}_${VERSION}.orig-${BASE_PKG}-l10n.tar.xz"
 debug "creating archive: '${TARBALL}' in '${TMPDIR}'"
-cd ${SRCPKG}-${VERSION}
-tar caf ${TARBALL} icedove-l10n
+cd ${BASE_PKG}-${VERSION}
+tar caf ${TARBALL} ${BASE_PKG}-l10n
 TARBALL=$(readlink -f ${TARBALL})
 
 # moving orig.tar.xz back to the users working dir
 cd ${CURDIR_FULL}
 debug "moving ${TARBALL} to ${CURDIR_FULL}/../"
 mv ${TARBALL} ../
-TARBALL_FINAL=$(readlink -f ../${SRCPKG}_${VERSION}.orig-${SRCPKG}-l10n.tar.xz)
+TARBALL_FINAL=$(readlink -f ../${BASE_PKG}_${VERSION}.orig-${BASE_PKG}-l10n.tar.xz)
 echo
 echo "Tarball created in:"
 echo "  -> ${TARBALL_FINAL} <- (containing ${LANG_COUNT} languages)"
