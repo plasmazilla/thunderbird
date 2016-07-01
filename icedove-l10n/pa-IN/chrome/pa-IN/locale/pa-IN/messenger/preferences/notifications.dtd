@@ -1,0 +1,20 @@
+<!ENTITY notificationsDialog2.title       "ਨਵੀਂ ਮੇਲ ਚੇਤਾਵਨੀ ਪਸੰਦ">
+<!ENTITY window.width                     "30em">
+
+<!ENTITY alertCustomization.intro         "ਚੋਣ ਕਰੋ ਕਿ ਕਿਹੜੇ ਖੇਤਰ ਵਿੱਚ ਚੇਤਾਵਨੀ ਸੂਚਨਾ ਵੇਖਾਈ ਜਾਵੇ:">
+<!ENTITY previewText.label                "ਸੁਨੇਹਾ ਝਲਕ ਟੈਕਸਟ">
+<!ENTITY previewText.accesskey            "M">
+<!ENTITY subject.label                    "ਵਿਸ਼ਾ">
+<!ENTITY subject.accesskey                "S">
+<!ENTITY sender.label                     "ਭੇਜਣ ਵਾਲਾ">
+<!ENTITY sender.accesskey                 "e">
+<!ENTITY  totalOpenTimeBefore.accesskey   "N">
+
+<!-- LOCALIZATION NOTE: totalOpenTimeBefore.label is displayed first, then
+there's a field where the user can enter a number, and totalOpenTimeEnd.label
+is displayed at the end of the line. The translations of the
+totalOpenTimeBefore.label and totalOpenTimeEnd.label parts don't have to mean
+the exact same thing as in English; please try instead to translate the whole
+sentence. -->
+<!ENTITY  totalOpenTimeBefore.label       "Show New Mail Alert for">
+<!ENTITY  totalOpenTimeEnd.label          "seconds">

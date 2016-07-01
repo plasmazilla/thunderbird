@@ -1,0 +1,109 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY toField4.label "До">
+<!ENTITY fromField4.label "От">
+<!ENTITY senderField4.label "Подател">
+<!ENTITY organizationField4.label "Организация">
+<!ENTITY replyToField4.label "Отговор-до">
+
+<!ENTITY subjectField4.label "Тема">
+<!ENTITY ccField4.label "Копие">
+<!ENTITY bccField4.label "Скрито копие">
+<!ENTITY newsgroupsField4.label "Дискусионни групи">
+<!ENTITY followupToField4.label "Продължаване в">
+<!ENTITY tagsHdr4.label "Етикети">
+<!ENTITY dateField4.label "Дата">
+<!ENTITY userAgentField4.label "Потребителски агент">
+<!ENTITY referencesField4.label "Референции">
+<!ENTITY messageIdField4.label "Идентификатор на съобщение">
+<!ENTITY inReplyToField4.label "В отговор на">
+<!ENTITY originalWebsite4.label "Уебсайт">
+
+<!ENTITY hdrArchiveButton1.label "Архивиране">
+<!ENTITY hdrArchiveButton1.tooltip "Архивира това съобщение">
+<!ENTITY hdrSmartReplyButton1.label "Умен отговор">
+<!ENTITY hdrReplyButton1.label "Отговор">
+<!ENTITY hdrReplyButton2.tooltip "Отговаряне на подателя на това писмо">
+<!ENTITY hdrReplyAllButton1.label "Отговор до всички">
+<!ENTITY hdrReplyAllButton1.tooltip "Отговаря на подателя и всички получатели">
+<!ENTITY hdrReplyListButton1.label "Отговор до списък">
+<!ENTITY hdrReplyListButton1.tooltip "Отговаря до пощенския списък">
+<!ENTITY hdrFollowupButton1.label "Отговор">
+<!ENTITY hdrFollowupButton1.tooltip "Изпращане на отговор до тази новинарска група">
+<!ENTITY hdrMenuForwardButton.label "Препращане като">
+<!ENTITY hdrForwardButton1.label "Препращане">
+<!ENTITY hdrForwardButton1.tooltip "Препраща съобщението">
+<!ENTITY hdrJunkButton1.label "Нежелана">
+<!ENTITY hdrJunkButton1.tooltip "Отбелязва съобщението като нежелано">
+<!ENTITY hdrTrashButton1.label "Изтриване">
+<!ENTITY hdrTrashButton1.tooltip "Изтрива съобщението">
+
+<!ENTITY hdrViewToolbarShowFull.label "Показване на икони и текст ">
+<!ENTITY hdrViewToolbarShowFull.accesskey "и">
+<!ENTITY hdrViewToolbarShowIcons.label "Показване само икони">
+<!ENTITY hdrViewToolbarShowIcons.accesskey "и">
+<!ENTITY hdrViewToolbarShowText.label "Показване само текст">
+<!ENTITY hdrViewToolbarShowText.accesskey "т">
+<!ENTITY hdrViewToolbarAlwaysReplySender.label "Винаги показва отговора до подателя">
+<!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "о">
+
+<!ENTITY otherActionsButton2.label "Още">
+<!ENTITY otherActionsButton.tooltip "Още действия">
+<!ENTITY otherActionsOpenConversation1.label "Отваряне в диалога">
+<!ENTITY otherActionsOpenConversation1.accesskey "д">
+<!ENTITY otherActionsOpenInNewWindow1.label "Отваряне в нов прозорец">
+<!ENTITY otherActionsOpenInNewWindow1.accesskey "н">
+<!ENTITY otherActionsOpenInNewTab1.label "Отваряне в нов подпрозорец">
+<!ENTITY otherActionsOpenInNewTab1.accesskey "п">
+<!ENTITY markAsReadMenuItem1.label "Отбелязване като прочетено">
+<!ENTITY markAsReadMenuItem1.accesskey "п">
+<!ENTITY markAsUnreadMenuItem1.label "Отбелязване като непрочетено">
+<!ENTITY markAsUnreadMenuItem1.accesskey "л">
+<!ENTITY saveAsMenuItem1.label "Запис като…">
+<!ENTITY saveAsMenuItem1.accesskey "З">
+<!ENTITY viewSourceMenuItem1.label "Преглед на изходния код">
+<!ENTITY viewSourceMenuItem1.accesskey "П">
+<!ENTITY otherActionsPrint1.label "Печат…">
+<!ENTITY otherActionsPrint1.accesskey "П">
+<!-- Attachment bar context menu items -->
+
+<!ENTITY startExpandedCmd.label    "Начално показване на панела с притурки">
+<!ENTITY startExpandedCmd.accesskey    "п">
+<!-- Attachment context menu items -->
+
+<!ENTITY openAttachmentCmd.label    "Отваряне">
+<!ENTITY openAttachmentCmd.accesskey    "О">
+<!ENTITY saveAsAttachmentCmd.label    "Запис на всички…">
+<!ENTITY saveAsAttachmentCmd.accesskey    "в">
+<!ENTITY detachAttachmentCmd.label    "Откачане…">
+<!ENTITY detachAttachmentCmd.accesskey    "к">
+<!ENTITY deleteAttachmentCmd.label    "Изтриване">
+<!ENTITY deleteAttachmentCmd.accesskey    "р">
+<!ENTITY openAllAttachmentsCmd.label    "Отваряне на всички…">
+<!ENTITY openAllAttachmentsCmd.accesskey    "О">
+<!ENTITY saveAllAttachmentsCmd.label    "Запис на всички…">
+<!ENTITY saveAllAttachmentsCmd.accesskey    "в">
+<!ENTITY detachAllAttachmentsCmd.label    "Откачане на всички…">
+<!ENTITY detachAllAttachmentsCmd.accesskey    "ч">
+<!ENTITY deleteAllAttachmentsCmd.label    "Изтриване на всички…">
+<!ENTITY deleteAllAttachmentsCmd.accesskey    "з">
+
+<!ENTITY openAttachment.tooltip "Отваряне на прикрепения файл">
+<!-- Attachment toolbar items -->
+
+<!ENTITY saveAttachmentButton1.label       "Запис">
+<!ENTITY saveAttachmentButton1.tooltip     "Запис на прикрепения файл">
+<!ENTITY saveAllAttachmentsButton1.label   "Запис на всички…">
+<!ENTITY saveAllAttachmentsButton1.tooltip "Запис на всички прикрепени файлове">
+
+<!ENTITY copyLinkCmd.label        "Копиране адреса на връзката">
+<!ENTITY copyLinkCmd.accesskey    "К">
+
+<!ENTITY CopyMessageId.label "Копиране на Message-ID">
+<!ENTITY CopyMessageId.accesskey "К">
+<!ENTITY OpenMessageForMsgId.label "Отваряне на писмо за ID">
+<!ENTITY OpenMessageForMsgId.accesskey "О">
+<!ENTITY OpenBrowserWithMsgId.label "Отваряне на браузър с Message-ID">
+<!ENTITY OpenBrowserWithMsgId.accesskey "б">

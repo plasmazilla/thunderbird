@@ -1,0 +1,23 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY  prefWindow.titleWin     "Roghainnean">
+<!ENTITY  prefWindow.titleGNOME   "Roghainnean &brandShortName;">
+<!ENTITY  prefWindow.titleMAC     "Roghainnean">
+<!ENTITY  prefWindow.styleWindows "width: 55em; min-height: 45em;">
+<!ENTITY  prefWindow.styleMac     "width: 65em;">
+<!ENTITY  prefWindow.styleGNOME   "width: 65em; min-height: 45em;">
+
+<!ENTITY paneGeneral.title        "Coitcheann">
+<!ENTITY paneDisplay.title        "Taisbeanadh">
+<!ENTITY paneComposition.title    "Sgrìobhadh">
+<!ENTITY paneChat.title           "Cabadaich">
+<!ENTITY paneAttachments.title    "Ceanglachain">
+<!ENTITY panePrivacy.title        "Prìobhaideachd">
+<!ENTITY paneSecurity.title       "Tèarainteachd">
+<!ENTITY paneAdvanced.title       "Adhartach">
+<!ENTITY paneAccount.title        "Cunntasan">
+
+<!ENTITY okButton.title           "Ceart ma-thà">
+<!ENTITY okButton.accesskey       "C">

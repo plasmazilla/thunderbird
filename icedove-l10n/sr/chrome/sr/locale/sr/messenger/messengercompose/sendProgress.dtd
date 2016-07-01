@@ -1,0 +1,10 @@
+<!--LOCALIZATION NOTE sendprogress.dtd Main UI for Send Message Progress Dialog -->
+<!ENTITY sendWindow.title "Слање порука"> 
+<!ENTITY status.label "Статус:">
+<!ENTITY progress.label "Напредак:">
+
+
+
+
+<!--LOCALIZATION NOTE sendprogress.dtd Main UI for Send Message Progress Dialog -->
+<!ENTITY sendDialog.title "Processing Message">

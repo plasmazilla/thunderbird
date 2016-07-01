@@ -1,0 +1,50 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<!--
+LOCALIZATION NOTE : 'Communicator 4.x' is the used for previous versions of 
+Netscape Communicator, Please translate using the brandname in respective 
+languages for Netscape Communicator 4 releases.
+LOCALIZATION NOTE : Do not translate any of the occurrences of the word 
+"&brandShortName;" below.
+-->
+
+
+<!ENTITY importDialog.windowTitle "Importă">
+<!ENTITY importAll.label          "Importă totul">
+<!ENTITY importAll.accesskey      "I">
+<!ENTITY importMail.label         "Corespondență">
+<!ENTITY importMail.accesskey     "C">
+<!ENTITY importFeeds.label        "Abonamente la fluxuri">
+<!ENTITY importFeeds.accesskey    "x">
+<!ENTITY importAddressbook.label  "Agende de contacte">
+<!ENTITY importAddressbook.accesskey "A">
+<!ENTITY importSettings.label     "Setări">
+<!ENTITY importSettings.accesskey "S">
+<!ENTITY importFilters.label      "Filtre">
+<!ENTITY importFilters.accesskey  "F">
+
+<!ENTITY  window.width            "40em">
+<!ENTITY  window.macWidth         "45em">
+
+<!ENTITY importTitle.label        "Asistent import mesaje &brandShortName;">
+<!ENTITY importShortDesc.label    "Importă mesaje, agende de contacte, setări și filtre din alte programe">
+
+<!ENTITY importDescription1.label "Acest asistent va importa mesajele, intrările din agenda de contacte, preferințele și/sau filtrele din alte programe de e-mail, precum și formatul agendei de contacte în &brandShortName;.">
+<!ENTITY importDescription2.label "Odată ce acestea au fost importate, le veți putea accesa din cadrul &brandShortName;.">
+
+<!ENTITY selectDescription.label  "Vă rugăm să selectați tipul de fișier din care doriți să importați:">
+<!ENTITY selectDescriptionB.label "Vă rugăm să selectați un cont existent sau să creați un cont nou:">
+<!ENTITY selectDescription.accesskey "V">
+<!ENTITY acctName.label           "Nume:">
+<!ENTITY acctName.accesskey       "N">
+
+<!ENTITY back.label               "&lt; Înapoi">
+<!ENTITY forward.label            "Înainte &gt;">
+<!ENTITY finish.label             "Termină">
+<!ENTITY cancel.label             "Renunță">
+
+<!ENTITY select.label             "sau să selectați tipul de date ce se vor importa:">
+
+<!ENTITY title.label              "Titlu">
+<!ENTITY processing.label         "Import…">

@@ -1,0 +1,38 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!-- Mail Content -->
+<!ENTITY captionMailContent.label "Vsebina pošte">
+
+<!ENTITY acceptRemoteContent.label "Dovoli oddaljeno vsebino v sporočilih">
+<!ENTITY acceptRemoteContent.accesskey "a">
+<!ENTITY remoteContentExceptions.label "Izjeme ...">
+<!ENTITY remoteContentExceptions.accesskey "e">
+<!ENTITY acceptRemoteContentInfo.label "Več o vprašanjih zasebnosti oddaljene vsebine">
+
+<!-- Web Content -->
+<!ENTITY captionWebContent.label "Spletna vsebina">
+
+<!ENTITY keepHistory.label "Zapomni si spletna mesta in povezave, ki sem jih obiskal">
+<!ENTITY keepHistory.accesskey "Z">
+<!ENTITY acceptCookies.label "Dovoli stranem, da shranjujejo piškotke.">
+<!ENTITY acceptCookies.accesskey "s">
+<!ENTITY acceptThirdParty.pre.label "Dovoli piškotke tretjih oseb:">
+<!ENTITY acceptThirdParty.pre.accesskey "š">
+<!ENTITY acceptThirdParty.always.label "vedno">
+<!ENTITY acceptThirdParty.never.label "nikoli">
+<!ENTITY acceptThirdParty.visited.label "od obiskanih">
+<!ENTITY keepUntil.label "Obdrži jih dokler:">
+<!ENTITY keepUntil.accesskey "O">
+<!ENTITY expire.label "ne pretečejo">
+<!ENTITY close.label "ne zaprem &brandShortName;">
+<!ENTITY askEachTime.label "vsakokrat me vprašaj">
+<!ENTITY cookieExceptions.label "Izjeme …">
+<!ENTITY cookieExceptions.accesskey "z">
+<!ENTITY showCookies.label "Prikaži piškotke …">
+<!ENTITY showCookies.accesskey "P">
+
+<!ENTITY dntTrackingNotOkay.label2 "Obvesti spletna mesta, naj mi ne sledijo">
+<!ENTITY dntTrackingNotOkay.accesskey "b">
+<!ENTITY doNotTrackInfo.label "Več o značilnosti Brez sledenja">

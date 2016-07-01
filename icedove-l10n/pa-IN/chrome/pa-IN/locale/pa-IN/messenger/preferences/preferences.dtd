@@ -1,0 +1,22 @@
+
+<!ENTITY  prefWindow.titleWin     "ਚੋਣਾਂ">
+<!ENTITY  prefWindow.titleGNOME   "&brandShortName; ਪਸੰਦ">
+<!ENTITY  prefWindow.styleWindows "width: 44em; min-height: 38.5em;">
+<!ENTITY  prefWindow.styleMac     "width: 47em;">
+<!ENTITY  prefWindow.styleGNOME   "width: 42em; min-height: 38em;">
+
+<!ENTITY paneGeneral.title        "ਆਮ">
+<!ENTITY paneDisplay.title        "ਵੇਖਣ">
+<!ENTITY paneComposition.title    "ਲਿਖਣ">
+<!ENTITY paneAttachments.title    "ਅਟੈਚਮੈਂਟ">
+<!ENTITY paneSecurity.title       "ਸੁਰੱਖਿਆ">
+<!ENTITY paneAdvanced.title       "ਤਕਨੀਕੀ">
+
+
+<!ENTITY okButton.accesskey       "O">
+
+<!ENTITY okButton.title           "OK">
+<!ENTITY paneAccount.title        "Accounts">
+<!ENTITY paneChat.title           "Chat">
+<!ENTITY panePrivacy.title        "Privacy">
+<!ENTITY  prefWindow.titleMAC     "Preferences">
