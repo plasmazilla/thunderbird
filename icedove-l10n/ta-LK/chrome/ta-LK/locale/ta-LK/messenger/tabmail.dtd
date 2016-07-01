@@ -1,6 +1,0 @@
-<!ENTITY  closeTab.label           "தத்தலை மூடுக">
-<!ENTITY  listAllTabs.label        "எல்லாத் தத்தல்களையும் பட்டியலிடுக">
-
-<!-- LOCALIZATION NOTE(defaultTabTitle.label): This is the default tab
-     title to show when the tab has no title. -->
-<!ENTITY  defaultTabTitle.label    "Home">
