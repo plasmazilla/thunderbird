@@ -12,6 +12,7 @@ debian/thunderbird-wrapper.sh                  => usr/bin/thunderbird
 debian/account-autoconfig/*                       usr/share/thunderbird/isp
 debian/logo/thunderbird/thunderbird.svg           usr/share/icons/hicolor/scalable/apps
 debian/thunderbird.desktop                        usr/share/applications
+debian/icedove.desktop                            usr/share/applications
 debian/thunderbird.js                             etc/thunderbird/pref
 debian/tmp/usr/lib/thunderbird/*.ini
 debian/tmp/usr/lib/thunderbird/blocklist.xml
