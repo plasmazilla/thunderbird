@@ -592,8 +592,8 @@ nsComboboxControlFrame::GetAvailableDropdownSpace(WritingMode aWM,
                                containerSize);
     mLastDropDownAfterScreenBCoord = thisScreenRect.BEnd(aWM) +
                                      aTranslation->B(aWM);
-    mLastDropDownBeforeScreenBCoord = thisScreenRect.BEnd(aWM) +
-                                     aTranslation->B(aWM);
+    mLastDropDownBeforeScreenBCoord = thisScreenRect.BStart(aWM) +
+                                      aTranslation->B(aWM);
   }
 
   nscoord minBCoord;
@@ -1470,7 +1470,11 @@ nsComboboxControlFrame::Rollup(uint32_t aCount, bool aFlush,
     // The popup's visibility doesn't update until the minimize animation has
     // finished, so call UpdateWidgetGeometry to update it right away.
     nsViewManager* viewManager = mDropdownFrame->GetView()->GetViewManager();
-    viewManager->UpdateWidgetGeometry();
+    viewManager->UpdateWidgetGeometry(); // might destroy us
+  }
+
+  if (!weakFrame.IsAlive()) {
+    return consume;
   }
 
   if (aLastRolledUp) {

@@ -62,10 +62,6 @@
   color: -moz-FieldText;
 }
 
-#messengerBox {
-  background-color: -moz-Dialog;
-}
-
 /* ::::: thread decoration ::::: */
 
 treechildren::-moz-tree-row(dummy)  {

@@ -49,7 +49,7 @@
 
 
 <!ENTITY calendar.menu.customize.label          "Customize…">
-<!ENTITY calendar.properties.accesskey          "C">
+<!ENTITY calendar.properties.accesskey          "a">
 
 <!ENTITY calendar.properties.label              "Calendar Properties…">
 <!ENTITY calendar.publish.accesskey             "b">
