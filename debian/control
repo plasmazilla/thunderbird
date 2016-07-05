@@ -10,6 +10,7 @@ Build-Depends:
  autotools-dev,
  bzip2,
  debhelper (>= 7.0.50~),
+ dh-apparmor,
  dpkg-dev (>= 1.16.1~),
  libasound2-dev [linux-any],
  libatk-adaptor,
@@ -65,6 +66,7 @@ Recommends:
  iceowl-extension (= ${binary:Version}),
  myspell-en-us | hunspell-dictionary | myspell-dictionary,
 Suggests:
+ apparmor,
  fonts-lyx,
  libgssapi-krb5-2,
  ${gnome:Depends},
