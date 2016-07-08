@@ -1,3 +1,40 @@
+icedove (1:45.2.0-1) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * [f777843] Wrap and sort control information
+    via 'wrap-and-sort -ast' to simplify backporting (Closes: #825806)
+  * [457dffe] Register components with gbp
+  * [8e73822] Rediff patches
+
+  [ Carsten Schoenert ]
+  * [789ed6f] Imported Upstream version 45.1.1
+  * [8b8bd3c] Imported icedove-l10n Upstream version 45.1.1
+  * [23b2984] Imported iceowl-l10n Upstream version 45.1.1
+  * [411b27d] Imported Upstream version 45.2.0
+  * [975287a] Imported icedove-l10n Upstream version 45.2.0
+  * [09b6652] Imported iceowl-l10n Upstream version 45.2.0
+  * [2b99997] icedove-l10n-all: change Section into metapackages.
+    As Jonas Smedegaard pointed out, the icedove-l10n-all package is a
+    metapackage and localization.
+    (Closes: #824785)
+  * [a7eec24] debian/README.source: info about import of multitarballs.
+    As the VCS is using git-buildpackage for package maintenace adding some
+    hints on how to handle the impoert of the used mutitarballs since
+    version 45.0.
+  * [73e8b1a] debian/control: adding Recommends to icedove-l10n-uk
+    (Closes: #825806)
+  * [f118470] debian/control: Icedove, adding dependency on libatk-adaptor.
+    After the adding of some first small autopkg test it turns out that we
+    miss a dependency on libatk-adaptor.
+  * [e6e95c9] debian/control: rework Recommends for icedove-l10n-*
+    As addition to 711468b933f280fe9d6ed78bb1d7d763dede9ea7 also rework the
+    various Recommends for the icedove-l10n packages.
+  * [1275b3d] debian/control: small fixup Recommends on iceowl-l10n-*
+    Fix small typos for iceowl-l10n-{pt-pt,sl}
+  * [c4c9a02] debian/control: sort iceowl-l10n-* alphabetical
+
+ -- Guido Günther <agx@sigxcpu.org>  Fri, 08 Jul 2016 15:55:46 +0200
+
 icedove (1:45.1.0-1) unstable; urgency=medium
 
   [ Carsten Schoenert ]
