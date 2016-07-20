@@ -197,6 +197,9 @@ override_dh_install-arch:
 		debian/icedove/usr/share/icons/hicolor/scalable/apps/icedove.svg
 	# remove duplicate .so files in dev package
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libxul.so
+	# install apparmor profile
+	cp debian/apparmor/usr.bin.icedove debian/icedove/etc/apparmor.d/usr.bin.icedove
+	dh_apparmor --profile-name=usr.bin.icedove -picedove
 
 override_dh_install-indep:
 	dh_install
@@ -207,9 +210,6 @@ override_dh_install-indep:
 	# sometimes there are temporary build files in calendar-google-provider
 	@echo "    --> searching for temporary build files in 'calendar-google-provider' ..."
 	@for i in `find debian/calendar-google-provider/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
-	# install apparmor profile
-	cp debian/apparmor/usr.bin.icedove debian/icedove/apparmor/etc/apparmor.d/usr.bin.icedove
-	dh_apparmor --profile-name=usr.bin.icedove -picedove
 
 override_dh_fixperms-arch:
 	dh_fixperms
