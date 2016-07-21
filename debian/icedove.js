@@ -20,6 +20,9 @@ pref("intl.locale.matchOS", true);
 // Disable default mail checking (gnome).
 pref("mail.shell.checkDefaultMail", false);
 
+// Disable default mail client check
+pref("mail.shell.checkDefaultClient", false);
+
 // if you are not using gnome
 pref("network.protocol-handler.app.http", "x-www-browser");
 pref("network.protocol-handler.app.https", "x-www-browser");
