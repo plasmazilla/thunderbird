@@ -25,6 +25,10 @@ DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
 include /usr/share/dpkg/architecture.mk
 
+# currently needed as workaround for GCC-6 built, see https://bugzilla.mozilla.org/show_bug.cgi?id=1251576
+CXLAGS += -fno-delete-null-pointer-checks
+CXXFLAGS += -fno-delete-null-pointer-checks
+
 # special CFLAGS for various platforms
 ifeq ($(DEB_BUILD_ARCH),armel)
 	CFLAGS += -D__ARM_PCS
