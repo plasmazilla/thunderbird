@@ -1,6 +1,6 @@
 icedove (1:45.2.0-1) unstable; urgency=medium
 
-  [ Guido Günther ]
+  [ Guido GÃ¼nther ]
   * [f777843] Wrap and sort control information
     via 'wrap-and-sort -ast' to simplify backporting (Closes: #825806)
   * [457dffe] Register components with gbp
@@ -33,7 +33,7 @@ icedove (1:45.2.0-1) unstable; urgency=medium
     Fix small typos for iceowl-l10n-{pt-pt,sl}
   * [c4c9a02] debian/control: sort iceowl-l10n-* alphabetical
 
- -- Guido Günther <agx@sigxcpu.org>  Fri, 08 Jul 2016 15:55:46 +0200
+ -- Guido GÃ¼nther <agx@sigxcpu.org>  Fri, 08 Jul 2016 15:55:46 +0200
 
 icedove (1:45.1.0-1) unstable; urgency=medium
 
