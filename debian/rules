@@ -25,6 +25,10 @@ DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
 include /usr/share/dpkg/architecture.mk
 
+# currently needed as workaround for GCC-6 built, see https://bugzilla.mozilla.org/show_bug.cgi?id=1251576
+CXLAGS += -fno-delete-null-pointer-checks
+CXXFLAGS += -fno-delete-null-pointer-checks
+
 # special CFLAGS for various platforms
 ifeq ($(DEB_BUILD_ARCH),armel)
 	CFLAGS += -D__ARM_PCS
@@ -197,6 +201,9 @@ override_dh_install-arch:
 		debian/icedove/usr/share/icons/hicolor/scalable/apps/icedove.svg
 	# remove duplicate .so files in dev package
 	rm debian/icedove-dev/usr/lib/icedove-devel/sdk/lib/libxul.so
+	# install apparmor profile
+	cp debian/apparmor/usr.bin.icedove debian/icedove/etc/apparmor.d/usr.bin.icedove
+	dh_apparmor --profile-name=usr.bin.icedove -picedove
 
 override_dh_install-indep:
 	dh_install
