@@ -1,3 +1,34 @@
+icedove (1:45.2.0-2) unstable; urgency=medium
+
+  [ Christoph Goehre ]
+  * [8b4f306] rebuild patch queue from patch-queue branch
+    added patches:
+    - p-kfree-hurd/CrossProcessMutex.h-fix-build-on-kfreebsd-and-GNU-hur.patch
+    (Closes: #808183)
+
+  [ Carsten Schoenert ]
+  * [08e20a0] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-1277295-Remove-obsolete-reference-to-storage-service-.patch
+    (Closes: #827592)
+    - fixes/Bug-1245076-Don-t-include-mozalloc.h-from-the-cstdlib-wra.patch
+    (Closes: #831192)
+  * [1ea97f1] debian/icedove.js: disable Icedove startup check
+    (Closes: #817973)
+  * [83bdcdf] debian/rules: adding additional CFLAGS and CXXFLAGS
+  * [7dc0588] debian/control: addjust breaks for xul-ext-foxyproxy-standard
+    (Closes: #825749)
+  * [50a0f1e] autopkg: fixup small type within test call
+
+  [ Ulrike Uhlig ]
+  * [b24bbaa] Add rebranded apparmor profile from upstream (Closes: #829731)
+  * [0a28f91] apparmor/usr.bin.icedove: refresh Icedove AppArmor profile
+
+  [ Guido Günther ]
+  * [6fe4897] Fix apparmor profile installation
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 26 Jul 2016 13:25:21 -0400
+
 icedove (1:45.2.0-1) unstable; urgency=medium
 
   [ Guido Günther ]
