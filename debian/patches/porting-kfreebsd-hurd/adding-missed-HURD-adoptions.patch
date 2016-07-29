@@ -58,7 +58,7 @@ index ed09afd..a6aca8f 100644
  typedef pid_t PlatformThreadId;
  #elif defined(OS_BSD)
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
-index f1d75d1..3774e3b 100644
+index b4e105b..cf723dd 100644
 --- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 +++ b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 @@ -58,7 +58,7 @@ PlatformThreadId PlatformThread::CurrentId() {
@@ -97,7 +97,7 @@ index a8ce304..300262e 100644
  #include <limits.h>
  #include <sys/types.h>
 diff --git a/mozilla/ipc/chromium/src/base/process_util_posix.cc b/mozilla/ipc/chromium/src/base/process_util_posix.cc
-index 088b6ff..8a6b5460 100644
+index 28c96dd..bca66a6 100644
 --- a/mozilla/ipc/chromium/src/base/process_util_posix.cc
 +++ b/mozilla/ipc/chromium/src/base/process_util_posix.cc
 @@ -127,6 +127,10 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {

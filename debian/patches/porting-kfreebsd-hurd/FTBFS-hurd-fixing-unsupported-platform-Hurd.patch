@@ -10,18 +10,22 @@ following message.
 
 The original patch comes from Richard Brown <rbraun@sceen.net>
 https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2014-March/015565.html
+
+After release of Thunderbird 44 there are additional changes made as the
+various configuration files where splitted into more files.
 ---
- mozilla/dom/plugins/ipc/PluginModuleChild.cpp        |  6 +++---
- mozilla/dom/plugins/ipc/PluginModuleChild.h          |  2 +-
- mozilla/ipc/chromium/chromium-config.mozbuild        |  5 +++++
- mozilla/ipc/chromium/moz.build                       | 20 +++++++++++++++++++-
- mozilla/ipc/chromium/src/base/message_loop.cc        |  4 ++--
- mozilla/ipc/chromium/src/build/build_config.h        |  3 ++-
- .../ipc/chromium/src/chrome/common/transport_dib.h   |  6 +++---
- .../chromium/src/third_party/libeventcommon.mozbuild |  5 +++++
- mozilla/ipc/glue/GeckoChildProcessHost.cpp           |  8 ++++----
- mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp         |  4 +++-
- 10 files changed, 47 insertions(+), 16 deletions(-)
+ mozilla/dom/plugins/ipc/PluginModuleChild.cpp      |  6 +++---
+ mozilla/dom/plugins/ipc/PluginModuleChild.h        |  2 +-
+ mozilla/ipc/chromium/chromium-config.mozbuild      |  5 +++++
+ mozilla/ipc/chromium/moz.build                     | 23 ++++++++++++++++++++++
+ mozilla/ipc/chromium/src/base/message_loop.cc      |  4 ++--
+ .../ipc/chromium/src/base/process_util_posix.cc    |  2 +-
+ mozilla/ipc/chromium/src/build/build_config.h      |  3 ++-
+ .../ipc/chromium/src/chrome/common/transport_dib.h |  6 +++---
+ .../src/third_party/libeventcommon.mozbuild        |  5 +++++
+ mozilla/ipc/glue/GeckoChildProcessHost.cpp         |  8 ++++----
+ mozilla/js/src/asmjs/AsmJSSignalHandlers.cpp       |  4 +++-
+ 11 files changed, 52 insertions(+), 16 deletions(-)
 
 diff --git a/mozilla/dom/plugins/ipc/PluginModuleChild.cpp b/mozilla/dom/plugins/ipc/PluginModuleChild.cpp
 index 68a85d1..66e4445 100644
@@ -83,10 +87,10 @@ index c6f5de4..278f569 100644
      else:
          DEFINES['OS_LINUX'] = 1
 diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index 72d7eac..f87d78f 100644
+index 88aaafe..b64c0b0 100644
 --- a/mozilla/ipc/chromium/moz.build
 +++ b/mozilla/ipc/chromium/moz.build
-@@ -161,8 +161,26 @@ if os_bsd or os_linux:
+@@ -161,6 +161,29 @@ if os_bsd or os_linux:
              'src/base/message_pump_qt.cc',
          ]
  
@@ -108,12 +112,14 @@ index 72d7eac..f87d78f 100644
 +            'moc_message_pump_qt.cc',
 +        ]
 +
++if CONFIG['_MSC_VER']:
++    SOURCES += [
++        'src/base/debug_on_start.cc',
++    ]
++
  ost = CONFIG['OS_TEST']
--if '86' not in ost and 'arm' not in ost and 'aarch64' != ost and 'mips' not in ost:
-+if '86' not in ost and 'arm' not in ost and 'aarch64' != ost and 'mips' not in ost and not os_hurd:
+ if '86' not in ost and 'arm' not in ost and 'aarch64' != ost and 'mips' not in ost:
      SOURCES += [
-         'src/base/atomicops_internals_mutex.cc',
-     ]
 diff --git a/mozilla/ipc/chromium/src/base/message_loop.cc b/mozilla/ipc/chromium/src/base/message_loop.cc
 index 7f72412..ffaa939 100644
 --- a/mozilla/ipc/chromium/src/base/message_loop.cc
@@ -136,6 +142,19 @@ index 7f72412..ffaa939 100644
      pump_ = new base::MessagePumpForUI();
  #endif  // OS_LINUX
    } else if (type_ == TYPE_IO) {
+diff --git a/mozilla/ipc/chromium/src/base/process_util_posix.cc b/mozilla/ipc/chromium/src/base/process_util_posix.cc
+index 088b6ff..28c96dd 100644
+--- a/mozilla/ipc/chromium/src/base/process_util_posix.cc
++++ b/mozilla/ipc/chromium/src/base/process_util_posix.cc
+@@ -116,7 +116,7 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
+ #if defined(ANDROID)
+   static const rlim_t kSystemDefaultMaxFds = 1024;
+   static const char kFDDir[] = "/proc/self/fd";
+-#elif defined(OS_LINUX)
++#elif defined(OS_LINUX) || defined(OS_HURD)
+   static const rlim_t kSystemDefaultMaxFds = 8192;
+   static const char kFDDir[] = "/proc/self/fd";
+ #elif defined(OS_MACOSX)
 diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
 index 509cf33..a1c135c 100644
 --- a/mozilla/ipc/chromium/src/build/build_config.h

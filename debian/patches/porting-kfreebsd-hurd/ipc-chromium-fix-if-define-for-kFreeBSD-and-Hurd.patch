@@ -10,25 +10,11 @@ things needs to expanded.
 The changes is an adoption of the previous droped patch 'Fix
 ipc/chromium on kFreeBSD and Hurd' from the the version 17.
 ---
- mozilla/ipc/chromium/moz.build                         | 2 +-
  mozilla/ipc/chromium/src/base/platform_thread_posix.cc | 9 ++++++---
- 2 files changed, 7 insertions(+), 4 deletions(-)
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
-diff --git a/mozilla/ipc/chromium/moz.build b/mozilla/ipc/chromium/moz.build
-index 88aaafe..72d7eac 100644
---- a/mozilla/ipc/chromium/moz.build
-+++ b/mozilla/ipc/chromium/moz.build
-@@ -129,7 +129,7 @@ if os_bsd:
-     ]
-     if CONFIG['OS_ARCH'] == 'GNU_kFreeBSD':
-         SOURCES += [
--            'src/base/process_util_linux.cc'
-+            'src/base/process_util_linux.cc',
-         ]
-     else:
-         SOURCES += [
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
-index 98ec20f..f1d75d1 100644
+index 98ec20f..b4e105b 100644
 --- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 +++ b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 @@ -11,16 +11,19 @@
@@ -39,9 +25,9 @@ index 98ec20f..f1d75d1 100644
 +#elif defined(OS_LINUX) && !defined(__FreeBSD_kernel__) && !defined(__GNU__)
  #include <sys/syscall.h>
  #include <sys/prctl.h>
-+#elif defined(OS_FREEBSD) && !defined(__FreeBSD_kernel__)
-+#include <sys/param.h>
-+#include <sys/thr.h>
++//#elif defined(OS_FREEBSD) && !defined(__FreeBSD_kernel__)
++//#include <sys/param.h>
++//#include <sys/thr.h>
  #endif
  
  #if !defined(OS_MACOSX)

@@ -214,10 +214,6 @@
     -moz-margin-end: 1px;
   }
 
-  #quick-filter-bar toolbarbutton:not(.qfb-tag-button) {
-    color: ButtonText;
-  }
-
   #quick-filter-bar-main-bar toolbarbutton {
     min-width: 22px;
     -moz-margin-start: 1px;

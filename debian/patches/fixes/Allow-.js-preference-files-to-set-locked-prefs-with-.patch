@@ -1,0 +1,21 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Sat, 21 Jun 2008 02:48:46 +0200
+Subject: Allow .js preference files to set locked prefs with lockPref()
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=440908
+---
+ mozilla/modules/libpref/prefread.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mozilla/modules/libpref/prefread.cpp b/mozilla/modules/libpref/prefread.cpp
+index 6c4d339..a8b20bb 100644
+--- a/mozilla/modules/libpref/prefread.cpp
++++ b/mozilla/modules/libpref/prefread.cpp
+@@ -43,6 +43,7 @@ enum {
+ #define BITS_PER_HEX_DIGIT      4
+ 
+ static const char kUserPref[] = "user_pref";
++static const char kLockPref[] = "lockPref";
+ static const char kPref[] = "pref";
+ static const char kPrefSticky[] = "sticky_pref";
+ static const char kTrue[] = "true";

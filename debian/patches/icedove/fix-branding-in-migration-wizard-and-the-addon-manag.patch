@@ -8,20 +8,15 @@ addon-checking/installing/updating will work
 
 Closes: #565559
 ---
- mail/app/profile/all-thunderbird.js                | 34 +++++++++++-----------
+ mail/app/profile/all-thunderbird.js                | 33 +++++++++++-----------
  .../en-US/chrome/messenger/accountCreation.dtd     |  2 +-
- 2 files changed, 18 insertions(+), 18 deletions(-)
+ 2 files changed, 18 insertions(+), 17 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index c7fd9d4..e7a6653 100644
+index c7fd9d4..64d2f68 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
-@@ -1,4 +1,3 @@
--/* -*- Mode: JavaScript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
- /* This Source Code Form is subject to the terms of the Mozilla Public
-  * License, v. 2.0. If a copy of the MPL was not distributed with this
-  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-@@ -118,7 +117,7 @@ pref("app.update.url", "https://aus5.mozilla.org/update/3/%PRODUCT%/%VERSION%/%B
+@@ -118,7 +118,7 @@ pref("app.update.url", "https://aus5.mozilla.org/update/3/%PRODUCT%/%VERSION%/%B
  pref("app.update.url.manual", "http://www.getthunderbird.com");
  // A default value for the "More information about this update" link
  // supplied in the "An update is available" page of the update wizard.
@@ -30,7 +25,7 @@ index c7fd9d4..e7a6653 100644
  // User-settable override to app.update.url for testing purposes.
  //pref("app.update.url.override", "");
  
-@@ -140,14 +139,14 @@ pref("app.update.service.enabled", true);
+@@ -140,14 +140,14 @@ pref("app.update.service.enabled", true);
  #endif
  
  // Release notes URL
@@ -47,7 +42,7 @@ index c7fd9d4..e7a6653 100644
  
  // Show error messages in error console.
  pref("javascript.options.showInConsole", true);
-@@ -177,20 +176,20 @@ pref("extensions.autoDisableScopes", 15);
+@@ -177,20 +177,20 @@ pref("extensions.autoDisableScopes", 15);
  // Preferences for AMO integration
  pref("extensions.getAddons.cache.enabled", true);
  pref("extensions.getAddons.maxResults", 15);
@@ -77,7 +72,7 @@ index c7fd9d4..e7a6653 100644
  
  // Enables some extra Extension System Logging (can reduce performance)
  pref("extensions.logging.enabled", false);
-@@ -210,7 +209,8 @@ pref("extensions.update.background.url", "https://versioncheck-bg.addons.mozilla
+@@ -210,7 +210,8 @@ pref("extensions.update.background.url", "https://versioncheck-bg.addons.mozilla
  pref("extensions.update.interval", 86400);  // Check for updates to Extensions and
                                              // Themes every day
  
@@ -87,16 +82,16 @@ index c7fd9d4..e7a6653 100644
  pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
  
  pref("extensions.{972ce4c6-7e08-4474-a285-3208198ce6fd}.name", "chrome://messenger/locale/messenger.properties");
-@@ -429,7 +429,7 @@ pref("browser.helperApps.deleteTempFileOnExit", true);
+@@ -429,7 +430,7 @@ pref("browser.helperApps.deleteTempFileOnExit", true);
  
  pref("spellchecker.dictionary", "");
  // Dictionary download preference
 -pref("spellchecker.dictionaries.download.url", "https://addons.mozilla.org/%LOCALE%/%APP%/dictionaries/");
-+pref("spellchecker.dictionaries.download.url", "https://addons.mozilla.com/%LOCALE%/thunderbird/dictionaries/");
++pref("spellchecker.dictionaries.download.url", "https://addons.mozilla.org/%LOCALE%/thunderbird/dictionaries/");
  
  // profile.force.migration can be used to bypass the migration wizard, forcing migration from a particular
  // mail application without any user intervention. Possible values are:
-@@ -564,7 +564,7 @@ pref("mailnews.database.global.logging.console", true);
+@@ -564,7 +565,7 @@ pref("mailnews.database.global.logging.console", true);
  pref("mailnews.database.global.search.msg.limit", 1000);
  
  // page to load to find good header add-ons
@@ -105,7 +100,7 @@ index c7fd9d4..e7a6653 100644
  
  // Serif fonts look dated.  Switching those language families to sans-serif
  // where we think it makes sense.  Worth investigating for other font families
-@@ -756,7 +756,7 @@ pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
+@@ -756,7 +757,7 @@ pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
  
  pref("plugins.update.url", "https://www.mozilla.org/%LOCALE%/plugincheck/");
  pref("plugins.update.notifyUser", false);

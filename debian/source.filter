@@ -1,80 +1,100 @@
-mozilla/dom/html/reftests/toblob-todataurl/sample.js
-mozilla/build/mobile/robocop/robotium-solo-4.3.1.jar
+mail/test/mozmill/content-policy/test-general-content-policy.js
+mail/test/resources/mozmill/docs/_build/html/_static/jquery.js
+mail/test/resources/mozmill/mozmill/extension/content/editor/bespin/BespinEmbedded.js
+mail/test/resources/mozmill/mozmill/extension/content/editor/bespin/BespinMain.js
+mail/test/resources/mozmill/mozmill/extension/content/editor/bespin/BespinWorker.js
+mailnews/base/test/unit/test_compactColumnSave.js
+# don't filter out the following JS file, it's needed later while building
+#mozilla/testing/marionette/atoms/atoms.js
+mozilla/addon-sdk/source/examples/actor-repl/data/codemirror-compressed.js
+mozilla/browser/components/pocket/panels/js/vendor/jquery-2.1.1.min.js
+mozilla/browser/components/pocket/panels/js/vendor/jquery.tokeninput.min.js
+mozilla/browser/components/translation/cld2/cld-worker.js
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-javadoc.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0-sources.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-2.0.jar
 mozilla/build/mobile/sutagent/android/network-libs/commons-net-ftp-2.0.jar
 mozilla/build/mobile/sutagent/android/network-libs/jmdns.jar
-mozilla/other-licenses/7zstub/firefox/7zSD.sfx
-mozilla/other-licenses/nsis/Plugins
-mozilla/other-licenses/nsis/nsisui.exe
-mozilla/toolkit/mozapps/update/updater/macbuild/Contents/Resources/English.lproj/MainMenu.nib/keyedobjects.nib
-mozilla/toolkit/mozapps/update/updater/macbuild/Contents/PkgInfo
-mozilla/toolkit/crashreporter/google-breakpad/autotools/compile
-mozilla/toolkit/crashreporter/google-breakpad/src/tools/solaris/dump_syms/testdata/dump_syms_regtest.o
-mozilla/toolkit/crashreporter/google-breakpad/src/tools/windows/binaries
-mozilla/toolkit/crashreporter/tools/win32
+mozilla/build/pgo/blueprint/valid.png
+mozilla/devtools/client/shared/test
+# don't filter out the following JS files, they needed later while building
+#mozilla/dom/encoding/test/test_BOMEncoding.js
+#mozilla/dom/encoding/test/test_TextDecoder.js
+#mozilla/dom/encoding/test/unit/test_big5.js
+#mozilla/dom/encoding/test/unit/test_euc-jp.js
+#mozilla/dom/encoding/test/unit/test_euc-kr.js
+#mozilla/dom/encoding/test/unit/test_gbk.js
+#mozilla/dom/encoding/test/unit/test_iso-2022-jp.js
+#mozilla/dom/encoding/test/unit/test_misc.js
+#mozilla/dom/encoding/test/unit/test_shift_jis.js
+#mozilla/dom/indexedDB/test/unit/test_filehandle_append_read_data.js
+#mozilla/dom/imptests/html/js/builtins/Math.maxmin.js
+#mozilla/dom/json/test/unit/test_decode_long_input.js
+mozilla/dom/html/reftests/toblob-todataurl/sample.js
+mozilla/dom/system/gonk/tests/marionette/ril_jshint/jshint.js
+mozilla/gfx/angle/src/libEGL/libEGL.rc
+mozilla/gfx/angle/src/libEGL/resource.h
+mozilla/gfx/angle/src/libGLESv2/libGLESv2.rc
+mozilla/gfx/angle/src/libGLESv2/resource.h
+mozilla/image/test/reftest/pngsuite-transparency
+mozilla/image/test/reftest/reftest.list /pngsuite-transparency/d
+mozilla/intl/uconv/tests/unit
 mozilla/intl/unicharutil/tools/data/case.dat
 mozilla/intl/unicharutil/tools/data/cmbcl.dat
 mozilla/intl/unicharutil/tools/data/ctype.dat
 mozilla/intl/unicharutil/tools/data/decomp.dat
 mozilla/intl/unicharutil/tools/data/num.dat
-mozilla/python/psutil/_psutil_linux.so
-mozilla/python/psutil/_psutil_posix.so
-mozilla/python/psutil/build
-mozilla/build/pgo/blueprint/valid.png
-mozilla/netwerk/protocol/ftp/doc/rfc959.txt
-mozilla/layout/doc
-mozilla/image/test/reftest/pngsuite-transparency
-mozilla/image/test/reftest/reftest.list /pngsuite-transparency/d
-mozilla/browser/components/loop/content/shared/libs/react-0.12.2-prod.js
-mozilla/browser/locales/en-US/searchplugins/amazondotcom.xml s,>data:.*<, type="image/x-icon">http://www.amazon.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/answers.xml s,>data:.*<, type="image/x-icon">http://www.answers.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/bing.xml s,>data:.*<, type="image/x-icon">http://www.bing.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/creativecommons.xml s,>data:.*<, type="image/x-icon">http://www.creativecommons.org/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/eBay.xml s,>data:.*<, type="image/x-icon">http://www.ebay.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/google.xml s,>data:.*<, type="image/x-icon">http://www.google.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/twitter.xml s,>data:.*<, type="image/x-icon">http://www.twitter.com/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/wikipedia.xml s,>data:.*<, type="image/x-icon">http://en.wikipedia.org/favicon.ico<,
-mozilla/browser/locales/en-US/searchplugins/yahoo.xml s,>data:.*<, type="image/x-icon">http://www.yahoo.com/favicon.ico<,
-other-licenses/7zstub
-ldap/sdks/c-sdk/ldap/examples/macintosh
-ldap/sdks/c-sdk/ldap/libraries/macintosh/LDAPClient.mcp
-ldap/sdks/java-sdk/ldapjdk/lib/jaas.jar
-ldap/sdks/java-sdk/ldapjdk/lib/jnet.jar
-ldap/sdks/java-sdk/ldapjdk/lib/jss32_stub.jar
-ldap/sdks/java-sdk/ldapjdk/lib/jsse.jar
-ldap/sdks/java-sdk/ldapsp/lib/jndi.jar
-mail/jquery/jquery-1.6.4.min.js
-mail/jquery/jquery-ui-1.8.2.min.js
-mozilla/addon-sdk/source/examples/actor-repl/data/codemirror-compressed.js
-mozilla/addon-sdk/source/examples/annotator/data/jquery-1.4.2.min.js
-mozilla/layout/generic/crashtests/simple_blank.swf
 mozilla/js/src/jit-test/lib/mandelbrot-results.js
+mozilla/js/src/jit-test/tests
 mozilla/js/src/octane/box2d.js
 mozilla/js/src/octane/typescript-input.js
-mozilla/python/mock-1.0.0/html/searchindex.js
+mozilla/js/src/tests/ecma/ObjectObjects/15.2.1.1.js
+mozilla/js/src/tests/ecma/String/15.5.2.js
+mozilla/js/src/tests/ecma/String/15.5.4.4-4.js
+mozilla/js/src/tests/ecma_3/RegExp/regress-209067.js
+mozilla/js/src/tests/ecma_3/RegExp/regress-307456.js
+mozilla/js/src/tests/js1_5/Regress/regress-243174.js
+mozilla/js/src/tests/js1_5/Regress/regress-274888.js
+mozilla/js/src/tests/js1_5/Regress/regress-280769.js
+mozilla/js/src/tests/js1_5/Regress/regress-311629.js
+mozilla/js/src/tests/js1_8_1/jit/regress-452498-01.js
+mozilla/layout/doc
+mozilla/layout/generic/crashtests/simple_blank.swf
+mozilla/netwerk/protocol/ftp/doc/rfc959.txt
+mozilla/other-licenses/7zstub/firefox/7zSD.sfx
+mozilla/other-licenses/nsis/Contrib/ApplicationID/ApplicationID.rc
+mozilla/other-licenses/nsis/Contrib/ApplicationID/resource.h
+mozilla/other-licenses/nsis/Contrib/ServicesHelper/resource.h
+mozilla/other-licenses/nsis/Contrib/ServicesHelper/ServicesHelper.rc
+mozilla/other-licenses/nsis/nsisui.exe
+mozilla/other-licenses/nsis/Plugins
+mozilla/parser/xml/test
 mozilla/python/mock-1.0.0/html/_static/jquery.js
 mozilla/python/mock-1.0.0/html/_static/underscore.js
-mozilla/browser/components/loop/content/shared/libs/sdk-content/js/dynamic_config.min.js
-mozilla/browser/components/translation/cld2/cld-worker.js
-mozilla/dom/imptests/html/js/builtins/Math.maxmin.js
-# don't filter out the following JS file, it's needed later while building
-#mozilla/testing/marionette/atoms/atoms.js
+mozilla/python/mock-1.0.0/html/searchindex.js
+mozilla/python/psutil/build
+mozilla/python/psutil/psutil/*.so
+mozilla/testing/marionette/client/marionette/runner/mixins/browsermob-proxy-py/docs/_build/html/_static/jquery.js
+mozilla/testing/marionette/client/marionette/runner/mixins/browsermob-proxy-py/docs/_build/html/_static/underscore.js
 mozilla/testing/marionette/client/marionette/runner/mixins/resources/htmlreport/jquery.js
 mozilla/testing/mochitest/MochiKit/packed.js
 mozilla/testing/mozbase/mozrunner/mozrunner/resources/metrotestharness.exe
-mozilla/gfx/angle/src/libEGL/libEGL.rc
-mozilla/gfx/angle/src/libEGL/resource.h
-mozilla/gfx/angle/src/libGLESv2/libGLESv2.rc
-mozilla/gfx/angle/src/libGLESv2/resource.h
-mozilla/other-licenses/nsis/Contrib/ApplicationID/ApplicationID.rc
-mozilla/other-licenses/nsis/Contrib/ApplicationID/resource.h
-mozilla/other-licenses/nsis/Contrib/ServicesHelper/ServicesHelper.rc
-mozilla/other-licenses/nsis/Contrib/ServicesHelper/resource.h
+mozilla/testing/talos/talos/scripts/jszip.min.js
+mozilla/testing/talos/talos/startup_test/media/tools/MediaUtils
+mozilla/testing/talos/talos/startup_test/media/tools/PESQ
+mozilla/testing/talos/talos/startup_test/sessionrestore/profile/sessionstore.js
+mozilla/testing/talos/talos/tests/dromaeo/lib/ext-base.js
+mozilla/testing/talos/talos/tests/dromaeo/lib/ext-core.js
 mozilla/toolkit/components/maintenanceservice/maintenanceservice.rc
 mozilla/toolkit/components/maintenanceservice/resource.h
 mozilla/toolkit/crashreporter/client/crashreporter.rc
 mozilla/toolkit/crashreporter/client/resource.h
+mozilla/toolkit/crashreporter/google-breakpad/autotools/compile
+mozilla/toolkit/crashreporter/google-breakpad/src/tools/solaris/dump_syms/testdata/dump_syms_regtest.o
+mozilla/toolkit/crashreporter/google-breakpad/src/tools/windows/binaries
+mozilla/toolkit/crashreporter/tools/win32
+mozilla/toolkit/mozapps/update/updater/macbuild/Contents/PkgInfo
+mozilla/toolkit/mozapps/update/updater/macbuild/Contents/Resources/English.lproj/MainMenu.nib/keyedobjects.nib
 mozilla/toolkit/mozapps/update/updater/resource.h
 mozilla/toolkit/mozapps/update/updater/updater.rc
+other-licenses/7zstub

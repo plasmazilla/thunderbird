@@ -1,4 +1,4 @@
-icedove (31.3.0-1) unstable; urgency=low
+icedove (34.0~b1-1) experimental; urgency=low
 
   Due to the  BEAST vulnerability Icedove does not support SSLv3 encrypted
   connections by default any longer.
@@ -13,7 +13,7 @@ icedove (31.3.0-1) unstable; urgency=low
 
  -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 12 Nov 2014 19:38:00 +0100
 
-icedove (31.2.0-1) unstable; urgency=low
+icedove (33.0~b1-1) experimental; urgency=low
 
   Mozilla implemented TLS 1.2 in NSS version 3.15.1 and Thunderbird 31.0 uses
   this as the default. Thunderbird/Icedove is fall back to older TLS versions
