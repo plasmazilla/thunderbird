@@ -2190,7 +2190,7 @@ Copyright: 2013, Tensilica, Inc.
 License: Expat
 
 Files: mozilla/js/src/ctypes/libffi/texinfo.tex
-Copyright: 1985-1986, 1988, 1990-1995, 
+Copyright: 1985-1986, 1988, 1990-1995,
 License: GPL-3
 
 Files: mozilla/js/src/devtools/rootAnalysis/analyze.py
@@ -3132,7 +3132,7 @@ License: BSD-3-clause
 
 Files: mozilla/netwerk/sctp/src/netinet/sctp_sha1.c
 Copyright: 2013, Lally Singh
-           2008-2013, Michael Tuexen 
+           2008-2013, Michael Tuexen
            2008-2012, Randall Stewart
            2001-2007, Cisco Systems, Inc.
 License: BSD-3-clause
@@ -4411,7 +4411,7 @@ License: LGPL-2.1+
  This program is free software; you can redistribute it and/or modify it under
  the terms of the GNU Library General Public License as published by the
  Free Software Foundation; version 2.1 of the License, or (at  your option) any
- later version. 
+ later version.
  .
  On Debian systems, the complete text of version 2.1 of the GNU Library General Public
  License can be found in `/usr/share/common-licenses/LGPL-2.1'.
