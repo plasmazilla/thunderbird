@@ -36,4 +36,4 @@ g++ -std=c++11 \
     "${SCRATCHDIR}/test.h"
 echo "done."
 
-echo "All Tests in ${TESFILE} finished succesfully."
+echo "All Tests in ${TESTFILE} finished succesfully."
