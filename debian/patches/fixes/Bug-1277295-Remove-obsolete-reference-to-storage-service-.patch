@@ -1,0 +1,69 @@
+From: Andrew Swan <aswan@mozilla.com>
+Date: Fri, 24 Jun 2016 13:14:35 -0700
+Subject: Bug 1277295 Remove obsolete reference to storage service r=gps,kmag
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+This patch fixes a issue that was reported by
+Cédric Dufour <cedric.dufour@ced-network.net>.
+The upstream change is targeted for release 50.
+
+http://bugs.debian.org/827592
+---
+ .../toolkit/mozapps/extensions/internal/XPIProvider.jsm   | 15 +++------------
+ .../mozapps/extensions/test/xpcshell/test_syncGUID.js     |  4 +++-
+ 2 files changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/mozilla/toolkit/mozapps/extensions/internal/XPIProvider.jsm b/mozilla/toolkit/mozapps/extensions/internal/XPIProvider.jsm
+index f631a44..1ca6d83 100644
+--- a/mozilla/toolkit/mozapps/extensions/internal/XPIProvider.jsm
++++ b/mozilla/toolkit/mozapps/extensions/internal/XPIProvider.jsm
+@@ -1255,22 +1255,13 @@ function loadManifestFromRDF(aUri, aStream) {
+ }
+ 
+ function defineSyncGUID(aAddon) {
+-  // Load the storage service before NSS (nsIRandomGenerator),
+-  // to avoid a SQLite initialization error (bug 717904).
+-  let storage = Services.storage;
+-
+   // Define .syncGUID as a lazy property which is also settable
+   Object.defineProperty(aAddon, "syncGUID", {
+     get: () => {
+       // Generate random GUID used for Sync.
+-      // This was lifted from util.js:makeGUID() from services-sync.
+-      let rng = Cc["@mozilla.org/security/random-generator;1"].
+-        createInstance(Ci.nsIRandomGenerator);
+-      let bytes = rng.generateRandomBytes(9);
+-      let byte_string = bytes.map(byte => String.fromCharCode(byte)).join("");
+-      // Base64 encode
+-      let guid = btoa(byte_string).replace(/\+/g, '-')
+-        .replace(/\//g, '_');
++      let guid = Cc["@mozilla.org/uuid-generator;1"]
++          .getService(Ci.nsIUUIDGenerator)
++          .generateUUID().toString();
+ 
+       delete aAddon.syncGUID;
+       aAddon.syncGUID = guid;
+diff --git a/mozilla/toolkit/mozapps/extensions/test/xpcshell/test_syncGUID.js b/mozilla/toolkit/mozapps/extensions/test/xpcshell/test_syncGUID.js
+index 390fb5d..385f584 100644
+--- a/mozilla/toolkit/mozapps/extensions/test/xpcshell/test_syncGUID.js
++++ b/mozilla/toolkit/mozapps/extensions/test/xpcshell/test_syncGUID.js
+@@ -22,6 +22,8 @@ function run_test() {
+   run_next_test();
+ }
+ 
++const UUID_PATTERN = /^\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}$/i;
++
+ add_test(function test_getter_and_setter() {
+   // Our test add-on requires a restart.
+   let listener = {
+@@ -35,7 +37,7 @@ add_test(function test_getter_and_setter() {
+ 
+         do_check_neq(addon, null);
+         do_check_neq(addon.syncGUID, null);
+-        do_check_true(addon.syncGUID.length >= 9);
++        do_check_true(UUID_PATTERN.test(addon.syncGUID));
+ 
+         let oldGUID = addon.SyncGUID;
+         let newGUID = "foo";

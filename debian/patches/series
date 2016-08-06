@@ -95,3 +95,4 @@ iceowl-l10n/Brand-vi.patch
 iceowl-l10n/Brand-zh-CN.patch
 iceowl-l10n/Brand-zh-TW.patch
 fixes/Allow-.js-preference-files-to-set-locked-prefs-with-lockP.patch
+fixes/Bug-1277295-Remove-obsolete-reference-to-storage-service-.patch
