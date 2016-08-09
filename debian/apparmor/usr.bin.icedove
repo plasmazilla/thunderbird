@@ -28,6 +28,8 @@ profile icedove /usr/lib/icedove/icedove {
   # for crash reports?
   ptrace (read,trace) peer=@{profile_name},
 
+  /usr/lib/icedove/icedove ixr,
+
   # Pulseaudio
   /usr/bin/pulseaudio Pixr,
 
