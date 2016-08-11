@@ -28,7 +28,7 @@ include /usr/share/dpkg/architecture.mk
 # currently needed as workaround for GCC-6 built
 # see https://bugzilla.mozilla.org/show_bug.cgi?id=1251576
 # and https://bugzilla.mozilla.org/show_bug.cgi?id=1245783#c31
-CXLAGS += -fno-delete-null-pointer-checks -fno-schedule-insns2
+CFLAGS += -fno-delete-null-pointer-checks -fno-schedule-insns2
 CXXFLAGS += -fno-delete-null-pointer-checks -fno-schedule-insns2
 
 # special CFLAGS for various platforms
