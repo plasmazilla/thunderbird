@@ -1,3 +1,19 @@
+icedove (1:45.2.0-3) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * [9a8f4e1] tests: Fix typo
+
+  [ Carsten Schoenert ]
+  * [53aab10] AppArmor: allow self execution for -ProfileManager
+    (Closes: #833742)
+  * [a459d6a] debian/rules: adding one more CFLAGS/CXXFLAGS compiler flag
+    (Closes: #833864, #833532, #833591, #833635, #833698)
+  * [e32c460] AppArmor: grant access to local mailboxes and enigmail
+    (Closes: #833184)
+  * [f34e41e] debian/rules: fix typo CXLAGS -> CFLAGS
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 12 Aug 2016 12:00:44 -0400
+
 icedove (1:45.2.0-2) unstable; urgency=medium
 
   [ Christoph Goehre ]
