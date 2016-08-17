@@ -77,8 +77,15 @@ ac_add_options --host=$DEB_HOST_GNU_TYPE
 
 # some platform depended things
 case `dpkg --print-architecture` in
+  arm64)
+    ac_add_options --enable-optimize=-O1
+    ;;
   armel)
     ac_add_options --disable-methodjit
+    ac_add_options --enable-optimize=-O1
+    ;;
+  armhf)
+    ac_add_options --enable-optimize=-O1
     ;;
   alpha)
     ac_add_options --enable-optimize=-O1
