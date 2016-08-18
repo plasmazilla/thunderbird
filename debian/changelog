@@ -1,3 +1,10 @@
+icedove (1:45.2.0-4) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [cc8cd76] mozconfig.default: relaxe optimization on arm{64,el,hf} to -O1
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 18 Aug 2016 10:45:17 -0400
+
 icedove (1:45.2.0-3) unstable; urgency=medium
 
   [ Guido Günther ]
