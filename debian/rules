@@ -129,24 +129,24 @@ override_dh_auto_install:
 	# install iceowl-l10n
 	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
 		locale=`basename $${jar} .jar | tr 'A-Z' 'a-z'`; \
-		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@iceowl.debian.org/chrome; \
-		install -m 644 $${jar} $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@iceowl.debian.org/chrome/; \
+		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/chrome; \
+		install -m 644 $${jar} $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/chrome/; \
 	done
 	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
 		locale=`basename $${jar} .jar | tr 'A-Z' 'a-z'`; \
 		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/iceowl/extensions/; \
-		ln -sf /usr/share/iceowl/extensions/langpack-$${locale}@iceowl.debian.org/ \
-			$(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/iceowl/extensions/langpack-$${locale}@iceowl.debian.org; \
+		ln -sf /usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/ \
+			$(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/iceowl/extensions/langpack-$${locale}@lightning.debian.org; \
 		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/icedove/extensions/; \
-		ln -sf /usr/share/iceowl/extensions/langpack-$${locale}@iceowl.debian.org/ \
-			$(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/icedove/extensions/langpack-$${locale}@iceowl.debian.org; \
+		ln -sf /usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/ \
+			$(CURDIR)/debian/iceowl-l10n-$${locale}/usr/lib/icedove/extensions/langpack-$${locale}@lightning.debian.org; \
 	done
 	# install iceowl-l10n; install.rdf
 	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
 		locale=`basename $${jar} .jar | tr 'A-Z' 'a-z'`; \
 		sed -e s"/##LOCALE##/$${locale}/" -e s",##VERSION##,$(LIGHTNING_VERSION)," \
 			debian/iceowl-l10n-install.rdf.in \
-			> $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@iceowl.debian.org/install.rdf; \
+			> $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/install.rdf; \
 	done
 	# install iceowl-l10n; chrome.manifest
 	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
@@ -154,13 +154,13 @@ override_dh_auto_install:
 		locale=`basename $${jar} .jar | tr 'A-Z' 'a-z'`; \
 			sed -e s"/##LANG##/$${lang}/g" \
 			debian/iceowl-l10n-chrome.manifest.in \
-			> $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@iceowl.debian.org/chrome.manifest; \
+			> $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/chrome.manifest; \
 	done
 	# install iceowl-l10n; uninstall
 	for jar in $(ICEOWL_L10N_BUILDDIR)/*.jar; do \
 		locale=`basename $${jar} .jar | tr 'A-Z' 'a-z'`; \
-		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@iceowl.debian.org/uninstall; \
-		touch $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@iceowl.debian.org/uninstall/Uninstall; \
+		mkdir -p $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/uninstall; \
+		touch $(CURDIR)/debian/iceowl-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/uninstall/Uninstall; \
 	done
 
 override_dh_install-arch:
