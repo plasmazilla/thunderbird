@@ -4,11 +4,11 @@
 # by Jamie Strandboge <jamie@canonical.com>
 
 # Declare an apparmor variable to help with overrides
-@{MOZ_LIBDIR}=/usr/lib/icedove
+@{MOZ_LIBDIR}=/usr/lib/thunderbird
 
 #include <tunables/global>
 
-profile icedove /usr/lib/icedove/icedove {
+profile thunderbird /usr/lib/thunderbird/thunderbird {
   #include <abstractions/audio>
   #include <abstractions/aspell>
   #include <abstractions/cups-client>
@@ -28,7 +28,7 @@ profile icedove /usr/lib/icedove/icedove {
   # for crash reports?
   ptrace (read,trace) peer=@{profile_name},
 
-  /usr/lib/icedove/icedove ixr,
+  /usr/lib/thunderbird/thunderbird ixr,
 
   # Pulseaudio
   /usr/bin/pulseaudio Pixr,
@@ -48,7 +48,7 @@ profile icedove /usr/lib/icedove/icedove {
   # Required for LVM setups
   /sys/devices/virtual/block/dm-[0-9]*/uevent r,
 
-  # Addons (too lax for icedove)
+  # Addons (too lax for thunderbird)
   ##include <abstractions/ubuntu-browsers.d/firefox>
 
   # for networking
@@ -80,9 +80,9 @@ profile icedove /usr/lib/icedove/icedove {
   /etc/timezone r,
   /etc/wildmidi/wildmidi.cfg r,
 
-  # icedove specific
-  /etc/icedove/ r,
-  /etc/icedove/** r,
+  # thunderbird specific
+  /etc/thunderbird/ r,
+  /etc/thunderbird/** r,
   /etc/xul-ext/** r,
   /etc/xulrunner-2.0*/ r,
   /etc/xulrunner-2.0*/** r,
@@ -91,7 +91,7 @@ profile icedove /usr/lib/icedove/icedove {
 
   # noisy
   deny @{MOZ_LIBDIR}/** w,
-  deny /usr/lib/icedove-addons/** w,
+  deny /usr/lib/thunderbird-addons/** w,
   deny /usr/lib/xulrunner-addons/** w,
   deny /usr/lib/xulrunner-*/components/*.tmp w,
   deny /.suspended r,
@@ -137,15 +137,15 @@ profile icedove /usr/lib/icedove/icedove {
   / r,
   /**/ r,
 
-  # per-user icedove configuration
-  owner @{HOME}/.icedove/ rw,
-  owner @{HOME}/.icedove/** rw,
-  owner @{HOME}/.icedove/**/storage.sdb k,
-  owner @{HOME}/.icedove/**/*.{db,parentlock,sqlite}* k,
-  owner @{HOME}/.icedove/plugins/** rm,
-  owner @{HOME}/.icedove/**/plugins/** rm,
-  owner @{HOME}/.cache/icedove/ rw,
-  owner @{HOME}/.cache/icedove/** rw,
+  # per-user thunderbird configuration
+  owner @{HOME}/.thunderbird/ rw,
+  owner @{HOME}/.thunderbird/** rw,
+  owner @{HOME}/.thunderbird/**/storage.sdb k,
+  owner @{HOME}/.thunderbird/**/*.{db,parentlock,sqlite}* k,
+  owner @{HOME}/.thunderbird/plugins/** rm,
+  owner @{HOME}/.thunderbird/**/plugins/** rm,
+  owner @{HOME}/.cache/thunderbird/ rw,
+  owner @{HOME}/.cache/thunderbird/** rw,
 
   # system emails
   owner /var/mail/* rwlk,
@@ -154,11 +154,11 @@ profile icedove /usr/lib/icedove/icedove {
   # Extensions
   # /usr/share/.../extensions/... is already covered by '/usr/** r', above.
   # Allow 'x' for downloaded extensions, but inherit policy for safety
-  owner @{HOME}/.icedove/**/extensions/** mixrw,
+  owner @{HOME}/.thunderbird/**/extensions/** mixrw,
   owner @{HOME}/.mozilla/extensions/**        mixr,
   /usr/share/xul-ext/**/*.sqlite              rk,
   /usr/lib/xul-ext/**/*.sqlite                rk,
-  /usr/lib/icedove-addons/extensions/**/*.sqlite rk,
+  /usr/lib/thunderbird-addons/extensions/**/*.sqlite rk,
 
   deny @{MOZ_LIBDIR}/update.test w,
   deny /usr/lib/mozilla/extensions/**/ w,
@@ -231,11 +231,11 @@ profile icedove /usr/lib/icedove/icedove {
     /usr/lib/gnupg2/gpg2keys_hkp ix,
 
     # silence noise from enigmail 1.9+
-    deny owner @{HOME}/.icedove/*/.parentlock w,
-    deny owner @{HOME}/.icedove/*/panacea.dat w,
-    deny owner @{HOME}/.icedove/*/*.mab w,
-    deny owner @{HOME}/.icedove/**/*.msf w,
-    deny owner @{HOME}/.cache/icedove/**/_CACHE_* w,
+    deny owner @{HOME}/.thunderbird/*/.parentlock w,
+    deny owner @{HOME}/.thunderbird/*/panacea.dat w,
+    deny owner @{HOME}/.thunderbird/*/*.mab w,
+    deny owner @{HOME}/.thunderbird/**/*.msf w,
+    deny owner @{HOME}/.cache/thunderbird/**/_CACHE_* w,
 
     /usr/share/xul-ext/enigmail/chrome/enigmail.jar r,
 
@@ -282,5 +282,5 @@ profile icedove /usr/lib/icedove/icedove {
   }
 
   # Site-specific additions and overrides. See local/README for details.
-  #include <local/usr.bin.icedove>
+  #include <local/usr.bin.thunderbird>
 }

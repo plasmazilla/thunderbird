@@ -168,8 +168,8 @@ override_dh_install-arch:
 	# remove duplicate .so files in dev package
 	rm debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/lib/libxul.so
 	# install apparmor profile
-	cp debian/apparmor/usr.bin.icedove debian/icedove/etc/apparmor.d/usr.bin.icedove
-	dh_apparmor --profile-name=usr.bin.icedove -picedove
+	cp debian/apparmor/usr.bin.thunderbird debian/thunderbird/etc/apparmor.d/usr.bin.thunderbird
+	dh_apparmor --profile-name=usr.bin.thunderbird -pthunderbird
 
 override_dh_install-indep:
 	dh_install
