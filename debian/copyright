@@ -1,6 +1,6 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: Thunderbird
-Source: http://ftp.mozilla.org/pub/mozilla.org/thunderbird/
+Source: https://ftp.mozilla.org/pub/mozilla.org/thunderbird/
 Disclaimer: The original upstream tarball is modified from upstream by
  removing a set of sourceless binary, non-free, and VCS-related files. You
  can find a repack.py script in the debian directory doing this cleanup,
@@ -13,7 +13,7 @@ Disclaimer: The original upstream tarball is modified from upstream by
  build the binary packages.
 
 Files: *
-Copyright: 1998-2015, Mozilla Project
+Copyright: 1998-2016, Mozilla Project
 License: MPL-2.0 or GPL-2 or LGPL-2.1
 
 Files: debian/*
@@ -24,20 +24,24 @@ Copyright: 2003-2009, Alexander Sack <asac@debian.org>
            2010-2016, Christoph Goehre <chris@sigxcpu.org>
 License: MPL-1.1 or MPL-2.0 or GPL-2 or LGPL-2.1
 
-Files: debian/logo/icedove_icon_plain.svg
-       debian/logo/icedove_icon_profile_plain.svg
-       debian/logo/icedove_icon_profile.svg
-       debian/logo/icedove_icon.svg
-       debian/logo/icedove_lettering.svg
-       debian/logo/icedove_logo_plain.svg
-       debian/logo/icedove_logo.svg
+Files: debian/logo/icedove/icedove_icon_plain.svg
+       debian/logo/icedove/icedove_icon_profile_plain.svg
+       debian/logo/icedove/icedove_icon_profile.svg
+       debian/logo/icedove/icedove_icon.svg
+       debian/logo/icedove/icedove_lettering.svg
+       debian/logo/icedove/icedove_logo_plain.svg
+       debian/logo/icedove/icedove_logo.svg
 Copyright: 2006-2007, Ricardo Fernández Fuentes
 License: MPL-1.1 or GPL-2 or LGPL-2.1
+
+Files: debian/logo/icedove/icedove_icon_plain.svg
+Copyright: 1998-2016, Mozilla Foundation
+License: MPL-2.0 or GPL-2 or LGPL-2.1
 
 Files: build/pypng/*
 Copyright: drj11 <drj@pobox.com>
            Mel Raab, David Jones
-License: MIT
+License: Expat
 
 Files: calendar/*
 Copyright: no-info-found
@@ -67,7 +71,7 @@ License: MPL-1.0
 Files: calendar/libical/src/libical/astime.h
        calendar/libical/src/libical/caldate.c
 Copyright: 1986-2000, Hiram Clawson
-License: BSD-2
+License: BSD-2-clause
 
 Files: calendar/libical/src/libical/icalarray.c
        calendar/libical/src/libical/icalarray.h
@@ -106,7 +110,7 @@ License: MPL-1.0 or LGPL-2.1
 
 Files: calendar/libical/src/libical/vsnprintf.c
 Copyright: 1997, Theo de Raadt
-License: BSD-2
+License: BSD-2-clause
 
 Files: chat/protocols/irc/test/test_sendBufferedCommand.js
        db/mork/*
@@ -307,7 +311,7 @@ License: Apache-2.0
 
 Files: mozilla/browser/extensions/pdfjs/test/*
 Copyright: no-info-found
-License: Public-Domain
+License: public-domain
 
 Files: mozilla/browser/extensions/pdfjs/content/*
        mozilla/browser/extensions/shumway/*
@@ -370,12 +374,12 @@ Files: mozilla/dom/canvas/WebGLTexelConversions.h
 Copyright: 2010, Mozilla Corporation
            2010, Google Inc.
            2010, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/canvas/WebGLValidateStrings.h
 Copyright: 2011, Mozilla Corporation
            2011, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/canvas/test/webgl-conformance/conformance/more/*
 Copyright: 2011, Ilmari Heikkinen <ilmari.heikkinen@gmail.com>
@@ -384,7 +388,7 @@ License: Expat
 Files: mozilla/dom/canvas/test/webgl-conformance/conformance/resources/webgl-test.js
        mozilla/dom/canvas/test/webgl-conformance/resources/js-test-pre.js
 Copyright: 2009, 2011, Apple Computer, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/canvas/test/webgl-conformance/generate-wrappers-and-manifest.py
        mozilla/dom/canvas/test/webgl-conformance/resources/cors-util.js
@@ -410,11 +414,11 @@ License: Expat
 Files: mozilla/dom/media/gmp-plugin/gmp-fake.cpp
 Copyright: 2014, Mozilla Foundation
            2009-2014, Cisco Systems
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/media/gmp/GMPVideoEncodedFrameImpl.h
 Copyright: 2014, Mozilla Corporation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/media/gmp/gmp-api/*
 Copyright: 2014, Mozilla Foundation
@@ -467,7 +471,7 @@ Files: mozilla/dom/media/webaudio/blink/DenormalDisabler.h
        mozilla/dom/media/webaudio/blink/HRTFPanner.cpp
        mozilla/dom/media/webaudio/blink/HRTFPanner.h
 Copyright: 2010-2011, Google Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/media/webaudio/blink/IRC_Composite_C_R0195-incl.cpp
 Copyright: no-info-found
@@ -499,7 +503,7 @@ License: Apache-2.0
 Files: mozilla/dom/plugins/base/android/ANPKeyCodes.h
        mozilla/dom/plugins/base/android/android_npapi.h
 Copyright: 2008-2010, The Android Open Source Project
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/plugins/base/npruntime.h
 Copyright: 2004, Apple Computer, Inc. and The Mozilla Foundation
@@ -520,7 +524,7 @@ License: MPL-2.0
 Files: mozilla/dom/plugins/test/testplugin/nptest_utils.cpp
        mozilla/dom/plugins/test/testplugin/nptest_utils.h
 Copyright: 2006-2009, 2012, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/plugins/test/testplugin/secondplugin/*
        mozilla/dom/plugins/test/unit/*
@@ -565,7 +569,7 @@ License: Apache-2.0
 
 Files: mozilla/dom/tests/mochitest/ajax/jquery/dist/*
 Copyright: 2006-2008, John Resig (jquery.com)
-License: GPL-2 or MIT
+License: GPL-2 or Expat
 
 Files: mozilla/dom/tests/mochitest/ajax/prototype/test/lib/*
 Copyright: 2005, Thomas Fuchs (http://script.aculo.us, http://mir.aculo.us)
@@ -649,7 +653,7 @@ License: GPL-3+
 
 Files: mozilla/gfx/angle/src/third_party/*
 Copyright: 2006-2009, 2012, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/gfx/cairo/cairo/*
 Copyright: 2005-2008, RedHat, Inc.
@@ -1274,7 +1278,7 @@ License: Expat
 
 Files: mozilla/gfx/ots/*
 Copyright: 2009 The Chromium Authors
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/gfx/ots/sync.sh
 Copyright: no-info-found
@@ -1303,7 +1307,7 @@ License: MPL-2.0 or Expat
 
 Files: mozilla/gfx/ycbcr/*
 Copyright: 2006-2008 The Chromium Authors
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/gfx/ycbcr/YCbCrUtils.cpp
        mozilla/gfx/ycbcr/YCbCrUtils.h
@@ -1356,7 +1360,7 @@ License: MPL-2.0
 
 Files: mozilla/ipc/chromium/*
 Copyright: 2006-2008 The Chromium Authors
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/ipc/chromium/src/base/atomicops_internals_mips_gcc.h
 Copyright: 2006-2013, The Chromium Authors
@@ -1375,11 +1379,11 @@ License: BSD-3-clause
 
 Files: mozilla/ipc/chromium/src/third_party/libevent/*
 Copyright: 2000-2002 Niels Provos <provos@citi.umich.edu>
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/ipc/chromium/src/third_party/libevent/WIN32-Code/tree.h
 Copyright: 2002, Niels Provos <provos@citi.umich.edu>
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/ipc/chromium/src/third_party/libevent/arc4random.c
 Copyright: 2010-2012, Niels Provos and Nick Mathewson
@@ -1781,7 +1785,7 @@ Files: mozilla/js/src/jit/ExecutableAllocator.cpp
        mozilla/js/src/jit/ExecutableAllocatorPosix.cpp
        mozilla/js/src/jit/ExecutableAllocatorWin.cpp
 Copyright: 2006-2009, 2012, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/js/src/jit/arm/Simulator-arm.cpp
        mozilla/js/src/jit/arm/Simulator-arm.h
@@ -1949,7 +1953,7 @@ License: Apache-2.0
 
 Files: mozilla/media/gmp-clearkey/0.1/openaes/*
 Copyright: 2012-2013, Nabil S. Al Ramli, www.nalramli.com
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/kiss_fft/_kiss_fft_guts.h
        mozilla/media/kiss_fft/kiss_fft.c
@@ -1978,20 +1982,20 @@ License: ISC
 
 Files: mozilla/media/libnestegg/src/*
 Copyright: 2004-2010, Alex Pankratov
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/media/libogg/*
 Copyright: 2002-2007 Xiph.org Foundation
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/media/libopus/celt/*
 Copyright: 2007-2009, Xiph.Org Foundation
            2007-2008, CSIRO
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/_kiss_fft_guts.h
 Copyright: 2003, 2004, Mark Borgerding
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/arch.h
        mozilla/media/libopus/celt/fixed_generic.h
@@ -2000,25 +2004,25 @@ Files: mozilla/media/libopus/celt/arch.h
 Copyright: 2007-2009, Xiph.Org Foundation
            2007-2008, CSIRO
            2002-2008, Jean-Marc Valin
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/arm/*
 Copyright: 2013, Parrot
            2010, Xiph.Org Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/arm/fixed_armv4.h
        mozilla/media/libopus/celt/arm/kiss_fft_armv4.h
        mozilla/media/libopus/celt/arm/kiss_fft_armv5e.h
 Copyright: 2013, Xiph.Org Foundation and contributors
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/arm/fixed_armv5e.h
 Copyright: 2013, Parrot
            2007-2009, Xiph.Org Foundation
            2007-2008, CSIRO
            2003-2008, Jean-Marc Valin
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/bands.c
        mozilla/media/libopus/celt/bands.h
@@ -2031,24 +2035,24 @@ Files: mozilla/media/libopus/celt/bands.c
 Copyright: 2008-2012, Gregory Maxwell
            2007-2010, Xiph.Org Foundation
            2007-2008, CSIRO
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/celt_lpc.c
        mozilla/media/libopus/celt/celt_lpc.h
 Copyright: 1994-2002, 2009-2012, Xiph.Org Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/cpu_support.h
 Copyright: 2013, Parrot
            2010, Xiph.Org Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/cwrs.c
        mozilla/media/libopus/celt/cwrs.h
 Copyright: 2007-2009, Xiph.Org Foundation
            2007-2009, Timothy B. Terriberry
            2007-2008, CSIRO
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/ecintrin.h
        mozilla/media/libopus/celt/entcode.h
@@ -2059,89 +2063,89 @@ Files: mozilla/media/libopus/celt/ecintrin.h
        mozilla/media/libopus/celt/mfrngcod.h
 Copyright: 2008-2009, Xiph.Org Foundation
            2001-2011, Timothy B. Terriberry
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/entcode.c
 Copyright: 2001-2011, Timothy B. Terriberry
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/fixed_debug.h
        mozilla/media/libopus/celt/stack_alloc.h
 Copyright: 2007-2012, Xiph.Org Foundation
            2002-2008, Jean-Marc Valin
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/float_cast.h
 Copyright: 2001, Erik de Castro Lopo <erikd AT mega-nerd DOT com>
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/kiss_fft.c
        mozilla/media/libopus/celt/kiss_fft.h
 Copyright: 2008, Xiph.Org Foundation, CSIRO
            2005-2007, Xiph.Org Foundation
            2003-2004, Mark Borgerding
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/os_support.h
 Copyright: 2007, Jean-Marc Valin
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/x86/*
 Copyright: 2013, Jean-Marc Valin and John Ridges
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/include/*
 Copyright: 1994-2002, 2009-2012, Xiph.Org Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/include/opus.h
        mozilla/media/libopus/include/opus_defines.h
 Copyright: 2010, 2011, Xiph.Org Foundation, Skype Limited
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/include/opus_custom.h
 Copyright: 2008-2012, Gregory Maxwell
            2007-2010, Xiph.Org Foundation
            2007-2008, CSIRO
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/silk/*
 Copyright: 2006-2011, Skype Limited
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/silk/MacroDebug.h
 Copyright: 2012, Xiph.Org Foundation
            2006-2011, Skype Limited
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/silk/arm/*
 Copyright: 2013, Parrot
            2006-2011, Skype Limited
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/silk/arm/SigProc_FIX_armv4.h
 Copyright: 2013, Xiph.Org Foundation and contributors
            2013, Parrot
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/silk/arm/macros_armv4.h
 Copyright: 2013, Xiph.Org Foundation and contributors
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/src/*
 Copyright: 1994-2002, 2009-2012, Xiph.Org Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/src/mlp.c
        mozilla/media/libopus/src/mlp.h
 Copyright: 2008-2011, Octasic Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/src/opus.c
        mozilla/media/libopus/src/opus_decoder.c
        mozilla/media/libopus/src/opus_encoder.c
 Copyright: 2010, 2011, Xiph.Org Foundation, Skype Limited
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libpng/*
 Copyright: 1998-2014, Glenn Randers-Pehrson
@@ -2196,15 +2200,15 @@ License: Apache-2.0
 
 Files: mozilla/media/libtheora/*
 Copyright: 2002-2007 Xiph.org Foundation
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/media/libvorbis/*
 Copyright: 2002-2007 Xiph.org Foundation
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/media/libvpx/*
 Copyright: 2010 Google Inc.
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/media/mtransport/nr_socket_prsock.cpp
 Copyright: 2007, Adobe Systems, Incorporated
@@ -2227,7 +2231,7 @@ License: MPL-2.0 or BSD-3-clause
 
 Files: mozilla/media/mtransport/nr_timer.cpp
 Copyright: 2004, 2006, Network Resonance, Inc.
-License: MPL-2.0 or BSD-2
+License: MPL-2.0 or BSD-2-clause
 
 Files: mozilla/media/mtransport/test/gtest_utils.h
 Copyright: 2004-2008, Google Inc.
@@ -2267,12 +2271,12 @@ License: BSD-3-clause
 
 Files: mozilla/media/mtransport/third_party/nrappkit/*
 Copyright: 2001-2007, Network Resonance, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/mtransport/third_party/nrappkit/src/log/*
 Copyright: 2002-2003, 2006, Network Resonance, Inc.
            1999-2001, RTFM, Inc
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/mtransport/third_party/nrappkit/src/port/generic/*
 Copyright: 1991, 1993, University of California
@@ -2288,17 +2292,17 @@ Files: mozilla/media/mtransport/third_party/nrappkit/src/util/libekr/r_assoc.c
        mozilla/media/mtransport/third_party/nrappkit/src/util/libekr/r_thread.h
 Copyright: 2002, 2003, 2006, Network Resonance, Inc.
            1999-2001, RTFM, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/mtransport/third_party/nrappkit/src/util/libekr/r_crc32.c
 Copyright: 2003, RTFM, Inc.
            2002-2003, 2006, Network Resonance, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/mtransport/third_party/nrappkit/src/util/libekr/r_memory.c
        mozilla/media/mtransport/third_party/nrappkit/src/util/libekr/r_memory.h
 Copyright: 2001-2007, Network Resonance, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/omx-plugin/include/*
 Copyright: 2005-2013, The Android Open Source Project
@@ -2386,24 +2390,22 @@ License: Apache-2.0
 
 Files: mozilla/media/webrtc/trunk/webrtc/system_wrappers/source/spreadsortlib/*
 Copyright: no-info-found
-License: BSL-1
- Please fill license BSL-1 from header of mozilla/media/webrtc/trunk/webrtc/system_wrappers/source/spreadsortlib/*
+License: BSL-1.0
 
 Files: mozilla/media/webrtc/trunk/webrtc/system_wrappers/source/spreadsortlib/spreadsort.hpp
 Copyright: Steven J. Ross 2001-2009
 License: BSL-1.0
- Please fill license BSL-1.0 from header of mozilla/media/webrtc/trunk/webrtc/system_wrappers/source/spreadsortlib/spreadsort.hpp
 
 Files: mozilla/memory/jemalloc/*
 Copyright: 2002-2015 Jason Evans <jasone@canonware.com>
            2002 Niels Provos
            2007-2012 Mozilla Foundation
            2009-2015 Facebook, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/memory/jemalloc/src/include/*
 Copyright: 2006-2008, Alexander Chemeris
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/memory/jemalloc/src/test/include/*
 Copyright: 2006, 2007, Mutsuo Saito, Makoto Matsumoto and Hiroshima
@@ -2423,16 +2425,16 @@ License: Expat
 
 Files: mozilla/memory/mozjemalloc/*
 Copyright: 2006-2008, Jason Evans <jasone@FreeBSD.org>
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/memory/mozjemalloc/linkedlist.h
 Copyright: Mozilla Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/memory/mozjemalloc/ql.h
        mozilla/memory/mozjemalloc/qr.h
 Copyright: 2002, Jason Evans <jasone@canonware.com>
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/mfbt/decimal/*
 Copyright: 2005-2006, 2008-2013, Google Inc.
@@ -2450,7 +2452,7 @@ License: BSD-3-clause
 Files: mozilla/mfbt/lz4.c
        mozilla/mfbt/lz4.h
 Copyright: 2011-2014, Yann Collet
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/mobile/android/stumbler/java/org/mozilla/mozstumbler/service/utils/PersistentIntentService.java
        mozilla/mobile/android/thirdparty/ch/boye/httpclientandroidlib/androidextra/Base64.java
@@ -2575,12 +2577,12 @@ License: Zlib
 Files: mozilla/mozglue/android/pbkdf2_sha256.c
        mozilla/mozglue/android/pbkdf2_sha256.h
 Copyright: 2003-2005, 2007, 2009, Colin Percival
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/mozglue/build/cpuacct.c
        mozilla/mozglue/build/cpuacct.h
 Copyright: 2008-2010, The Android Open Source Project
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/dns/nameprep.c
        mozilla/netwerk/dns/nameprepdata.c
@@ -2611,7 +2613,7 @@ Copyright: 2011-2012, Michael Tuexen
            2011-2012, Irene Ruengeler
            2009-2010, Humaira Kamal
            2009-2010, Brad Penoff
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/sctp/src/netinet/*
 Copyright: 2008-2012, Randall Stewart
@@ -2638,12 +2640,12 @@ Files: mozilla/netwerk/sctp/src/netinet/sctp_ss_functions.c
 Copyright: 2010-2012, Robin Seggelmann
            2010-2012, Randall Stewart
            2010-2012, Michael Tuexen
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/sctp/src/netinet/sctp_userspace.c
 Copyright: 2011, 2012, Michael Tuexen
            2011, 2012, Irene Ruengeler
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/sctp/src/netinet6/*
 Copyright: 2008-2012, Randall Stewart
@@ -2682,7 +2684,7 @@ License: BSD-3-clause
 Files: mozilla/netwerk/sctp/src/user_recv_thread.h
 Copyright: 2011-2012, Michael Tuexen
            2011-2012, Irene Ruengeler
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/sctp/src/user_route.h
 Copyright: 1980, 1986, 1993, University of California
@@ -2696,7 +2698,7 @@ Copyright: 2011, 2012, Michael Tuexen
            2004-2008, Robert N. M. Watson
            2004, The FreeBSD Foundation
            1982, 1986, 1988, 1990, 1993, University of California
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/srtp/src/*
 Copyright: 2001-2006, Cisco Systems, Inc.
@@ -2795,7 +2797,7 @@ Files: mozilla/other-licenses/android/linker_format.h
        mozilla/other-licenses/android/res_state.c
        mozilla/other-licenses/android/resolv_cache.h
 Copyright: 2008-2010, The Android Open Source Project
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/other-licenses/android/res_comp.c
        mozilla/other-licenses/android/res_init.c
@@ -2840,7 +2842,7 @@ License: BSD-3-clause
 
 Files: mozilla/other-licenses/skia-npapi/*
 Copyright: 2008-2010, The Android Open Source Project
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/other-licenses/snappy/*
 Copyright: 2005, 2006, 2008-2013, Google Inc.
@@ -2860,7 +2862,7 @@ Files: mozilla/parser/expat/*
 Copyright: 1998, 1999, 2000 Thai Open Source Software Center Ltd
                             and Clark Cooper
            2001, 2002 Expat maintainers
-License: MIT
+License: Expat
 
 Files: mozilla/parser/expat/lib/moz_extensions.c
 Copyright: no-info-found
@@ -3094,7 +3096,7 @@ License: BSD-3-clause
 
 Files: mozilla/security/sandbox/chromium/base/third_party/superfasthash/*
 Copyright: 2010, Paul Hsieh
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/services/sync/tps/extensions/mozmill/resource/modules/assertions.js
 Copyright: 2009, Thomas Robinson <280north.com>
@@ -3280,7 +3282,7 @@ License: Apache-2.0
 Files: mozilla/toolkit/crashreporter/google-breakpad/src/common/mac/testing/GTMSenTestCase.h
 Copyright: 2007, 2008, Google Inc.
            1997-2005, Sen:te (Sente SA).
-License: Apache-2.0 or BSD-2
+License: Apache-2.0 or BSD-2-clause
 
 Files: mozilla/toolkit/crashreporter/google-breakpad/src/common/md5.cc
 Copyright: no-info-found
@@ -3382,7 +3384,7 @@ License: MPL-2.0
 Files: mozilla/toolkit/mozapps/update/updater/bspatch.cpp
        mozilla/toolkit/mozapps/update/updater/bspatch.h
 Copyright: 2003-2005, 2007, 2009, Colin Percival
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/tools/update-packaging/test/common.sh
        mozilla/tools/update-packaging/test/make_full_update.sh
@@ -3408,7 +3410,7 @@ License: Apache-2.0
 
 Files: mozilla/widget/cocoa/ComplexTextInputPanel.h
 Copyright: 2006-2009, 2012, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/widget/gonk/*
 Copyright: 2012-2014, Mozilla Foundation and Mozilla contributors
@@ -3531,7 +3533,7 @@ License: MPL-2.0
 
 Files: mozilla/xpcom/typelib/xpt/tools/*
 Copyright: 2010, 2011, Mozilla Foundation
-License: BSD-2
+License: BSD-2-clause
 
 License: Apache-2.0
  Licensed under the Apache License, Version 2.0 (the "License");
@@ -3585,32 +3587,32 @@ License: BZIP2
 Comment:
  Licensing details are available in mozilla/modules/libbz2/src/LICENSE.
 
-License: BSD-2
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions
- are met:
- 1. Redistributions of source code must retain the above copyright
-    notice(s), this list of conditions and the following disclaimer as
-    the first lines of this file unmodified other than the possible
-    addition of one or more copyright notices.
- 2. Redistributions in binary form must reproduce the above copyright
-    notice(s), this list of conditions and the following disclaimer in
-    the documentation and/or other materials provided with the
-    distribution.
+License: BSL-1.0
+ Boost Software License - Version 1.0 - August 17th, 2003
  .
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
- EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
- LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ Permission is hereby granted, free of charge, to any person or organization
+ obtaining a copy of the software and accompanying documentation covered by
+ this license (the "Software") to use, reproduce, display, distribute,
+ execute, and transmit the Software, and to prepare derivative works of the
+ Software, and to permit third-parties to whom the Software is furnished to
+ do so, all subject to the following:
+ .
+ The copyright notices in the Software and this entire statement, including
+ the above license grant, this restriction and the following disclaimer,
+ must be included in all copies of the Software, in whole or in part, and
+ all derivative works of the Software, unless such copies or derivative
+ works are solely in the form of machine-executable object code generated by
+ a source language processor.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+ SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
 
-License: BSD-3
+License: BSD-2-clause
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions
  are met:
@@ -3622,9 +3624,6 @@ License: BSD-3
     notice(s), this list of conditions and the following disclaimer in
     the documentation and/or other materials provided with the
     distribution.
- 3. Neither the name of the copyright holder nor the names of its
-    contributors may be used to endorse or promote products derived
-    from this software without specific prior written permission.
  .
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -3802,26 +3801,6 @@ License: LGPL-2.1+
  .
  On Debian systems, the complete text of version 2.1 of the GNU General
  Public License can be found in `/usr/share/common-licenses/LGPL-2.1'.
-
-License: MIT
- Permission is hereby granted, free of charge, to any person obtaining
- a copy of this software and associated documentation files (the
- "Software"), to deal in the Software without restriction, including
- without limitation the rights to use, copy, modify, merge, publish,
- distribute, sublicense, and/or sell copies of the Software, and to
- permit persons to whom the Software is furnished to do so, subject to
- the following conditions:
- .
- The above copyright notice and this permission notice shall be
- included in all copies or substantial portions of the Software.
- .
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 License: old-MIT
  Permission is hereby granted, without written agreement and without
