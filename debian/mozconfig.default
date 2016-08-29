@@ -49,6 +49,7 @@ ac_add_options --enable-extensions=default
 ac_add_options --enable-gio
 ac_add_options --enable-gnomeui
 ac_add_options --enable-gstreamer=1.0
+ac_add_options --enable-official-branding # use the official artwork
 ac_add_options --enable-optimize
 ac_add_options --enable-pango
 ac_add_options --enable-pie
