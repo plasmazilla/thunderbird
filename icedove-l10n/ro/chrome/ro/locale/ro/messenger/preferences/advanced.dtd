@@ -1,0 +1,109 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY itemGeneral.label       "General">
+<!ENTITY dataChoicesTab.label    "Împărtășirea de date">
+<!ENTITY itemUpdate.label        "Actualizare">
+<!ENTITY itemNetworking.label    "Rețea și spațiu pe disc">
+<!ENTITY itemCertificates.label  "Certificate">
+<!-- General Settings -->
+
+<!ENTITY enableGlodaSearch.label       "Activează căutarea globală și indexarea">
+<!ENTITY enableGlodaSearch.accesskey   "i">
+<!ENTITY allowHWAccel.label            "Folosește accelerarea hardware când este disponibilă">
+<!ENTITY allowHWAccel.accesskey        "h">
+<!ENTITY storeType.label               "Tipul de stocare al mesajelor pentru conturile noi:">
+<!ENTITY storeType.accesskey           "T">
+<!ENTITY mboxStore2.label              "Fișier per dosar (mbox)">
+<!ENTITY maildirStore.label            "Fișiere per mesaj (maildir)">
+
+<!ENTITY scrolling.label               "Derulare">
+<!ENTITY useAutoScroll.label           "Utilizează derularea automată">
+<!ENTITY useAutoScroll.accesskey       "U">
+<!ENTITY useSmoothScrolling.label      "Folosește derularea lină">
+<!ENTITY useSmoothScrolling.accesskey  "o">
+
+<!ENTITY systemIntegration.label       "Integrare cu sistemul">
+<!ENTITY alwaysCheckDefault.label      "Verifică întotdeauna la pornire dacă &brandShortName; este clientul implicit de e-mail">
+<!ENTITY alwaysCheckDefault.accesskey  "a">
+<!ENTITY searchIntegration.label       "Permite la &searchIntegration.engineName; să caute în mesaje">
+<!ENTITY searchIntegration.accesskey   "P">
+<!ENTITY checkDefaultsNow.label        "Verifică acum…">
+<!ENTITY checkDefaultsNow.accesskey    "V">
+<!ENTITY configEditDesc.label          "Configurare avansată">
+<!ENTITY configEdit.label              "Editor de configurație…">
+<!ENTITY configEdit.accesskey          "g">
+<!ENTITY returnReceiptsInfo.label      "Configurați cum gestionează &brandShortName; confirmările de primire">
+<!ENTITY showReturnReceipts.label      "Confirmări de primire…">
+<!ENTITY showReturnReceipts.accesskey  "r">
+<!-- Data Choices -->
+
+<!ENTITY telemetrySection.label          "Telemetrie">
+<!ENTITY telemetryDesc.label             "Împărtășește date privind performanța, consumul, hardware-ul și personalizările browserului dumneavoastră cu &vendorShortName; pentru a ne ajuta să facem &brandShortName; mai bun">
+<!ENTITY enableTelemetry.label           "Activează telemetria">
+<!ENTITY enableTelemetry.accesskey       "t">
+<!ENTITY telemetryLearnMore.label        "Află mai multe">
+
+<!ENTITY crashReporterSection.label      "Raportor de defecțiuni">
+<!ENTITY crashReporterDesc.label         "&brandShortName; trimite rapoarte de probleme pentru a ajuta &vendorShortName; să facă clientul dumneavoastră de e-mail mai stabil și sigur">
+<!ENTITY enableCrashReporter.label       "Activează raportorul de defecțiuni">
+<!ENTITY enableCrashReporter.accesskey   "c">
+<!ENTITY crashReporterLearnMore.label    "Află mai multe">
+<!-- Update -->
+
+<!ENTITY updateApp.label                 "actualizări &brandShortName;:">
+<!ENTITY updateAuto.label                "Instalează actualizări automat (recomandat: securitate sporită)">
+<!ENTITY updateAuto.accesskey            "a">
+<!ENTITY updateCheck.label               "Caută actualizări, dar lasă-mă pe mine să decid dacă să le instalez">
+<!ENTITY updateCheck.accesskey           "C">
+<!ENTITY updateManual.label              "Nu căuta niciodată actualizări (nerecomandat: risc de securitate)">
+<!ENTITY updateManual.accesskey          "N">
+<!ENTITY updateAutoAddonWarn.label       "Avertizează-mă dacă asta va duce la dezactivarea unora dintre suplimentele mele">
+<!ENTITY updateAutoAddonWarn.accesskey   "v">
+<!ENTITY updateHistory.label             "Arată istoricul actualizărilor">
+<!ENTITY updateHistory.accesskey         "t">
+
+<!ENTITY useService.label                "Folosește serviciul care rulează în fundal pentru a instala actualizări">
+<!ENTITY useService.accesskey            "s">
+<!-- Networking and Disk Space -->
+
+<!ENTITY showSettings.label            "Setări…">
+<!ENTITY showSettings.accesskey        "S">
+<!ENTITY proxiesConfigure.label        "Configurează modul în care &brandShortName; se conectează la internet">
+<!ENTITY connectionsInfo.caption       "Conexiune">
+<!ENTITY offlineInfo.caption           "Deconectat">
+<!ENTITY offlineInfo.label             "Configurează preferințele pentru modul deconectat">
+<!ENTITY showOffline.label             "Offline…">
+<!ENTITY showOffline.accesskey         "O">
+
+<!ENTITY Diskspace                       "Spațiu pe disc">
+<!ENTITY offlineCompactFolders.label     "Compactează toate dosarele pentru a salva peste">
+<!ENTITY offlineCompactFolders.accesskey "C">
+<!ENTITY offlineCompactFoldersMB.label   "MB în total">
+<!-- LOCALIZATION NOTE:
+  The entities useCacheBefore.label and useCacheAfter.label appear on a single
+  line in preferences as follows:
+
+  &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
+-->
+
+<!ENTITY useCacheBefore.label            "Utilizează până la">
+<!ENTITY useCacheBefore.accesskey        "U">
+<!ENTITY useCacheAfter.label             "MB de spațiu pentru cache">
+<!ENTITY clearCacheNow.label             "Curăță acum">
+<!ENTITY clearCacheNow.accesskey         "C">
+<!-- Certificates -->
+
+<!ENTITY certSelection.description       "Când un server cere certificatul meu personal:">
+<!ENTITY certs.auto                      "Selectează automat unul">
+<!ENTITY certs.auto.accesskey            "S">
+<!ENTITY certs.ask                       "Întreabă-mă de fiecare dată">
+<!ENTITY certs.ask.accesskey             "A">
+<!ENTITY enableOCSP.label                "Interoghează serverele de răspuns OCSP pentru confirmarea valabilității actuale a certificatelor">
+<!ENTITY enableOCSP.accesskey            "e">
+
+<!ENTITY viewCertificates.label         "Vezi certificatele">
+<!ENTITY viewCertificates.accesskey     "c">
+<!ENTITY viewSecurityDevices.label      "Dispozitive de securitate">
+<!ENTITY viewSecurityDevices.accesskey  "u">

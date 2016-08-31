@@ -1,0 +1,32 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY accountsWindow.title "Status komunikacji błyskawicznej">
+<!ENTITY accountsWindow2.style "width: 41em; height: 27em;">
+
+<!ENTITY accountManager.newAccount.label "Nowe konto">
+<!ENTITY accountManager.newAccount.accesskey "N">
+<!ENTITY accountManager.close.label "Zamknij">
+<!ENTITY accountManager.close.accesskey "Z">
+<!ENTITY accountManager.close.commandkey "a">
+<!ENTITY accountManager.noAccount.title "Brak skonfigurowanych kont">
+<!ENTITY accountManager.noAccount.description "Skorzystaj z przycisku „&accountManager.newAccount.label;”, aby skonfigurować konto czatu w programie &brandShortName;.">
+<!ENTITY account.autoSignOn.label "Loguj przy starcie">
+<!ENTITY account.autoSignOn.accesskey "L">
+<!ENTITY account.connect.label "Połącz">
+<!ENTITY account.connect.accesskey "P">
+<!ENTITY account.disconnect.label "Rozłącz">
+<!ENTITY account.disconnect.accesskey "R">
+<!ENTITY account.edit.label "Właściwości">
+<!ENTITY account.edit.accesskey "W">
+<!ENTITY account.moveup.label "Przesuń wyżej">
+<!ENTITY account.movedown.label "Przesuń niżej">
+<!ENTITY account.cancelReconnection.label "Anuluj ponowne łączenie">
+<!ENTITY account.cancelReconnection.accesskey "A">
+<!ENTITY account.copyDebugLog.label "Kopiuj dziennik debugowania">
+<!ENTITY account.copyDebugLog.accesskey "d">
+
+<!ENTITY account.connecting "Łączenie…">
+<!ENTITY account.disconnecting "Rozłączanie…">
+<!ENTITY account.disconnected "Nie połączono">

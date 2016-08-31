@@ -1,0 +1,161 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!ENTITY itemGeneral.label       "Xeral">
+<!ENTITY itemDisplay.label       "Lectura e visualización">
+<!ENTITY itemUpdate.label        "Actualizar">
+<!ENTITY itemNetworking.label    "Rede e espazo no disco">
+<!ENTITY itemCertificates.label  "Certificados">
+
+<!-- General Settings -->
+
+<!ENTITY submitTelemetry.label         "Enviar os datos de rendemento">
+<!ENTITY submitTelemetry.accesskey     "t">
+<!ENTITY telemetryInfoLink.label       "Máis información sobre Telemetry">
+<!ENTITY enableGlodaSearch.label       "Activar indexador de mensaxes">
+<!ENTITY enableGlodaSearch.accesskey   "i">
+
+<!ENTITY scrolling.label               "Desprazamento">
+<!ENTITY useAutoScroll.label           "Utilizar desprazamento automático">
+<!ENTITY useAutoScroll.accesskey       "U">
+<!ENTITY useSmoothScrolling.label      "Utilizar desprazamento suave">
+<!ENTITY useSmoothScrolling.accesskey  "m">
+
+<!ENTITY systemIntegration.label       "Integración co sistema">
+<!ENTITY alwaysCheckDefault.label      "Sempre comprobar se &brandShortName; é o navegador predeterminado no inicio">
+<!ENTITY alwaysCheckDefault.accesskey  "a">
+<!ENTITY searchIntegration.label       "Permitir que &searchIntegration.engineName; busque nas mensaxes">
+<!ENTITY searchIntegration.accesskey   "P">
+<!ENTITY checkDefaultsNow.label        "Comprobar agora…">
+<!ENTITY checkDefaultsNow.accesskey    "C">
+<!ENTITY configEditDesc.label          "Configuración avanzada">
+<!ENTITY configEdit.label              "Editor de configuración…">
+<!ENTITY configEdit.accesskey          "n">
+<!ENTITY returnReceiptsInfo.label      "Determine como debe xestionar &brandShortName; os avisos de recepción.">
+<!ENTITY showReturnReceipts.label      "Avisos de recepción…">
+<!ENTITY showReturnReceipts.accesskey  "r">
+
+<!-- Display and Reading Settings -->
+<!ENTITY reading.caption               "Lectura">
+<!ENTITY display.caption               "Visualización">
+<!ENTITY showCondensedAddresses.label  "Amosar só o nome das persoas da miña axenda de enderezos">
+<!ENTITY showCondensedAddresses.accesskey "d">
+
+<!ENTITY autoMarkAsRead.label          "Marcar as mensaxes como lidas automaticamente">
+<!ENTITY autoMarkAsRead.accesskey      "a">
+<!ENTITY markAsReadNoDelay.label       "Inmediatamente ao amosalas">
+<!ENTITY markAsReadNoDelay.accesskey   "I">
+<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
+     "After displaying for [___] seconds",
+     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
+<!ENTITY markAsReadDelay.label         "Despois de amosalas durante">
+<!ENTITY markAsReadDelay.accesskey     "D">
+<!ENTITY secondsLabel.label            "segundos">
+<!ENTITY openMsgIn.label               "Abrir mensaxes:">
+<!ENTITY openMsgInNewTab.label         "Nunha nova lapela">
+<!ENTITY openMsgInNewTab.accesskey     "l">
+<!ENTITY reuseExpRadio0.label          "Nunha nova xanela de mensaxe">
+<!ENTITY reuseExpRadio0.accesskey      "x">
+<!ENTITY reuseExpRadio1.label          "Nunha xanela de mensaxe existente">
+<!ENTITY reuseExpRadio1.accesskey      "u">
+<!ENTITY closeMsgOnMoveOrDelete.label  "Pechar xanela/separador da mensaxe ao mover ou borrar">
+<!ENTITY closeMsgOnMoveOrDelete.accesskey "c">
+
+<!-- Update -->
+<!ENTITY autoCheck.label                "Buscar automaticamente actualizacións para:">
+<!ENTITY enableAppUpdate.label          "&brandShortName;">
+<!ENTITY enableAppUpdate.accesskey      "h">
+<!ENTITY enableAddonsUpdate.label       "Complementos instalados">
+<!ENTITY enableAddonsUpdate.accesskey   "a">
+<!ENTITY whenUpdatesFound.label         "Cando se atopen actualizacións para &brandShortName;:">
+<!ENTITY modeAskMe.label                "Preguntarme que quero facer">
+<!ENTITY modeAskMe.accesskey            "m">
+<!ENTITY modeAutomatic.label            "Descargar e instalar automaticamente a actualización">
+<!ENTITY modeAutomatic.accesskey        "d">
+<!ENTITY modeAutoAddonWarn.label        "Avisarme se supón a desactivación dalgún complemento">
+<!ENTITY modeAutoAddonWarn.accesskey    "g">
+<!ENTITY showUpdates.label              "Amosar o historial de actualizacións">
+<!ENTITY showUpdates.accesskey          "s">
+
+<!ENTITY useService.label                "Usar un servizo en segundo plano para instalar as actualizacións">
+<!ENTITY useService.accesskey            "z">
+
+<!-- Networking and Disk Space -->
+<!ENTITY showSettings.label            "Configuración…">
+<!ENTITY showSettings.accesskey        "f">
+<!ENTITY proxiesConfigure.label        "Configurar o modo en que &brandShortName; se conecta á Internet">
+<!ENTITY connectionsInfo.caption       "Conexión">
+<!ENTITY offlineInfo.caption           "Sen conexión">
+<!ENTITY offlineInfo.label             "Configurar opcións sen conexión">
+<!ENTITY showOffline.label             "Sen conexión…">
+<!ENTITY showOffline.accesskey         "S">
+
+<!ENTITY Diskspace                       "Espazo en disco">
+<!ENTITY offlineCompactFolders.label     "Compactar todos os cartafoles ao liberar">
+<!ENTITY offlineCompactFolders.accesskey "a">
+<!ENTITY offlineCompactFoldersMB.label   "MB en total">
+
+<!-- LOCALIZATION NOTE:
+  The entities useCacheBefore.label and useCacheAfter.label appear on a single
+  line in preferences as follows:
+
+  &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
+-->
+<!ENTITY useCacheBefore.label            "Usar ata">
+<!ENTITY useCacheBefore.accesskey        "U">
+<!ENTITY useCacheAfter.label             "MB de espazo en caché">
+<!ENTITY clearCacheNow.label             "Limpar agora">
+<!ENTITY clearCacheNow.accesskey         "L">
+
+<!-- Certificates -->
+<!ENTITY certSelection.description       "Cando un servidor solicite o meu certificado persoal:">
+<!ENTITY certs.auto                      "Escoller un automaticamente">
+<!ENTITY certs.auto.accesskey            "E">
+<!ENTITY certs.ask                       "Preguntarme cada vez">
+<!ENTITY certs.ask.accesskey             "P">
+
+<!ENTITY viewCertificates.label         "Ver certificados">
+<!ENTITY viewCertificates.accesskey     "t">
+<!ENTITY viewCRLs.label                 "Listas de revogación">
+<!ENTITY viewCRLs.accesskey             "L">
+<!ENTITY validation.label               "Validación">
+<!ENTITY validation.accesskey           "d">
+<!ENTITY viewSecurityDevices.label      "Dispositivos de seguranza">
+<!ENTITY viewSecurityDevices.accesskey  "s">
+
+<!ENTITY allowHWAccel.accesskey        "h">
+<!ENTITY allowHWAccel.label            "Use hardware acceleration when available">
+<!ENTITY crashReporterDesc.label         "&brandShortName; submits crash reports to help &vendorShortName; make your e-mail client more stable and secure">
+<!ENTITY crashReporterLearnMore.label    "Learn More">
+
+<!ENTITY crashReporterSection.label      "Crash Reporter">
+<!ENTITY dataChoicesTab.label    "Data Choices">
+<!ENTITY enableCrashReporter.accesskey   "C">
+<!ENTITY enableCrashReporter.label       "Enable Crash Reporter">
+<!ENTITY enableOCSP.accesskey            "Q">
+<!ENTITY enableOCSP.label                "Query OCSP responder servers to confirm the current validity of certificates">
+<!ENTITY enableTelemetry.accesskey       "T">
+<!ENTITY enableTelemetry.label           "Enable Telemetry">
+<!ENTITY maildirStore.label            "File per message (maildir)">
+<!ENTITY mboxStore2.label              "File per folder (mbox)">
+<!ENTITY storeType.accesskey           "T">
+<!ENTITY storeType.label               "Message Store Type for new accounts:">
+<!ENTITY telemetryDesc.label             "Shares performance, usage, hardware and customization data about your e-mail client with &vendorShortName; to help us make &brandShortName; better">
+<!ENTITY telemetryLearnMore.label        "Learn More">
+
+<!-- Data Choices -->
+<!ENTITY telemetrySection.label          "Telemetry">
+
+<!-- Update -->
+<!ENTITY updateApp.label                 "&brandShortName; updates:">
+<!ENTITY updateAuto.accesskey            "A">
+<!ENTITY updateAuto.label                "Automatically install updates (recommended: improved security)">
+<!ENTITY updateAutoAddonWarn.accesskey   "W">
+<!ENTITY updateAutoAddonWarn.label       "Warn me if this will disable any of my add-ons">
+<!ENTITY updateCheck.accesskey           "C">
+<!ENTITY updateCheck.label               "Check for updates, but let me choose whether to install them">
+<!ENTITY updateHistory.accesskey         "p">
+<!ENTITY updateHistory.label             "Show Update History">
+<!ENTITY updateManual.accesskey          "N">
+<!ENTITY updateManual.label              "Never check for updates (not recommended: security risk)">

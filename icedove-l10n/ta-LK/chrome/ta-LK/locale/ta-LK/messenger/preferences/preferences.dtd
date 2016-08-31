@@ -1,0 +1,25 @@
+
+<!ENTITY prefWindow.titleWin "விருப்பங்கள்">
+<!ENTITY prefWindow.titleGNOME "&brandShortName; விருப்பத்தேர்வுகள்">
+<!ENTITY prefWindow.styleWindows "அகலம்: 44em; உயரம்: 38em;">
+<!ENTITY prefWindow.styleMac "அகலம்: 47em;">
+<!ENTITY prefWindow.styleMac "அகலம்: 47em;">
+<!ENTITY prefWindow.styleGNOME "அகலம்: 42em;">
+
+<!ENTITY paneGeneral.title "பொது">
+<!ENTITY paneDisplay.title "காண்பிக்கவும்">
+<!ENTITY paneComposition.title "கலவை">
+<!ENTITY paneAttachments.title "இணைப்புக்கள்">
+<!ENTITY paneSecurity.title    "பாதுகாப்பு">
+<!ENTITY paneAdvanced.title "உயர்நிலை">
+
+<!ENTITY okButton.accesskey       "O">
+
+<!ENTITY okButton.title           "OK">
+<!ENTITY paneAccount.title        "Accounts">
+<!ENTITY paneChat.title           "Chat">
+<!ENTITY panePrivacy.title        "Privacy">
+<!ENTITY  prefWindow.titleMAC     "Preferences">
+<!ENTITY  prefWindow.styleGNOME   "width: 47em; min-height: 38em;">
+<!ENTITY  prefWindow.styleMac     "width: 52em;">
+<!ENTITY  prefWindow.styleWindows "width: 48em; min-height: 38.5em;">

@@ -1,0 +1,34 @@
+<!ENTITY junkSettings.label "Подешавање за нежељену пошту">
+<!ENTITY trainingWarning.label "Ако је укључен, потребно је прво обучити &brandShortName; да препознаје отпадну пошту употребом алатне траке, тако што ћете означавати поруке као отпадне. Потребно је да дате примере и жељене и нежељене поште.">
+<!ENTITY level.label "Укључи адаптивну контролу нежељене поште за овај налог">
+<!ENTITY level.accesskey "У">
+
+<!ENTITY move.label "Померите нову нежељену пошту у:">
+<!ENTITY move.accesskey "П">
+<!ENTITY junkFolderOn.label "Директоријум &quot;смеће&quot; на:">
+<!ENTITY junkFolderOn.accesskey "Д">
+<!ENTITY otherFolder.label "Остало:">
+<!ENTITY otherFolder.accesskey "O">
+<!ENTITY purge1.label "Аутоматски обриши нежељену пошту старију од">
+<!ENTITY purge1.accesskey "А">
+<!ENTITY purge2.label "дан(а)">
+
+<!ENTITY whitelist.label "Не означавај пошту као нежељену ако је пошиљалац у: ">
+<!ENTITY whitelist.accesskey "Н">
+
+<!ENTITY ispHeaders.label "Веруј заглављима о нежељеној пошти које поставља: ">
+<!ENTITY ispHeaders.accesskey "В">
+
+
+<!ENTITY globalJunkPrefs.accesskey "G">
+
+<!ENTITY globalJunkPrefs.label "Global Junk Preferences…">
+
+<!ENTITY ispHeadersWarning.label "If enabled, &brandShortName; will automatically consider messages marked by this external classifier as junk.">
+<!ENTITY junkActions.label "Destination and Retention">
+
+<!ENTITY junkClassification.label "Selection">
+<!ENTITY trainingDescription.label "If enabled, you must first train &brandShortName; to identify junk mail by using the Junk toolbar button to mark messages as junk or not. You need to identify both junk and non junk messages. After that &brandShortName; will be able to mark junk automatically.">
+<!ENTITY whitelistHeader.accesskey "D">
+
+<!ENTITY whitelistHeader.label "Do not automatically mark mail as junk if the sender is in: ">
