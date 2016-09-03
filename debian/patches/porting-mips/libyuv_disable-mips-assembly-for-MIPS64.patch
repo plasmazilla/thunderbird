@@ -1,0 +1,87 @@
+From: Dejan Latinovic <Dejan.Latinovic@imgtec.com>
+Date: Sat, 3 Sep 2016 08:14:18 +0200
+Subject: libyuv_disable mips assembly for MIPS64
+
+Icedove fails to FTBFS on mips64el as register names $t4-$t7 are only
+available in O32 mips platform.
+
+The fix for this issue was done by commit
+
+  https://github.com/svn2github/libyuv/commit/0fa7dd2dcf668e1733c3344bc47d6484c7d7544c
+
+in the libyuv upstream package.
+
+Closes: #836400
+---
+ mozilla/media/libyuv/include/libyuv/row.h  | 3 ++-
+ mozilla/media/libyuv/source/rotate_mips.cc | 3 ++-
+ mozilla/media/libyuv/source/row_mips.cc    | 6 ++++--
+ mozilla/media/libyuv/source/scale_mips.cc  | 3 ++-
+ 4 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/mozilla/media/libyuv/include/libyuv/row.h b/mozilla/media/libyuv/include/libyuv/row.h
+index 0bd05da..660a4f4 100644
+--- a/mozilla/media/libyuv/include/libyuv/row.h
++++ b/mozilla/media/libyuv/include/libyuv/row.h
+@@ -330,7 +330,8 @@ extern "C" {
+ #endif
+ 
+ // The following are available on Mips platforms:
+-#if !defined(LIBYUV_DISABLE_MIPS) && defined(__mips__)
++#if !defined(LIBYUV_DISABLE_MIPS) && defined(__mips__)&& \
++    (_MIPS_SIM == _MIPS_SIM_ABI32)
+ #define HAS_COPYROW_MIPS
+ #if defined(__mips_dsp) && (__mips_dsp_rev >= 2)
+ #define HAS_I422TOABGRROW_MIPS_DSPR2
+diff --git a/mozilla/media/libyuv/source/rotate_mips.cc b/mozilla/media/libyuv/source/rotate_mips.cc
+index 04d5a66..3deeaa4 100644
+--- a/mozilla/media/libyuv/source/rotate_mips.cc
++++ b/mozilla/media/libyuv/source/rotate_mips.cc
+@@ -18,7 +18,8 @@ extern "C" {
+ #endif
+ 
+ #if !defined(LIBYUV_DISABLE_MIPS) && \
+-    defined(__mips_dsp) && (__mips_dsp_rev >= 2)
++    defined(__mips_dsp) && (__mips_dsp_rev >= 2) && \
++    (_MIPS_SIM == _MIPS_SIM_ABI32)
+ 
+ void TransposeWx8_MIPS_DSPR2(const uint8* src, int src_stride,
+                              uint8* dst, int dst_stride,
+diff --git a/mozilla/media/libyuv/source/row_mips.cc b/mozilla/media/libyuv/source/row_mips.cc
+index 16334c4..73c71ce 100644
+--- a/mozilla/media/libyuv/source/row_mips.cc
++++ b/mozilla/media/libyuv/source/row_mips.cc
+@@ -16,7 +16,8 @@ extern "C" {
+ #endif
+ 
+ // The following are available on Mips platforms:
+-#if !defined(LIBYUV_DISABLE_MIPS) && defined(__mips__)
++#if !defined(LIBYUV_DISABLE_MIPS) && defined(__mips__) && \
++    (_MIPS_SIM == _MIPS_SIM_ABI32)
+ 
+ #include <sgidefs.h>
+ 
+@@ -414,7 +415,8 @@ void CopyRow_MIPS(const uint8* src, uint8* dst, int count) {
+ 
+ // MIPS DSPR2 functions
+ #if !defined(LIBYUV_DISABLE_MIPS) && defined(__mips_dsp) && \
+-    (__mips_dsp_rev >= 2)
++    (__mips_dsp_rev >= 2) && \
++    (_MIPS_SIM == _MIPS_SIM_ABI32)
+ void SplitUVRow_MIPS_DSPR2(const uint8* src_uv, uint8* dst_u, uint8* dst_v,
+                            int width) {
+   __asm__ __volatile__ (
+diff --git a/mozilla/media/libyuv/source/scale_mips.cc b/mozilla/media/libyuv/source/scale_mips.cc
+index 4572f45..3eb4f27 100644
+--- a/mozilla/media/libyuv/source/scale_mips.cc
++++ b/mozilla/media/libyuv/source/scale_mips.cc
+@@ -18,7 +18,8 @@ extern "C" {
+ 
+ // This module is for GCC MIPS DSPR2
+ #if !defined(LIBYUV_DISABLE_MIPS) && \
+-    defined(__mips_dsp) && (__mips_dsp_rev >= 2)
++    defined(__mips_dsp) && (__mips_dsp_rev >= 2) && \
++    (_MIPS_SIM == _MIPS_SIM_ABI32)
+ 
+ void ScaleRowDown2_MIPS_DSPR2(const uint8* src_ptr, ptrdiff_t src_stride,
+                               uint8* dst, int dst_width) {
