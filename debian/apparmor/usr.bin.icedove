@@ -148,7 +148,7 @@ profile icedove /usr/lib/icedove/icedove {
   owner @{HOME}/.cache/icedove/** rw,
 
   # system emails
-  owner /var/mail/* rw,
+  owner /var/mail/* rwlk,
 
   #
   # Extensions
