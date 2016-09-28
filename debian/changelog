@@ -1,3 +1,20 @@
+icedove (1:45.3.0-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [3cc29ee] Imported Upstream version 45.3.0
+  * [ed8cf89] Imported icedove-l10n Upstream version 45.3.0
+  * [bc20676] Imported iceowl-l10n Upstream version 45.3.0
+  * [54bd9c4] debian/README.source: fix up some hints
+  * [756ec86] mozconfig.default: enable build of PIE binaries
+  * [1cef6f8] rebuild patch queue from patch-queue branch
+    added patch:
+    - porting-mips/libyuv_disable-mips-assembly-for-MIPS64.patch
+    (Closes: #836400)
+  * [7a1ec74] AppArmor: grant access to local mailboxes and enigmail(2)
+    (Closes: #837656)
+
+ -- Carsten Schoenert <carsten@stretch.cruise.homelinux.net>  Wed, 28 Sep 2016 22:52:03 +0200
+
 icedove (1:45.2.0-4) unstable; urgency=medium
 
   [ Carsten Schoenert ]
