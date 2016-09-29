@@ -77,7 +77,7 @@ pristine-tar commits has to be done manually.
 
 5. Tag and sign the last commit on the upstream branch
 
- git tag -u [GPG-KeyID] upstream[-45.x]/[xx].x -m "Upstream version 45.[x]"
+ git tag -u [GPG-KeyID] upstream/45.[x] -m "Upstream version 45.[x]"
 
 6. Create the additional needed pristine-tar commits for l10n source
    tarballs
@@ -88,5 +88,5 @@ pristine-tar commits has to be done manually.
 7. Merge the upstream branch into the debian branch
 
  git checkout master|debian/experimental
- git merge upstream[-45.x]/45.[x]
+ git merge upstream/45.[x]
 

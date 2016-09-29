@@ -1,3 +1,32 @@
+icedove (1:45.3.0-1~1.gbpa159bc) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @a159bc9730075fa4b20982c22877081ae5e866f0 **
+
+  [ Carsten Schoenert ]
+  * [3cc29ee] Imported Upstream version 45.3.0
+  * [ed8cf89] Imported icedove-l10n Upstream version 45.3.0
+  * [bc20676] Imported iceowl-l10n Upstream version 45.3.0
+  * [54bd9c4] debian/README.source: fix up some hints.
+    Some small addjustments for tagging and merging the upstream version.
+  * [756ec86] mozconfig.default: enable build of PIE binaries.
+    As the Mozilla build environment enables Position Independent
+    Executables by using the configure switch '--enable-pie' we can simply
+    switch this feature on.
+  * [1cef6f8] rebuild patch queue from patch-queue branch
+    added patch:
+    porting-mips/libyuv_disable-mips-assembly-for-MIPS64.patch (Closes: #836400)
+  * [7a1ec74] AppArmor: grant access to local mailboxes and enigmail(2)
+    In addition to e32c4600548c4c8d49b35ed139664d75fea7b466, this change was
+    missing to proper fix #833184
+    https://git.launchpad.net/apparmor-profiles/commit/?id=f8ed397c22306dc89559bcb83dfc760400f76543
+    (Closes: #837656)
+
+  [ Guido Günther ]
+  * [a159bc9] autopkgtests: let xfvb-run pick the port to avoid clashes with
+    already running servers
+
+ -- Guido Günther <agx@sigxcpu.org>  Thu, 29 Sep 2016 10:44:26 +0200
+
 icedove (1:45.2.0-2~deb7u1) wheezy-security; urgency=medium
 
   * Non-maintainer upload by the LTS team.
@@ -14,6 +43,29 @@ icedove (1:45.2.0-2~deb7u1) wheezy-security; urgency=medium
   * Fix harmless typo in one of the autopkgtests
 
  -- Guido Günther <agx@sigxcpu.org>  Fri, 29 Jul 2016 16:58:24 +0200
+
+icedove (1:45.2.0-4) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [cc8cd76] mozconfig.default: relaxe optimization on arm{64,el,hf} to -O1
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 18 Aug 2016 10:45:17 -0400
+
+icedove (1:45.2.0-3) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * [9a8f4e1] tests: Fix typo
+
+  [ Carsten Schoenert ]
+  * [53aab10] AppArmor: allow self execution for -ProfileManager
+    (Closes: #833742)
+  * [a459d6a] debian/rules: adding one more CFLAGS/CXXFLAGS compiler flag
+    (Closes: #833864, #833532, #833591, #833635, #833698)
+  * [e32c460] AppArmor: grant access to local mailboxes and enigmail
+    (Closes: #833184)
+  * [f34e41e] debian/rules: fix typo CXLAGS -> CFLAGS
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 12 Aug 2016 12:00:44 -0400
 
 icedove (1:45.2.0-2) unstable; urgency=medium
 
