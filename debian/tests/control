@@ -1,5 +1,4 @@
 Tests: help.sh
-Restrictions: allow-stderr
 Depends: icedove,
  xvfb,
  xauth
