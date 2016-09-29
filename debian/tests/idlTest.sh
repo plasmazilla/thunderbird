@@ -31,7 +31,7 @@ echo "done."
 echo -n "Test3: Compiling generated file..."
 g++ -std=c++11 \
     -I/usr/include/icedove \
-    -I/usr/include/nspr    \
+    -I/usr/include/icedove/nspr \
     -o "${SCRATCHDIR}/test.o" \
     "${SCRATCHDIR}/test.h"
 echo "done."
