@@ -1,3 +1,20 @@
+icedove (1:45.3.0-1~deb7u1) wheezy-security; urgency=high
+
+  * Non-maintainer upload by the LTS team.
+  * CVE-2016-2836: Miscellaneous memory safety hazards (mfsa2016-62)
+  * Rebase on current sid version, remaining changes:
+    * Switch to gstreamer 0.10. Wheezy doesn't have 1.0
+    * Work around Wheezy's dpkg-parsechangelog not supporting -S
+    * Switch to embedded copies of sqlite, vpx, icu, nspr and nss. Wheezy
+      doesn't provide recent enough versions.
+    * Adjust gbp.conf for wheezy-security
+    * Let mozconfig figure out the number of parallel builds.
+    * debian/rules: build with gcc 4.7
+      gcc 4.7 is only the default compiler on x86-based archs.
+    * Unbreak autopkgtests on wheezy
+
+ -- Guido Günther <agx@sigxcpu.org>  Fri, 30 Sep 2016 09:10:55 +0200
+
 icedove (1:45.3.0-1) unstable; urgency=medium
 
   [ Carsten Schoenert ]
