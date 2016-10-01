@@ -49,44 +49,12 @@ This script also needs to be called on top of the Icedove Git tree.
 
 Since version 45.0 the source package icedove is using multitarballs to
 include the aquivalent l10n source for iceowl-extension and icedove itself.
-At the moment git-buildpackage isn't able to import those tarballs and
-create the correct pristine-tar commits, so for now the import and the
-pristine-tar commits has to be done manually.
 
-1. Import the Icedove source as created explained above
+git-buildpackage is supporting multi tarballs since version 0.8.0, due this
+there is no special thing to know about importing the tarballs. Except the
+additional multi tarballs needs to be placed in the same folder like
+icedove_[version].orig.tar.xz.
 
- gbp import-orig ../icedove_45.x.orig.tar.xz --verbose --no-merge
+Import the new upstream version as usual.
 
-2. Switch back to the used upstream branch
-
- git checkout upstream[-45.x]
-
-3. Import the first additional tarball icedove_45.[x].orig-icedove-l10n.tar.xz
-   and commit the subfolder to the branch
-
- tar -xJvf ../icedove_45.[x].orig-icedove-l10n.tar.xz
- git add icedove-l10n
- git commit -m "Imported icedove-l10n Upstream version 45.[x]"
-
-4. Import the second additional tarball icedove_45.[x].orig-iceowl-l10n.tar.xz
-   and commit the subfolder to the branch
-
- tar -xJvf ../icedove_45.[x].orig-iceowl-l10n.tar.xz
- git add iceowl-l10n
- git commit -m "Imported iceowl-l10n Upstream version 45.[x]"
-
-5. Tag and sign the last commit on the upstream branch
-
- git tag -u [GPG-KeyID] upstream/45.[x] -m "Upstream version 45.[x]"
-
-6. Create the additional needed pristine-tar commits for l10n source
-   tarballs
-
- pristine-tar commit ../icedove_45.[x].orig-icedove-l10n.tar.xz $(git ls-tree upstream[-45.x] | awk '/\sicedove-l10n$/ { print $3 }')
- pristine-tar commit ../iceowl_45.[x].orig-icedove-l10n.tar.xz $(git ls-tree upstream[-45.x] | awk '/\siceowl-l10n$/ { print $3 }')
-
-7. Merge the upstream branch into the debian branch
-
- git checkout master|debian/experimental
- git merge upstream/45.[x]
-
+ gbp import-orig --sign-tags /path/to/ icedove_[version].orig.tar.xz
