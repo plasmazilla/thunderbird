@@ -192,6 +192,8 @@ override_dh_fixperms-arch:
 	dh_fixperms
 	chmod a-x debian/thunderbird-dev/usr/share/idl/thunderbird/*.idl
 	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/*.py
+	chmod 0644 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/xpidllex.py
+	chmod 0644 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/xpidlyacc.py
 	chmod 0755 debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/bin/xpcshell
 
 override_dh_strip:
