@@ -1,3 +1,11 @@
+icedove (1:45.3.0-1~deb8u1) stable-security; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [3cc29ee] Imported Upstream version 45.3.0
+    - MFSA 2016-62 aka CVE-2016-2836
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 02 Oct 2016 11:36:16 -0400
+
 icedove (1:45.2.0-1~deb8u1) stable-security; urgency=medium
 
   [ Carsten Schoenert ]
