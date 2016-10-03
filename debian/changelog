@@ -1,3 +1,22 @@
+icedove (1:45.4.0-1) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * [a159bc9] autopkgtests: let xfvb-run pick the port to avoid clashes with
+    already running servers
+  * [a159bc9] autopkgtests: let xfvb-run pick the port
+  * [5384838] Snapshot 1:45.3.0-1~1.gbpa159bc
+  * [8d3ac18] autopkgtest: Dont print on stderr
+  * [8afc7be] Put test deps on a simgle line
+
+  [ Carsten Schoenert ]
+  * [99e9c40] New upstream version 45.4.0
+    (Closes: #835866, #836798, #837107)
+  * [6195d7b] debian/README.source: update instructions for importing
+  * [5150624] debian/icedove.js: disabling baselinejit functionality
+    (Closes: #837930)
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Mon, 03 Oct 2016 12:18:09 +0200
+
 icedove (1:45.3.0-1) unstable; urgency=medium
 
   [ Carsten Schoenert ]
@@ -12,10 +31,6 @@ icedove (1:45.3.0-1) unstable; urgency=medium
     (Closes: #836400)
   * [7a1ec74] AppArmor: grant access to local mailboxes and enigmail(2)
     (Closes: #837656)
-
-  [ Guido Günther ]
-  * [a159bc9] autopkgtests: let xfvb-run pick the port to avoid clashes with
-    already running servers
 
  -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 28 Sep 2016 22:52:03 +0200
 
