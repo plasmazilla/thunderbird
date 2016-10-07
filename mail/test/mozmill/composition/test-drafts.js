@@ -117,6 +117,58 @@ function test_edit_as_new_in_draft() {
   assert_equals(draftsFolder.getTotalMessages(false), 0);
 }
 
+// This function landed in bug 1261707 on TB 48. We need it for the test below to work.
+function setup_msg_contents(aCwc, aAddr, aSubj, aBody) {
+  aCwc.type(aCwc.eid("addressCol2#1"), aAddr);
+  aCwc.type(aCwc.eid("msgSubject"), aSubj);
+  aCwc.type(aCwc.eid("content-frame"), aBody);
+}
+
+/**
+ * Tests space stuffing of plaintext message.
+ */
+function test_remove_space_stuffing_format_flowed() {
+  // Prepare for plaintext email.
+  let oldHtmlPref = Services.prefs.getBoolPref("mail.identity.default.compose_html");
+  Services.prefs.setBoolPref("mail.identity.default.compose_html", false);
+
+  let cwc = open_compose_new_mail();
+
+  setup_msg_contents(cwc, "test@example.invalid",
+                     "Testing space stuffing in plain text email",
+                     "NoSpace\n OneSpace\n  TwoSpaces");
+
+  cwc.window.SaveAsDraft();
+  utils.waitFor(() => !cwc.window.gSaveOperationInProgress && !cwc.window.gWindowLock,
+                "Saving of draft did not finish");
+  wait_for_window_focused(cwc.window);
+
+  close_compose_window(cwc);
+
+  be_in_folder(draftsFolder);
+
+  let draftMsg = select_click_row(0);
+
+  // Wait for the notification with the Edit button.
+  wait_for_notification_to_show(mc, kBoxId, "draftMsgContent");
+
+  plan_for_new_window("msgcompose");
+  mc.click(mc.eid(kBoxId, {tagName: "button", label: "Edit"}));
+  cwc = wait_for_compose_window();
+
+  let bodyText = cwc.e("content-frame").contentDocument
+                    .querySelector("body").innerHTML;
+
+  if (!bodyText.includes("NoSpace<br> OneSpace<br>  TwoSpaces")) {
+    assert_true(false, "Something went wrong with space stuffing");
+  }
+
+  // Clean up the created draft.
+  press_delete(mc);
+
+  Services.prefs.setBoolPref("mail.identity.default.compose_html", oldHtmlPref);
+}
+
 function teardownModule() {
   MailServices.accounts.localFoldersServer.rootFolder
               .propagateDelete(draftsFolder, true, null);

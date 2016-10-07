@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<blocklist xmlns="http://www.mozilla.org/2006/addons-blocklist" lastupdate="1471452426000">
+<blocklist xmlns="http://www.mozilla.org/2006/addons-blocklist" lastupdate="1474644720000">
   <emItems>
       <emItem  blockID="i58" id="webmaster@buzzzzvideos.info">
                         <versionRange  minVersion="0" maxVersion="*">
@@ -144,14 +144,14 @@
                     <prefs>
               </prefs>
     </emItem>
-      <emItem  blockID="i5" id="support@daemon-tools.cc">
-                        <versionRange  minVersion=" " maxVersion="1.0.0.5">
+      <emItem  blockID="i1229" id="/^(.*@(unblocker\.yt|sparpilot\.com))|(axtara@axtara\.com)$/">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
               </prefs>
     </emItem>
-      <emItem  blockID="i1229" id="/^(.*@(unblocker\.yt|sparpilot\.com|suchpony\.de))|axtara@axtara\.com$/">
-                        <versionRange  minVersion="0" maxVersion="*" severity="3">
+      <emItem  blockID="i5" id="support@daemon-tools.cc">
+                        <versionRange  minVersion=" " maxVersion="1.0.0.5">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -273,6 +273,12 @@
     </emItem>
       <emItem  blockID="i554" id="lightningnewtab@gmail.com">
                         <versionRange  minVersion="0" maxVersion="*" severity="1">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i1266" id="@stopad">
+                        <versionRange  minVersion="0" maxVersion="0.0.4" severity="1">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -1856,6 +1862,12 @@
                     <prefs>
               </prefs>
     </emItem>
+      <emItem  blockID="i1265" id="@video_downloader_pro">
+                        <versionRange  minVersion="1.2.1" maxVersion="1.2.5" severity="1">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
       <emItem  blockID="i60" id="youtb3@youtb3.com">
                         <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
@@ -2022,6 +2034,12 @@
     </emItem>
       <emItem  blockID="i474" id="{906000a4-88d9-4d52-b209-7a772970d91f}">
                         <versionRange  minVersion="0" maxVersion="*" severity="3">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i1264" id="suchpony@suchpony.de">
+                        <versionRange  minVersion="0" maxVersion="1.6.7" severity="3">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -3054,6 +3072,18 @@
                   <match name="filename" exp="(NPSWF32.*\.dll)|(NPSWF64.*\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="21.0.0.242" maxVersion="22.0.0.192" severity="0" vulnerabilitystatus="1"></versionRange>
                             <infoURL>https://get.adobe.com/flashplayer/</infoURL>
           </pluginItem>
+      <pluginItem  os="Linux" blockID="p1272">
+                  <match name="filename" exp="libflashplayer\.so" />                      <versionRange  minVersion="11.2.202.626" maxVersion="11.2.202.632" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1273">
+                  <match name="filename" exp="(NPSWF32.*\.dll)|(NPSWF64.*\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="18.0.0.360" maxVersion="18.0.0.366" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
+      <pluginItem  blockID="p1274">
+                  <match name="filename" exp="(NPSWF32.*\.dll)|(NPSWF64.*\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="22.0.0.192" maxVersion="22.0.0.211" severity="0" vulnerabilitystatus="1"></versionRange>
+                            <infoURL>https://get.adobe.com/flashplayer/</infoURL>
+          </pluginItem>
     </pluginItems>
 
   <gfxItems>
@@ -3602,6 +3632,18 @@
     </certItem>
         <certItem issuerName="MDsxCzAJBgNVBAYTAkVTMREwDwYDVQQKDAhGTk1ULVJDTTEZMBcGA1UECwwQQUMgUkFJWiBGTk1ULVJDTQ==">
       <serialNumber>Eg==</serialNumber>
+    </certItem>
+        <certItem issuerName="MG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQKEwtBZGRUcnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5ldHdvcmsxIjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3Q=">
+      <serialNumber>RurwlgVMxeP6Zepun0LGZA==</serialNumber>
+    </certItem>
+        <certItem issuerName="MG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQKEwtBZGRUcnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5ldHdvcmsxIjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3Q=">
+      <serialNumber>Os2rnHWYhryvdOXfgan06A==</serialNumber>
+    </certItem>
+        <certItem issuerName="MG8xCzAJBgNVBAYTAlNFMRQwEgYDVQQKEwtBZGRUcnVzdCBBQjEmMCQGA1UECxMdQWRkVHJ1c3QgRXh0ZXJuYWwgVFRQIE5ldHdvcmsxIjAgBgNVBAMTGUFkZFRydXN0IEV4dGVybmFsIENBIFJvb3Q=">
+      <serialNumber>U3t2Vk8pfxTcaUPpIq0seQ==</serialNumber>
+    </certItem>
+        <certItem issuerName="ME0xCzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxJzAlBgNVBAMTHkRpZ2lDZXJ0IFNIQTIgU2VjdXJlIFNlcnZlciBDQQ==">
+      <serialNumber>Aa8e+91erglSMgsk/mtVaA==</serialNumber>
     </certItem>
       </certItems>
 
