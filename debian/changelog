@@ -1,3 +1,18 @@
+icedove (1:45.4.0-1~deb7u1) wheezy-security; urgency=high
+
+  * Non-maintainer upload by the LTS Team.
+  * Rebase on current sid version, remaining changes:
+    * Switch to gstreamer 0.10. Wheezy doesn't have 1.0
+    * Work around Wheezy's dpkg-parsechangelog not supporting -S
+    * Switch to embedded copies of sqlite, vpx, icu, nspr and nss. Wheezy
+      doesn't provide recent enough versions.
+    * Adjust gbp.conf for wheezy-security
+    * Let mozconfig figure out the number of parallel builds.
+    * debian/rules: build with gcc 4.7
+      gcc 4.7 is only the default compiler on x86-based archs.
+
+ -- Guido Günther <agx@sigxcpu.org>  Sat, 08 Oct 2016 17:47:18 +0200
+
 icedove (1:45.4.0-1) unstable; urgency=medium
 
   [ Guido Günther ]
