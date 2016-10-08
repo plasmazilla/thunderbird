@@ -1,3 +1,22 @@
+icedove (1:45.4.0-1) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * [a159bc9] autopkgtests: let xfvb-run pick the port to avoid clashes with
+    already running servers
+  * [a159bc9] autopkgtests: let xfvb-run pick the port
+  * [5384838] Snapshot 1:45.3.0-1~1.gbpa159bc
+  * [8d3ac18] autopkgtest: Dont print on stderr
+  * [8afc7be] Put test deps on a simgle line
+
+  [ Carsten Schoenert ]
+  * [99e9c40] New upstream version 45.4.0
+    (Closes: #835866, #836798, #837107)
+  * [6195d7b] debian/README.source: update instructions for importing
+  * [5150624] debian/icedove.js: disabling baselinejit functionality
+    (Closes: #837930)
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Mon, 03 Oct 2016 12:18:09 +0200
+
 icedove (1:45.3.0-1~deb7u1) wheezy-security; urgency=high
 
   * Non-maintainer upload by the LTS team.
@@ -30,24 +49,7 @@ icedove (1:45.3.0-1) unstable; urgency=medium
   * [7a1ec74] AppArmor: grant access to local mailboxes and enigmail(2)
     (Closes: #837656)
 
- -- Carsten Schoenert <carsten@stretch.cruise.homelinux.net>  Wed, 28 Sep 2016 22:52:03 +0200
-
-icedove (1:45.2.0-2~deb7u1) wheezy-security; urgency=medium
-
-  * Non-maintainer upload by the LTS team.
-  * CVE-2016-2818: Miscellaneous memory safety hazards
-  * Rebase on current sid version, remaining changes:
-    * Switch to gstreamer 0.10. Wheezy doesn't have 1.0
-    * Work around Wheezy's dpkg-parsechangelog not supporting -S
-    * Switch to embedded copies of sqlite, vpx, icu, nspr and nss. Wheezy
-      doesn't provide recent enough versions.
-    * Adjust gbp.conf for wheezy-security
-    * Let mozconfig figure out the number of parallel builds.
-    * debian/rules: build with gcc 4.7
-      gcc 4.7 is only the default compiler on x86-based archs.
-  * Fix harmless typo in one of the autopkgtests
-
- -- Guido Günther <agx@sigxcpu.org>  Fri, 29 Jul 2016 16:58:24 +0200
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 28 Sep 2016 22:52:03 +0200
 
 icedove (1:45.2.0-4) unstable; urgency=medium
 
@@ -71,6 +73,23 @@ icedove (1:45.2.0-3) unstable; urgency=medium
   * [f34e41e] debian/rules: fix typo CXLAGS -> CFLAGS
 
  -- Christoph Goehre <chris@sigxcpu.org>  Fri, 12 Aug 2016 12:00:44 -0400
+
+icedove (1:45.2.0-2~deb7u1) wheezy-security; urgency=medium
+
+  * Non-maintainer upload by the LTS team.
+  * CVE-2016-2818: Miscellaneous memory safety hazards
+  * Rebase on current sid version, remaining changes:
+    * Switch to gstreamer 0.10. Wheezy doesn't have 1.0
+    * Work around Wheezy's dpkg-parsechangelog not supporting -S
+    * Switch to embedded copies of sqlite, vpx, icu, nspr and nss. Wheezy
+      doesn't provide recent enough versions.
+    * Adjust gbp.conf for wheezy-security
+    * Let mozconfig figure out the number of parallel builds.
+    * debian/rules: build with gcc 4.7
+      gcc 4.7 is only the default compiler on x86-based archs.
+  * Fix harmless typo in one of the autopkgtests
+
+ -- Guido Günther <agx@sigxcpu.org>  Fri, 29 Jul 2016 16:58:24 +0200
 
 icedove (1:45.2.0-2) unstable; urgency=medium
 
