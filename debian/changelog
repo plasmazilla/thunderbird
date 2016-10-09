@@ -1,3 +1,12 @@
+icedove (1:45.4.0-1~deb8u1) stable-security; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [99e9c40] New upstream version 45.4.0
+  * [d68e169] debian/icedove.js: disabling baselinejit functionality
+    (Closes: #837930)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 09 Oct 2016 16:01:08 -0400
+
 icedove (1:45.3.0-1~deb8u1) stable-security; urgency=medium
 
   [ Carsten Schoenert ]
