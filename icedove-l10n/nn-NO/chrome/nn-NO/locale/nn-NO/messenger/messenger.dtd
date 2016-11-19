@@ -922,5 +922,5 @@
      box will be collapsed and the user will never see this message.
      -->
 <!ENTITY search.label.base1 "Search #1">
-<!ENTITY sortByCorrespondentCmd.accesskey "e">
+<!ENTITY sortByCorrespondentCmd.accesskey "n">
 <!ENTITY sortByCorrespondentCmd.label "Correspondents">

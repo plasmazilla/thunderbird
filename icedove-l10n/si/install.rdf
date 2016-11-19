@@ -8,14 +8,14 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-si@thunderbird.mozilla.org"
                em:name="Sinhala (si-LK) Language Pack"
-               em:version="45.4.0"
+               em:version="45.5.0"
                em:type="8"
                em:creator="mozilla.org">
     <em:contributor>රෝහන දසනායක</em:contributor> <em:contributor>මහේෂා හතරසිංහ</em:contributor> <em:contributor>කසුන් කරුණාරත්න</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>45.4.0</em:minVersion>
+        <em:minVersion>45.5.0</em:minVersion>
         <em:maxVersion>45.*</em:maxVersion>
       </Description>
     </em:targetApplication>
