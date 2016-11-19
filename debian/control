@@ -9,7 +9,7 @@ Build-Depends:
  autoconf2.13,
  autotools-dev,
  bzip2,
- debhelper (>= 7.0.50~),
+ debhelper (>= 9.20160814~),
  dh-apparmor,
  dpkg-dev (>= 1.16.1~),
  libasound2-dev [linux-any],
