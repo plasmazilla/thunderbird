@@ -29,7 +29,7 @@ Build-Depends:
  libiw-dev [linux-any],
  libnotify-dev,
  libnspr4-dev (>= 2:4.12~),
- libnss3-dev (>= 2:3.21.1~),
+ libnss3-dev (>= 2:3.21.3~),
  libpng-dev,
  libpulse-dev,
  libreadline-dev,
