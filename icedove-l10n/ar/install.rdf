@@ -8,14 +8,14 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-ar@thunderbird.mozilla.org"
                em:name="العربية Language Pack"
-               em:version="45.2"
+               em:version="45.5.1"
                em:type="8"
                em:creator="arabeyes.org">
     <em:contributor>Ayman Hourieh</em:contributor> <em:contributor>Khaled Hosny</em:contributor> <em:contributor>Anas Husseini</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>45.2</em:minVersion>
+        <em:minVersion>45.5.1</em:minVersion>
         <em:maxVersion>45.*</em:maxVersion>
       </Description>
     </em:targetApplication>

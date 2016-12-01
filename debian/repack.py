@@ -161,7 +161,7 @@ def get_package_name():
 
 
 def main():
-    parser = OptionParser()
+    parser = OptionParser("%prog [options] tarball")
     parser.add_option("-u", "--upstream-version", dest="upstream_version",
         help="define upstream version number to use when creating the file",
         metavar="VERSION")

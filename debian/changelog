@@ -1,3 +1,137 @@
+icedove (1:45.5.1-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [efe836f] New upstream version 45.5.1
+  * [48999ac] rebuild patch queue from patch-queue branch
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 30 Nov 2016 18:27:57 +0100
+
+icedove (1:45.4.0-1) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * [a159bc9] autopkgtests: let xfvb-run pick the port to avoid clashes with
+    already running servers
+  * [5384838] Snapshot 1:45.3.0-1~1.gbpa159bc
+  * [8d3ac18] autopkgtest: Dont print on stderr
+  * [8afc7be] Put test deps on a simgle line
+
+  [ Carsten Schoenert ]
+  * [99e9c40] New upstream version 45.4.0
+    (Closes: #835866, #836798, #837107)
+  * [6195d7b] debian/README.source: update instructions for importing
+  * [5150624] debian/icedove.js: disabling baselinejit functionality
+    (Closes: #837930)
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Mon, 03 Oct 2016 12:18:09 +0200
+
+icedove (1:45.3.0-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [3cc29ee] Imported Upstream version 45.3.0
+  * [ed8cf89] Imported icedove-l10n Upstream version 45.3.0
+  * [bc20676] Imported iceowl-l10n Upstream version 45.3.0
+  * [54bd9c4] debian/README.source: fix up some hints
+  * [756ec86] mozconfig.default: enable build of PIE binaries
+  * [1cef6f8] rebuild patch queue from patch-queue branch
+    added patch:
+    - porting-mips/libyuv_disable-mips-assembly-for-MIPS64.patch
+    (Closes: #836400)
+  * [7a1ec74] AppArmor: grant access to local mailboxes and enigmail(2)
+    (Closes: #837656)
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 28 Sep 2016 22:52:03 +0200
+
+icedove (1:45.2.0-4) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [cc8cd76] mozconfig.default: relaxe optimization on arm{64,el,hf} to -O1
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 18 Aug 2016 10:45:17 -0400
+
+icedove (1:45.2.0-3) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * [9a8f4e1] tests: Fix typo
+
+  [ Carsten Schoenert ]
+  * [53aab10] AppArmor: allow self execution for -ProfileManager
+    (Closes: #833742)
+  * [a459d6a] debian/rules: adding one more CFLAGS/CXXFLAGS compiler flag
+    (Closes: #833864, #833532, #833591, #833635, #833698)
+  * [e32c460] AppArmor: grant access to local mailboxes and enigmail
+    (Closes: #833184)
+  * [f34e41e] debian/rules: fix typo CXLAGS -> CFLAGS
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 12 Aug 2016 12:00:44 -0400
+
+icedove (1:45.2.0-2) unstable; urgency=medium
+
+  [ Christoph Goehre ]
+  * [8b4f306] rebuild patch queue from patch-queue branch
+    added patches:
+    - p-kfree-hurd/CrossProcessMutex.h-fix-build-on-kfreebsd-and-GNU-hur.patch
+    (Closes: #808183)
+
+  [ Carsten Schoenert ]
+  * [08e20a0] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-1277295-Remove-obsolete-reference-to-storage-service-.patch
+    (Closes: #827592)
+    - fixes/Bug-1245076-Don-t-include-mozalloc.h-from-the-cstdlib-wra.patch
+    (Closes: #831192)
+  * [1ea97f1] debian/icedove.js: disable Icedove startup check
+    (Closes: #817973)
+  * [83bdcdf] debian/rules: adding additional CFLAGS and CXXFLAGS
+  * [7dc0588] debian/control: addjust breaks for xul-ext-foxyproxy-standard
+    (Closes: #825749)
+  * [50a0f1e] autopkg: fixup small type within test call
+
+  [ Ulrike Uhlig ]
+  * [b24bbaa] Add rebranded apparmor profile from upstream (Closes: #829731)
+  * [0a28f91] apparmor/usr.bin.icedove: refresh Icedove AppArmor profile
+
+  [ Guido Günther ]
+  * [6fe4897] Fix apparmor profile installation
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 26 Jul 2016 13:25:21 -0400
+
+icedove (1:45.2.0-1) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * [f777843] Wrap and sort control information
+    via 'wrap-and-sort -ast' to simplify backporting (Closes: #825806)
+  * [457dffe] Register components with gbp
+  * [8e73822] Rediff patches
+
+  [ Carsten Schoenert ]
+  * [789ed6f] Imported Upstream version 45.1.1
+  * [8b8bd3c] Imported icedove-l10n Upstream version 45.1.1
+  * [23b2984] Imported iceowl-l10n Upstream version 45.1.1
+  * [411b27d] Imported Upstream version 45.2.0
+  * [975287a] Imported icedove-l10n Upstream version 45.2.0
+  * [09b6652] Imported iceowl-l10n Upstream version 45.2.0
+  * [2b99997] icedove-l10n-all: change Section into metapackages.
+    As Jonas Smedegaard pointed out, the icedove-l10n-all package is a
+    metapackage and localization.
+    (Closes: #824785)
+  * [a7eec24] debian/README.source: info about import of multitarballs.
+    As the VCS is using git-buildpackage for package maintenace adding some
+    hints on how to handle the impoert of the used mutitarballs since
+    version 45.0.
+  * [73e8b1a] debian/control: adding Recommends to icedove-l10n-uk
+    (Closes: #825806)
+  * [f118470] debian/control: Icedove, adding dependency on libatk-adaptor.
+    After the adding of some first small autopkg test it turns out that we
+    miss a dependency on libatk-adaptor.
+  * [e6e95c9] debian/control: rework Recommends for icedove-l10n-*
+    As addition to 711468b933f280fe9d6ed78bb1d7d763dede9ea7 also rework the
+    various Recommends for the icedove-l10n packages.
+  * [1275b3d] debian/control: small fixup Recommends on iceowl-l10n-*
+    Fix small typos for iceowl-l10n-{pt-pt,sl}
+  * [c4c9a02] debian/control: sort iceowl-l10n-* alphabetical
+
+ -- Guido Günther <agx@sigxcpu.org>  Fri, 08 Jul 2016 15:55:46 +0200
+
 icedove (1:45.2~b1-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
@@ -253,6 +387,153 @@ icedove (40.0~b1-1) experimental; urgency=medium
   * [ff66528] lintian: fix spelling error in debian/README.Debian
 
  -- Guido Guenther <agx@sigxcpu.org>  Wed, 19 Aug 2015 09:39:23 +0200
+
+icedove (38.7.2-1) unstable; urgency=medium
+
+  * [397cd7a] Imported Upstream version 38.7.2
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 13 Apr 2016 12:05:05 -0400
+
+icedove (38.7.0-1) unstable; urgency=medium
+
+  [ Christoph Goehre ]
+  * [cb9c003] Imported Upstream version 38.7.0
+  * [7273cb9] bump up standards version to 3.9.7 (no changes needed)
+
+  [ Carsten Schoenert ]
+  * [0341a8c] debian/control: switch URI for the Vcs fields to https
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 16 Mar 2016 13:22:57 +0100
+
+icedove (38.6.0-1) unstable; urgency=medium
+
+  [ Guido Günther ]
+  * [195730d] Clarify relation between icedove and the calendar extensions
+    (Closes: #809017)
+
+  [ Christoph Goehre ]
+  * [988ce5b] Imported Upstream version 38.6.0
+  * [6763f6f] debian/source.filter: remove evil-licensed jshint.js
+    (Closes: #813053)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 14 Feb 2016 16:08:13 -0500
+
+icedove (38.5.0-1) unstable; urgency=medium
+
+  [ Christoph Goehre ]
+  * [6d45b0b] Imported Upstream version 38.5.0
+  * [316798f] debian/rules: split override_dh_install into arch and indep
+    section (Closes: #806047)
+
+  [ Carsten Schoenert ]
+  * [5b3cb7a] add myself to the uploaders
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 24 Dec 2015 22:36:37 -0500
+
+icedove (38.4.0-1) unstable; urgency=medium
+
+  [ Christoph Goehre ]
+  * [754392e] Imported Upstream version 38.4.0
+  * [ef4b733] debian/watch: adjust download url
+
+  [ Carsten Schoenert ]
+  * [f3f5455] lintian: remove icedove.menu file due CTTE#741573
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 27 Nov 2015 12:54:27 -0500
+
+icedove (38.3.0-2) unstable; urgency=medium
+
+  * [c988747] Add unminified jquery and jquery-ui files with the exact
+    version as used by upstream thunderbird.
+    We don't want to use the minified versions mozilla ships and can't use
+    what is currently packaged in Jessie or Stretch since these are too
+    recent.
+    (Closes: #802281)
+
+ -- Guido Günther <agx@sigxcpu.org>  Sun, 01 Nov 2015 18:06:33 +0100
+
+icedove (38.3.0-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [0f8b6a4] Imported Upstream version 38.3.0
+  * [566273a] debian/copyright: fixup's and update
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 10 Oct 2015 13:21:05 -0400
+
+icedove (38.2.0-2) unstable; urgency=medium
+
+  * [8bcb08b] relax optimize to -O1 on s390x (Closes: #797551)
+  * [6aa0915] debian/rules: Disable jit on mips (Closes: #797548)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 24 Sep 2015 19:09:54 -0400
+
+icedove (38.2.0-1) unstable; urgency=medium
+
+  * [d46d5f6] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting-mips/Fix-build-error-in-MIPS-SIMD-when-compiling-with-mfp.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 21 Sep 2015 19:42:03 -0400
+
+icedove (38.2.0-1~stretch) stretch; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [05b245f] Imported Upstream version 38.2.0 (Closes: #796323)
+    - MFSA 2015-59 aka CVE-2015-2724, CVE-2015-2725, CVE-2015-2726
+    - MFSA 2015-63 aka CVE-2015-2731
+    - MFSA 2015-66 aka CVE-2015-2734, CVE-2015-2735, CVE-2015-2736,
+      CVE-2015-2737, CVE-2015-2738, CVE-2015-2739, CVE-2015-2740
+    - MFSA 2015-70 aka CVE-2015-4000
+    - MFSA 2015-71 aka CVE-2015-2721
+    - MFSA 2015-65 aka CVE-2015-2741
+    - MFSA 2015-79 aka CVE-2015-4474
+  * [43c8195] rebuild patch queue from patch-queue branch
+  * [c75bdad] debian/control: increase B-D on libnss3-dev
+  * [942bcbe] debian/iceowl-extension.lintian-overrides: remove file
+  * [7131e4d] debian/source.lintian-overrides: adding new entries
+  * [8882360] mozconfig.default: don't use icu from system
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Fri, 21 Aug 2015 12:29:42 +0200
+
+icedove (38.1.0-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [3d27760] Imported Upstream version 38.1.0 (Closes: #790651)
+  * [2cb6cd7] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-1165654-Cleanup-how-libjpeg-turbo-assembly-build.patch
+    - reproducible/Generate-sorted-libical-header-list (Closes: #794456)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 04 Aug 2015 20:20:53 -0400
+
+icedove (38.0.1-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [5acef6a] debian/gbp.conf: adopt new upstream branch
+  * [6f88792] Imported Upstream version 38.0.1 (Closes: #358680, #472601,
+    #634316, #691176, #751786, #777908)
+  * [18bba9d] debian/gbp.conf: respect new git-buildpackage behaviour
+  * [26bbdac] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/changing-the-default-search-engine.patch (Closes: #780595)
+    - fixes/Bug-1168231-Fixup-to-keep-file-type.patch
+    - fixes/Bug-1168231-Normalize-file-mode-in-jars.patch
+    - reproducible/Bug-1166243-Remove-build-function-from-js-and-xpc-sh.patch
+    - reproducible/Bug-1168316-Remove-build-machine-name-from-about-bui.patc
+    deleted patches:
+    - debian-hacks/remove-timestamps-from-c_cpp-macros-for-reproducibil.patch
+  * [71938b9] debian/rules: setting MOZ_BUILD_DATE explicitly
+  * [e50d708] debian/copyright: more minor updates to the copyright file
+  * [b232895] debian/rules: adding switch for no icedove-dbg build
+  * [bcc15aa] debian/control: icedove is now recommending iceowl-extension
+  * [564a19e] adding release related information
+  * [2ec0053] debian/vendor.js: adjusting WhatNew link to more dedicated URL
+
+  [ Christoph Goehre ]
+  * [a9c25b6] lintian: fix spelling error in debian/README.Debian
+  * [2cc2c07] debian/rules: fix icedove-dbg build switch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 27 Jul 2015 17:46:40 -0400
 
 icedove (38.0~b5-1) experimental; urgency=medium
 

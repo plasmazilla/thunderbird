@@ -141,7 +141,7 @@ NS_INTERFACE_MAP_END
 nsFrameLoader::nsFrameLoader(Element* aOwner, bool aNetworkCreated)
   : mOwnerContent(aOwner)
   , mAppIdSentToPermissionManager(nsIScriptSecurityManager::NO_APP_ID)
-  , mDetachedSubdocViews(nullptr)
+  , mDetachedSubdocFrame(nullptr)
   , mRemoteBrowser(nullptr)
   , mChildID(0)
   , mEventMode(EVENT_MODE_NORMAL_DISPATCH)
@@ -963,11 +963,11 @@ nsFrameLoader::SwapWithOtherRemoteLoader(nsFrameLoader* aOther,
   RefPtr<nsFrameMessageManager> ourMessageManager = mMessageManager;
   RefPtr<nsFrameMessageManager> otherMessageManager = aOther->mMessageManager;
   // Swap and setup things in parent message managers.
-  if (mMessageManager) {
-    mMessageManager->SetCallback(aOther);
+  if (ourMessageManager) {
+    ourMessageManager->SetCallback(aOther);
   }
-  if (aOther->mMessageManager) {
-    aOther->mMessageManager->SetCallback(this);
+  if (otherMessageManager) {
+    otherMessageManager->SetCallback(this);
   }
   mMessageManager.swap(aOther->mMessageManager);
 
@@ -2414,6 +2414,7 @@ nsFrameLoader::CreateStaticClone(nsIFrameLoader* aDest)
   NS_ENSURE_STATE(dest->mDocShell);
 
   nsCOMPtr<nsIDocument> dummy = dest->mDocShell->GetDocument();
+  Unused << dummy;
   nsCOMPtr<nsIContentViewer> viewer;
   dest->mDocShell->GetContentViewer(getter_AddRefs(viewer));
   NS_ENSURE_STATE(viewer);
@@ -2699,18 +2700,18 @@ nsFrameLoader::SwapRemoteBrowser(nsITabParent* aTabParent)
 }
 
 void
-nsFrameLoader::SetDetachedSubdocView(nsView* aDetachedViews,
-                                     nsIDocument* aContainerDoc)
+nsFrameLoader::SetDetachedSubdocFrame(nsIFrame* aDetachedFrame,
+                                      nsIDocument* aContainerDoc)
 {
-  mDetachedSubdocViews = aDetachedViews;
+  mDetachedSubdocFrame = aDetachedFrame;
   mContainerDocWhileDetached = aContainerDoc;
 }
 
-nsView*
-nsFrameLoader::GetDetachedSubdocView(nsIDocument** aContainerDoc) const
+nsIFrame*
+nsFrameLoader::GetDetachedSubdocFrame(nsIDocument** aContainerDoc) const
 {
   NS_IF_ADDREF(*aContainerDoc = mContainerDocWhileDetached);
-  return mDetachedSubdocViews;
+  return mDetachedSubdocFrame.GetFrame();
 }
 
 void

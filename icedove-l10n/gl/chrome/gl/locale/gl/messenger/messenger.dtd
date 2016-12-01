@@ -1009,7 +1009,7 @@
 <!ENTITY showFolderPaneColsCmd.accesskey "P">
 <!ENTITY showFolderPaneColsCmd.label "Folder Pane Columns">
 <!ENTITY sizeColumn2.tooltip "Sort by size">
-<!ENTITY sortByCorrespondentCmd.accesskey "e">
+<!ENTITY sortByCorrespondentCmd.accesskey "n">
 <!ENTITY sortByCorrespondentCmd.label "Correspondents">
 <!ENTITY starredColumn2.tooltip "Sort by star">
 <!ENTITY statusColumn2.tooltip "Sort by status">

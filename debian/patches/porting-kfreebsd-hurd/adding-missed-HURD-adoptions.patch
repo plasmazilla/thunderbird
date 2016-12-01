@@ -19,7 +19,7 @@ Based on https://lists.alioth.debian.org/pipermail/pkg-mozilla-maintainers/2016-
  12 files changed, 40 insertions(+), 12 deletions(-)
 
 diff --git a/mozilla/configure b/mozilla/configure
-index 8d9554c..306e660 100755
+index c27acdd..c9392dd 100755
 --- a/mozilla/configure
 +++ b/mozilla/configure
 @@ -30331,7 +30331,7 @@ if test -n "$USE_ICU"; then

@@ -11633,7 +11633,7 @@ fi
 fi
 
 case "$target_os" in
-freebsd*|openbsd*)
+bitrig*|dragonfly*|freebsd*|openbsd*)
 # for stuff like -lXshm
     CPPFLAGS="${CPPFLAGS} ${X_CFLAGS}"
     ;;
@@ -15627,7 +15627,7 @@ else
   echo "$ac_t""no" 1>&6
 fi
 
-	min_nss_version=3.21.1
+	min_nss_version=3.21.3
 	echo $ac_n "checking for NSS - version >= $min_nss_version""... $ac_c" 1>&6
 echo "configure:15633: checking for NSS - version >= $min_nss_version" >&5
 

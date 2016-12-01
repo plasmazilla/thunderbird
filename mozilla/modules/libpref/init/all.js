@@ -331,6 +331,7 @@ pref("media.wmf.low-latency.enabled", false);
 #endif
 #if defined(MOZ_FFMPEG)
 pref("media.ffmpeg.enabled", true);
+pref("media.libavcodec.allow-obsolete", false);
 #endif
 pref("media.gmp.decoder.enabled", false);
 pref("media.gmp.decoder.aac", 0);
@@ -1349,7 +1350,9 @@ pref("network.http.redirection-limit", 20);
 // NOTE: support for "compress" has been disabled per bug 196406.
 // NOTE: separate values with comma+space (", "): see bug 576033
 pref("network.http.accept-encoding", "gzip, deflate");
-pref("network.http.accept-encoding.secure", "gzip, deflate, br");
+// pref("network.http.accept-encoding.secure", "gzip, deflate, br");
+// ESR-45 disable brotli due to library bugs fixed in 46
+pref("network.http.accept-encoding.secure", "gzip, deflate");
 
 pref("network.http.pipelining"      , false);
 pref("network.http.pipelining.ssl"  , false); // disable pipelining over SSL

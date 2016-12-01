@@ -48,7 +48,7 @@
 <!ENTITY calendar.displaytodos.checkbox.accesskey   "T">
 
 <!ENTITY calendar.displaytodos.checkbox.label       "Show Tasks in Calendar">
-<!ENTITY calendar.properties.accesskey          "C">
+<!ENTITY calendar.properties.accesskey          "a">
 
 <!ENTITY calendar.properties.label              "Calendar Properties…">
 

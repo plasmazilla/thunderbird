@@ -2295,7 +2295,10 @@ function ComposeStartup(recycled, aParams)
 
   identityList.selectedItem =
     identityList.getElementsByAttribute("identitykey", params.identity.key)[0];
-  if (params.composeFields.from)
+
+  // Here we set the From from the original message, be it a draft or another
+  // message we want to "edit as new". Only do this for drafts.
+  if (gComposeType == nsIMsgCompType.Draft && params.composeFields.from)
   {
     let from = MailServices.headerParser.parseEncodedHeader(params.composeFields.from, null).join(", ");
     if (from != identityList.value)
@@ -3017,8 +3020,22 @@ function SaveAsTemplate()
   gAutoSaveKickedIn = false;
   gEditingDraft = false;
 
+  let savedPreferences = null;
+  if (gMsgCompose && gMsgCompose.compFields) {
+    // Clear References header. When we use the template, we don't want that
+    // header, yet, "edit as new message" maintains it. So we need to clear
+    // it when saving the template.
+    // Note: The In-Reply-To header is the last entry in the references header,
+    // so it will get cleared as well.
+    savedPreferences = gMsgCompose.compFields.references;
+    gMsgCompose.compFields.references = null;
+  }
+
   GenericSendMessage(nsIMsgCompDeliverMode.SaveAsTemplate);
   defaultSaveOperation = "template";
+
+  if (savedPreferences)
+    gMsgCompose.compFields.references = savedPreferences;
 }
 
 // Sets the additional FCC, in addition to the default FCC.
@@ -4472,9 +4489,13 @@ var envelopeDragObserver = {
   getSupportedFlavours: function ()
     {
       var flavourSet = new FlavourSet();
+      // Prefer "text/x-moz-address", so when an address from the address book
+      // is dragged, this flavour is tested first. Otherwise the attachment
+      // bucket would open since the addresses also carry the
+      // "application/x-moz-file" flavour.
+      flavourSet.appendFlavour("text/x-moz-address");
       flavourSet.appendFlavour("text/x-moz-message");
       flavourSet.appendFlavour("application/x-moz-file", "nsIFile");
-      flavourSet.appendFlavour("text/x-moz-address");
       flavourSet.appendFlavour("text/x-moz-url");
       return flavourSet;
     }

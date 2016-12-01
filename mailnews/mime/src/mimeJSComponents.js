@@ -373,10 +373,8 @@ MimeAddressParser.prototype = {
     if (aDisplayName.includes('<')) {
       let lbracket = aDisplayName.lastIndexOf('<');
       let rbracket = aDisplayName.lastIndexOf('>');
-      // If there are multiple spaces between the display name and the bracket,
-      // strip off only a single space.
       return this.makeMailboxObject(
-        lbracket == 0 ? '' : aDisplayName.slice(0, lbracket - 1),
+        lbracket == 0 ? '' : aDisplayName.slice(0, lbracket).trim(),
         aDisplayName.slice(lbracket + 1, rbracket));
     } else {
       return this.makeMailboxObject('', aDisplayName);
@@ -387,7 +385,14 @@ MimeAddressParser.prototype = {
 
   parseHeadersWithArray: function (aHeader, aAddrs, aNames, aFullNames) {
     let addrs = [], names = [], fullNames = [];
-    let allAddresses = this.parseEncodedHeader(aHeader, undefined, false);
+    // Parse header, but without HEADER_OPTION_ALLOW_RAW.
+    let value = MimeParser.parseHeaderField(aHeader || "",
+                                            MimeParser.HEADER_ADDRESS |
+                                            MimeParser.HEADER_OPTION_DECODE_2231 |
+                                            MimeParser.HEADER_OPTION_DECODE_2047,
+                                            undefined);
+    let allAddresses = fixArray(value, false);
+
     // Don't index the dummy empty address.
     if (aHeader.trim() == "")
       allAddresses = [];

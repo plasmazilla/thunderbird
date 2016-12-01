@@ -1,92 +1,81 @@
-== Creating a new upstream tarball icedove ==
-=============================================
+This package is maintained with git-buildpackage(1).
 
-After downlading the source from the Mozilla CDN [1] debian/repack.py has to
-be used to repackage the Thunderbird upstream tarball, preferable from the
-top of the repository.  Adopt the source path if you have placed the source
-upstream sourc else there.
+It uses pristine-tar(1) to store enough information in git to generate
+bit identical tarballs when building the package without having
+downloaded an upstream tarball first.
+
+When working with patches it is recommended to use "gbp pq import" to
+import the patches, modify the source and then use "gbp pq export
+--commit" to commit the modifications.
+
+The changelog is generated using "gbp dch" so if you submit any
+changes don't bother to add changelog entries but rather provide
+a nice git commit message that can then end up in the changelog.
+
+It is recommended to build the package with pbuilder using:
+
+    gbp builpackage --git-pbuilder
+
+For information on how to set up a pbuilder environment see the
+git-pbuilder(1) manpage. In short:
+
+    DIST=sid git-pbuilder create
+    gbp clone <project-url>
+    cd <project>
+    gbp buildpackage --git-pbuilder
+
+Icedove uses component tarballs for the l10n packages (see below).
+
+
+Creating a source tarball icedove
+=================================
+
+Download the source from the Mozilla CDN [1], then use debian/repack.py
+to repackage the Thunderbird upstream tarball:
 
  debian/repack.py -p icedove -u 45.0 -c xz ../thunderbird-45.0.source.tar.xz
 
 [1] http://ftp.mozilla.org/pub/thunderbird/releases/
 
-== Creating a new upstream source tarball icedove-l10n ==
-=========================================================
 
-By using multiple upstream tarballs we needed to create a file
+Creating a source tarball icedove-l10n
+======================================
+
+We need to create the component tarball for the icedove l10n:
 
   icedove_[xx].orig-icedove-l10n.tar.xz
 
-The helper script
+using
 
   debian/create-icedove-l10n-tarball.sh
 
-should be used to create the *.tar.xz file. To download the l10n related
-files call the helper script with the needed arguments. Call the script
-without arguments to get a output of the usage for the script.
 You need to run the script on top of the Icedove Git repository.
 
 
-== Creating a new upstream source tarball iceowl-l10n ==
-========================================================
+Creating asource tarball iceowl-l10n
+====================================
 
-Like before for icedove-l10n we need also for the Iceowl localization a correct
-named subtarball
+As before we need to create the component tarball for the iceowl l10n:
 
  icedove_[xx].orig-iceowl-l10n.tar.xz
 
-For this is also a helper script created
+The helper script
 
  debian/create-iceowl-l10n-tarball.sh
 
-that will create a *.tar.xz with the l10n sources of Lightning.
-It will also need a few arguments, you will also get the options of the command
-line if you call the script without any or wrong arguments.
-This script also needs to be called on top of the Icedove Git tree.
+You need to run the script on top of the Icedove Git repository.
 
-== Importing the source tarballs ==
-===================================
 
-Since version 45.0 the source package icedove is using multitarballs to
-include the aquivalent l10n source for iceowl-extension and icedove itself.
-At the moment git-buildpackage isn't able to import those tarballs and
-create the correct pristine-tar commits, so for now the import and the
-pristine-tar commits has to be done manually.
+Importing the source tarballs
+=============================
 
-1. Import the Icedove source as created explained above
+Since version 45.0 the source package icedove is using component
+tarballs to include the l10n source for iceowl-extension and icedove.
 
- gbp import-orig ../icedove_45.x.orig.tar.xz --verbose --no-merge
+git-buildpackage supports component tarballs since version 0.8.0 so
+you can import the tarballs using "gbp import-orig". Make sure the
+component tarballs are placed in the same folder as
+icedove_[version].orig.tar.xz then import the new upstream version as
+usual:
 
-2. Switch back to the used upstream branch
-
- git checkout upstream[-45.x]
-
-3. Import the first additional tarball icedove_45.[x].orig-icedove-l10n.tar.xz
-   and commit the subfolder to the branch
-
- tar -xJvf ../icedove_45.[x].orig-icedove-l10n.tar.xz
- git add icedove-l10n
- git commit -m "Imported icedove-l10n Upstream version 45.[x]"
-
-4. Import the second additional tarball icedove_45.[x].orig-iceowl-l10n.tar.xz
-   and commit the subfolder to the branch
-
- tar -xJvf ../icedove_45.[x].orig-iceowl-l10n.tar.xz
- git add iceowl-l10n
- git commit -m "Imported iceowl-l10n Upstream version 45.[x]"
-
-5. Tag and sign the last commit on the upstream branch
-
- git tag -u [GPG-KeyID] upstream[-45.x]/[xx].x -m "Upstream version 45.[x]"
-
-6. Create the additional needed pristine-tar commits for l10n source
-   tarballs
-
- pristine-tar commit ../icedove_45.[x].orig-icedove-l10n.tar.xz $(git ls-tree upstream[-45.x] | awk '/\sicedove-l10n$/ { print $3 }')
- pristine-tar commit ../iceowl_45.[x].orig-icedove-l10n.tar.xz $(git ls-tree upstream[-45.x] | awk '/\siceowl-l10n$/ { print $3 }')
-
-7. Merge the upstream branch into the debian branch
-
- git checkout master|debian/experimental
- git merge upstream[-45.x]/45.[x]
-
+ gbp import-orig --sign-tags /path/to/icedove_[version].orig.tar.xz

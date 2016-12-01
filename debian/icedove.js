@@ -20,7 +20,15 @@ pref("intl.locale.matchOS", true);
 // Disable default mail checking (gnome).
 pref("mail.shell.checkDefaultMail", false);
 
+// Disable default mail client check
+pref("mail.shell.checkDefaultClient", false);
+
 // if you are not using gnome
 pref("network.protocol-handler.app.http", "x-www-browser");
 pref("network.protocol-handler.app.https", "x-www-browser");
+
+// This setting is a workaround for some crashes inside the JS engine.
+// By this Icedove will use more memory and acting slower as the sharing
+// memory between interacting JS files is disabled.
+pref ("javascript.options.baselinejit", false);
 

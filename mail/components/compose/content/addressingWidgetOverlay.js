@@ -171,7 +171,7 @@ function Recipients2CompFields(msgCompFields)
             let headerName =
               awGetPopupElement(i).selectedItem.getAttribute("label");
             headerName = headerName.substring(0, headerName.indexOf(':'));
-            msgCompFields.setHeader(headerName, fieldValue);
+            msgCompFields.setRawHeader(headerName, fieldValue, null);
             break;
         }
       }
@@ -554,8 +554,11 @@ function awAppendNewRow(setFocus)
       //
       // For now we'll just put in a hack that ensures the focused attribute
       // is never copied when the node is cloned.
-      if (input[0].getAttribute('focused') != '')
-        input[0].removeAttribute('focused');
+      input[0].removeAttribute("focused");
+
+      // Reset autocomplete attribute "nomatch" so we don't cause red addresses
+      // on a cloned row.
+      input[0].removeAttribute("nomatch");
     }
     var select = newNode.getElementsByTagName(awSelectElementName());
     if ( select && select.length == 1 )
