@@ -214,6 +214,12 @@ if [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
         FAIL=1
     fi
     mv ${ID_PROFILE_FOLDER} ${HOME}/.icedove_moved_by_thunderbird_starter
+    # Fixing mimeTypes.rdf which may have registered the iceweasel binary
+    # as browser, instead of x-www-browser
+    debug "Fixing possible broken 'mimeTypes.rdf'."
+    for MIME_TYPES_RDF_FILE in $(find ${TB_PROFILE_FOLDER}/ -name mimeTypes.rdf); do
+        sed -i "s|/usr/bin/iceweasel|/usr/bin/x-www-browser|g" "${MIME_TYPES_RDF_FILE}"
+    done
     debug "Migration done."
     debug "The old Icedove profile folder was moved to '${HOME}/.icedove_moved_by_thunderbird_starter'"
 
