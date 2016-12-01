@@ -1,7 +1,7 @@
 # The embedded libjpeg is libjpeg-turbo, not libjpeg.
-icedove: embedded-library usr/lib/icedove/libxul.so: libjpeg
+thunderbird: embedded-library usr/lib/thunderbird/libxul.so: libjpeg
 # Upstream code is not ready to use system library
-icedove: embedded-library usr/lib/icedove/libxul.so: srtp
-icedove: embedded-library usr/lib/icedove/libxul.so: libtheora
+thunderbird: embedded-library usr/lib/thunderbird/libxul.so: srtp
+#thunderbird: embedded-library usr/lib/thunderbird/libxul.so: libtheora
 # The embedded libpng is patched for APNG support
-icedove: embedded-library usr/lib/icedove/libxul.so: libpng
+thunderbird: embedded-library usr/lib/thunderbird/libxul.so: libpng
