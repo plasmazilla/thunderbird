@@ -40,3 +40,6 @@ fixes/Bug-1277295-Remove-obsolete-reference-to-storage-service-.patch
 fixes/Bug-1245076-Don-t-include-mozalloc.h-from-the-cstdlib-wra.patch
 porting-mips/libyuv_disable-mips-assembly-for-MIPS64.patch
 debian-hacks/icu.m4-adding-extra-bracket-to-not-confuse-grep.patch
+fixes/Bug-497488-RSS-feeds-with-an-invalid-certificate-fail-wit.patch
+fixes/Bug-497488-Implement-verify-mode-in-the-subscribe-dialog-.patch
+fixes/Bug-497488-RSS-feeds-with-an-invalid-certificate-fail-wit-1.patch

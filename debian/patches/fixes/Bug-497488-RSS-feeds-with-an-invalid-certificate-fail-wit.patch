@@ -1,0 +1,349 @@
+From: alta88 <alta88@gmail.com>
+Date: Thu, 13 Oct 2016 05:20:00 +0200
+Subject: Bug 497488 - RSS feeds with an invalid certificate fail with a
+ misleading message. r=mkmelin
+
+Origin: https://hg.mozilla.org/comm-central/rev/9fcd32547793baeb1881ed251e796243e1e964e9
+Bug-Debian: https://bugs.debian.org/837177
+Bug: https://bugzilla.mozilla.org/show_bug.cgi?id=497488
+Applied-Upstream: Thunderbird 52.0
+
+Signed-off-by: Jens Reyer <jre.winesim@gmail.com>
+---
+ .../chrome/messenger-newsblog/newsblog.properties  |   5 +
+ mailnews/extensions/newsblog/content/Feed.js       |  27 ++--
+ mailnews/extensions/newsblog/content/FeedUtils.jsm | 136 ++++++++++++++++++++-
+ .../newsblog/content/feed-subscriptions.js         |  31 ++++-
+ .../newsblog/content/feed-subscriptions.xul        |  11 +-
+ 5 files changed, 198 insertions(+), 12 deletions(-)
+
+diff --git a/mail/locales/en-US/chrome/messenger-newsblog/newsblog.properties b/mail/locales/en-US/chrome/messenger-newsblog/newsblog.properties
+index 47e38fd..3abbc23 100644
+--- a/mail/locales/en-US/chrome/messenger-newsblog/newsblog.properties
++++ b/mail/locales/en-US/chrome/messenger-newsblog/newsblog.properties
+@@ -14,6 +14,7 @@ subscribe-feedCopied=Feed subscription copied.
+ subscribe-feedRemoved=Feed unsubscribed.
+ subscribe-feedNotValid=The Feed URL is not a valid feed.
+ subscribe-networkError=The Feed URL could not be found. Please check the name and try again.
++subscribe-noAuthError=The Feed URL is not authorized.
+ subscribe-loading=Loading, please wait…
+ 
+ subscribe-OPMLImportTitle=Select OPML file to import
+@@ -66,6 +67,10 @@ newsblog-noNewArticlesForFeed=There are no new articles for this feed.
+ newsblog-networkError=%S could not be found. Please check the name and try again.
+ ## LOCALIZATION NOTE(newsblog-feedNotValid): %S is the feed URL
+ newsblog-feedNotValid=%S is not a valid feed.
++## LOCALIZATION NOTE(newsblog-badCertError): %S is the feed URL host
++newsblog-badCertError=%S uses an invalid security certificate.
++## LOCALIZATION NOTE(newsblog-noAuthError): %S is the feed URL
++newsblog-noAuthError=%S is not authorized.
+ newsblog-getNewMsgsCheck=Checking feeds for new items…
+ 
+ ## LOCALIZATION NOTE(feeds-accountname): This string should be the same as feeds.accountName in am-newsblog.dtd
+diff --git a/mailnews/extensions/newsblog/content/Feed.js b/mailnews/extensions/newsblog/content/Feed.js
+index 2d84fc4..a4b8555 100755
+--- a/mailnews/extensions/newsblog/content/Feed.js
++++ b/mailnews/extensions/newsblog/content/Feed.js
+@@ -220,15 +220,27 @@ Feed.prototype =
+     let feed = FeedCache.getFeed(url);
+     if (feed.downloadCallback) 
+     {
++      // Generic network or 'not found' error initially.
+       let error = FeedUtils.kNewsBlogRequestFailure;
+-      try
+-      {
+-        if (request.status == 304)
+-          // If the http status code is 304, the feed has not been modified
+-          // since we last downloaded it and does not need to be parsed.
+-          error = FeedUtils.kNewsBlogNoNewItems;
++
++      if (request.status == 304) {
++        // If the http status code is 304, the feed has not been modified
++        // since we last downloaded it and does not need to be parsed.
++        error = FeedUtils.kNewsBlogNoNewItems;
++      }
++      else {
++        let [errType, errName] = FeedUtils.createTCPErrorFromFailedXHR(request);
++        FeedUtils.log.info("Feed.onDownloaded: request errType:errName:statusCode - " +
++                           errType + ":" + errName + ":" + request.status);
++        if (errType == "SecurityCertificate")
++          // This is the code for nsINSSErrorsService.ERROR_CLASS_BAD_CERT
++          // overrideable security certificate errors.
++          error = FeedUtils.kNewsBlogBadCertError;
++
++        if (request.status == 401 || request.status == 403)
++          // Unauthorized or Forbidden.
++          error = FeedUtils.kNewsBlogNoAuthError;
+       }
+-      catch (ex) {}
+ 
+       feed.downloadCallback.downloaded(feed, error);
+     }
+@@ -602,4 +614,3 @@ Feed.prototype =
+     this.storeNextItem();
+   }
+ };
+-
+diff --git a/mailnews/extensions/newsblog/content/FeedUtils.jsm b/mailnews/extensions/newsblog/content/FeedUtils.jsm
+index ec3b16f..c29d840 100644
+--- a/mailnews/extensions/newsblog/content/FeedUtils.jsm
++++ b/mailnews/extensions/newsblog/content/FeedUtils.jsm
+@@ -96,10 +96,14 @@ var FeedUtils = {
+   // Generic networking failure when trying to download the feed.
+   kNewsBlogRequestFailure: 2,
+   kNewsBlogFeedIsBusy: 3,
+-  // There are no new articles for this feed
++  // For 304 Not Modified; There are no new articles for this feed.
+   kNewsBlogNoNewItems: 4,
+   kNewsBlogCancel: 5,
+   kNewsBlogFileError: 6,
++  // Invalid certificate, for overridable user exception errors.
++  kNewsBlogBadCertError: 7,
++  // For 401 Unauthorized or 403 Forbidden.
++  kNewsBlogNoAuthError: 8,
+ 
+   CANCEL_REQUESTED: false,
+   AUTOTAG: "~AUTOTAG",
+@@ -1243,6 +1247,127 @@ var FeedUtils = {
+     return validUri ? uri : null;
+   },
+ 
++  /**
++   * Returns security/certificate/network error details for an XMLHTTPRequest.
++   *
++   * @param  XMLHTTPRequest xhr - The xhr request.
++   * @return array [string errType, string errName] (null if not determined).
++   */
++  createTCPErrorFromFailedXHR: function(xhr) {
++    let status = xhr.channel.QueryInterface(Ci.nsIRequest).status;
++
++    let errType = null;
++    let errName = null;
++    if ((status & 0xff0000) === 0x5a0000) {
++      // Security module.
++      const nsINSSErrorsService = Ci.nsINSSErrorsService;
++      let nssErrorsService = Cc["@mozilla.org/nss_errors_service;1"]
++                               .getService(nsINSSErrorsService);
++      let errorClass;
++
++      // getErrorClass()) will throw a generic NS_ERROR_FAILURE if the error
++      // code is somehow not in the set of covered errors.
++      try {
++        errorClass = nssErrorsService.getErrorClass(status);
++      }
++      catch (ex) {
++        // Catch security protocol exception.
++        errorClass = "SecurityProtocol";
++      }
++
++      if (errorClass == nsINSSErrorsService.ERROR_CLASS_BAD_CERT) {
++        errType = "SecurityCertificate";
++      }
++      else {
++        errType = "SecurityProtocol";
++      }
++
++      // NSS_SEC errors (happen below the base value because of negative vals).
++      if ((status & 0xffff) < Math.abs(nsINSSErrorsService.NSS_SEC_ERROR_BASE)) {
++        // The bases are actually negative, so in our positive numeric space,
++        // we need to subtract the base off our value.
++        let nssErr = Math.abs(nsINSSErrorsService.NSS_SEC_ERROR_BASE) - (status & 0xffff);
++
++        switch (nssErr) {
++          case 11: // SEC_ERROR_EXPIRED_CERTIFICATE, sec(11)
++            errName = "SecurityExpiredCertificateError";
++            break;
++          case 12: // SEC_ERROR_REVOKED_CERTIFICATE, sec(12)
++            errName = "SecurityRevokedCertificateError";
++            break;
++
++          // Per bsmith, we will be unable to tell these errors apart very soon,
++          // so it makes sense to just folder them all together already.
++          case 13: // SEC_ERROR_UNKNOWN_ISSUER, sec(13)
++          case 20: // SEC_ERROR_UNTRUSTED_ISSUER, sec(20)
++          case 21: // SEC_ERROR_UNTRUSTED_CERT, sec(21)
++          case 36: // SEC_ERROR_CA_CERT_INVALID, sec(36)
++            errName = "SecurityUntrustedCertificateIssuerError";
++            break;
++          case 90: // SEC_ERROR_INADEQUATE_KEY_USAGE, sec(90)
++            errName = "SecurityInadequateKeyUsageError";
++            break;
++          case 176: // SEC_ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED, sec(176)
++            errName = "SecurityCertificateSignatureAlgorithmDisabledError";
++            break;
++          default:
++            errName = "SecurityError";
++            break;
++        }
++      }
++      else {
++        // Calculating the difference.
++        let sslErr = Math.abs(nsINSSErrorsService.NSS_SSL_ERROR_BASE) - (status & 0xffff);
++
++        switch (sslErr) {
++          case 3: // SSL_ERROR_NO_CERTIFICATE, ssl(3)
++            errName = "SecurityNoCertificateError";
++            break;
++          case 4: // SSL_ERROR_BAD_CERTIFICATE, ssl(4)
++            errName = "SecurityBadCertificateError";
++            break;
++          case 8: // SSL_ERROR_UNSUPPORTED_CERTIFICATE_TYPE, ssl(8)
++            errName = "SecurityUnsupportedCertificateTypeError";
++            break;
++          case 9: // SSL_ERROR_UNSUPPORTED_VERSION, ssl(9)
++            errName = "SecurityUnsupportedTLSVersionError";
++            break;
++          case 12: // SSL_ERROR_BAD_CERT_DOMAIN, ssl(12)
++            errName = "SecurityCertificateDomainMismatchError";
++            break;
++          default:
++            errName = "SecurityError";
++            break;
++        }
++      }
++    }
++    else {
++      errType = "Network";
++      switch (status) {
++        // Connect to host:port failed.
++        case 0x804B000C: // NS_ERROR_CONNECTION_REFUSED, network(13)
++          errName = "ConnectionRefusedError";
++          break;
++        // network timeout error.
++        case 0x804B000E: // NS_ERROR_NET_TIMEOUT, network(14)
++          errName = "NetworkTimeoutError";
++          break;
++        // Hostname lookup failed.
++        case 0x804B001E: // NS_ERROR_UNKNOWN_HOST, network(30)
++          errName = "DomainNotFoundError";
++          break;
++        case 0x804B0047: // NS_ERROR_NET_INTERRUPT, network(71)
++          errName = "NetworkInterruptError";
++          break;
++        default:
++          errName = "NetworkError";
++          break;
++      }
++    }
++
++    return [errType, errName];
++  },
++
+ /**
+  * Returns if a uri/url is valid to subscribe.
+  *
+@@ -1441,6 +1566,15 @@ var FeedUtils = {
+           message = FeedUtils.strings.GetStringFromName(
+                       "subscribe-errorOpeningFile");
+           break;
++        case FeedUtils.kNewsBlogBadCertError:
++          let host = Services.io.newURI(feed.url, null, null).host;
++          message = FeedUtils.strings.formatStringFromName(
++                      "newsblog-badCertError", [host], 1);
++          break;
++        case FeedUtils.kNewsBlogNoAuthError:
++          message = FeedUtils.strings.formatStringFromName(
++                      "newsblog-noAuthError", [feed.url], 1);
++          break;
+       }
+       if (message)
+         FeedUtils.log.info("downloaded: " +
+diff --git a/mailnews/extensions/newsblog/content/feed-subscriptions.js b/mailnews/extensions/newsblog/content/feed-subscriptions.js
+index 4742f07..45044cc 100644
+--- a/mailnews/extensions/newsblog/content/feed-subscriptions.js
++++ b/mailnews/extensions/newsblog/content/feed-subscriptions.js
+@@ -1146,7 +1146,9 @@ var FeedSubscriptions = {
+ 
+   onMouseDown: function (aEvent)
+   {
+-    if (aEvent.button != 0 || aEvent.target.id == "validationText")
++    if (aEvent.button != 0 ||
++        aEvent.target.id == "validationText" ||
++        aEvent.target.id == "addCertException")
+       return;
+ 
+     this.clearStatusInfo();
+@@ -1743,6 +1745,14 @@ var FeedSubscriptions = {
+         if (aErrorCode == FeedUtils.kNewsBlogFileError)
+           message = FeedUtils.strings.GetStringFromName(
+                       "subscribe-errorOpeningFile");
++        if (aErrorCode == FeedUtils.kNewsBlogBadCertError) {
++          let host = Services.io.newURI(feed.url, null, null).host;
++          message = FeedUtils.strings.formatStringFromName(
++                      "newsblog-badCertError", [host], 1);
++        }
++        if (aErrorCode == FeedUtils.kNewsBlogNoAuthError)
++          message = FeedUtils.strings.GetStringFromName(
++                      "subscribe-noAuthError");
+ 
+         if (win.mActionMode != win.kUpdateMode)
+           // Re-enable the add button if subscribe failed.
+@@ -1796,6 +1806,12 @@ var FeedSubscriptions = {
+       el.removeAttribute("collapsed");
+     else
+       el.setAttribute("collapsed", true);
++
++    el = document.getElementById("addCertException");
++    if (aErrorCode == FeedUtils.kNewsBlogBadCertError)
++      el.removeAttribute("collapsed");
++    else
++      el.setAttribute("collapsed", true);
+   },
+ 
+   clearStatusInfo: function()
+@@ -1803,6 +1819,7 @@ var FeedSubscriptions = {
+     document.getElementById("statusText").textContent = "";
+     document.getElementById("progressMeter").collapsed = true;
+     document.getElementById("validationText").collapsed = true;
++    document.getElementById("addCertException").collapsed = true;
+   },
+ 
+   checkValidation: function(aEvent)
+@@ -1829,6 +1846,18 @@ var FeedSubscriptions = {
+     aEvent.stopPropagation();
+   },
+ 
++  addCertExceptionDialog: function()
++  {
++    let feedURL = document.getElementById("locationValue").value.trim();
++    let params = { exceptionAdded : false,
++                   location: feedURL,
++                   prefetchCert: true };
++    window.openDialog("chrome://pippki/content/exceptionDialog.xul",
++                      "", "chrome,centerscreen,modal", params);
++    if (params.exceptionAdded)
++      this.clearStatusInfo();
++  },
++
+   // Listener for folder pane changes.
+   FolderListener: {
+     get feedWindow() {
+diff --git a/mailnews/extensions/newsblog/content/feed-subscriptions.xul b/mailnews/extensions/newsblog/content/feed-subscriptions.xul
+index 8344167..5ccf9c8 100644
+--- a/mailnews/extensions/newsblog/content/feed-subscriptions.xul
++++ b/mailnews/extensions/newsblog/content/feed-subscriptions.xul
+@@ -10,8 +10,10 @@
+ <?xml-stylesheet href="chrome://messenger-newsblog/skin/feed-subscriptions.css" type="text/css"?>
+ 
+ <!DOCTYPE window [
+-<!ENTITY % feedDTD SYSTEM "chrome://messenger-newsblog/locale/feed-subscriptions.dtd">
+-  %feedDTD;
++  <!ENTITY % feedDTD SYSTEM "chrome://messenger-newsblog/locale/feed-subscriptions.dtd">
++    %feedDTD;
++  <!ENTITY % certDTD SYSTEM "chrome://pippki/locale/certManager.dtd">
++    %certDTD;
+ ]>
+ 
+ <window id="subscriptionsDialog"
+@@ -176,6 +178,11 @@
+              crop="end"
+              value="&validateText.label;"
+              onclick="FeedSubscriptions.checkValidation(event);"/>
++      <button id="addCertException"
++              collapsed="true"
++              label="&certmgr.addException.label;"
++              accesskey="&certmgr.addException.accesskey;"
++              oncommand="FeedSubscriptions.addCertExceptionDialog();"/>
+       <progressmeter id="progressMeter"
+                      collapsed="true"
+                      mode="determined"
