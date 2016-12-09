@@ -16,7 +16,8 @@
 %identityDTD;
 ]>
 
-<dialog title="&identityTitle.label;"
+<dialog id="identityDialog"
+        title="&identityTitle.label;"
         xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
         onload="onLoadIdentityProperties();"
@@ -46,7 +47,7 @@
     </tabs>
 
     <tabpanels id="identityTabsPanels" flex="1">
-      <!-- Identity Settings Tab --> 
+      <!-- Identity Settings Tab -->
       <vbox flex="1" name="settings">
         <grid>
           <columns>
@@ -130,6 +131,6 @@
       <!-- Composition & Addressing Tab -->
       <vbox flex="1" name="composeAddressing" id="compositionAndAddressing"/>
 
-    </tabpanels> 
+    </tabpanels>
   </tabbox>
 </dialog>

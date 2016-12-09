@@ -142,6 +142,12 @@ add_task(function* createInvitationOverlay_test() {
             value: "Go to <a xmlns=\"http://www.w3.org/1999/xhtml\" class=\"moz-txt-link-abbrevia" +
                    "ted\" href=\"http://www.example.net\">www.example.net</a> if you can."}
     }, {
+        input: { description: "DESCRIPTION:Let's see if +/- still can be displayed.\r\n" },
+        expected: {
+            node: "imipHtml-description-content",
+            value: "Let's see if +/- still can be displayed."
+        }
+    }, {
         input: {
             description: "DESCRIPTION:Or write to mailto:faq@example.net instead.\r\n"},
         expected: {
@@ -162,6 +168,28 @@ add_task(function* createInvitationOverlay_test() {
             node: "imipHtml-description-content",
             value: "It's up to you <span xmlns=\"http://www.w3.org/1999/xhtml\" class=\"moz-smile" +
                    "y-s3\" title=\";-)\"><span>;-)</span></span>"}
+    }, {
+        input: {
+            description: "DESCRIPTION:Let's see how evil we can be: <script language=\"JavaScript" +
+                         "\">document.getElementById(\"imipHtml-description-content\").write(\"Sc" +
+                         "ript embedded!\")</script>\r\n"
+        },
+        expected: {
+            node: "imipHtml-description-content",
+            value: "Let's see how evil we can be: &lt;script language=\"JavaScript\"&gt;document." +
+                   "getElementById(\"imipHtml-description-content\").write(\"Script embedded!\")&" +
+                   "lt;/script&gt;"
+        }
+    }, {
+        input: {
+            description: "DESCRIPTION:Or we can try: <img src=\"document.getElementById(\"imipHtm" +
+                         "l-description-descr\").innerText\" \>\r\n"
+        },
+        expected: {
+            node: "imipHtml-description-content",
+            value: "Or we can try: &lt;img src=\"document.getElementById(\"imipHtml-description-d" +
+                   "escr\").innerText\" \&gt;"
+        }
     }, {
         input: {
             attendee: "ATTENDEE;RSVP=TRUE;PARTSTAT=NEEDS-ACTION;ROLE=OPT-PARTICIPANT;CUTYPE=INDIV" +
@@ -350,7 +378,7 @@ add_task(function* compareInvitationOverlay_test() {
                    "<span xmlns=\"\" class=\"removed\">Wednesday, September 09, 2015 1:00 PM – 2:00 PM</span>",
 
                    // do not change the patterns above unless there are related test failures when
-                   // running autometed tests
+                   // running automated tests
                    "<span xmlns=\"\" class=\"added\">Wed 09 Sep 2015 2:00 PM – 3:00 PM</span>" +
                    "<br xmlns=\"\"/>" +
                    "<span xmlns=\"\" class=\"removed\">Wed 09 Sep 2015 1:00 PM – 2:00 PM</span>",

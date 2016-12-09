@@ -57,12 +57,12 @@ Tweet.prototype = {
           this.conversation.startReply(this._tweet);
         }, this)
       );
+      actions.push(
+        new Action(_("action.retweet"), function() {
+          this.conversation.reTweet(this._tweet);
+        }, this)
+      );
       if (this.incoming) {
-        actions.push(
-          new Action(_("action.retweet"), function() {
-            this.conversation.reTweet(this._tweet);
-          }, this)
-        );
         let isFriend = account._friends.has(this._tweet.user.id_str);
         let action = isFriend ? "stopFollowing" : "follow";
         let screenName = this._tweet.user.screen_name;
@@ -230,6 +230,7 @@ Conversation.prototype = {
   parseTweet: function(aTweet) {
     let text = aTweet.text;
     let entities = {};
+
     // Handle retweets: retweeted_status contains the object for the original
     // tweet that is being retweeted.
     // If the retweet prefix ("RT @<username>: ") causes the tweet to be over
@@ -239,11 +240,27 @@ Conversation.prototype = {
     // always make use of the original tweet.
     if ("retweeted_status" in aTweet) {
       let retweet = aTweet["retweeted_status"];
+      let retweetText, retweetEntities = {};
+
+      if ("extended_tweet" in retweet) {
+        // Note that if an extended tweet is retweeted, only the
+        // retweeted_status part will be extended, not the tweet itself.
+        let extended = retweet.extended_tweet;
+        retweetText = extended.full_text;
+        if ("entities" in extended)
+          retweetEntities = extended.entities;
+      }
+      else {
+        retweetText = retweet.text;
+        if ("entities" in retweet)
+          retweetEntities = retweet.entities;
+      }
+
       // We're going to take portions of the retweeted status and replace parts
       // of the original tweet, the retweeted status prepends the original
       // status with "RT @<username>: ", we need to keep the prefix.
       let offset = text.indexOf(": ") + 2;
-      text = text.slice(0, offset) + retweet.text;
+      text = text.slice(0, offset) + retweetText;
 
       // Keep any entities that refer to the prefix (we can refer directly to
       // aTweet for these since they are not edited).
@@ -258,27 +275,33 @@ Conversation.prototype = {
 
       // Add the entities from the retweet (a copy of these must be made since
       // they will be edited and we do not wish to change aTweet).
-      if ("entities" in retweet) {
-        for (let type in retweet.entities) {
-          if (!(type in entities))
-            entities[type] = [];
+      for (let type in retweetEntities) {
+        if (!(type in entities))
+          entities[type] = [];
 
-          // Append the entities from the original status.
-          entities[type] = entities[type].concat(
-            retweet.entities[type].map(function(aEntity) {
-              let entity = Object.create(aEntity);
-              // Add the offset to the indices to account for the prefix.
-              entity.indices = entity.indices.map(i => i + offset);
-              return entity;
-            })
-          );
-        }
-      }
+        // Append the entities from the original status.
+        entities[type] = entities[type].concat(
+          retweetEntities[type].map(function(aEntity) {
+            let entity = Object.create(aEntity);
+            // Add the offset to the indices to account for the prefix.
+            entity.indices = entity.indices.map(i => i + offset);
+            return entity;
+          })
+        );
+       }
+    } else if ("extended_tweet" in aTweet) {
+      // Bare bones extended tweet handling.
+      let extended = aTweet.extended_tweet;
+      text = extended.full_text;
+      if ("entities" in extended)
+        entities = extended.entities;
     } else {
       // For non-retweets, we just want to use the entities that are given.
       if ("entities" in aTweet)
         entities = aTweet.entities;
     }
+
+    this._account.LOG("Tweet: " + text);
 
     if (Object.keys(entities).length) {
       /* entArray is an array of entities ready to be replaced in the tweet,
@@ -736,7 +759,10 @@ Account.prototype = {
   onDataAvailable: function(aRequest) {
     this.resetStreamTimeout();
     let newText = this._pendingData + aRequest.target.response;
-    this.DEBUG("Received data: " + newText);
+    if (newText.trim())
+      this.DEBUG("Received data: " + newText);
+    else
+      this.DEBUG("Received ping");
     let messages = newText.split(/\r\n?/);
     this._pendingData = messages.pop();
     for each (let message in messages) {
