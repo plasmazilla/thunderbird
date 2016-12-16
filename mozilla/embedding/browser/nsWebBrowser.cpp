@@ -1152,7 +1152,7 @@ nsWebBrowser::InitWindow(nativeWindow aParentNativeWindow,
     NS_ENSURE_SUCCESS(SetParentNativeWindow(aParentNativeWindow),
                       NS_ERROR_FAILURE);
 
-  NS_ENSURE_SUCCESS(SetPositionAndSize(aX, aY, aCX, aCY, false),
+  NS_ENSURE_SUCCESS(SetPositionAndSizeESR45(aX, aY, aCX, aCY, 0),
                     NS_ERROR_FAILURE);
 
   return NS_OK;
@@ -1304,7 +1304,7 @@ nsWebBrowser::SetPosition(int32_t aX, int32_t aY)
 
   GetSize(&cx, &cy);
 
-  return SetPositionAndSize(aX, aY, cx, cy, false);
+  return SetPositionAndSizeESR45(aX, aY, cx, cy, 0);
 }
 
 NS_IMETHODIMP
@@ -1334,6 +1334,14 @@ NS_IMETHODIMP
 nsWebBrowser::SetPositionAndSize(int32_t aX, int32_t aY,
                                  int32_t aCX, int32_t aCY, bool aRepaint)
 {
+  return SetPositionAndSizeESR45(aX, aY, aCX, aCY,
+                                 aRepaint ? nsIBaseWindow::eRepaint : 0);
+}
+
+NS_IMETHODIMP
+nsWebBrowser::SetPositionAndSizeESR45(int32_t aX, int32_t aY,
+                                 int32_t aCX, int32_t aCY, uint32_t aFlags)
+{
   if (!mDocShell) {
     mInitInfo->x = aX;
     mInitInfo->y = aY;
@@ -1348,12 +1356,15 @@ nsWebBrowser::SetPositionAndSize(int32_t aX, int32_t aY,
     // We also need to resize our widget then.
     if (mInternalWidget) {
       doc_x = doc_y = 0;
-      NS_ENSURE_SUCCESS(mInternalWidget->Resize(aX, aY, aCX, aCY, aRepaint),
+      NS_ENSURE_SUCCESS(mInternalWidget->Resize(aX, aY, aCX, aCY,
+                                                !!(aFlags & nsIBaseWindow::eRepaint)),
                         NS_ERROR_FAILURE);
     }
     // Now reposition/ resize the doc
+    nsCOMPtr<nsIBaseWindowESR45> docShellAsWinESR45 = do_QueryInterface(mDocShellAsWin);
+    NS_ENSURE_STATE(docShellAsWinESR45);
     NS_ENSURE_SUCCESS(
-      mDocShellAsWin->SetPositionAndSize(doc_x, doc_y, aCX, aCY, aRepaint),
+      docShellAsWinESR45->SetPositionAndSizeESR45(doc_x, doc_y, aCX, aCY, aFlags),
       NS_ERROR_FAILURE);
   }
 

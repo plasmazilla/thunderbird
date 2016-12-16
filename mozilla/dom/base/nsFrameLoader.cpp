@@ -2126,7 +2126,9 @@ nsFrameLoader::UpdateBaseWindowPositionAndSize(nsSubDocumentFrame *aIFrame)
 
     ScreenIntSize size = aIFrame->GetSubdocumentSize();
 
-    baseWindow->SetPositionAndSize(x, y, size.width, size.height, false);
+    nsCOMPtr<nsIBaseWindowESR45> baseWindowESR45 = do_QueryInterface(baseWindow);
+    baseWindowESR45->SetPositionAndSizeESR45(x, y, size.width, size.height,
+                                             nsIBaseWindow::eDelayResize);
   }
 }
 

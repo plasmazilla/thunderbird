@@ -648,8 +648,16 @@ NS_IMETHODIMP nsContentTreeOwner::GetSize(int32_t* aCX, int32_t* aCY)
 NS_IMETHODIMP nsContentTreeOwner::SetPositionAndSize(int32_t aX, int32_t aY,
    int32_t aCX, int32_t aCY, bool aRepaint)
 {
-   NS_ENSURE_STATE(mXULWindow);
-   return mXULWindow->SetPositionAndSize(aX, aY, aCX, aCY, aRepaint);
+  NS_ENSURE_STATE(mXULWindow);
+  return mXULWindow->SetPositionAndSize(aX, aY, aCX, aCY, aRepaint);
+}
+
+NS_IMETHODIMP nsContentTreeOwner::SetPositionAndSizeESR45(int32_t aX, int32_t aY,
+   int32_t aCX, int32_t aCY, uint32_t aFlags)
+{
+  nsCOMPtr<nsIBaseWindowESR45> XULWindowESR45 = mXULWindow;
+  NS_ENSURE_STATE(XULWindowESR45);
+  return XULWindowESR45->SetPositionAndSizeESR45(aX, aY, aCX, aCY, aFlags);
 }
 
 NS_IMETHODIMP nsContentTreeOwner::GetPositionAndSize(int32_t* aX, int32_t* aY,
@@ -1043,7 +1051,8 @@ nsSiteWindow::SetDimensions(uint32_t aFlags,
                     int32_t aX, int32_t aY, int32_t aCX, int32_t aCY)
 {
   // XXX we're ignoring aFlags
-  return mAggregator->SetPositionAndSize(aX, aY, aCX, aCY, true);
+  return mAggregator->SetPositionAndSize(aX, aY, aCX, aCY,
+                                         true);
 }
 
 NS_IMETHODIMP
