@@ -15,14 +15,15 @@ function onLoadIdentityProperties()
   gIdentity = window.arguments[0].identity;
   gAccount = window.arguments[0].account;
 
-  // Make the dialog the same width as the main Account manager page
-  // so that the identity/copies & folders are the same width as
-  // the user set them by resizing the AM dialog.
+  // Make the dialog the same height and 90% of the width of the main Account
+  // manager page when the Account manager is not maximized.
   let accountDialog = Services.wm.getMostRecentWindow("mailnews:accountmanager")
                               .document;
-  if (accountDialog.documentElement.getAttribute("sizemode") == "normal") {
-    document.getElementById("identityTabsPanels").style.width =
-      accountDialog.getElementById("contentFrame").clientWidth + "px";
+  if (accountDialog.documentElement.getAttribute("sizemode") != "maximized") {
+    document.getElementById("identityDialog").style.width =
+      accountDialog.getElementById("accountManager").clientWidth * 0.9 + "px";
+    document.getElementById("identityDialog").style.height =
+      accountDialog.getElementById("accountManager").clientHeight + "px";
   }
 
   loadSMTPServerList();
@@ -72,14 +73,14 @@ function initIdentityValues(identity)
 function initCopiesAndFolder(identity)
 {
   // if we are editing an existing identity, use it...otherwise copy our values from the default identity
-  var copiesAndFoldersIdentity = identity ? identity : gAccount.defaultIdentity; 
+  var copiesAndFoldersIdentity = identity ? identity : gAccount.defaultIdentity;
 
   document.getElementById('identity.fccFolder').value = copiesAndFoldersIdentity.fccFolder;
   document.getElementById('identity.draftFolder').value = copiesAndFoldersIdentity.draftFolder;
   document.getElementById('identity.archiveFolder').value = copiesAndFoldersIdentity.archiveFolder;
   document.getElementById('identity.stationeryFolder').value = copiesAndFoldersIdentity.stationeryFolder;
 
-  document.getElementById('identity.fccFolderPickerMode').value = copiesAndFoldersIdentity.fccFolderPickerMode ? copiesAndFoldersIdentity.fccFolderPickerMode : 0;  
+  document.getElementById('identity.fccFolderPickerMode').value = copiesAndFoldersIdentity.fccFolderPickerMode ? copiesAndFoldersIdentity.fccFolderPickerMode : 0;
   document.getElementById('identity.draftsFolderPickerMode').value = copiesAndFoldersIdentity.draftsFolderPickerMode ? copiesAndFoldersIdentity.draftsFolderPickerMode : 0;
   document.getElementById('identity.archivesFolderPickerMode').value = copiesAndFoldersIdentity.archivesFolderPickerMode ? copiesAndFoldersIdentity.archivesFolderPickerMode : 0;
   document.getElementById('identity.tmplFolderPickerMode').value = copiesAndFoldersIdentity.tmplFolderPickerMode ? copiesAndFoldersIdentity.tmplFolderPickerMode : 0;
@@ -138,7 +139,7 @@ function onOk()
     // add the identity to the account
     gAccount.addIdentity(gIdentity);
 
-    // now fall through to saveFields which will save our new values        
+    // now fall through to saveFields which will save our new values
   }
 
   // if we are modifying an existing identity, save the fields
@@ -325,7 +326,7 @@ function setupSignatureItems()
   if (checked && !getAccountValueIsLocked(browse))
     browse.removeAttribute("disabled");
   else
-    browse.setAttribute("disabled", "true"); 
+    browse.setAttribute("disabled", "true");
 }
 
 function editVCardCallback(escapedVCardStr)

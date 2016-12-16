@@ -13,10 +13,10 @@ Closes: #565559
  2 files changed, 18 insertions(+), 17 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index c7fd9d4..64d2f68 100644
+index db3b25d..ac240c6 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
-@@ -118,7 +118,7 @@ pref("app.update.url", "https://aus5.mozilla.org/update/3/%PRODUCT%/%VERSION%/%B
+@@ -118,7 +118,7 @@ pref("app.update.url", "https://aus5.mozilla.org/update/6/%PRODUCT%/%VERSION%/%B
  pref("app.update.url.manual", "http://www.getthunderbird.com");
  // A default value for the "More information about this update" link
  // supplied in the "An update is available" page of the update wizard.
