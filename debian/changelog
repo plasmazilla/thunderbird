@@ -1,3 +1,9 @@
+icedove (1:45.5.1-1~deb7u1) wheezy-security; urgency=high
+
+  * Non-maintainer upload by the LTS Team.
+
+ -- Guido Günther <agx@sigxcpu.org>  Fri, 16 Dec 2016 17:14:06 +0100
+
 icedove (1:45.5.1-1) unstable; urgency=medium
 
   [ Carsten Schoenert ]
