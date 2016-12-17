@@ -98,6 +98,7 @@ NS_INTERFACE_MAP_BEGIN(nsChromeTreeOwner)
    NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDocShellTreeOwner)
    NS_INTERFACE_MAP_ENTRY(nsIDocShellTreeOwner)
    NS_INTERFACE_MAP_ENTRY(nsIBaseWindow)
+   NS_INTERFACE_MAP_ENTRY(nsIBaseWindowESR45)
    NS_INTERFACE_MAP_ENTRY(nsIWebProgressListener)
    NS_INTERFACE_MAP_ENTRY(nsIInterfaceRequestor)
    NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
@@ -407,10 +408,18 @@ NS_IMETHODIMP nsChromeTreeOwner::GetSize(int32_t* cx, int32_t* cy)
 }
 
 NS_IMETHODIMP nsChromeTreeOwner::SetPositionAndSize(int32_t x, int32_t y, int32_t cx,
-   int32_t cy, bool fRepaint)
+   int32_t cy, bool aRepaint)
 {
    NS_ENSURE_STATE(mXULWindow);
-   return mXULWindow->SetPositionAndSize(x, y, cx, cy, fRepaint);
+   return mXULWindow->SetPositionAndSize(x, y, cx, cy, aRepaint);
+}
+
+NS_IMETHODIMP nsChromeTreeOwner::SetPositionAndSizeESR45(int32_t x, int32_t y, int32_t cx,
+   int32_t cy, uint32_t aFlags)
+{
+   nsCOMPtr<nsIBaseWindowESR45> XULWindowESR45(mXULWindow);
+   NS_ENSURE_STATE(XULWindowESR45);
+   return XULWindowESR45->SetPositionAndSizeESR45(x, y, cx, cy, aFlags);
 }
 
 NS_IMETHODIMP nsChromeTreeOwner::GetPositionAndSize(int32_t* x, int32_t* y, int32_t* cx,

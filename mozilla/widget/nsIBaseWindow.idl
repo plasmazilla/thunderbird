@@ -107,6 +107,12 @@ interface nsIBaseWindow : nsISupports
 	*/
 	void getSize(out long cx, out long cy);
 
+	/**
+	 * The 'flags' argument to setPositionAndSize is a set of these bits.
+	 */
+	const unsigned long eRepaint = 1;
+	const unsigned long eDelayResize = 2;
+
 	/*
 	Convenience function combining the SetPosition and SetSize into one call.
 	Also is more efficient than calling both.
@@ -201,4 +207,13 @@ interface nsIBaseWindow : nsISupports
 	Title of the window.
 	*/
 	attribute wstring title;
+};
+
+[scriptable, uuid(1F2F8231-91D6-4E88-82C3-5B41FBF764AB)]
+interface nsIBaseWindowESR45 : nsISupports
+{
+
+  void setPositionAndSizeESR45(in long x, in long y, in long cx, in long cy, 
+    in unsigned long flags);
+
 };
