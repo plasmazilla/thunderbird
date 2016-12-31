@@ -1,3 +1,102 @@
+icedove (1:45.6.0-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [26f8f2d] New upstream version 45.6.0
+  * [15b7797] iceowl-l10n-*: rearrange Recommends field for various packages
+    (Closes: #824727, #824750, #824763, #824764, #824768, #824780)
+  * [3f75b56] debian/vendor.js: adjust to new version related wiki site
+  * [6bd7f89] d/c-id-l10n: adjusting download URL for stable versions
+  * [f15d1a2] icedove-l10n-all: change Section into metapackages
+    (Closes: #824785)
+  * [25c3ba1] debian/README.source: info about import of multitarballs
+  * [3ebcf59] debian/control: adding Recommends to icedove-l10n-uk
+    (Closes: #825806)
+  * [3e57d5e] debian/control: Icedove, adding dependency on libatk-adaptor
+  * [e19c59d] debian/control: rework Recommends for icedove-l10n-*
+  * [4741d80] debian/control: small fixup Recommends on iceowl-l10n-*
+  * [f9f5193] debian/control: sort iceowl-l10n-* alphabetical
+  * [5220187] de-branding: move iceowl* back to lightning*
+  * [6e28ce5] de-branding: remove Icedove naming from icedove-l10n*
+  * [3dc3b4b] de-branding: remove Icedove branding in the main binary
+  * [8b715cf] de-branding: remove hard name branding in addon managger
+  * [9f609fa] de-branding: adopting dh files for icedove package
+  * [caba322] de-branding: adopting dh files for icedove-dev package
+  * [6538f66] de-branding: change debian/rules to reflect appname change
+  * [871588d] de-branding: adopting dh files for iceowl-extension package
+  * [a0b20e7] debian/tests/*: adopt change of the binary icedove
+  * [29025cc] de-branding: adjust icedove-l10n installation folder
+  * [2b8dd99] de-branding: adjust iceowl-l10n installation folder
+  * [1f3043c] de-branding: remove the Debian visual branding
+  * [272e420] de-branding: removing icedove branding files and folder
+  * [093bc58] de-branding: revitalize *.desktop file with Thunderbird
+  * [4a35d9d] de-branding: move iceowl-l10n-* into lightning-l10n-*
+  * [68d8d79] de-branding: adding transitional iceowl-l10n packages
+  * [4b2febd] de-branding: adding 'Breaks', 'Replaces', 'Provides' to
+    lightning-l10n-*
+  * [9cdb427] de-branding: rework d/r to reflect changes for lightning-l10n
+  * [ec3b427] de-branding: move icedove-l10n-* into thunderbird-l10n-*
+  * [387bfa2] de-branding: adding transitional icedove-l10n packages
+  * [f3cfecb] de-branding: adding 'Breaks', 'Replaces', 'Provides' to
+    thunderbird-l10n-*
+  * [03b222e] de-branding: rework d/r to reflect changes for thunderbird-l10n
+  * [0c9a6ab] de-branding: (re)adding a wrapper script for TB starting
+  * [f9c8aef] de-branding: move icedove-dev to thunderbird-dev
+  * [a4313e6] de-branding: adding transitional icedove-dev package
+  * [0508866] de-branding: rework d/r to reflect changes for thunderbird-dev
+  * [048b29f] de-branding: move icedove-dbg to thunderbird-dbg
+  * [da01077] de-branding: adding transitional icedove-dbg package
+  * [a371079] de-branding: rework d/r to reflect changes for thunderbird-dbg
+  * [b34b8f8] de-branding: move iceowl-extension to lightning
+  * [fa8f9b3] de-branding: adding transitional iceowl-extension package
+  * [848f178] de-branding: rework d/r to reflect changes for lightning
+  * [a708c35] de-branding: move icedove to thunderbird
+  * [cccef90] de-branding: moving icedove dh files into thunderbird
+  * [8c2b27d] de-branding: rework icedove.1 into thunderbird.1
+  * [19406fe] de-branding: transition of mozconfig.*
+  * [88ed684] de-branding: rework d/r to reflect changes for thunderbird
+  * [c8011d3] de-branding: adding transitional icedove package
+  * [5e399aa] de-branding: adjusting package calendar-google-provider
+  * [a03329c] debian/tests/help.sh: use absolute path for binary call
+  * [10adb34] move old icedove graphic stuff into own folder
+  * [abc6c8c] create various thunderbird png graphics from SVG file
+  * [a2067ae] debian/copyright: update copyright information
+  * [a9c6f9f] de-branding: add own created thunderbird icons to install
+  * [1d8b524] mozconfig.default: enable the official brandind
+  * [9f3a673] debian/control: adding dh-exec to the Build-Depends
+  * [cddbc63] move Thunderbird install files into thunderbird.install
+  * [5037bb5] de-branding: transition of apparmor profile for TB
+  * [14f094d] de-branding: remove extra URL for What's New inside
+  * [c2a06db] manpage thunderbird; adjust and correct manpage entries
+  * [8fa3365] debian/control: adding package dpkg to Build-Depends
+  * [ba84ede] thunderbird: switching dpkg-maintscript-helper to *.maintscript
+  * [d0e675b] debian/thunderbird.postinst: adding some moving mechanism
+  * [cbae415] de-branding: let helper scripts reflect thunderbird change
+  * [da402a4] thunderbird-wrapper.sh: adding fixing inside mimeTypes.rdf
+    (Closes: #837516)
+  * [030d49e] de-branding: adding some hints about the debranding
+  * [662f7af] debian/README.source: adjusting hints due name changes
+  * [8fbedc1] debian/thunderbird.install: install additional icedove.desktop
+  * [9089d9f] debian/*lintian-overrides: adopt name changes
+  * [b9b7665] debian/rules: use the old profile folder for wheezy and jessie
+  * [f9c137e] fix *.desktop files for proper GNOME app mechanism
+    (Closes: #817973, #832302)
+  * [1c85ff7] debian/rules: chmod certain *.py tb-devel files
+  * [356694a] thunderbird.links: linking the default TB icon to u/s/p
+
+  [ Guido Günther ]
+  * [24bbee9] Wrap and sort control information (Closes: #825806)
+  * [fcfe4ac] Add minimalistic autopkgtest
+  * [f7a32e8] Add autopkgtest to test header and typelib generation
+  * [189d835] Add autopkgtest to smoke test xpcshell
+
+  [ Christoph Goehre ]
+  * [354f836] turn the reduce of memory usage of the linker on again
+  * [5e48e17] don't build dbgsym packages on unreleased builds
+  * [09679eb] rebuild patch queue from patch-queue branch (Closes: #808183)
+  * [ec3a50b] debian/NEWS: change urgency to medium
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 31 Dec 2016 10:26:36 +0100
+
 icedove (1:45.5.1-1) unstable; urgency=medium
 
   [ Carsten Schoenert ]
