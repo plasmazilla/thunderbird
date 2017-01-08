@@ -59,6 +59,7 @@ NS_DEFINE_STATIC_IID_ACCESSOR(nsICDocShellTreeOwner, NS_ICDOCSHELLTREEOWNER_IID)
 
 class nsDocShellTreeOwner final : public nsIDocShellTreeOwner,
                                   public nsIBaseWindow,
+                                  public nsIBaseWindowESR45,
                                   public nsIInterfaceRequestor,
                                   public nsIWebProgressListener,
                                   public nsIDOMEventListener,
@@ -72,6 +73,7 @@ public:
   NS_DECL_ISUPPORTS
 
   NS_DECL_NSIBASEWINDOW
+  NS_DECL_NSIBASEWINDOWESR45
   NS_DECL_NSIDOCSHELLTREEOWNER
   NS_DECL_NSIDOMEVENTLISTENER
   NS_DECL_NSIINTERFACEREQUESTOR

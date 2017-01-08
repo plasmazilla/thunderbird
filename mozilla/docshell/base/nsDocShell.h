@@ -133,6 +133,7 @@ class nsDocShell final
   , public nsIDocShell
   , public nsIWebNavigation
   , public nsIBaseWindow
+  , public nsIBaseWindowESR45
   , public nsIScrollable
   , public nsITextScroll
   , public nsIDocCharset
@@ -167,6 +168,7 @@ public:
   NS_DECL_NSIDOCSHELLTREEITEM
   NS_DECL_NSIWEBNAVIGATION
   NS_DECL_NSIBASEWINDOW
+  NS_DECL_NSIBASEWINDOWESR45
   NS_DECL_NSISCROLLABLE
   NS_DECL_NSITEXTSCROLL
   NS_DECL_NSIDOCCHARSET
