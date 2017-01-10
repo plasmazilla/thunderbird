@@ -53,6 +53,7 @@ class Element;
 class nsContentShellInfo;
 
 class nsXULWindow : public nsIBaseWindow,
+                    public nsIBaseWindowESR45,
                     public nsIInterfaceRequestor,
                     public nsIXULWindow,
                     public nsSupportsWeakReference
@@ -66,6 +67,7 @@ public:
    NS_DECL_NSIINTERFACEREQUESTOR
    NS_DECL_NSIXULWINDOW
    NS_DECL_NSIBASEWINDOW
+   NS_DECL_NSIBASEWINDOWESR45
 
    NS_DECLARE_STATIC_IID_ACCESSOR(NS_XULWINDOW_IMPL_CID)
 

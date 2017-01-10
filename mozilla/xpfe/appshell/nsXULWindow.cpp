@@ -126,6 +126,7 @@ NS_INTERFACE_MAP_BEGIN(nsXULWindow)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIXULWindow)
   NS_INTERFACE_MAP_ENTRY(nsIXULWindow)
   NS_INTERFACE_MAP_ENTRY(nsIBaseWindow)
+  NS_INTERFACE_MAP_ENTRY(nsIBaseWindowESR45)
   NS_INTERFACE_MAP_ENTRY(nsIInterfaceRequestor)
   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
   if (aIID.Equals(NS_GET_IID(nsXULWindow)))
@@ -624,6 +625,13 @@ NS_IMETHODIMP nsXULWindow::GetSize(int32_t* aCX, int32_t* aCY)
 NS_IMETHODIMP nsXULWindow::SetPositionAndSize(int32_t aX, int32_t aY, 
    int32_t aCX, int32_t aCY, bool aRepaint)
 {
+  return SetPositionAndSizeESR45(aX, aY, aCX, aCY,
+    aRepaint ? nsIBaseWindow::eRepaint : 0);
+}
+
+NS_IMETHODIMP nsXULWindow::SetPositionAndSizeESR45(int32_t aX, int32_t aY, 
+   int32_t aCX, int32_t aCY, uint32_t aFlags)
+{
   /* any attempt to set the window's size or position overrides the window's
      zoom state. this is important when these two states are competing while
      the window is being opened. but it should probably just always be so. */
@@ -635,7 +643,7 @@ NS_IMETHODIMP nsXULWindow::SetPositionAndSize(int32_t aX, int32_t aY,
   double invScale = 1.0 / scale.scale;
   nsresult rv = mWindow->Resize(aX * invScale, aY * invScale,
                                 aCX * invScale, aCY * invScale,
-                                aRepaint);
+                                !!(aFlags & nsIBaseWindow::eRepaint));
   NS_ENSURE_SUCCESS(rv, NS_ERROR_FAILURE);
   if (!mChromeLoaded) {
     // If we're called before the chrome is loaded someone obviously wants this
