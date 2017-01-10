@@ -1,3 +1,12 @@
+icedove (1:45.6.0-2) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [26f8f2d] New upstream version 45.6.0
+    (Closes: #850164)
+  * [2d1d517] rebuild patch queue from patch-queue branch
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Tue, 10 Jan 2017 20:03:25 +0100
+
 icedove (1:45.5.1-1) unstable; urgency=medium
 
   [ Carsten Schoenert ]
