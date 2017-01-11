@@ -97,3 +97,4 @@ porting-kfreebsd-hurd/CrossProcessMutex.h-fix-build-on-kfreebsd-and-GNU-hurd.pat
 fixes/Bug-1277295-Remove-obsolete-reference-to-storage-service-.patch
 fixes/Bug-1245076-Don-t-include-mozalloc.h-from-the-cstdlib-wra.patch
 porting-mips/libyuv_disable-mips-assembly-for-MIPS64.patch
+debian-hacks/icu.m4-adding-extra-bracket-to-not-confuse-grep.patch

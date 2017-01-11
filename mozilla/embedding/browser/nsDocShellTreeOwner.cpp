@@ -120,6 +120,7 @@ NS_INTERFACE_MAP_BEGIN(nsDocShellTreeOwner)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDocShellTreeOwner)
   NS_INTERFACE_MAP_ENTRY(nsIDocShellTreeOwner)
   NS_INTERFACE_MAP_ENTRY(nsIBaseWindow)
+  NS_INTERFACE_MAP_ENTRY(nsIBaseWindowESR45)
   NS_INTERFACE_MAP_ENTRY(nsIInterfaceRequestor)
   NS_INTERFACE_MAP_ENTRY(nsIWebProgressListener)
   NS_INTERFACE_MAP_ENTRY(nsIDOMEventListener)
@@ -586,6 +587,14 @@ nsDocShellTreeOwner::GetSize(int32_t* aCX, int32_t* aCY)
 NS_IMETHODIMP
 nsDocShellTreeOwner::SetPositionAndSize(int32_t aX, int32_t aY, int32_t aCX,
                                         int32_t aCY, bool aRepaint)
+{
+  return SetPositionAndSizeESR45(aX, aY, aCX, aCY,
+    aRepaint ? nsIBaseWindow::eRepaint : 0);
+}
+
+NS_IMETHODIMP
+nsDocShellTreeOwner::SetPositionAndSizeESR45(int32_t aX, int32_t aY, int32_t aCX,
+                                        int32_t aCY, uint32_t aFlags)
 {
   nsCOMPtr<nsIEmbeddingSiteWindow> ownerWin = GetOwnerWin();
   if (ownerWin) {

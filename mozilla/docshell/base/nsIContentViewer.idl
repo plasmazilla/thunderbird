@@ -103,6 +103,10 @@ interface nsIContentViewer : nsISupports
 
   [noscript] void getBounds(in nsIntRectRef aBounds);
   [noscript] void setBounds([const] in nsIntRectRef aBounds);
+  /**
+   * The 'aFlags' argument to setBoundsWithFlags is a set of these bits.
+   */
+  const unsigned long eDelayResize = 1;
 
   /**
    * The previous content viewer, which has been |close|d but not
@@ -241,4 +245,14 @@ interface nsIContentViewer : nsISupports
    * Restore the viewer's natural media type
    */
   void stopEmulatingMedium();
+};
+
+// This class is added to mozilla-esr45 to ensure binary compatibility in
+// Thunderbird 45.
+[scriptable, builtinclass, uuid(F8B5B8EF-8DDC-4414-98FA-17D7CBC3B22B)]
+interface nsIContentViewerESR45 : nsISupports
+{
+  [noscript] void setBoundsWithFlags([const] in nsIntRectRef aBounds,
+                                     in unsigned long aFlags);
+
 };

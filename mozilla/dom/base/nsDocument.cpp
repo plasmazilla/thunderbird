@@ -8629,11 +8629,18 @@ nsDocument::EnumerateSubDocuments(nsSubDocEnumFunc aCallback, void *aData)
     return;
   }
 
+  // PLDHashTable::Iterator can't handle modifications while iterating so we
+  // copy all entries to an array first before calling any callbacks.
+  nsAutoTArray<nsCOMPtr<nsIDocument>, 8> subdocs;
   for (auto iter = mSubDocuments->Iter(); !iter.Done(); iter.Next()) {
     auto entry = static_cast<SubDocMapEntry*>(iter.Get());
     nsIDocument* subdoc = entry->mSubDocument;
-    bool next = subdoc ? aCallback(subdoc, aData) : true;
-    if (!next) {
+    if (subdoc) {
+      subdocs.AppendElement(subdoc);
+    }
+  }
+  for (auto subdoc : subdocs) {
+    if (!aCallback(subdoc, aData)) {
       break;
     }
   }
@@ -12903,6 +12910,24 @@ nsIDocument::SetPageUseCounter(UseCounter aUseCounter)
   }
 
   contentParent->SetChildDocumentUseCounter(aUseCounter);
+}
+
+bool
+nsIDocument::InlineScriptAllowedByCSP()
+{
+  nsCOMPtr<nsIContentSecurityPolicy> csp;
+  nsresult rv = NodePrincipal()->GetCsp(getter_AddRefs(csp));
+  NS_ENSURE_SUCCESS(rv, true);
+  bool allowsInlineScript = true;
+  if (csp) {
+    nsresult rv = csp->GetAllowsInline(nsIContentPolicy::TYPE_SCRIPT,
+                                       EmptyString(), // aNonce
+                                       EmptyString(), // FIXME get script sample (bug 1314567)
+                                       0,             // aLineNumber
+                                       &allowsInlineScript);
+    NS_ENSURE_SUCCESS(rv, true);
+  }
+  return allowsInlineScript;
 }
 
 static bool

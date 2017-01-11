@@ -76,6 +76,7 @@ class nsWebBrowser final : public nsIWebBrowser,
                            public nsIWebBrowserSetup,
                            public nsIDocShellTreeItem,
                            public nsIBaseWindow,
+                           public nsIBaseWindowESR45,
                            public nsIScrollable,
                            public nsITextScroll,
                            public nsIInterfaceRequestor,
@@ -94,6 +95,7 @@ public:
   NS_DECL_ISUPPORTS
 
   NS_DECL_NSIBASEWINDOW
+  NS_DECL_NSIBASEWINDOWESR45
   NS_DECL_NSIDOCSHELLTREEITEM
   NS_DECL_NSIINTERFACEREQUESTOR
   NS_DECL_NSISCROLLABLE
