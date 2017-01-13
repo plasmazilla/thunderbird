@@ -75,6 +75,26 @@ For backward compatibility whithin the Stretch release there will be that
 migration functionality until the release of Buster (aka Debian 10).
 Afterwards you can still do this on your on by moving the folders manually.
 
+= User specific MIME Associations =
+===================================
+
+The desktop environment (usually Gnome, KDE, Mate etc.) is holding the
+specific associations between MIME types and applications in various
+places.  In order the user can override system settings and adding new
+ones the according place in the users home is the file
+'$(HOME)/.config/mimeapp.list'.
+
+The migration is taking care for old 'icedove.dekstop' associations and
+is rewriting them to 'thunderbird.desktop'.
+Like already done for the user profile, there will be always a backup
+of the existing file created before the replacement can be done. In case
+of problems you can safely move back to the original file. You will lost
+the needed association for the thunderbird binary.
+
+See also:
+
+ https://specifications.freedesktop.org/mime-apps-spec/mime-apps-spec-1.0.html
+
 = Migration of global configurations =
 ======================================
 

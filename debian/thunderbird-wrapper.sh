@@ -214,14 +214,34 @@ if [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
         FAIL=1
     fi
     mv ${ID_PROFILE_FOLDER} ${HOME}/.icedove_moved_by_thunderbird_starter
-    # Fixing mimeTypes.rdf which may have registered the iceweasel binary
-    # as browser, instead of x-www-browser
-    debug "Fixing possible broken 'mimeTypes.rdf'."
-    for MIME_TYPES_RDF_FILE in $(find ${TB_PROFILE_FOLDER}/ -name mimeTypes.rdf); do
-        sed -i "s|/usr/bin/iceweasel|/usr/bin/x-www-browser|g" "${MIME_TYPES_RDF_FILE}"
-    done
-    debug "Migration done."
-    debug "The old Icedove profile folder was moved to '${HOME}/.icedove_moved_by_thunderbird_starter'"
+
+    # only move on if we not have already a problem
+    if [ "${FAIL}" != 1 ]; then
+        # Fixing mimeTypes.rdf which may have registered the iceweasel binary
+        # as browser, instead of x-www-browser
+        debug "Fixing possible broken 'mimeTypes.rdf'."
+        for MIME_TYPES_RDF_FILE in $(find ${TB_PROFILE_FOLDER}/ -name mimeTypes.rdf); do
+            sed -i "s|/usr/bin/iceweasel|/usr/bin/x-www-browser|g" "${MIME_TYPES_RDF_FILE}"
+        done
+
+        # Fixing mimeapps.list which may have icedove.desktop associations
+        debug "Fixing possible broken '~/.config/mimeapps.list'."
+        # first make a copy of the file
+        cp ${HOME}/.config/mimeapps.list ${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter
+        if [ "$(echo $?)" != 0  ]; then
+            echo "The configuration file with for the associated MIME applications"
+            echo "'${HOME}/.config/mimeapps.list' couldn't be saved into a backup file"
+            echo "'${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'."
+            echo "Please check for potentially problems like low disk space or wrong access rights!"
+            logger -i -p warning -s "$0: [profile migration] Couldn't copy '${HOME}/.config/mimeapps.list' into '${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'!"
+            FAIL=1
+        else
+            sed -i "s|icedove\.desktop|/thunderbird\.desktop|g" "${HOME}/.config/mimeapps.list"
+        fi
+        debug "Migration done."
+        debug "A copy of the previous MIME associations was saved into '${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'."
+        debug "The old Icedove profile folder was moved to '${HOME}/.icedove_moved_by_thunderbird_starter'"
+    fi
 
 # We found both profile folder, the user has probaly a old or otherwise used
 # Thunderbird installation.
