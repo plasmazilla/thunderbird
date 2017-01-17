@@ -1,3 +1,21 @@
+icedove (1:45.6.0-3) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [78b3296] rebuild patch queue from patch-queue branch
+    added patch:
+    - debian-hacks/icu.m4-adding-extra-bracket-to-not-confuse-grep.patch
+  * [a272f85] thunderbird-wrapper.sh: also migrate mimeapps.list
+    (Closes: #850864)
+  * [3d4e303] icedove.desktop: don't use categories and mimetypes
+    (Closes: #850866)
+  * [db15d43] icedove: link icedove to thunderbird
+  * [59a9e05] debian/control: change Replaces and Breaks versions
+
+  [ Christoph Goehre ]
+  * [55cce4a] thunderbird-wrapper.sh: remove 'set -e'
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 17 Jan 2017 18:26:06 -0500
+
 icedove (1:45.6.0-1) experimental; urgency=medium
 
   [ Carsten Schoenert ]
