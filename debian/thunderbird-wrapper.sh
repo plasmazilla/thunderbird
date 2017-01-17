@@ -18,7 +18,6 @@
 # Copyright:
 #   Licensed under the terms of GPLv2+.
 
-set -e
 #set -x
 
 #########################################
