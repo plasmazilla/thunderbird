@@ -112,6 +112,25 @@ be removed only if it is completely empty.
 
  -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 21 Aug 2016 10:12:00 +0200
 
+Mozilla Crash Reporter for Thunderbird
+--------------------------------------
+
+The crash reporter tor Thunderbird is enabled since version > 1:45.6.0-3. By
+this a possible crash could be automatically send to Mozilla if the user is
+accepting this. There is nothing send to Mozilla without a user action. More
+information about the crash reporter can be found on:
+
+https://support.mozilla.org/en-US/kb/mozilla-crash-reporter-tb
+
+Please consider to use the crash reporter for getting crashes reported
+upstream, this also helps the maintainers if Thunderbird to get crash reports
+send upstream.
+Submitted crash reports can be found, if any was send, in
+
+  ~/.thunderbird/Crash Reports/submitted/
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 29 Jan 2017 14:15:00 +0100
+
 Icedove for Debian
 ------------------
 

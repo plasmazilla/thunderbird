@@ -29,7 +29,6 @@ ac_add_options --with-system-libvpx
 ac_add_options --with-system-ply
 
 # disabled features
-ac_add_options --disable-crashreporter
 ac_add_options --disable-javaxpcom
 ac_add_options --disable-elf-dynstr-gc
 ac_add_options --disable-gnomevfs
@@ -42,6 +41,7 @@ ac_add_options --disable-tests
 ac_add_options --disable-updater
 
 # enabled features
+ac_add_options --enable-crashreporter
 ac_add_options --enable-canvas
 ac_add_options --enable-crypto
 ac_add_options --enable-default-toolkit=cairo-gtk2
