@@ -227,4 +227,12 @@ override_dh_builddeb:
 		sed -i '/icedove-dbg/d' debian/files ;\
 	fi
 
+override_dh_lintian:
+	# adding a lintian override about a non spelling issues that lintian is
+	# false positive detecting
+	for lintian_overrides in `grep 'Package: ' debian/control | awk '{print $$2;}'`; do \
+		echo "$$lintian_overrides: spelling-error-in-copyright Synopsys Synopsis" >> debian/$$lintian_overrides.lintian-overrides ;\
+	done
+	dh_lintian
+
 .PHONY: build
