@@ -55,6 +55,8 @@ export MOZILLA_OFFICIAL=1
 export DEB_BUILD_GNU_TYPE
 export DEB_HOST_GNU_TYPE
 export DEB_BUILD_OPTIONS
+# Some Debian build tools clear out some variables
+export SHELL=/bin/bash
 
 %:
 	dh $@
