@@ -223,19 +223,21 @@ if [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
             sed -i "s|/usr/bin/iceweasel|/usr/bin/x-www-browser|g" "${MIME_TYPES_RDF_FILE}"
         done
 
-        # Fixing mimeapps.list which may have icedove.desktop associations
-        debug "Fixing possible broken '~/.config/mimeapps.list'."
-        # first make a copy of the file
-        cp ${HOME}/.config/mimeapps.list ${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter
-        if [ "$(echo $?)" != 0  ]; then
-            echo "The configuration file with for the associated MIME applications"
-            echo "'${HOME}/.config/mimeapps.list' couldn't be saved into a backup file"
-            echo "'${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'."
-            echo "Please check for potentially problems like low disk space or wrong access rights!"
-            logger -i -p warning -s "$0: [profile migration] Couldn't copy '${HOME}/.config/mimeapps.list' into '${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'!"
-            FAIL=1
-        else
-            sed -i "s|icedove\.desktop|/thunderbird\.desktop|g" "${HOME}/.config/mimeapps.list"
+        if [ -f ${HOME}/.config/mimeapps.list ]; then
+            # Fixing mimeapps.list which may have icedove.desktop associations
+            debug "Fixing possible broken '~/.config/mimeapps.list'."
+            # first make a copy of the file
+            cp ${HOME}/.config/mimeapps.list ${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter
+            if [ "$(echo $?)" != 0  ]; then
+                echo "The configuration file with for the associated MIME applications"
+                echo "'${HOME}/.config/mimeapps.list' couldn't be saved into a backup file"
+                echo "'${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'."
+                echo "Please check for potentially problems like low disk space or wrong access rights!"
+                logger -i -p warning -s "$0: [profile migration] Couldn't copy '${HOME}/.config/mimeapps.list' into '${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'!"
+                FAIL=1
+            else
+                sed -i "s|icedove\.desktop|/thunderbird\.desktop|g" "${HOME}/.config/mimeapps.list"
+            fi
         fi
         debug "Migration done."
         debug "A copy of the previous MIME associations was saved into '${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'."
