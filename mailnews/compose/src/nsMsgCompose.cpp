@@ -1678,6 +1678,7 @@ NS_IMETHODIMP nsMsgCompose::InitEditor(nsIEditor* aEditor, nsIDOMWindow* aConten
 {
   NS_ENSURE_ARG_POINTER(aEditor);
   NS_ENSURE_ARG_POINTER(aContentWindow);
+  nsresult rv;
 
   m_editor = aEditor;
 
@@ -1694,7 +1695,12 @@ NS_IMETHODIMP nsMsgCompose::InitEditor(nsIEditor* aEditor, nsIDOMWindow* aConten
   NS_ENSURE_SUCCESS(docShell->GetContentViewer(getter_AddRefs(childCV)), NS_ERROR_FAILURE);
   if (childCV)
   {
-    NS_ENSURE_SUCCESS(childCV->SetForceCharacterSet(msgCharSet), NS_ERROR_FAILURE);
+    // SetForceCharacterSet will complain when passing a charset (label) which doesn't
+    // correspond to a Gecko-canonical name. If we can't set our charset, we just keep going.
+    // Previous behaviour was that SetForceCharacterSet() didn't check.
+    // XXX To be revisited in bug 1297118.
+    rv = childCV->SetForceCharacterSet(msgCharSet);
+    NS_WARN_IF_FALSE(NS_SUCCEEDED(rv), "SetForceCharacterSet() failed");
   }
 
   // This is what used to be done in mDocumentListener,
@@ -1706,7 +1712,7 @@ NS_IMETHODIMP nsMsgCompose::InitEditor(nsIEditor* aEditor, nsIDOMWindow* aConten
   else
   {
     NotifyStateListeners(nsIMsgComposeNotificationType::ComposeFieldsReady, NS_OK);
-    nsresult rv = BuildBodyMessageAndSignature();
+    rv = BuildBodyMessageAndSignature();
     NotifyStateListeners(nsIMsgComposeNotificationType::ComposeBodyReady, NS_OK);
     return rv;
   }

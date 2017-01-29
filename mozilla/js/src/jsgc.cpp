@@ -238,6 +238,7 @@ using namespace js;
 using namespace js::gc;
 
 using mozilla::ArrayLength;
+using mozilla::HashCodeScrambler;
 using mozilla::Maybe;
 using mozilla::Swap;
 
@@ -2333,8 +2334,9 @@ GCRuntime::relocateArenas(Zone* zone, JS::gcreason::Reason reason, ArenaHeader*&
 void
 MovingTracer::onObjectEdge(JSObject** objp)
 {
-    if (IsForwarded(*objp))
-        *objp = Forwarded(*objp);
+    JSObject* obj = *objp;
+    if (obj->runtimeFromAnyThread() == runtime() && IsForwarded(obj))
+        *objp = Forwarded(obj);
 }
 
 void
@@ -4310,7 +4312,7 @@ js::gc::MarkingValidator::nonIncrementalMark()
      * For saving, smush all of the keys into one big table and split them back
      * up into per-zone tables when restoring.
      */
-    gc::WeakKeyTable savedWeakKeys;
+    gc::WeakKeyTable savedWeakKeys(SystemAllocPolicy(), runtime->randomHashCodeScrambler());
     if (!savedWeakKeys.init())
         return;
 
