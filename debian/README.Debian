@@ -16,7 +16,7 @@ branding after almost 10 years for Icedove and Iceowl-Extension and switched
 back to the official branding from Mozilla. The according bug for this process
 can be found under [2].
 
-For versions greater 1:45.5.1-1 the following packages were introduced as a
+For versions greater 1:45.6.0-2 the following packages were introduced as a
 replacement.
 
 old package .... --> new package         usage
@@ -37,7 +37,7 @@ removed after the automatically installation of the new packages.
 Due the removing of the rebranding for Icedove Thunderbird will use the default
 profile folder $HOME/.thunderbird for storing all the various user related
 stuff!
-With the new Thunderbird packages there is a wrapper script included placed as
+With the new Thunderbird packages there is a wrapper script included, placed as
 /usr/bin/thunderbird that will do a migration of the existing profile folder
 $HOME/.icedove into the new default folder for the user profile
 $HOME/.thunderbird if possible.
@@ -53,8 +53,17 @@ The automatism in the script will check the following parts:
      starting.
   4. Rename the old profile folder to '$HOME/.icedove_moved_by_thunderbird_starter'.
   5. Fixing Mime type registration for' http(s)' and 'file' inside mimeTypes.rdf if
-     they registered for iceweasel.
-  6. Now starting Thunderbird.
+     they registered for iceweasel. Before starting the fixup a backup will be
+	 created.
+  6. Also check for desktop type registration of 'icdeove.desktop' in
+     '$HOME/.config/mimeapps.list', but only if this file exists, users of tiling
+	 window managers won't have this file. Read further for more information.
+	 Like above, a backup of the existing file will be created.
+  7. If all was going well, starting Thunderbird.
+
+Note:
+  Please relax and be patient if the wrapper script is called for a first time,
+  the migration will take several seconds!
 
 If there is anything going wrong there will be a splash screen displayed with
 some additional notes, the logger mechanism will write some information about
@@ -84,12 +93,12 @@ places.  In order the user can override system settings and adding new
 ones the according place in the users home is the file
 '$(HOME)/.config/mimeapp.list'.
 
-The migration is taking care for old 'icedove.dekstop' associations and
+The migration is taking care for old 'icedove.desktop' associations and
 is rewriting them to 'thunderbird.desktop'.
 Like already done for the user profile, there will be always a backup
 of the existing file created before the replacement can be done. In case
 of problems you can safely move back to the original file. You will lost
-the needed association for the thunderbird binary.
+then the needed association for the thunderbird binary.
 
 See also:
 
