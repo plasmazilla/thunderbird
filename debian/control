@@ -1699,7 +1699,7 @@ Architecture: all
 Section: oldlibs
 Priority: extra
 Depends:
- thunderbird-l10n-bn-bg,
+ thunderbird-l10n-bn-bd,
  ${misc:Depends},
 Homepage: https://wiki.mozilla.org/L10n:Teams:bd-BD
 Description: Bengali language package for Icedove - Transitional package
