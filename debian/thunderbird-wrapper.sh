@@ -51,6 +51,23 @@ given in the file
 /usr/share/doc/thunderbird/README.Debian.gz
 "
 
+START_MIGRATION="\
+You see this window because you've started Thunderbird for the first time
+with underlaying profile(s) from Icedove.
+The Icedove package is now de-branded back to Thunderbird.
+
+The Icedove profile(s) will now be migrated to the needed folder structure
+by Thunderbird. This will take some time!
+
+Please be patient, the Thunderbird program will be started right after
+the migration.
+
+If you need more information about the de-branding of the Icedove package
+please have look into
+
+/usr/share/doc/thunderbird/README.Debian.gz
+"
+
 TITLE="Icedove to Thunderbird Profile migration"
 
 # some global variables
@@ -204,6 +221,21 @@ if [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
     debug "found folder '${ID_PROFILE_FOLDER}'"
     debug "not found folder '${TB_PROFILE_FOLDER}'"
     debug "Start Thunderbird profile migration, please be patient!"
+
+    # Inform the user we will starting the migration
+    case "${DESKTOP}" in
+        gnome|GNOME|xfce|XFCE)
+            zenity --info --no-wrap --title "${TITLE}" --text "${START_MIGRATION}"
+        ;;
+
+        kde|KDE)
+            kdialog --title "${TITLE}" --msgbox "${START_MIGRATION}"
+        ;;
+
+        *)
+            xmessage -center "${START_MIGRATION}"
+    esac
+
     cp -a ${ID_PROFILE_FOLDER} ${TB_PROFILE_FOLDER}
     if [ "$(echo $?)" != 0  ]; then
         echo "A error happen while copying the Icedove profile folder into '${TB_PROFILE_FOLDER}'"
