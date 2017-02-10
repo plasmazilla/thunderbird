@@ -29,7 +29,7 @@ If you see this message box something went wrong while
 migrating your Icedove profile(s) into the Thunderbird
 profile folder!
 
-The following error happen:"
+The following error happened:"
 
 DOT_THUNDERBIRD_EXISTS="\
 ${DEFAULT_X11_MSG}
@@ -40,8 +40,8 @@ profile(s) folder!
 
 This can probably be a old, currently not used profile folder or
 you maybe using a Thunderbird installation from the Mozilla packages.
-If you don't need this old profile folder you can remove or backup
-this folder and start Thunderbird again.
+If you don't need this old profile folder, you can remove or backup
+it and start Thunderbird again.
 
 Sorry, but please investigate the situation by yourself.
 
@@ -52,18 +52,18 @@ given in the file
 "
 
 START_MIGRATION="\
-You see this window because you've started Thunderbird for the first time
+You see this window because you're starting Thunderbird for the first time
 with underlaying profile(s) from Icedove.
 The Icedove package is now de-branded back to Thunderbird.
 
-The Icedove profile(s) will now be migrated to the needed folder structure
-by Thunderbird. This will take some time!
+The Icedove profile(s) will now be migrated to the Thunderbird folder
+structure. This will take some time!
 
 Please be patient, the Thunderbird program will be started right after
 the migration.
 
 If you need more information about the de-branding of the Icedove package
-please have look into
+please take a look into
 
 /usr/share/doc/thunderbird/README.Debian.gz
 "
@@ -110,7 +110,7 @@ Examples:
 
  ${0##*/} -v
 
-    Enable some debug messages on stdout. Only useful while developing then
+    Enable some debug messages on stdout. Only useful while developing the
     thunderbird packages or while the profile migration to see some more
     messages on stdout.
 
@@ -119,7 +119,7 @@ Examples:
     Starts Thunderbird in a GDB session if packages gdb and thunderbird-dbg
     is installed.
 EOF
-# other debuggers will be added later, we need maybe a seperate valgrind
+# other debuggers will be added later, we need maybe a separate valgrind
 # package! Note MDN site for valgrind https://developer.mozilla.org/en-US/docs/Mozilla/Testing/Valgrind
 # ${0##*/} -d gdb
 #    The same as above, only manually specified the GDB debugging tool as
@@ -238,7 +238,7 @@ if [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
 
     cp -a ${ID_PROFILE_FOLDER} ${TB_PROFILE_FOLDER}
     if [ "$(echo $?)" != 0  ]; then
-        echo "A error happen while copying the Icedove profile folder into '${TB_PROFILE_FOLDER}'"
+        echo "A error happened while copying the Icedove profile folder into '${TB_PROFILE_FOLDER}'"
         echo "The old unchanged profile(s) will still be found in '${ID_PROFILE_FOLDER}'."
         echo "Please check for potentially problems like low disk space or wrong access rights!"
         logger -i -p warning -s "$0: [profile migration] Couldn't copy '${ID_PROFILE_FOLDER}' into '${TB_PROFILE_FOLDER}'!"
@@ -303,7 +303,7 @@ elif [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
 fi
 
 if [ "$FAIL" = 1 ]; then
-    echo "A error happen while trying to migrate the old Icedove profile folder '${ID_PROFILE_FOLDER}'."
+    echo "A error happened while trying to migrate the old Icedove profile folder '${ID_PROFILE_FOLDER}'."
     echo "Please take a look into the syslog file!"
     exit 1
 fi
