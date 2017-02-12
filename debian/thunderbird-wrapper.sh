@@ -87,6 +87,54 @@ if [ "${VERBOSE}" = "1" ]; then
 fi
 }
 
+migrate_old_icedove_desktop() {
+# Fixing mimeapps.list files in ~/.config/ and ~/.local ... which may have
+# icedove.desktop associations, the latter location is deprecated, but still
+# commonly used.
+# These mimeapps.list files configures default applications for MIME types.
+for MIMEAPPS_LIST in ${HOME}/.config/mimeapps.list ${HOME}/.local/share/applications/mimeapps.list; do
+    # Check if file exists and has old icedove entry
+    if [ -e "${MIMEAPPS_LIST}" ] && \
+          grep -iq "\(userapp-\)*icedove\(-.*\)*\.desktop" "${MIMEAPPS_LIST}"; then
+        debug "Fixing broken '${MIMEAPPS_LIST}'."
+        MIMEAPPS_LIST_COPY="${MIMEAPPS_LIST}.copy_by_thunderbird_starter"
+        # Fix mimeapps.list and create backup
+        # (requires GNU sed 3.02 or ssed for case-insensitive "I")
+        sed -i.copy_by_thunderbird_starter "s|\(userapp-\)*icedove\(-.*\)*\.desktop|thunderbird.desktop|gI" "${MIMEAPPS_LIST}"
+        if [ "$(echo $?)" != 0  ]; then
+            echo "The configuration file for default applications for some MIME types"
+            echo "'${MIMEAPPS_LIST}' couldn't be fixed."
+            echo "Please check for potential problems like low disk space or wrong access rights!"
+            logger -i -p warning -s "$0: [profile migration] Couldn't fix '${MIMEAPPS_LIST}'!"
+            exit 1
+        fi
+    fi
+    debug "A copy of the configuration file of default applications for some MIME types"
+    debug "was saved into '${MIMEAPPS_LIST_COPY}'."
+done
+
+# Migrate old user specific desktop entries
+# Users could have always been created own desktop shortcuts for Icedove in
+# the past. These associations (files named like 'userapp-Icedove-*.desktop')
+# are done in the folder $(HOME)/.local/share/applications/.
+
+# Remove such old icedove.desktop files, superseded by system-wide
+# /usr/share/applications/thunderbird.desktop. The old ones in $HOME don't
+# receive updates and might have missing/outdated fields.
+# *.desktop files and their reverse cache mimeinfo cache provide information
+# about available applications.
+
+for ICEDOVE_DESKTOP in $(find ${HOME}/.local/share/applications/ -iname "*icedove*.desktop"); do
+    ICEDOVE_DESKTOP_COPY=${ICEDOVE_DESKTOP}.copy_by_thunderbird_starter
+    mv ${ICEDOVE_DESKTOP} ${ICEDOVE_DESKTOP_COPY}
+    # Update the mimeinfo cache.
+    # Not existing *.desktop files in there should simply be ignored by the system anyway.
+    if [ -x "$(which update-desktop-database)" ]; then
+        update-desktop-database ${HOME}/.local/share/applications/
+    fi
+done
+}
+
 usage () {
 #Usage: ${0##*/} [-h|-vg|d @args|-- @args]
 cat << EOF
@@ -234,6 +282,7 @@ if [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
 
         *)
             xmessage -center "${START_MIGRATION}"
+        ;;
     esac
 
     cp -a ${ID_PROFILE_FOLDER} ${TB_PROFILE_FOLDER}
@@ -254,25 +303,7 @@ if [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
         for MIME_TYPES_RDF_FILE in $(find ${TB_PROFILE_FOLDER}/ -name mimeTypes.rdf); do
             sed -i "s|/usr/bin/iceweasel|/usr/bin/x-www-browser|g" "${MIME_TYPES_RDF_FILE}"
         done
-
-        if [ -f ${HOME}/.config/mimeapps.list ]; then
-            # Fixing mimeapps.list which may have icedove.desktop associations
-            debug "Fixing possible broken '~/.config/mimeapps.list'."
-            # first make a copy of the file
-            cp ${HOME}/.config/mimeapps.list ${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter
-            if [ "$(echo $?)" != 0  ]; then
-                echo "The configuration file with for the associated MIME applications"
-                echo "'${HOME}/.config/mimeapps.list' couldn't be saved into a backup file"
-                echo "'${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'."
-                echo "Please check for potentially problems like low disk space or wrong access rights!"
-                logger -i -p warning -s "$0: [profile migration] Couldn't copy '${HOME}/.config/mimeapps.list' into '${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'!"
-                FAIL=1
-            else
-                sed -i "s|icedove\.desktop|/thunderbird\.desktop|g" "${HOME}/.config/mimeapps.list"
-            fi
-        fi
         debug "Migration done."
-        debug "A copy of the previous MIME associations was saved into '${HOME}/.config/mimeapps.list.copy_by_thunderbird_starter'."
         debug "The old Icedove profile folder was moved to '${HOME}/.icedove_moved_by_thunderbird_starter'"
     fi
 
@@ -307,6 +338,9 @@ if [ "$FAIL" = 1 ]; then
     echo "Please take a look into the syslog file!"
     exit 1
 fi
+
+# Fix local mimeapp.list and *.desktop entries
+migrate_old_icedove_desktop
 
 # There is no old Icedove profile folder (anymore), we have nothing to
 # migrate, going further by starting Thunderbird.
