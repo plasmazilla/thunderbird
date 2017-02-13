@@ -98,10 +98,17 @@ for MIMEAPPS_LIST in ${HOME}/.config/mimeapps.list ${HOME}/.local/share/applicat
           grep -iq "\(userapp-\)*icedove\(-.*\)*\.desktop" "${MIMEAPPS_LIST}"; then
         debug "Fixing broken '${MIMEAPPS_LIST}'."
         MIMEAPPS_LIST_COPY="${MIMEAPPS_LIST}.copy_by_thunderbird_starter"
+        if [ -e ${MIMEAPPS_LIST_COPY} ]; then
+            echo "The configuration file for default applications for some MIME types"
+            echo "'${MIMEAPPS_LIST}' already has a backup file '${MIMEAPPS_LIST_COPY}'."
+            echo "Moving old copy to '${MIMEAPPS_LIST_COPY}-old'!"
+            mv ${MIMEAPPS_LIST_COPY} ${MIMEAPPS_LIST_COPY}-old
+            logger -i -p warning -s "$0: [profile migration] Backup file '${MIMEAPPS_LIST_COPY}' of '${MIMEAPPS_LIST}' already exists, moving to '${MIMEAPPS_LIST_COPY}-old'!"
+        fi
         # Fix mimeapps.list and create backup
         # (requires GNU sed 3.02 or ssed for case-insensitive "I")
         sed -i.copy_by_thunderbird_starter "s|\(userapp-\)*icedove\(-.*\)*\.desktop|thunderbird.desktop|gI" "${MIMEAPPS_LIST}"
-        if [ "$(echo $?)" != 0  ]; then
+        if [ $? -ne 0 ]; then
             echo "The configuration file for default applications for some MIME types"
             echo "'${MIMEAPPS_LIST}' couldn't be fixed."
             echo "Please check for potential problems like low disk space or wrong access rights!"
