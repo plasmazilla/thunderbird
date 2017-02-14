@@ -62,7 +62,6 @@ Depends:
  debianutils (>= 1.16),
  fontconfig,
  psmisc,
- sed,
  ${misc:Depends},
  ${shlibs:Depends},
 Recommends:
