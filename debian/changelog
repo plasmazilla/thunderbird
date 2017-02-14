@@ -1,3 +1,45 @@
+icedove (1:45.7.1-1) unstable; urgency=medium
+
+  * Bye-bye Icedove (Closes: #749965, #776359, #816679, #363811)
+
+  [ Carsten Schoenert ]
+  * [90c0d6f] New upstream version 45.7.1
+  * [a6d21de] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-497488-Implement-verify-mode-in-the-subscribe-dialog-.patch
+    - fixes/Bug-497488-RSS-feeds-with-an-invalid-certificate-fail-wit-1.patch
+    - fixes/Bug-497488-RSS-feeds-with-an-invalid-certificate-fail-wit.patch
+    (Closes: #837177)
+    removed patches (fixed upstream):
+    - debian-hacks/icu.m4-adding-extra-bracket-to-not-confuse-grep.patch
+  * [8572e34] lintian: adding a semi automated lintian-override
+  * [aa2bda2] crashreporter: enable the reporter for thunderbird
+  * [b96ae57] move icedove.desktop into package icedove
+    (Closes: #850865, #851829)
+  * [304921f] debian/rules: set SHELL explicit to /bin/bash (Closes: #852867)
+  * [072b899] thunderbird: adding extra check while migration
+  * [284912d] debian/README.Debian: update after recent changes
+  * [6dc7e32] icedove-l10n-bn-bd: fix typo in Depends field (Closes: #854135)
+  * [c5d4bf5] {tb,id}.maintscript: modify start-version (Closes: #854587)
+  * [f3d64ae] thunderbird-wrapper.sh: adding extra information window
+    (Closes: #854488)
+  * [6b432c7] README.Debian: hint about issue in global configuration
+
+  [ Douglas Bagnall ]
+  * [e2c8a23] Apparmor: allowing exo-open-ixr launcher (Closes: #853929)
+
+  [ Christoph Goehre ]
+  * [ef36e0b] thunderbird-wrapper.sh: fix typos
+  * [f98d5d1] thunderbird-wrapper.sh: add small changes from Guido and Carsten
+  * [7dd6841] README.Debian: fix/correct spelling
+  * [e038694] debian/control: remove depends-on-essential-package 'sed'
+
+  [ Jens Reyer ]
+  * [ea58e17] thunderbird-wrapper.sh: add extra function for migration
+    (Closes: #849592)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 14 Feb 2017 18:46:23 -0500
+
 icedove (1:45.6.0-3) experimental; urgency=medium
 
   [ Carsten Schoenert ]
