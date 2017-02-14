@@ -115,8 +115,8 @@ Please adjust this file to the Thunderbird specific configuration file
 '/etc/thunderbird/pref/thunderbird.js'. The old folder '/etc/icedove' is gone
 be removed only if it is completely empty.
 
-There are still some corner cases there this automatism with configuration
-files in /etc/thunderbird/pref is not fully working, please not #806955 [4]
+There are still some corner cases where this automatism with configuration
+files in /etc/thunderbird/pref is not fully working. Please note #806955 [4]
 about such issues.
 
 [1] https://en.wikipedia.org/wiki/Mozilla_software_rebranded_by_Debian
