@@ -26,4 +26,6 @@ debian/tmp/usr/lib/thunderbird/omni.ja            usr/share/thunderbird
 debian/tmp/usr/lib/thunderbird/plugin-container
 debian/tmp/usr/lib/thunderbird/removed-files
 debian/tmp/usr/lib/thunderbird/run-mozilla.sh
+[amd64 armel armhf i386] debian/tmp/usr/lib/thunderbird/Throbber-small.gif
+[amd64 armel armhf i386] debian/tmp/usr/lib/thunderbird/crashreporter
 debian/vendor.js                                  usr/share/thunderbird/defaults/pref
