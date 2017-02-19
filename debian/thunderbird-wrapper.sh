@@ -246,8 +246,6 @@ done
 # shift found options
 shift $(( OPTIND - 1 ))
 
-THUNDERBIRD_OPTIONS="$@"
-
 # sanity check
 if [ "$DEBUGGER" != "" ] && [ "$USER_DEBUGGER" != "" ]; then
     echo "You can't use option '-g and '-d' at the same time!"
@@ -353,8 +351,8 @@ migrate_old_icedove_desktop
 # migrate, going further by starting Thunderbird.
 
 if [ "${DEBUG}" = "" ]; then
-    debug "call $MOZ_LIBDIR/$MOZ_APP_NAME '${THUNDERBIRD_OPTIONS}'"
-    $MOZ_LIBDIR/$MOZ_APP_NAME "${THUNDERBIRD_OPTIONS}"
+    debug "call $MOZ_LIBDIR/$MOZ_APP_NAME '$@'"
+    $MOZ_LIBDIR/$MOZ_APP_NAME "$@"
 else
     # User has selected GDB?
     if [ "$DEBUGGER" = "1" ]; then
@@ -362,7 +360,7 @@ else
         if [ -f /usr/bin/gdb ]; then
             if [ -f /usr/lib/debug/usr/lib/thunderbird/thunderbird ]; then
                 echo "Starting Thunderbird with GDB ..."
-                LANG= /usr/lib/thunderbird/run-mozilla.sh -g /usr/lib/thunderbird/thunderbird-bin "${THUNDERBIRD_OPTIONS}"
+                LANG= /usr/lib/thunderbird/run-mozilla.sh -g /usr/lib/thunderbird/thunderbird-bin "$@"
             else
                 echo "No package 'thunderbird-dbg' installed! Please install first and restart."
                 exit 1
