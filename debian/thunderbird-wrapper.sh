@@ -40,23 +40,20 @@ TB_PROFILE_FOLDER=${HOME}/.thunderbird
 # set MOZ_APP_LAUNCHER for gnome-session
 export MOZ_APP_LAUNCHER
 
-# Reset is necessary if getopts was used previously in the script. It is a
-# good idea to make this local in a function.
-OPTIND=1
-
-while getopts "hvgd:" opt; do
-    case "$opt" in
-        h)  HELP=1
+TB_ARGS=""
+while [ $# -gt 0 ]; do
+    ARG="$1"
+    case ${ARG} in
+        --help) HELP=1
             usage
             exit 0
             ;;
-        v)  echo "[[ ... using verbose mode ... ]]"
+        --verbose) echo "[[ ... using verbose mode ... ]]"
             VERBOSE=1
             ;;
-        g)
+        -g)
             DEBUGGER=1
             DEBUG=1
-            shift
             ;;
 #        d)
 #            USER_DEBUGGER=$2
@@ -66,18 +63,12 @@ while getopts "hvgd:" opt; do
             usage >&2
             exit 1
             ;;
-        --) # Stop option processing
-            shift
-            break
-            ;;
-        *)
-            break
-            ;;
+        # every other argument is needed to get down to the TB starting call
+        *) TB_ARGS="${TB_ARGS} ${ARG}"
+        ;;
     esac
+    shift
 done
-
-# shift found options
-shift $(( OPTIND - 1 ))
 
 # sanity check
 if [ "$DEBUGGER" != "" ] && [ "$USER_DEBUGGER" != "" ]; then
@@ -169,8 +160,8 @@ migrate_old_icedove_desktop
 # migrate, going further by starting Thunderbird.
 
 if [ "${DEBUG}" = "" ]; then
-    debug "call $MOZ_LIBDIR/$MOZ_APP_NAME '$@'"
-    $MOZ_LIBDIR/$MOZ_APP_NAME "$@"
+    debug "call '$MOZ_LIBDIR/$MOZ_APP_NAME ${TB_ARGS}'"
+    $MOZ_LIBDIR/$MOZ_APP_NAME ${TB_ARGS}
 else
     # User has selected GDB?
     if [ "$DEBUGGER" = "1" ]; then
@@ -178,7 +169,7 @@ else
         if [ -f /usr/bin/gdb ]; then
             if [ -f /usr/lib/debug/usr/lib/thunderbird/thunderbird ]; then
                 echo "Starting Thunderbird with GDB ..."
-                LANG= /usr/lib/thunderbird/run-mozilla.sh -g /usr/lib/thunderbird/thunderbird-bin "$@"
+                LANG= /usr/lib/thunderbird/run-mozilla.sh -g /usr/lib/thunderbird/thunderbird-bin "${TB_ARGS}"
             else
                 echo "No package 'thunderbird-dbg' installed! Please install first and restart."
                 exit 1

@@ -195,27 +195,32 @@ done
 
 # Giving out a information how this script can be called
 usage () {
-#Usage: ${0##*/} [-h|-vg|d @args|-- @args]
 cat << EOF
 
-Usage: ${0##*/} [-h|-vg|-- @args]
-The options have to be used in the correct order!
+Usage: ${0##*/} [--help|? | --verbose | -g | \$thunderbird-arguments]
 
-    -h      display this help and exit
-    -v      verbose mode, increase the output messages
-    -g      starts Thunderbird within gdb (needs package thunderbird-dbg!)
+Options for this script and Thunderbird specific arguments can be mixed up.
+Note that some Thunderbird options needs an additional argument that can't
+be naturally mixed up with other options!
+
+  --help or ? display this help and exit
+  --verbose   verbose mode, increase the output messages to stdout
+              (Logging to /var/log/syslog - if nessesary - isn't touched or
+               increased by this option!)
+  -g          starts Thunderbird within gdb (needs package thunderbird-dbg!)
 EOF
 #    -d      starts Thunderbird with specific debugger
 cat << EOF
 
 Examples:
 
- ${0##*/} -h
+ ${0##*/} --help
 
-    Writes this help messages on stdout. If any other options is given they
-    will be ignored.
+    Writes this help messages on stdout. If any other option is given it
+    will be ignored. Note that Thunderbird also has a oprion '-h' which needs
+    explictely given if want the help output for Thunderbird!
 
- ${0##*/} -v
+ ${0##*/} --verbose
 
     Enable some debug messages on stdout. Only useful while developing the
     thunderbird packages or while the profile migration to see some more
@@ -227,7 +232,8 @@ Examples:
     is installed.
 EOF
 # other debuggers will be added later, we need maybe a separate valgrind
-# package! Note MDN site for valgrind https://developer.mozilla.org/en-US/docs/Mozilla/Testing/Valgrind
+# package! Note MDN site for valgrind
+#    https://developer.mozilla.org/en-US/docs/Mozilla/Testing/Valgrind
 # ${0##*/} -d gdb
 #    The same as above, only manually specified the GDB debugging tool as
 #    argument. Note that you probably will need additional parameter to
@@ -237,22 +243,27 @@ EOF
 #    The thunderbird binary must be compiled with valgrind support if you
 #    want to use valgrind here!
 #
-#      ${0##*/} -d 'valgrind --arg1 --arg2' -- -thunderbird-arg1
+#      ${0##*/} -d 'valgrind --arg1 --arg2' -thunderbird-arg1
 cat << EOF
 
- ${0##*/} -- @args
+ ${0##*/} \$thunderbird-arguments
 
     Adding some thunderbird command line specific arguments, like e.g.
     calling the ProfileManager or safe-mode in case of trouble. Would look
     like this if you need to run in safe-mode with the JS Error console,
-    that can be combined with the -g or -d option:
+    that can be combined with the -g option:
 
-      ${0##*/} -- --safe-mode --jsconsole
+      ${0##*/} --safe-mode --jsconsole
+
+    Call Thunderbird directly to compose a message with a specific
+    attachement.
+
+      ${0##*/} -compose attachment=\$attachment
 
     Or to see the possible arguments for thunderbird that could be added
     here:
 
-      ${0##*/} -- -h
+      ${0##*/} -h
 
 EOF
 }
