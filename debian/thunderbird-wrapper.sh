@@ -20,55 +20,15 @@
 
 #set -x
 
-#########################################
-# message templates for the X11 dialogs #
-#########################################
-
-DEFAULT_X11_MSG="\
-If you see this message box something went wrong while
-migrating your Icedove profile(s) into the Thunderbird
-profile folder!
-
-The following error happened:"
-
-DOT_THUNDERBIRD_EXISTS="\
-${DEFAULT_X11_MSG}
-
-An existing profile folder '.thunderbird' was found in your Home
-directory '${HOME}/' while trying to migrate the Icedove
-profile(s) folder!
-
-This can probably be a old, currently not used profile folder or
-you maybe using a Thunderbird installation from the Mozilla packages.
-If you don't need this old profile folder, you can remove or backup
-it and start Thunderbird again.
-
-Sorry, but please investigate the situation by yourself.
-
-Please mind also the information in section 'Profile Migration'
-given in the file
-
-/usr/share/doc/thunderbird/README.Debian.gz
-"
-
-START_MIGRATION="\
-You see this window because you're starting Thunderbird for the first time
-with underlaying profile(s) from Icedove.
-The Icedove package is now de-branded back to Thunderbird.
-
-The Icedove profile(s) will now be migrated to the Thunderbird folder
-structure. This will take some time!
-
-Please be patient, the Thunderbird program will be started right after
-the migration.
-
-If you need more information about the de-branding of the Icedove package
-please take a look into
-
-/usr/share/doc/thunderbird/README.Debian.gz
-"
-
-TITLE="Icedove to Thunderbird Profile migration"
+TB_HELPER="/usr/lib/thunderbird/thunderbird-wrapper-helper.sh"
+# sourcing external variables and helper functions
+if [ -f ${TB_HELPER} ]; then
+    . ${TB_HELPER}
+else
+    # this needs improving, the user isn't seen this error!
+    echo "helper ${TB_HELPER} not found!"
+    exit 1
+fi
 
 # some global variables
 MOZ_APP_NAME=thunderbird
@@ -79,133 +39,6 @@ TB_PROFILE_FOLDER=${HOME}/.thunderbird
 
 # set MOZ_APP_LAUNCHER for gnome-session
 export MOZ_APP_LAUNCHER
-
-# local functions
-debug () {
-if [ "${VERBOSE}" = "1" ]; then
-    echo "DEBUG -> $1"
-fi
-}
-
-migrate_old_icedove_desktop() {
-# Fixing mimeapps.list files in ~/.config/ and ~/.local ... which may have
-# icedove.desktop associations, the latter location is deprecated, but still
-# commonly used.
-# These mimeapps.list files configures default applications for MIME types.
-for MIMEAPPS_LIST in ${HOME}/.config/mimeapps.list ${HOME}/.local/share/applications/mimeapps.list; do
-    # Check if file exists and has old icedove entry
-    if [ -e "${MIMEAPPS_LIST}" ] && \
-          grep -iq "\(userapp-\)*icedove\(-.*\)*\.desktop" "${MIMEAPPS_LIST}"; then
-        debug "Fixing broken '${MIMEAPPS_LIST}'."
-        MIMEAPPS_LIST_COPY="${MIMEAPPS_LIST}.copy_by_thunderbird_starter"
-        if [ -e ${MIMEAPPS_LIST_COPY} ]; then
-            echo "The configuration file for default applications for some MIME types"
-            echo "'${MIMEAPPS_LIST}' already has a backup file '${MIMEAPPS_LIST_COPY}'."
-            echo "Moving old copy to '${MIMEAPPS_LIST_COPY}-old'!"
-            mv ${MIMEAPPS_LIST_COPY} ${MIMEAPPS_LIST_COPY}-old
-            logger -i -p warning -s "$0: [profile migration] Backup file '${MIMEAPPS_LIST_COPY}' of '${MIMEAPPS_LIST}' already exists, moving to '${MIMEAPPS_LIST_COPY}-old'!"
-        fi
-        # Fix mimeapps.list and create backup
-        # (requires GNU sed 3.02 or ssed for case-insensitive "I")
-        sed -i.copy_by_thunderbird_starter "s|\(userapp-\)*icedove\(-.*\)*\.desktop|thunderbird.desktop|gI" "${MIMEAPPS_LIST}"
-        if [ $? -ne 0 ]; then
-            echo "The configuration file for default applications for some MIME types"
-            echo "'${MIMEAPPS_LIST}' couldn't be fixed."
-            echo "Please check for potential problems like low disk space or wrong access rights!"
-            logger -i -p warning -s "$0: [profile migration] Couldn't fix '${MIMEAPPS_LIST}'!"
-            exit 1
-        fi
-    fi
-    debug "A copy of the configuration file of default applications for some MIME types"
-    debug "was saved into '${MIMEAPPS_LIST_COPY}'."
-done
-
-# Migrate old user specific desktop entries
-# Users could have always been created own desktop shortcuts for Icedove in
-# the past. These associations (files named like 'userapp-Icedove-*.desktop')
-# are done in the folder $(HOME)/.local/share/applications/.
-
-# Remove such old icedove.desktop files, superseded by system-wide
-# /usr/share/applications/thunderbird.desktop. The old ones in $HOME don't
-# receive updates and might have missing/outdated fields.
-# *.desktop files and their reverse cache mimeinfo cache provide information
-# about available applications.
-
-for ICEDOVE_DESKTOP in $(find ${HOME}/.local/share/applications/ -iname "*icedove*.desktop"); do
-    ICEDOVE_DESKTOP_COPY=${ICEDOVE_DESKTOP}.copy_by_thunderbird_starter
-    mv ${ICEDOVE_DESKTOP} ${ICEDOVE_DESKTOP_COPY}
-    # Update the mimeinfo cache.
-    # Not existing *.desktop files in there should simply be ignored by the system anyway.
-    if [ -x "$(which update-desktop-database)" ]; then
-        update-desktop-database ${HOME}/.local/share/applications/
-    fi
-done
-}
-
-usage () {
-#Usage: ${0##*/} [-h|-vg|d @args|-- @args]
-cat << EOF
-
-Usage: ${0##*/} [-h|-vg|-- @args]
-The options have to be used in the correct order!
-
-    -h      display this help and exit
-    -v      verbose mode, increase the output messages
-    -g      starts Thunderbird within gdb (needs package thunderbird-dbg!)
-EOF
-#    -d      starts Thunderbird with specific debugger
-cat << EOF
-
-Examples:
-
- ${0##*/} -h
-
-    Writes this help messages on stdout. If any other options is given they
-    will be ignored.
-
- ${0##*/} -v
-
-    Enable some debug messages on stdout. Only useful while developing the
-    thunderbird packages or while the profile migration to see some more
-    messages on stdout.
-
- ${0##*/} -g
-
-    Starts Thunderbird in a GDB session if packages gdb and thunderbird-dbg
-    is installed.
-EOF
-# other debuggers will be added later, we need maybe a separate valgrind
-# package! Note MDN site for valgrind https://developer.mozilla.org/en-US/docs/Mozilla/Testing/Valgrind
-# ${0##*/} -d gdb
-#    The same as above, only manually specified the GDB debugging tool as
-#    argument. Note that you probably will need additional parameter to
-#    enable e.g. writing to a logfile.
-#    It's also possible to specify valgrind, that will need to add additional
-#    quoted arguments in any case!
-#    The thunderbird binary must be compiled with valgrind support if you
-#    want to use valgrind here!
-#
-#      ${0##*/} -d 'valgrind --arg1 --arg2' -- -thunderbird-arg1
-cat << EOF
-
- ${0##*/} -- @args
-
-    Adding some thunderbird command line specific arguments, like e.g.
-    calling the ProfileManager or safe-mode in case of trouble. Would look
-    like this if you need to run in safe-mode with the JS Error console,
-    that can be combined with the -g or -d option:
-
-      ${0##*/} -- --safe-mode --jsconsole
-
-    Or to see the possible arguments for thunderbird that could be added
-    here:
-
-      ${0##*/} -- -h
-
-EOF
-}
-
-# end local functions
 
 # Reset is necessary if getopts was used previously in the script. It is a
 # good idea to make this local in a function.
@@ -253,16 +86,6 @@ if [ "$DEBUGGER" != "" ] && [ "$USER_DEBUGGER" != "" ]; then
     exit 1
 fi
 
-# trying to get the DE
-if [ "${XDG_CURRENT_DESKTOP}" = "" ]; then
-    DESKTOP=$(echo "${XDG_DATA_DIRS}" | sed 's/.*\(xfce\|kde\|gnome\).*/\1/')
-else
-    DESKTOP=${XDG_CURRENT_DESKTOP}
-fi
-
-# convert to lower case shell safe
-DESKTOP=`echo "$DESKTOP" | tr '[:upper:]' '[:lower:]'`
-
 #####################
 # profile migration #
 #####################
@@ -275,20 +98,8 @@ if [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
     debug "not found folder '${TB_PROFILE_FOLDER}'"
     debug "Start Thunderbird profile migration, please be patient!"
 
-    # Inform the user we will starting the migration
-    case "${DESKTOP}" in
-        gnome|GNOME|xfce|XFCE)
-            zenity --info --no-wrap --title "${TITLE}" --text "${START_MIGRATION}"
-        ;;
-
-        kde|KDE)
-            kdialog --title "${TITLE}" --msgbox "${START_MIGRATION}"
-        ;;
-
-        *)
-            xmessage -center "${START_MIGRATION}"
-        ;;
-    esac
+    # open a pop-up window with a message about starting migration
+    inform_migration_start
 
     cp -a ${ID_PROFILE_FOLDER} ${TB_PROFILE_FOLDER}
     if [ "$(echo $?)" != 0  ]; then
@@ -312,7 +123,7 @@ if [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
         debug "The old Icedove profile folder was moved to '${HOME}/.icedove_moved_by_thunderbird_starter'"
     fi
 
-# We found both profile folder, the user has probaly a old or otherwise used
+# We found both profile folder, the user has probably a old or otherwise used
 # Thunderbird installation.
 elif [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
      [ -d "${TB_PROFILE_FOLDER}" -o -L "${TB_PROFILE_FOLDER}" ]; then
@@ -322,19 +133,20 @@ elif [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
 
     # display a graphical advice if possible
     case "${DESKTOP}" in
-        gnome|GNOME|xfce|XFCE)
+        gnome|mate|xfce)
             zenity --info --no-wrap --title "${TITLE}" --text "${DOT_THUNDERBIRD_EXISTS}"
             FAIL=1
-        ;;
+            ;;
 
-        kde|KDE)
+        kde)
             kdialog --title "${TITLE}" --msgbox "${DOT_THUNDERBIRD_EXISTS}"
             FAIL=1
-        ;;
+            ;;
 
         *)
             xmessage -center "${DOT_THUNDERBIRD_EXISTS}"
             FAIL=1
+            ;;
     esac
 fi
 
