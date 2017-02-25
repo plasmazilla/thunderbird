@@ -175,6 +175,7 @@ Description: mail/news client with RSS and integrated spam filter support
  .
  The goal of Icedove is to produce a cross platform standalone mail application
  using the XUL user interface language.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: thunderbird-dev
@@ -220,6 +221,7 @@ Description: Development files for Icedove
  .
  This package contains the development headers, idl files and static libraries
  needed to develop applications using Icedove.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: thunderbird-dbg
@@ -265,6 +267,7 @@ Description: Debug Symbols for Icedove
  This package contains the debug symbols for Icedove. Install this package if
  you need to debug such a program or if you need a useful backtrace of a
  crash.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: lightning
@@ -304,6 +307,7 @@ Description: Calendar Extension for Thunderbird/Icedove
  tasks in multiple calendars.
  .
  It supports local calendars, CalDAV and plain ics files on WebDAV.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: calendar-google-provider
@@ -1628,6 +1632,7 @@ Description: All language packages for Icedove (meta) - Transitional package
  .
  This package is a metapackage depending on all available localization of
  Thunderbird.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-ar
@@ -1644,6 +1649,7 @@ Description: Arabic language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Arabic.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-ast
@@ -1660,6 +1666,7 @@ Description: Asturian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Asturian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-be
@@ -1676,6 +1683,7 @@ Description: Belarusian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Belarusian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-bg
@@ -1692,6 +1700,7 @@ Description: Bulgarian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Bulgarian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-bn-bd
@@ -1708,6 +1717,7 @@ Description: Bengali language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Bengali.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-br
@@ -1724,6 +1734,7 @@ Description: Breton language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Breton.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-ca
@@ -1740,6 +1751,7 @@ Description: Catalan/Valencian language package for Icedove - Transitional packa
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Catalan/Valencian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-cs
@@ -1756,6 +1768,7 @@ Description: Czech language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Czech.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-da
@@ -1772,6 +1785,7 @@ Description: Danish language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Danish.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-de
@@ -1788,6 +1802,7 @@ Description: German language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in German.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-el
@@ -1804,6 +1819,7 @@ Description: Greek language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Greek.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-en-gb
@@ -1820,6 +1836,7 @@ Description: English (Great Britain) language package for Icedove - Transitional
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in English (Great Britain).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-es-ar
@@ -1836,6 +1853,7 @@ Description: Spanish (Argentina) language package for Icedove - Transitional pac
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Spanish (Argentina).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-es-es
@@ -1852,6 +1870,7 @@ Description: Spanish (Spain) language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Spanish (Spain).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-et
@@ -1868,6 +1887,7 @@ Description: Estonian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Estonian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-eu
@@ -1884,6 +1904,7 @@ Description: Basque language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Basque.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-fi
@@ -1900,6 +1921,7 @@ Description: Finnish language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Finnish.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-fr
@@ -1916,6 +1938,7 @@ Description: French language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in French.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-fy-nl
@@ -1932,6 +1955,7 @@ Description: Frisian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Frisian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-ga-ie
@@ -1948,6 +1972,7 @@ Description: Irish (Ireland) language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Irish (Ireland).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-gd
@@ -1964,6 +1989,7 @@ Description: Gaelic (Scottish) language package for Icedove - Transitional packa
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Gaelic (Scottish).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-gl
@@ -1980,6 +2006,7 @@ Description: Galician language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Galician.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-he
@@ -1996,6 +2023,7 @@ Description: Hebrew language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Hebrew.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-hr
@@ -2012,6 +2040,7 @@ Description: Croatian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Croatian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-hu
@@ -2028,6 +2057,7 @@ Description: Hungarian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Hungarian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-hy-am
@@ -2044,6 +2074,7 @@ Description: Armenian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Armenian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-id
@@ -2060,6 +2091,7 @@ Description: Indonesian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Indonesian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-is
@@ -2076,6 +2108,7 @@ Description: Icelandic language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Icelandic.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-it
@@ -2092,6 +2125,7 @@ Description: Italian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Italian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-ja
@@ -2108,6 +2142,7 @@ Description: Japanese language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Japanese.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-ko
@@ -2124,6 +2159,7 @@ Description: Korean language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Korean.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-lt
@@ -2140,6 +2176,7 @@ Description: Lithuanian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Lithuanian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-nb-no
@@ -2156,6 +2193,7 @@ Description: Bokmaal (Norway) language package for Icedove - Transitional packag
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Bokmaal (Norway).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-nl
@@ -2172,6 +2210,7 @@ Description: Dutch language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Dutch.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-nn-no
@@ -2188,6 +2227,7 @@ Description: Nynorsk (Norway) language package for Icedove - Transitional packag
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Nynorsk (Norway).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-pa-in
@@ -2204,6 +2244,7 @@ Description: Punjabi (India) language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Punjabi (India).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-pl
@@ -2220,6 +2261,7 @@ Description: Polish language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Polish.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-pt-br
@@ -2236,6 +2278,7 @@ Description: Portuguese (Brazil) language package for Icedove - Transitional pac
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Portuguese (Brazil).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-pt-pt
@@ -2252,6 +2295,7 @@ Description: Portuguese (Portugal) language package for Icedove - Transitional p
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Portuguese (Portugal).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-rm
@@ -2268,6 +2312,7 @@ Description: Romansh language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Romansh.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-ro
@@ -2284,6 +2329,7 @@ Description: Romania language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Romania.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-ru
@@ -2300,6 +2346,7 @@ Description: Russian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Russian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-si
@@ -2316,6 +2363,7 @@ Description: Sinhala language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Sinhala.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-sk
@@ -2332,6 +2380,7 @@ Description: Slovak language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Slovak.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-sl
@@ -2348,6 +2397,7 @@ Description: Slovenian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Slovenian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-sq
@@ -2364,6 +2414,7 @@ Description: Albanian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Albanian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-sr
@@ -2380,6 +2431,7 @@ Description: Serbian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Serbian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-sv-se
@@ -2396,6 +2448,7 @@ Description: Swedish (Sweden) language package for Icedove - Transitional packag
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Swedish (Sweden).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-ta-lk
@@ -2412,6 +2465,7 @@ Description: Tamil language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Tamil.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-tr
@@ -2428,6 +2482,7 @@ Description: Turkish language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Turkish.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-uk
@@ -2444,6 +2499,7 @@ Description: Ukrainian language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Ukrainian.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-vi
@@ -2460,6 +2516,7 @@ Description: Vietnamese language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Vietnamese.
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-zh-cn
@@ -2476,6 +2533,7 @@ Description: Chinese (China) language package for Icedove - Transitional package
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Chinese (China).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: icedove-l10n-zh-tw
@@ -2492,6 +2550,7 @@ Description: Chinese (Taiwan) language package for Icedove - Transitional packag
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Chinese (Taiwan).
+ .
  This is a transitional package. It can be safely removed.
 
 Package: lightning-l10n-ar
