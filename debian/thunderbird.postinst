@@ -46,6 +46,10 @@ case "$1" in
                 TO_DELETE=1
             fi
             if [ "${TO_DELETE}" -eq 1 ]; then
+                # removing old empty folder /etc/icedove/profile if still existing (last used in squeeze)
+                if [ -d /etc/icedove/profile ]; then
+                    rmdir /etc/icedove/profile || true
+                fi
                 echo "Removing old Icedove pref directory ..."
                 rmdir ${ICEDOVE_PREF} || true
                 rmdir /etc/icedove || true
