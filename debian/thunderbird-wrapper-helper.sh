@@ -88,17 +88,53 @@ fi
 inform_migration_start () {
 case "${DESKTOP}" in
     gnome|mate|xfce)
-        zenity --info --no-wrap --title "${TITLE}" --text "${START_MIGRATION}"
+        local_zenity --info --no-wrap --title "${TITLE}" --text "${START_MIGRATION}"
+        if [ $? -ne 0 ]; then
+            local_xmessage -center "${START_MIGRATION}"
+        fi
         ;;
 
     kde)
-        kdialog --title "${TITLE}" --msgbox "${START_MIGRATION}"
+        local_kdialog --title "${TITLE}" --msgbox "${START_MIGRATION}"
+        if [ $? -ne 0 ]; then
+            local_xmessage -center "${START_MIGRATION}"
+        fi
         ;;
 
     *)
         xmessage -center "${START_MIGRATION}"
         ;;
 esac
+}
+
+# Wrapping /usr/bin/kdialog calls
+local_kdialog () {
+if [ -f /usr/bin/kdialog ]; then
+    /usr/bin/kdialog "$@"
+    return 0
+else
+    return 1
+fi
+}
+
+# Wrapping /usr/bin/xmessage calls
+local_xmessage () {
+if [ -f /usr/bin/xmessage ]; then
+    /usr/bin/xmessage "$@"
+else
+    # this should never be reached as thunderbird has a dependency on x11-utils!
+    echo "xmessage not found"
+fi
+}
+
+# Wrapping /usr/bin/zenity calls
+local_zenity () {
+if [ -f /usr/bin/zenity ]; then
+    /usr/bin/zenity "$@"
+    return 0
+else
+    return 1
+fi
 }
 
 # Function that will do the complete profile migration

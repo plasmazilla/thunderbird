@@ -134,12 +134,18 @@ elif [ -d "${ID_PROFILE_FOLDER}" -o -L "${ID_PROFILE_FOLDER}" ] && \
     # display a graphical advice if possible
     case "${DESKTOP}" in
         gnome|mate|xfce)
-            zenity --info --no-wrap --title "${TITLE}" --text "${DOT_THUNDERBIRD_EXISTS}"
+            local_zenity --info --no-wrap --title "${TITLE}" --text "${DOT_THUNDERBIRD_EXISTS}"
+            if [ $? -ne 0 ]; then
+                local_xmessage -center "${DOT_THUNDERBIRD_EXISTS}"
+            fi
             FAIL=1
             ;;
 
         kde)
-            kdialog --title "${TITLE}" --msgbox "${DOT_THUNDERBIRD_EXISTS}"
+            local_kdialog --title "${TITLE}" --msgbox "${DOT_THUNDERBIRD_EXISTS}"
+            if [ $? -ne 0 ]; then
+                local_xmessage -center "${DOT_THUNDERBIRD_EXISTS}"
+            fi
             FAIL=1
             ;;
 
