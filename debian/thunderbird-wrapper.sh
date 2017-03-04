@@ -64,12 +64,9 @@ while [ $# -gt 0 ]; do
 #            ;;
         --help)
             HELP=1
-            usage
-            exit 0
             ;;
         --show-backup)
-            do_collect_backup_files
-            exit 0
+            SHOW_BACKUP=1
             ;;
         --verbose) output_info "[[ ... using verbose mode ... ]]"
             VERBOSE=1
@@ -92,9 +89,21 @@ if [ "$DEBUGGER" != "" ] && [ "$USER_DEBUGGER" != "" ]; then
     exit 1
 fi
 
+# If '--help' was called show usage() and exit immediately without other
+# helpers can be called.
+if [ "${HELP}" = "1" ]; then
+    usage
+    exit 0
+fi
+
 if [ "${FIXMIME}" = "1" ]; then
     do_fix_mimetypes_rdf
     do_migrate_old_icedove_desktop
+    do_collect_backup_files
+    exit 0
+fi
+
+if [ "${SHOW_BACKUP}" = "1" ]; then
     do_collect_backup_files
     exit 0
 fi
