@@ -42,3 +42,4 @@ porting-mips/libyuv_disable-mips-assembly-for-MIPS64.patch
 fixes/Bug-497488-RSS-feeds-with-an-invalid-certificate-fail-wit.patch
 fixes/Bug-497488-Implement-verify-mode-in-the-subscribe-dialog-.patch
 fixes/Bug-497488-RSS-feeds-with-an-invalid-certificate-fail-wit-1.patch
+porting-hppa/FTBFS-hppa-xpcshell-segfaulting-during-make-install.patch

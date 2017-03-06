@@ -1,0 +1,49 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Sun, 5 Mar 2017 19:02:38 -0500
+Subject: FTBFS hppa: xpcshell segfaulting during 'make install'
+
+Mozilla-Bug: https://bugzilla.mozilla.org/show_bug.cgi?id=1325495
+---
+ mozilla/js/src/jit/AtomicOperations.h                    |  2 ++
+ mozilla/xpcom/reflect/xptcall/md/unix/xptcstubs_pa32.cpp | 10 ++++++++++
+ 2 files changed, 12 insertions(+)
+
+diff --git a/mozilla/js/src/jit/AtomicOperations.h b/mozilla/js/src/jit/AtomicOperations.h
+index 8606a18..7767e60 100644
+--- a/mozilla/js/src/jit/AtomicOperations.h
++++ b/mozilla/js/src/jit/AtomicOperations.h
+@@ -298,6 +298,8 @@ AtomicOperations::isLockfree(int32_t size)
+ # include "jit/arm/AtomicOperations-arm.h"
+ #elif defined(JS_CODEGEN_ARM64)
+ # include "jit/arm64/AtomicOperations-arm64.h"
++#elif defined(__hppa__)
++# include "jit/none/AtomicOperations-ppc.h"
+ #elif defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
+ # include "jit/mips-shared/AtomicOperations-mips-shared.h"
+ #elif defined(__ppc64__) || defined(__PPC64_)       \
+diff --git a/mozilla/xpcom/reflect/xptcall/md/unix/xptcstubs_pa32.cpp b/mozilla/xpcom/reflect/xptcall/md/unix/xptcstubs_pa32.cpp
+index 7353709..e988283 100644
+--- a/mozilla/xpcom/reflect/xptcall/md/unix/xptcstubs_pa32.cpp
++++ b/mozilla/xpcom/reflect/xptcall/md/unix/xptcstubs_pa32.cpp
+@@ -126,11 +126,21 @@ PrepareAndDispatch(nsXPTCStubBase* self, uint32_t methodIndex,
+ 
+ extern "C" nsresult SharedStub(int);
+ 
++#ifdef __GNUC__
+ #define STUB_ENTRY(n)       \
+ nsresult nsXPTCStubBase::Stub##n()  \
+ {                           \
++    /* Save arg0 in its stack slot.  This assumes the frame size is 64. */ \
++    __asm__ __volatile__ ("STW %r26, -36-64(%sp)"); \
+     return SharedStub(n);   \
+ }
++#else
++#define STUB_ENTRY(n)       \
++nsresult nsXPTCStubBase::Stub##n()  \
++{                           \
++    return SharedStub(n);   \
++}
++#endif
+ 
+ #define SENTINEL_ENTRY(n) \
+ nsresult nsXPTCStubBase::Sentinel##n() \
