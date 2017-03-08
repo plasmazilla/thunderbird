@@ -8,14 +8,14 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-de@thunderbird.mozilla.org"
                em:name="Deutsch (DE) Language Pack"
-               em:version="45.7.1"
+               em:version="45.8.0"
                em:type="8"
                em:creator="thunderbird-mail.de">
     <em:contributor>Alexander Ihrig</em:contributor> <em:contributor>Robert Kaiser</em:contributor> <em:contributor>Abdulkadir Topal</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>45.7.1</em:minVersion>
+        <em:minVersion>45.8.0</em:minVersion>
         <em:maxVersion>45.*</em:maxVersion>
       </Description>
     </em:targetApplication>
