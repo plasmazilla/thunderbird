@@ -8,14 +8,14 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-sl@thunderbird.mozilla.org"
                em:name="Slovenski jezik Language Pack"
-               em:version="45.7.1"
+               em:version="45.8.0"
                em:type="8"
                em:creator="mozilla.org">
     <em:contributor>Peter Klofutar</em:contributor> <em:contributor>Vito Smolej</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>45.7.1</em:minVersion>
+        <em:minVersion>45.8.0</em:minVersion>
         <em:maxVersion>45.*</em:maxVersion>
       </Description>
     </em:targetApplication>
