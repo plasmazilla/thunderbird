@@ -156,6 +156,7 @@ override_dh_auto_install:
 		mkdir -p $(CURDIR)/debian/lightning-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/uninstall; \
 		touch $(CURDIR)/debian/lightning-l10n-$${locale}/usr/share/iceowl/extensions/langpack-$${locale}@lightning.debian.org/uninstall/Uninstall; \
 	done
+	dh_bash-completion
 
 override_dh_install-arch:
 	dh_install
