@@ -40,9 +40,9 @@ The following error happened:"
 DOT_THUNDERBIRD_EXISTS="\
 ${DEFAULT_X11_MSG}
 
-An existing profile folder (or symlink) '.thunderbird' was found in
-your Home directory '${HOME}/' while trying to migrate the Icedove
-profile(s) folder!
+An existing profile folder (or symlink) '.thunderbird' and a folder
+(or symlink) '.icedove' was found in your Home directory '${HOME}/'
+while trying to migrate the Icedove profile(s) folder!
 
 This could be an old, currently not used profile folder or you might
 be using a Thunderbird installation from the Mozilla packages.
@@ -61,6 +61,7 @@ given in the file
 
 /usr/share/doc/thunderbird/README.Debian.gz
 "
+
 THUNDERBIRD_PROFILE_LINKING_ERROR="\
 ${DEFAULT_X11_MSG}
 
