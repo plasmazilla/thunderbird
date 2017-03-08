@@ -1782,8 +1782,6 @@ License: BSD-3-clause
 
 Files: mozilla/js/src/jit/ExecutableAllocator.cpp
        mozilla/js/src/jit/ExecutableAllocator.h
-       mozilla/js/src/jit/ExecutableAllocatorPosix.cpp
-       mozilla/js/src/jit/ExecutableAllocatorWin.cpp
 Copyright: 2006-2009, 2012, Apple Inc.
 License: BSD-2-clause
 
