@@ -177,6 +177,8 @@ override_dh_install-arch:
 	@for i in `find debian/lightning/ -name ".mkdir.done*"`; do echo remove $$i && rm $$i; done
 	# remove duplicate .so files in dev package
 	rm debian/thunderbird-dev/usr/lib/thunderbird-devel/sdk/lib/libxul.so
+	# remove hardlink in dev package
+	rm debian/thunderbird-dev/usr/include/thunderbird/mozilla/dom/MediaStreamAudioDestinationNode.h
 	# install apparmor profile
 	cp debian/apparmor/usr.bin.thunderbird debian/thunderbird/etc/apparmor.d/usr.bin.thunderbird
 	dh_apparmor --profile-name=usr.bin.thunderbird -pthunderbird
