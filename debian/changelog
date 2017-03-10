@@ -1,3 +1,21 @@
+icedove (1:45.8.0-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [3388899] New upstream version 45.8.0
+  * [24d25e9] tb-helper*: fix up that silly comments behind the if statement
+    (Closes: #857029, #857032, #857098, #857112)
+  * [788b7fa] bash-completion: adding a completion script for /u/b/thunderbird
+  * [9ac9d07] rebuild patch queue from patch-queue branch
+    added patches:
+    - p-arm64/Bug-1091515-Don-t-set-64KB-page-size-on-aarch64.-r-glandi.patch
+    - p-arm64/Bug-1257055-Use-jit-arm64-Architecture-arm64.h-on-non-JIT.patch
+  * [ad0860b] copyright: small updates reflecting upstream changes
+
+  [ Christoph Goehre ]
+  * [69577cf] lintian: replace hardlink in thunderbird-dev with symbolic link
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 09 Mar 2017 20:24:49 -0500
+
 icedove (1:45.7.1-2) unstable; urgency=medium
 
   [ Christoph Goehre ]
