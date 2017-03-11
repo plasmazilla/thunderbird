@@ -45,3 +45,4 @@ fixes/Bug-497488-RSS-feeds-with-an-invalid-certificate-fail-wit-1.patch
 porting-hppa/FTBFS-hppa-xpcshell-segfaulting-during-make-install.patch
 porting-arm64/Bug-1091515-Don-t-set-64KB-page-size-on-aarch64.-r-glandi.patch
 porting-arm64/Bug-1257055-Use-jit-arm64-Architecture-arm64.h-on-non-JIT.patch
+fixes/Bug-1340724-fix-SMTP-server-name-output-in-SMTP-logging.-.patch
