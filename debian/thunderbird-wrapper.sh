@@ -23,10 +23,12 @@
 TB_HELPER="/usr/lib/thunderbird/thunderbird-wrapper-helper.sh"
 # sourcing external variables and helper functions
 if [ -f "${TB_HELPER}" ]; then
+    # hide the sourcing for http://www.shellcheck.net/
+    # shellcheck source=/dev/null
     . "${TB_HELPER}"
 else
-    # this needs improving, the user isn't seen this error!
-    output_info "helper ${TB_HELPER} not found!"
+    # this needs improving, the user isn't normally seeing this error!
+    echo "helper ${TB_HELPER} not found!"
     exit 1
 fi
 
@@ -45,10 +47,10 @@ export VERBOSE=0
 # set MOZ_APP_LAUNCHER for gnome-session
 export MOZ_APP_LAUNCHER
 
-TB_ARGS=""
-while [ $# -gt 0 ]; do
-    ARG="$1"
-    case ${ARG} in
+TB_ARGS=''
+
+for ARG in "$@"; do
+    case "${ARG}" in
         --fixmime)
             FIXMIME=1
             FORCE_MIMEAPPS_MIGRATE=1
@@ -68,16 +70,31 @@ while [ $# -gt 0 ]; do
         --show-backup)
             SHOW_BACKUP=1
             ;;
-        --verbose) output_info "[[ ... using verbose mode ... ]]"
+        --verbose)
+            output_info "[[ ... using verbose mode ... ]]"
             VERBOSE=1
             ;;
         '?')
             usage >&2
             exit 1
             ;;
-        # every other argument is needed to get down to the TB starting call
-        *) TB_ARGS="${TB_ARGS} ${ARG}"
-        ;;
+        # Every other argument is needed to get down to the TB starting call.
+        # For sanity we check if a argument has spaces, a equal sign or commas
+        # and add then extra apostrophes around the argument. Escaping
+        # characters given by the user are "eaten" previously by the Bash.
+        *)
+            # The argument has special characters, we add some extra
+            # apostrophes around. Triggering the following signs:
+            # space ' '
+            # comma ','
+            # equal sign '='
+            if [[ "${ARG}" =~ ([[:space:]]|[(,|=)]) ]]; then
+                TB_ARGS="${TB_ARGS} \"${ARG}\""
+            else
+                # No special handling needed.
+                TB_ARGS="${TB_ARGS} ${ARG}"
+            fi
+            ;;
     esac
     shift
 done
@@ -96,6 +113,10 @@ if [ "${HELP}" = "1" ]; then
     exit 0
 fi
 
+# The user is forcing to do the MIME fixing (again). If called a used
+# profile(s) folder ~/.thunderbird will be also reworked. That's not the
+# case if the user is starting this wrapper for a first time and only a
+# folder ~/.thunderbird is existing!
 if [ "${FIXMIME}" = "1" ]; then
     do_fix_mimetypes_rdf
     do_migrate_old_icedove_desktop
@@ -219,7 +240,7 @@ elif { [ -d "${ID_PROFILE_FOLDER}" ] || [ -L "${ID_PROFILE_FOLDER}" ]; } && \
 
 fi
 
-if [ "$FAIL" = 1 ]; then
+if [ "${FAIL}" = 1 ]; then
     output_info "An error happened while trying to migrate the old Icedove profile folder '${ID_PROFILE_FOLDER}'."
     output_info "Please take a look into the syslog file!"
     exit 1
@@ -228,16 +249,16 @@ fi
 # If we are here we going simply further by starting Thunderbird.
 
 if [ "${DEBUG}" = "" ]; then
-    output_debug "call '$MOZ_LIBDIR/$MOZ_APP_NAME ${TB_ARGS}'"
-    $MOZ_LIBDIR/$MOZ_APP_NAME "${TB_ARGS}"
+    output_debug "call '${MOZ_LIBDIR}/${MOZ_APP_NAME} ${TB_ARGS}'"
+    eval "${MOZ_LIBDIR}"/"${MOZ_APP_NAME}" "${TB_ARGS}"
 else
     # User has selected GDB?
-    if [ "$DEBUGGER" = "1" ]; then
+    if [ "${DEBUGGER}" = "1" ]; then
         # checking for GDB
         if [ -f /usr/bin/gdb ]; then
             if [ -f /usr/lib/debug/usr/lib/thunderbird/thunderbird ]; then
                 output_info "Starting Thunderbird with GDB ..."
-                LANG='' /usr/lib/thunderbird/run-mozilla.sh -g /usr/lib/thunderbird/thunderbird-bin "${TB_ARGS}"
+                eval LANG='' "${MOZ_LIBDIR}"/run-mozilla.sh -g "${MOZ_LIBDIR}"/"${MOZ_APP_NAME}" "${TB_ARGS}"
             else
                 output_info "No package 'thunderbird-dbg' installed! Please install first and restart."
                 exit 1
