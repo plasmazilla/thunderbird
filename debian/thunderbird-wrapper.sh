@@ -47,7 +47,7 @@ export VERBOSE=0
 # set MOZ_APP_LAUNCHER for gnome-session
 export MOZ_APP_LAUNCHER
 
-TB_ARGS=''
+declare -a TB_ARGS=()
 
 for ARG in "$@"; do
     case "${ARG}" in
@@ -79,21 +79,8 @@ for ARG in "$@"; do
             exit 1
             ;;
         # Every other argument is needed to get down to the TB starting call.
-        # For sanity we check if a argument has spaces, a equal sign or commas
-        # and add then extra apostrophes around the argument. Escaping
-        # characters given by the user are "eaten" previously by the Bash.
         *)
-            # The argument has special characters, we add some extra
-            # apostrophes around. Triggering the following signs:
-            # space ' '
-            # comma ','
-            # equal sign '='
-            if [[ "${ARG}" =~ ([[:space:]]|[(,|=)]) ]]; then
-                TB_ARGS="${TB_ARGS} \"${ARG}\""
-            else
-                # No special handling needed.
-                TB_ARGS="${TB_ARGS} ${ARG}"
-            fi
+            TB_ARGS+=("${ARG}")
             ;;
     esac
     shift
@@ -249,8 +236,9 @@ fi
 # If we are here we going simply further by starting Thunderbird.
 
 if [ "${DEBUG}" = "" ]; then
-    output_debug "call '${MOZ_LIBDIR}/${MOZ_APP_NAME} ${TB_ARGS}'"
-    eval "${MOZ_LIBDIR}"/"${MOZ_APP_NAME}" "${TB_ARGS}"
+    TB_ARGS_LINE=$(echo "${TB_ARGS[@]}" | sed "s/'/\"/g")
+    output_debug "call '${MOZ_LIBDIR}/${MOZ_APP_NAME} ${TB_ARGS_LINE}'"
+    "${MOZ_LIBDIR}"/"${MOZ_APP_NAME}" "${TB_ARGS[@]}"
 else
     # User has selected GDB?
     if [ "${DEBUGGER}" = "1" ]; then
@@ -258,7 +246,7 @@ else
         if [ -f /usr/bin/gdb ]; then
             if [ -f /usr/lib/debug/usr/lib/thunderbird/thunderbird ]; then
                 output_info "Starting Thunderbird with GDB ..."
-                eval LANG='' "${MOZ_LIBDIR}"/run-mozilla.sh -g "${MOZ_LIBDIR}"/"${MOZ_APP_NAME}" "${TB_ARGS}"
+                LANG='' "${MOZ_LIBDIR}"/run-mozilla.sh -g "${MOZ_LIBDIR}"/"${MOZ_APP_NAME}" "${TB_ARGS[@]}"
             else
                 output_info "No package 'thunderbird-dbg' installed! Please install first and restart."
                 exit 1
