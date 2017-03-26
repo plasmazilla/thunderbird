@@ -203,7 +203,7 @@ elif { [ -d "${TB_PROFILE_FOLDER}" ] && [ -L "${ID_PROFILE_FOLDER}" ]; } && \
 # is the correct one to use?
 elif { [ -d "${ID_PROFILE_FOLDER}" ] || [ -L "${ID_PROFILE_FOLDER}" ]; } && \
      { [ -d "${TB_PROFILE_FOLDER}" ] || [ -L "${TB_PROFILE_FOLDER}" ]; } && \
-       [ "$(readlink -e "${TB_PROFILE_FOLDER}")" != "${ID_PROFILE_FOLDER}" ]; then
+       [ "$(readlink -e "${TB_PROFILE_FOLDER}")" != "$(readlink -e "${ID_PROFILE_FOLDER}")" ]; then
 
     for CHECK in ${ID_PROFILE_FOLDER} ${TB_PROFILE_FOLDER}; do
         FILE_CHECK=$(readlink -e "${CHECK}")
