@@ -244,7 +244,7 @@ else
     if [ "${DEBUGGER}" = "1" ]; then
         # checking for GDB
         if [ -f /usr/bin/gdb ]; then
-            if [ -f /usr/lib/debug/usr/lib/thunderbird/thunderbird ]; then
+            if dpkg-query -W -f='${Version}' thunderbird-dbg &>/dev/null ; then
                 output_info "Starting Thunderbird with GDB ..."
                 LANG='' "${MOZ_LIBDIR}"/run-mozilla.sh -g "${MOZ_LIBDIR}"/"${MOZ_APP_NAME}" "${TB_ARGS[@]}"
             else
