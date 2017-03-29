@@ -1,3 +1,17 @@
+icedove (1:45.8.0-3) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [d923505] AppArmor: be more flexible on profile folders
+    (Closes: #858735, #858737)
+  * [1e04099] tb-wrapper: use readlink also on ${ID_PROFILE_FOLDER}
+    (Closes: #858771)
+  * [9f6b771] tb-wrapper: correct check for -dbg package (Closes: #858804)
+  * [8b5271a] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-1273020-Add-missing-null-checks-in-ApplicationAccessi.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 29 Mar 2017 19:28:32 -0400
+
 icedove (1:45.8.0-2) unstable; urgency=medium
 
   [ Carsten Schoenert ]
