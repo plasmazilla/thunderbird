@@ -1,0 +1,243 @@
+From: John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
+Date: Sun, 2 Apr 2017 09:14:39 +0200
+Subject: Add m68k support to Thunderbird
+
+Origin: not yet exist
+Bug-Debian: https://bugs.debian.org/859271
+Bug: https://bugzilla.mozilla.org/show_bug.cgi?id=1325771
+Applied-Upstream: TBD
+
+All patches have been reviewed by positively by upstream with the
+exception of the alignment fixes where upstream wants to use a
+C++11 solution instead of the other suggestions I made. This patch
+currently uses __attribute__((aligned(4))) to ensure the alignment
+is at least 4 bytes. This method is safe and works on gcc and clang
+and unlike the suggested alignas() from C++11 does not break on
+architectures which require stricter alignment (e.g. alignas(4)
+would break on x86_64 while __attribute__((aligned(4))) does not
+as it still allows for 8 bytes alignment.
+
+Cherry-picked and adapted patches from Firefox upstream:
+- a31a2d92cf9a2f4e9ad2d12cb74f96579f54fa5e
+  Bug 1325771 - layout:style: Make sure nsCSSValue has at least 4 bytes alignment
+- b65c6cf80f7038f47c7f5d223a6528d4aa4538cf
+  Bug 1325771 - js:src: Make sure shadow::Shape has at least 4 bytes alignment
+- cbbe025c5034cfa28aa2a8a4e557f9a066ddd013
+  Bug 1325771 - js:src: Make sure Cell has at least 4 bytes alignment
+- 6441fad686d30230a6842a6432bc134ca20c4125
+  Bug 1325771 - js:jit: Use 'Feeling Lucky' atomic operations on m68k
+- ec66da836071ec0f05a3517947c8e1a68620c399
+  Bug 1325771 - mfbt:tests: Handle targets with less strict alignment in TestPair
+- 48f3a6331cad497b933dc6e197f7a006b9189290
+  Bug 1325771 - ipc:chromium: Add platform defines for m68k
+- 26cd64f37741d85bc13c19bc55e3c6e26da59052
+  Bug 1325771 - media:webrtc: Add platform defines for m68k
+- bd19fe85678f948f60caa864a2af28c3c39059c7
+  Bug 1325771 - mfbt:tests: Define RETURN_INSTR for m68k in TestPoisonArea
+- a3e704b48760e3d45d20fc6bb13282d3285ba6bb
+  Bug 1325771 - xpcom: Fix type of result in NS_InvokeByIndex on Linux/m68k
+- 174cfc890291778d12241c9a4cfc25ea85fdd3a0
+  Bug 1325771 - xpcom: Fix syntax error in PrepareAndDispatch on Linux/m68k
+Additional changes:
+- Add defines for m68k to double-conversion library
+- Make sure both "struct Class" and "struct JSClass" have at
+  least 4 bytes alignment
+---
+ mozilla/ipc/chromium/src/build/build_config.h                   | 3 +++
+ mozilla/js/public/Class.h                                       | 4 ++--
+ mozilla/js/src/gc/Heap.h                                        | 2 +-
+ mozilla/js/src/jit/AtomicOperations.h                           | 2 ++
+ mozilla/js/src/jsfriendapi.h                                    | 2 +-
+ mozilla/layout/style/nsCSSValue.h                               | 2 +-
+ mozilla/media/webrtc/trunk/build/build_config.h                 | 5 +++++
+ mozilla/mfbt/double-conversion/utils.h                          | 2 ++
+ mozilla/mfbt/tests/TestPair.cpp                                 | 9 +++++++--
+ mozilla/mfbt/tests/TestPoisonArea.cpp                           | 3 +++
+ mozilla/xpcom/reflect/xptcall/md/unix/xptcinvoke_linux_m68k.cpp | 3 ++-
+ mozilla/xpcom/reflect/xptcall/md/unix/xptcstubs_linux_m68k.cpp  | 2 +-
+ 12 files changed, 30 insertions(+), 9 deletions(-)
+
+diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
+index 7468874..3ce8966 100644
+--- a/mozilla/ipc/chromium/src/build/build_config.h
++++ b/mozilla/ipc/chromium/src/build/build_config.h
+@@ -76,6 +76,9 @@
+ #define ARCH_CPU_ARMEL 1
+ #define ARCH_CPU_32_BITS 1
+ #define WCHAR_T_IS_UNSIGNED 1
++#elif defined(__m68k__)
++#define ARCH_CPU_M68K 1
++#define ARCH_CPU_32_BITS 1
+ #elif defined(__powerpc64__)
+ #define ARCH_CPU_PPC64 1
+ #define ARCH_CPU_64_BITS 1
+diff --git a/mozilla/js/public/Class.h b/mozilla/js/public/Class.h
+index 47180fd..e8381c2 100644
+--- a/mozilla/js/public/Class.h
++++ b/mozilla/js/public/Class.h
+@@ -657,7 +657,7 @@ struct JSClass {
+     JS_CLASS_MEMBERS(JSFinalizeOp);
+ 
+     void*               reserved[23];
+-};
++} __attribute__ ((aligned(4)));
+ 
+ #define JSCLASS_HAS_PRIVATE             (1<<0)  // objects have private slot
+ #define JSCLASS_DELAY_METADATA_CALLBACK (1<<1)  // class's initialization code
+@@ -793,7 +793,7 @@ struct Class
+     }
+ 
+     static size_t offsetOfFlags() { return offsetof(Class, flags); }
+-};
++} __attribute__ ((aligned(4)));
+ 
+ static_assert(offsetof(JSClass, name) == offsetof(Class, name),
+               "Class and JSClass must be consistent");
+diff --git a/mozilla/js/src/gc/Heap.h b/mozilla/js/src/gc/Heap.h
+index 783da19..ac9de39 100644
+--- a/mozilla/js/src/gc/Heap.h
++++ b/mozilla/js/src/gc/Heap.h
+@@ -251,7 +251,7 @@ struct Cell
+   protected:
+     inline uintptr_t address() const;
+     inline Chunk* chunk() const;
+-};
++} __attribute__ ((aligned(4)));
+ 
+ // A GC TenuredCell gets behaviors that are valid for things in the Tenured
+ // heap, such as access to the arena header and mark bits.
+diff --git a/mozilla/js/src/jit/AtomicOperations.h b/mozilla/js/src/jit/AtomicOperations.h
+index 5c20ee8..efb2db7 100644
+--- a/mozilla/js/src/jit/AtomicOperations.h
++++ b/mozilla/js/src/jit/AtomicOperations.h
+@@ -300,6 +300,8 @@ AtomicOperations::isLockfree(int32_t size)
+ # include "jit/arm64/AtomicOperations-arm64.h"
+ #elif defined(__hppa__)
+ # include "jit/none/AtomicOperations-ppc.h"
++#elif defined(__m68k__)
++# include "jit/none/AtomicOperations-ppc.h"
+ #elif defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
+ # include "jit/mips-shared/AtomicOperations-mips-shared.h"
+ #elif defined(__ppc64__) || defined(__PPC64_)       \
+diff --git a/mozilla/js/src/jsfriendapi.h b/mozilla/js/src/jsfriendapi.h
+index 53518d3..73d4481 100644
+--- a/mozilla/js/src/jsfriendapi.h
++++ b/mozilla/js/src/jsfriendapi.h
+@@ -559,7 +559,7 @@ public:
+     uint32_t          slotInfo;
+ 
+     static const uint32_t FIXED_SLOTS_SHIFT = 27;
+-};
++} __attribute__ ((aligned(4)));
+ 
+ /**
+  * This layout is shared by all native objects. For non-native objects, the
+diff --git a/mozilla/layout/style/nsCSSValue.h b/mozilla/layout/style/nsCSSValue.h
+index 1d912fa..0d5b2f2 100644
+--- a/mozilla/layout/style/nsCSSValue.h
++++ b/mozilla/layout/style/nsCSSValue.h
+@@ -784,7 +784,7 @@ protected:
+     nsCSSValueFloatColor* MOZ_OWNING_REF mFloatColor;
+     mozilla::css::FontFamilyListRefCnt* MOZ_OWNING_REF mFontFamilyList;
+   } mValue;
+-};
++} __attribute__ ((aligned(4)));
+ 
+ struct nsCSSValue::Array final {
+ 
+diff --git a/mozilla/media/webrtc/trunk/build/build_config.h b/mozilla/media/webrtc/trunk/build/build_config.h
+index b2ffb41..1cc010d 100644
+--- a/mozilla/media/webrtc/trunk/build/build_config.h
++++ b/mozilla/media/webrtc/trunk/build/build_config.h
+@@ -123,6 +123,11 @@
+ #define ARCH_CPU_MIPSEL 1
+ #define ARCH_CPU_32_BITS 1
+ #define ARCH_CPU_LITTLE_ENDIAN 1
++#elif defined(__m68k__)
++#define ARCH_CPU_M68K_FAMILY 1
++#define ARCH_CPU_M68K 1
++#define ARCH_CPU_32_BITS 1
++#define ARCH_CPU_BIG_ENDIAN 1
+ #elif defined(__powerpc64__)
+ #define ARCH_CPU_PPC_FAMILY 1
+ #define ARCH_CPU_PPC64 1
+diff --git a/mozilla/mfbt/double-conversion/utils.h b/mozilla/mfbt/double-conversion/utils.h
+index 15dd4bf..f14b6b1 100644
+--- a/mozilla/mfbt/double-conversion/utils.h
++++ b/mozilla/mfbt/double-conversion/utils.h
+@@ -62,6 +62,8 @@
+     defined(_MIPS_ARCH_MIPS32R2) || \
+     defined(__AARCH64EL__) || defined(__aarch64__)
+ #define DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS 1
++#elif defined(__mc68000__)
++#undef DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS
+ #elif defined(_M_IX86) || defined(__i386__) || defined(__i386)
+ #if defined(_WIN32)
+ // Windows uses a 64bit wide floating point stack.
+diff --git a/mozilla/mfbt/tests/TestPair.cpp b/mozilla/mfbt/tests/TestPair.cpp
+index f1fa9c5..41b463a 100644
+--- a/mozilla/mfbt/tests/TestPair.cpp
++++ b/mozilla/mfbt/tests/TestPair.cpp
+@@ -29,14 +29,19 @@ using mozilla::Pair;
+   static_assert(sizeof(name##_2) == (size), \
+                 "Pair<" #T2 ", " #T1 "> has an unexpected size");
+ 
++static constexpr size_t sizemax(size_t a, size_t b)
++{
++  return (a > b) ? a : b;
++}
++
+ INSTANTIATE(int, int, prim1, 2 * sizeof(int));
+-INSTANTIATE(int, long, prim2, 2 * sizeof(long));
++INSTANTIATE(int, long, prim2, sizeof(long) + sizemax(sizeof(int), alignof(long)));
+ 
+ struct EmptyClass { explicit EmptyClass(int) {} };
+ struct NonEmpty { char mC; explicit NonEmpty(int) {} };
+ 
+ INSTANTIATE(int, EmptyClass, both1, sizeof(int));
+-INSTANTIATE(int, NonEmpty, both2, 2 * sizeof(int));
++INSTANTIATE(int, NonEmpty, both2, sizeof(int) + alignof(int));
+ INSTANTIATE(EmptyClass, NonEmpty, both3, 1);
+ 
+ struct A { char dummy; explicit A(int) {} };
+diff --git a/mozilla/mfbt/tests/TestPoisonArea.cpp b/mozilla/mfbt/tests/TestPoisonArea.cpp
+index 43a2f51..b572374 100644
+--- a/mozilla/mfbt/tests/TestPoisonArea.cpp
++++ b/mozilla/mfbt/tests/TestPoisonArea.cpp
+@@ -133,6 +133,9 @@
+ #elif defined _ARCH_PPC || defined _ARCH_PWR || defined _ARCH_PWR2
+ #define RETURN_INSTR 0x4E800020 /* blr */
+ 
++#elif defined __m68k__
++#define RETURN_INSTR 0x4E754E75 /* rts; rts */
++
+ #elif defined __sparc || defined __sparcv9
+ #define RETURN_INSTR 0x81c3e008 /* retl */
+ 
+diff --git a/mozilla/xpcom/reflect/xptcall/md/unix/xptcinvoke_linux_m68k.cpp b/mozilla/xpcom/reflect/xptcall/md/unix/xptcinvoke_linux_m68k.cpp
+index 6f2934c..a64fd62 100644
+--- a/mozilla/xpcom/reflect/xptcall/md/unix/xptcinvoke_linux_m68k.cpp
++++ b/mozilla/xpcom/reflect/xptcall/md/unix/xptcinvoke_linux_m68k.cpp
+@@ -100,7 +100,8 @@ EXPORT_XPCOM_API(nsresult)
+ NS_InvokeByIndex(nsISupports* that, uint32_t methodIndex,
+                    uint32_t paramCount, nsXPTCVariant* params)
+ {
+-    uint32_t result, n;
++    nsresult result;
++    uint32_t n;
+ 
+     n = invoke_count_words(paramCount, params) * 4;
+ 
+diff --git a/mozilla/xpcom/reflect/xptcall/md/unix/xptcstubs_linux_m68k.cpp b/mozilla/xpcom/reflect/xptcall/md/unix/xptcstubs_linux_m68k.cpp
+index 3720a5c..fc33ba0 100644
+--- a/mozilla/xpcom/reflect/xptcall/md/unix/xptcstubs_linux_m68k.cpp
++++ b/mozilla/xpcom/reflect/xptcall/md/unix/xptcstubs_linux_m68k.cpp
+@@ -63,7 +63,7 @@ extern "C" {
+             case nsXPTType::T_U64    : dp->val.u64 = *((uint64_t*)ap); ap++; break;
+             case nsXPTType::T_FLOAT  : dp->val.f   = *((float*)   ap);       break;
+             case nsXPTType::T_DOUBLE : dp->val.d   = *((double*)  ap); ap++; break;
+-            case nsXPTType::T_BOOL   : dp->val.b   = *((uint32_t* ap);       break;
++            case nsXPTType::T_BOOL   : dp->val.b   = *((uint32_t*)ap);       break;
+             case nsXPTType::T_CHAR   : dp->val.c   = *(((char*)   ap) + 3);  break;
+             case nsXPTType::T_WCHAR  : dp->val.wc  = *((wchar_t*) ap);       break;
+             default:

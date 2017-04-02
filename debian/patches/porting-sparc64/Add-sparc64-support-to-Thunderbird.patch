@@ -1,0 +1,355 @@
+From: John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
+Date: Sun, 2 Apr 2017 09:00:32 +0200
+Subject: Add sparc64 support to Thunderbird
+
+Origin: https://hg.mozilla.org/mozilla-central/rev/c2b253c9b16d
+        https://hg.mozilla.org/mozilla-central/rev/079ab3960351
+        https://hg.mozilla.org/mozilla-central/rev/f9307a83e555
+        https://hg.mozilla.org/mozilla-central/rev/0cb0fe7e92f6
+        https://hg.mozilla.org/mozilla-central/rev/71d3800a2ef3
+        https://hg.mozilla.org/mozilla-central/rev/ed065d780ed3
+        https://hg.mozilla.org/mozilla-central/rev/c320f09ac65a
+        https://hg.mozilla.org/mozilla-central/rev/21d692e82582
+Bug-Debian: https://bugs.debian.org/859151
+Bug: https://bugzilla.mozilla.org/show_bug.cgi?id=1275204
+Applied-Upstream: Mozilla 53.0
+
+This is a squashed commit of the following patches cherry-picked
+from Firefox upstream to add sparc64 support:
+- a73e3b7ea901f648ae7e1c4b41d77c45786bff0b
+  Bug 1275204 - protobuf: Sync sparc64 pre-processor defines from upstream. r=fitzgen
+- 9fd9034ad9de26cc0cb0c70f9307d501823a79d9
+  Bug 1275204 - media:webrtc: Use better pre-processor defines for sparc64. r=jesup
+- 4b76f574940ae88731c1b8774399c2dfaf89618b
+  Bug 1275204 - mozjemalloc: Use the JS arm64 allocator on Linux/sparc64. r=glandium
+- dbf939ff1dadd1c6672b9870034bdb04aaa63b30
+  Bug 1275204 - mozjemalloc: Use better pre-processor defines for sparc64. r=glandium
+- 87f559a4d89164c402d0f22b1ff7b8a686ececfd
+  Bug 1275204 - js: Use the arm64 allocator on Linux/sparc64. r=ehoogeveen
+- ef8c81a9852551bb4428850687b41f7fb6137a45
+  Bug 1275204 - js: Use better pre-processor defines for sparc64. r=glandium
+- 120b9c868b2155c29eb5d18603a04f21620328af
+  Bug 1275204 - ipc:chromium: Use better pre-processor defines for sparc64. r=froydnj
+- fde7f4bca8db23193ba04459aef21875f4602aa9
+  Bug 1275204 - Use OpenBSD/sparc64 xptcall stubs on Linux/sparc64. r=froydnj
+---
+ mozilla/ipc/chromium/src/build/build_config.h      |  2 +-
+ mozilla/js/src/gc/Memory.cpp                       | 41 +++++++++++++++++++--
+ mozilla/js/src/jsapi-tests/testGCAllocator.cpp     | 42 +++++++++++++++++-----
+ mozilla/media/webrtc/trunk/build/build_config.h    |  2 +-
+ mozilla/media/webrtc/trunk/webrtc/typedefs.h       |  2 +-
+ .../jemalloc/src/include/jemalloc/internal/mb.h    |  2 +-
+ mozilla/memory/mozjemalloc/jemalloc.c              | 33 +++++++++++++----
+ .../src/google/protobuf/stubs/platform_macros.h    |  2 +-
+ mozilla/widget/gonk/libui/sha1.c                   |  2 +-
+ mozilla/xpcom/reflect/xptcall/md/unix/moz.build    |  4 +--
+ 10 files changed, 106 insertions(+), 26 deletions(-)
+
+diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
+index a1c135c..7468874 100644
+--- a/mozilla/ipc/chromium/src/build/build_config.h
++++ b/mozilla/ipc/chromium/src/build/build_config.h
+@@ -82,7 +82,7 @@
+ #elif defined(__ppc__) || defined(__powerpc__)
+ #define ARCH_CPU_PPC 1
+ #define ARCH_CPU_32_BITS 1
+-#elif defined(__sparc64__)
++#elif defined(__sparc__) && defined(__arch64__)
+ #define ARCH_CPU_SPARC 1
+ #define ARCH_CPU_64_BITS 1
+ #elif defined(__sparc__)
+diff --git a/mozilla/js/src/gc/Memory.cpp b/mozilla/js/src/gc/Memory.cpp
+index 4984d07..dee80e3 100644
+--- a/mozilla/js/src/gc/Memory.cpp
++++ b/mozilla/js/src/gc/Memory.cpp
+@@ -438,8 +438,8 @@ static inline void*
+ MapMemoryAt(void* desired, size_t length, int prot = PROT_READ | PROT_WRITE,
+             int flags = MAP_PRIVATE | MAP_ANON, int fd = -1, off_t offset = 0)
+ {
+-#if defined(__ia64__) || (defined(__sparc64__) && defined(__NetBSD__))
+-    MOZ_ASSERT(0xffff800000000000ULL & (uintptr_t(desired) + length - 1) == 0);
++#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__) && (defined(__NetBSD__) || defined(__linux__)))
++    MOZ_ASSERT((0xffff800000000000ULL & (uintptr_t(desired) + length - 1)) == 0);
+ #endif
+     void* region = mmap(desired, length, prot, flags, fd, offset);
+     if (region == MAP_FAILED)
+@@ -461,7 +461,7 @@ static inline void*
+ MapMemory(size_t length, int prot = PROT_READ | PROT_WRITE,
+           int flags = MAP_PRIVATE | MAP_ANON, int fd = -1, off_t offset = 0)
+ {
+-#if defined(__ia64__) || (defined(__sparc64__) && defined(__NetBSD__))
++#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__) && defined(__NetBSD__))
+     /*
+      * The JS engine assumes that all allocated pointers have their high 17 bits clear,
+      * which ia64's mmap doesn't support directly. However, we can emulate it by passing
+@@ -488,6 +488,41 @@ MapMemory(size_t length, int prot = PROT_READ | PROT_WRITE,
+         return nullptr;
+     }
+     return region;
++#elif defined(__sparc__) && defined(__arch64__) && defined(__linux__)
++   /*
++    * There might be similar virtual address issue on arm64 which depends on
++    * hardware and kernel configurations. But the work around is slightly
++    * different due to the different mmap behavior.
++    *
++    * TODO: Merge with the above code block if this implementation works for
++    * ia64 and sparc64.
++    */
++    const uintptr_t start = UINT64_C(0x0000070000000000);
++    const uintptr_t end   = UINT64_C(0x0000800000000000);
++    const uintptr_t step  = ChunkSize;
++   /*
++    * Optimization options if there are too many retries in practice:
++    * 1. Examine /proc/self/maps to find an available address. This file is
++    *    not always available, however. In addition, even if we examine
++    *    /proc/self/maps, we may still need to retry several times due to
++    *    racing with other threads.
++    * 2. Use a global/static variable with lock to track the addresses we have
++    *    allocated or tried.
++    */
++    uintptr_t hint;
++    void* region = MAP_FAILED;
++    for (hint = start; region == MAP_FAILED && hint + length <= end; hint += step) {
++        region = mmap((void*)hint, length, prot, flags, fd, offset);
++        if (region != MAP_FAILED) {
++            if ((uintptr_t(region) + (length - 1)) & 0xffff800000000000) {
++                if (munmap(region, length)) {
++                    MOZ_ASSERT(errno == ENOMEM);
++                }
++                region = MAP_FAILED;
++            }
++        }
++    }
++    return region == MAP_FAILED ? nullptr : region;
+ #else
+     void* region = MozTaggedAnonymousMmap(nullptr, length, prot, flags, fd, offset, "js-gc-heap");
+     if (region == MAP_FAILED)
+diff --git a/mozilla/js/src/jsapi-tests/testGCAllocator.cpp b/mozilla/js/src/jsapi-tests/testGCAllocator.cpp
+index f9c8058..996f9f2 100644
+--- a/mozilla/js/src/jsapi-tests/testGCAllocator.cpp
++++ b/mozilla/js/src/jsapi-tests/testGCAllocator.cpp
+@@ -312,7 +312,7 @@ void unmapPages(void* p, size_t size) { }
+ void*
+ mapMemoryAt(void* desired, size_t length)
+ {
+-#if defined(__ia64__) || (defined(__sparc64__) && defined(__NetBSD__))
++#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__) && (defined(__NetBSD__) || defined(__linux__)))
+     MOZ_RELEASE_ASSERT(0xffff800000000000ULL & (uintptr_t(desired) + length - 1) == 0);
+ #endif
+     void* region = mmap(desired, length, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+@@ -329,21 +329,45 @@ mapMemoryAt(void* desired, size_t length)
+ void*
+ mapMemory(size_t length)
+ {
+-    void* hint = nullptr;
+-#if defined(__ia64__) || (defined(__sparc64__) && defined(__NetBSD__))
+-    hint = (void*)0x0000070000000000ULL;
+-#endif
+-    void* region = mmap(hint, length, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
++    int prot = PROT_READ | PROT_WRITE;
++    int flags = MAP_PRIVATE | MAP_ANON;
++    int fd = -1;
++    off_t offset = 0;
++    // The test code must be aligned with the implementation in gc/Memory.cpp.
++#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__) && defined(__NetBSD__))
++    void* region = mmap((void*)0x0000070000000000, length, prot, flags, fd, offset);
+     if (region == MAP_FAILED)
+         return nullptr;
+-#if defined(__ia64__) || (defined(__sparc64__) && defined(__NetBSD__))
+-    if ((uintptr_t(region) + (length - 1)) & 0xffff800000000000ULL) {
++    if ((uintptr_t(region) + (length - 1)) & 0xffff800000000000) {
+         if (munmap(region, length))
+             MOZ_RELEASE_ASSERT(errno == ENOMEM);
+         return nullptr;
+     }
+-#endif
+     return region;
++#elif defined(__sparc__) && defined(__arch64__) && defined(__linux__)
++    const uintptr_t start = UINT64_C(0x0000070000000000);
++    const uintptr_t end   = UINT64_C(0x0000800000000000);
++    const uintptr_t step  = js::gc::ChunkSize;
++    uintptr_t hint;
++    void* region = MAP_FAILED;
++    for (hint = start; region == MAP_FAILED && hint + length <= end; hint += step) {
++        region = mmap((void*)hint, length, prot, flags, fd, offset);
++        if (region != MAP_FAILED) {
++            if ((uintptr_t(region) + (length - 1)) & 0xffff800000000000) {
++                if (munmap(region, length)) {
++                    MOZ_RELEASE_ASSERT(errno == ENOMEM);
++                }
++                region = MAP_FAILED;
++            }
++        }
++    }
++    return region == MAP_FAILED ? nullptr : region;
++#else
++    void* region = mmap(nullptr, length, prot, flags, fd, offset);
++    if (region == MAP_FAILED)
++        return nullptr;
++    return region;
++#endif
+ }
+ 
+ void
+diff --git a/mozilla/media/webrtc/trunk/build/build_config.h b/mozilla/media/webrtc/trunk/build/build_config.h
+index dcb3d47..b2ffb41 100644
+--- a/mozilla/media/webrtc/trunk/build/build_config.h
++++ b/mozilla/media/webrtc/trunk/build/build_config.h
+@@ -133,7 +133,7 @@
+ #define ARCH_CPU_PPC 1
+ #define ARCH_CPU_32_BITS 1
+ #define ARCH_CPU_BIG_ENDIAN 1
+-#elif defined(__sparc64__)
++#elif defined(__sparc__) && defined(__arch64__)
+ #define ARCH_CPU_SPARC_FAMILY 1
+ #define ARCH_CPU_SPARC 1
+ #define ARCH_CPU_64_BITS 1
+diff --git a/mozilla/media/webrtc/trunk/webrtc/typedefs.h b/mozilla/media/webrtc/trunk/webrtc/typedefs.h
+index 99ea82a..fa669b8 100644
+--- a/mozilla/media/webrtc/trunk/webrtc/typedefs.h
++++ b/mozilla/media/webrtc/trunk/webrtc/typedefs.h
+@@ -61,7 +61,7 @@
+ #define WEBRTC_ARCH_BIG_ENDIAN
+ #define WEBRTC_BIG_ENDIAN
+ #endif
+-#elif defined(__sparc64__)
++#elif defined(__sparc__) && defined(__arch64__)
+ #define WEBRTC_ARCH_SPARC 1
+ #define WEBRTC_ARCH_64_BITS 1
+ #define WEBRTC_ARCH_BIG_ENDIAN
+diff --git a/mozilla/memory/jemalloc/src/include/jemalloc/internal/mb.h b/mozilla/memory/jemalloc/src/include/jemalloc/internal/mb.h
+index 3cfa787..1d78d28 100644
+--- a/mozilla/memory/jemalloc/src/include/jemalloc/internal/mb.h
++++ b/mozilla/memory/jemalloc/src/include/jemalloc/internal/mb.h
+@@ -76,7 +76,7 @@ mb_write(void)
+ 	    : "memory" /* Clobbers. */
+ 	    );
+ }
+-#elif defined(__sparc64__)
++#elif defined(__sparc__) && defined(__arch64__)
+ JEMALLOC_INLINE void
+ mb_write(void)
+ {
+diff --git a/mozilla/memory/mozjemalloc/jemalloc.c b/mozilla/memory/mozjemalloc/jemalloc.c
+index cd101dd..7fd8bdd 100644
+--- a/mozilla/memory/mozjemalloc/jemalloc.c
++++ b/mozilla/memory/mozjemalloc/jemalloc.c
+@@ -485,7 +485,7 @@ static const bool isthreaded = true;
+ #  define SIZEOF_PTR_2POW	3
+ #  define NO_TLS
+ #endif
+-#ifdef __sparc64__
++#if defined(__sparc__) && defined(__arch64__)
+ #  define QUANTUM_2POW_MIN	4
+ #  define SIZEOF_PTR_2POW	3
+ #  define NO_TLS
+@@ -2410,7 +2410,7 @@ static void *
+ pages_map(void *addr, size_t size)
+ {
+ 	void *ret;
+-#if defined(__ia64__)
++#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__))
+         /*
+          * The JS engine assumes that all allocated pointers have their high 17 bits clear,
+          * which ia64's mmap doesn't support directly. However, we can emulate it by passing
+@@ -2430,7 +2430,28 @@ pages_map(void *addr, size_t size)
+ 		check_placement = false;
+ 	}
+ #endif
+-
++#if defined(__sparc__) && defined(__arch64__)
++	const uintptr_t start = UINT64_C(0x0000070000000000);
++	const uintptr_t end   = UINT64_C(0x0000800000000000);
++	const uintptr_t step  = 8 << 20; /* This is supposed to be ChunkSize */
++
++	/* Copied from js/src/Memory.cpp and adapted for this source */
++
++	uintptr_t hint;
++	void* region = MAP_FAILED;
++	for (hint = start; region == MAP_FAILED && hint + size <= end; hint += step) {
++		region = mmap((void*)hint, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
++		if (region != MAP_FAILED) {
++			if (((size_t) region + (size - 1)) & 0xffff800000000000) {
++				if (munmap(region, size)) {
++					MOZ_ASSERT(errno == ENOMEM);
++				}
++				region = MAP_FAILED;
++			}
++		}
++	}
++	ret = region;
++#else
+ 	/*
+ 	 * We don't use MAP_FIXED here, because it can cause the *replacement*
+ 	 * of existing mappings, and we only want to create new mappings.
+@@ -2438,11 +2459,11 @@ pages_map(void *addr, size_t size)
+ 	ret = mmap(addr, size, PROT_READ | PROT_WRITE,
+ 		MAP_PRIVATE | MAP_ANON, -1, 0);
+ 	assert(ret != NULL);
+-
++#endif
+ 	if (ret == MAP_FAILED) {
+ 		ret = NULL;
+ 	}
+-#if defined(__ia64__)
++#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__))
+         /* 
+          * If the allocated memory doesn't have its upper 17 bits clear, consider it 
+          * as out of memory.
+@@ -2475,7 +2496,7 @@ pages_map(void *addr, size_t size)
+ 		MozTagAnonymousMemory(ret, size, "jemalloc");
+ 	}
+ 
+-#if defined(__ia64__)
++#if defined(__ia64__) || (defined(__sparc__) && defined(__arch64__))
+ 	assert(ret == NULL || (!check_placement && ret != NULL)
+ 	    || (check_placement && ret == addr));
+ #else
+diff --git a/mozilla/toolkit/components/protobuf/src/google/protobuf/stubs/platform_macros.h b/mozilla/toolkit/components/protobuf/src/google/protobuf/stubs/platform_macros.h
+index 7956d07..1bd67d4 100644
+--- a/mozilla/toolkit/components/protobuf/src/google/protobuf/stubs/platform_macros.h
++++ b/mozilla/toolkit/components/protobuf/src/google/protobuf/stubs/platform_macros.h
+@@ -67,7 +67,7 @@
+ #define GOOGLE_PROTOBUF_ARCH_32_BIT 1
+ #elif defined(sparc)
+ #define GOOGLE_PROTOBUF_ARCH_SPARC 1
+-#ifdef SOLARIS_64BIT_ENABLED
++#if defined(__sparc_v9__) || defined(__sparcv9) || defined(__arch64__)
+ #define GOOGLE_PROTOBUF_ARCH_64_BIT 1
+ #else
+ #define GOOGLE_PROTOBUF_ARCH_32_BIT 1
+diff --git a/mozilla/widget/gonk/libui/sha1.c b/mozilla/widget/gonk/libui/sha1.c
+index 40a4eca..a79af12 100644
+--- a/mozilla/widget/gonk/libui/sha1.c
++++ b/mozilla/widget/gonk/libui/sha1.c
+@@ -87,7 +87,7 @@ typedef union {
+ 
+ /* old sparc64 gcc could not compile this */
+ #undef SPARC64_GCC_WORKAROUND
+-#if defined(__sparc64__) && defined(__GNUC__) && __GNUC__ < 3
++#if defined(__sparc__) && defined(__arch64__) && defined(__GNUC__) && __GNUC__ < 3
+ #define SPARC64_GCC_WORKAROUND
+ #endif
+ 
+diff --git a/mozilla/xpcom/reflect/xptcall/md/unix/moz.build b/mozilla/xpcom/reflect/xptcall/md/unix/moz.build
+index 9d889e9..8a4d2c4 100644
+--- a/mozilla/xpcom/reflect/xptcall/md/unix/moz.build
++++ b/mozilla/xpcom/reflect/xptcall/md/unix/moz.build
+@@ -232,7 +232,7 @@ if CONFIG['OS_ARCH'] == 'OpenBSD' and CONFIG['OS_TEST'] == 'powerpc':
+         'xptcstubs_ppc_openbsd.cpp',
+     ]
+ 
+-if CONFIG['OS_ARCH'] == 'Linux' and 'sparc' in CONFIG['OS_TEST']:
++if CONFIG['OS_ARCH'] == 'Linux' and CONFIG['OS_TEST'] == 'sparc':
+     SOURCES += [
+         'xptcinvoke_asm_sparc_linux_GCC3.s',
+         'xptcinvoke_sparc_solaris.cpp',
+@@ -256,7 +256,7 @@ if CONFIG['OS_ARCH'] == 'OpenBSD' and CONFIG['OS_TEST'] == 'sparc':
+         'xptcstubs_sparc_openbsd.cpp',
+     ]
+ 
+-if CONFIG['OS_ARCH'] in ('OpenBSD', 'FreeBSD') and CONFIG['OS_TEST'] == 'sparc64':
++if CONFIG['OS_ARCH'] in ('OpenBSD', 'FreeBSD', 'Linux') and CONFIG['OS_TEST'] == 'sparc64':
+     SOURCES += [
+         'xptcinvoke_asm_sparc64_openbsd.s',
+         'xptcinvoke_sparc64_openbsd.cpp',
