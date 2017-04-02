@@ -1,0 +1,37 @@
+From: Makoto Kato <m_kato@ga2.so-net.ne.jp>
+Date: Thu, 17 Mar 2016 15:26:09 +0900
+Subject: Bug 1257055 - Use jit/arm64/Architecture-arm64.h on non-JIT aarch64.
+ r=lth
+
+MozReview-Commit-ID: EmzEDleNc7E
+---
+ mozilla/js/src/jit/AtomicOperations.h             | 2 +-
+ mozilla/js/src/jit/arm64/AtomicOperations-arm64.h | 2 --
+ 2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/mozilla/js/src/jit/AtomicOperations.h b/mozilla/js/src/jit/AtomicOperations.h
+index 7767e60..5c20ee8 100644
+--- a/mozilla/js/src/jit/AtomicOperations.h
++++ b/mozilla/js/src/jit/AtomicOperations.h
+@@ -296,7 +296,7 @@ AtomicOperations::isLockfree(int32_t size)
+ 
+ #if defined(JS_CODEGEN_ARM)
+ # include "jit/arm/AtomicOperations-arm.h"
+-#elif defined(JS_CODEGEN_ARM64)
++#elif defined(JS_CODEGEN_ARM64) || defined(__aarch64__)
+ # include "jit/arm64/AtomicOperations-arm64.h"
+ #elif defined(__hppa__)
+ # include "jit/none/AtomicOperations-ppc.h"
+diff --git a/mozilla/js/src/jit/arm64/AtomicOperations-arm64.h b/mozilla/js/src/jit/arm64/AtomicOperations-arm64.h
+index 0fb8ac6..b213b02 100644
+--- a/mozilla/js/src/jit/arm64/AtomicOperations-arm64.h
++++ b/mozilla/js/src/jit/arm64/AtomicOperations-arm64.h
+@@ -12,8 +12,6 @@
+ #include "mozilla/Assertions.h"
+ #include "mozilla/Types.h"
+ 
+-#include "jit/arm64/Architecture-arm64.h"
+-
+ inline bool
+ js::jit::AtomicOperations::isLockfree8()
+ {

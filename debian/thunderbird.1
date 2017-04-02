@@ -1,0 +1,205 @@
+.TH "THUNDERBIRD" "1" "February 27, 2010" "Christoph Göhre" "Linux User's Manual"
+.SH "NAME"
+thunderbird \- Mail User Agent (MUA) and newsgroup/RSS client for X11 derived from the Mozilla Thunderbird.
+.SH "SYNOPSIS"
+.B /usr/lib/thunderbird/thunderbird
+[\fIOPTIONS\fR] [\fIURL\fR]
+
+.B /usr/lib/thunderbird/thunderbird\-bin
+[\fIOPTIONS\fR] [\fIURL\fR]
+
+.SH "DESCRIPTION"
+\fBThunderbird\fR provides IMAP/POP support, a built-in RSS reader, support for
+HTML mail, powerful quick search, saved search folders, advanced message
+filtering, junk mail controls, message grouping, labels, return receipts, smart
+address book, LDAP address completion, import tools and the ability to manage
+multiple identities in email and newsgroup accounts.
+.PP
+\fBThunderbird\fR provides enterprise and government grade security such as S/MIME,
+digital signing, message encryption, and support for certificates and security
+devices.
+
+.SH "USAGE"
+\fBthunderbird\fR is a executable file that will set up the
+environment for the starting executable, \fBthunderbird\-bin\fR.
+If there is an Thunderbird mail client already running, \fBthunderbird\fR will
+arrange for it to create a new mail client window; otherwise it will start
+the Thunderbird application.
+
+.SH "OPTIONS"
+A summary of the options supported by \fBthunderbird\fR is included below.
+
+.SS "X11 options"
+.TP
+.BI \-\-display= DISPLAY
+X display to use
+.TP
+.B \-\-sync
+Make X calls synchronous
+.TP
+.B \-\-g\-fatal\-warnings
+Make all warnings fatal
+
+.SS "Mozilla options"
+.TP
+.B \-h, \-help
+Show summary of options.
+.TP
+.B \-v, \-version
+Print the Thunderbird version.
+.TP
+\fB\-P\fR [\fIprofile\fR]
+Start with \fIprofile\fR. When no profile is given, displays the Profile Manager. May require \fB\-no\-remote\fR, see below.
+.TP
+.B \-\-profile [\fIpath\fR]
+Start with with [\fIprofile\fR] from the given [\fIpath\fR].
+.TP
+.B \-\-migration
+Start with migration wizard. May require \fB\-no\-remote\fR, see below.
+.TP
+.B \-\-ProfileManager
+Start with profile manager. May require \fB\-no\-remote\fR, see below.
+.TP
+.B \-\-no\-remote
+Don't connect to a running Thunderbird instance. Don't accept or send remote
+commands. This option can be necessary in conjunction to several of the options
+above, that won't have any effect when an Thunderbird instance is running unless
+\fB\-no\-remote\fR is used at the same time.
+.TP
+.B \-\-new\-instance
+Open a new instance instead of a new windows in the running instance.
+.TP
+\fB\-\-UILocale\fR \fIlocale\fR
+Start with \fIlocale\fR resources as User Interface locale. By default, it is
+guessed from environment and available locales for Thunderbird.
+.TP
+.B \-\-safe\-mode
+Starts Thunderbird in safe mode, i.e. disabling all extensions and
+showing a bit more debugging messages.
+.TP
+.B \-\-jsconsole
+Start with Javascript Console
+.TP
+.B \-addressbook
+Open the address book at startup.
+.TP
+.B \-compose
+Compose a mail or news message.
+.TP
+.B \-mail
+Open the mail folder view.
+.TP
+\fB\-mail\fR \fIURL\fR
+Open the message specified by this \fIURL\fR.
+.TP
+.B \-news
+Open the news client.
+.TP
+.B \-setDefaultMail
+Set Thunderbird as the default mail client.
+.TP
+.B \-options
+Open the options dialog.
+.TP
+.B \-file
+Open the specified email file.
+
+.SH "DEBUGGING"
+To debug Thunderbird, you need to run \fBrun-mozilla.sh\fR with the absolute path of thunderbird.
+.PP
+/usr/lib/thunderbird/run-mozilla.sh [\fIDEBUGOPTIONS\fR] /usr/lib/thunderbird/thunderbird-bin
+
+.SH "DEBUGOPTIONS"
+A summary of the options for debugging \fBthunderbird\fR is included below.
+.PP
+
+.TP
+.B \-g, \-debug
+Starts Thunderbird through a debugger (gdb by default).
+.TP
+\fB\-\-debugger\fR \fIprogram\fR
+Use \fIprogram\fR (instead the default) as a debugger for Thunderbird. Implies \fB\-debug\fR.
+
+.SH "ENVIRONMENT"
+\fIMOZILLA_DISABLE_PLUGINS\fR \- when set, totally disables loading plugins.
+
+.SH "FILES"
+\fI/usr/bin/thunderbird\fR \- shell script wrapping
+\fBthunderbird\-bin\fR
+.br
+
+\fI/usr/lib/thunderbird/thunderbird\-bin\fR \- \fBthunderbird\fR
+executable
+.br
+
+.SH "EXAMPLES"
+.SS "Some typical use case for starting Thunderbird from a console"
+.sp
+Starting Thunderbird without any extra options, useful to any messages from thunderbird in case something went not o.k.:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+thunderbird
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Starting Thunderbird without any extensions or themes, useful if extensions may make some trouble:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+thunderbird \-\-safe-mode
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Starting Thunderbird with a composing window:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+thunderbird \-compose
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Starting Thunderbird with the default debugger:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+/usr/lib/thunderbird/run-mozilla.sh \-debug /usr/lib/thunderbird/thunderbird-bin
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Starting Thunderbird with the specific debugger:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+/usr/lib/thunderbird/run-mozilla.sh \-\-debugger /foo/bar/debugger /usr/lib/thunderbird/thunderbird-bin
+.fi
+.if n \{\
+.RE
+.\}
+
+.SH "BUGS"
+To report a bug, please visit \fIhttp://bugzilla.mozilla.org/\fR and/or report bugs
+to the Debian Bug Tracking System, as usual.
+
+.SH "AUTHORS"
+.TP
+.B The Mozilla Organization
+.I http://www.mozilla.org/about.html

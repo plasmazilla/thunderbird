@@ -1,4 +1,21 @@
-icedove (31.3.0-1) unstable; urgency=low
+icedove (1:45.6.0-1) experimental; urgency=medium
+
+  The Icedove packages are de-branded back to the official Mozilla branding.
+  With the removing of the Debian branding the packages are also renamed
+  back to the official names used by Mozilla.
+
+  The Thunderbird package is using a different default profile folder, the
+  default profile folder is now '$(HOME)/.thunderbird'.
+  The users profile folder, that was used in Icedove, will get migrated to the
+  new profile folder on the first start, that can take a little bit more time.
+
+  Please read README.Debian for getting more information about the changes, and
+  possible needed trouble solving.
+  Note also #816679 containing some legal facts.
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 4 Sep 2016 18:50:00 +0200
+
+icedove (34.0~b1-1) experimental; urgency=low
 
   Due to the  BEAST vulnerability Icedove does not support SSLv3 encrypted
   connections by default any longer.
@@ -13,7 +30,7 @@ icedove (31.3.0-1) unstable; urgency=low
 
  -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 12 Nov 2014 19:38:00 +0100
 
-icedove (31.2.0-1) unstable; urgency=low
+icedove (33.0~b1-1) experimental; urgency=low
 
   Mozilla implemented TLS 1.2 in NSS version 3.15.1 and Thunderbird 31.0 uses
   this as the default. Thunderbird/Icedove is fall back to older TLS versions

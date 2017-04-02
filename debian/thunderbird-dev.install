@@ -1,0 +1,6 @@
+debian/thunderbird.pc                                 usr/lib/pkgconfig/
+debian/tmp/usr/include/thunderbird/*                  usr/include/thunderbird/
+debian/tmp/usr/lib/thunderbird-devel                  usr/lib/
+debian/tmp/usr/share/idl/thunderbird/*                usr/share/idl/thunderbird/
+mozilla/config/MozZipFile.py                          usr/lib/thunderbird-devel/config/
+mozilla/python/mozbuild/mozbuild/action/buildlist.py  usr/lib/thunderbird-devel/config/

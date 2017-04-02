@@ -1,6 +1,6 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: Thunderbird
-Source: http://ftp.mozilla.org/pub/mozilla.org/thunderbird/
+Source: https://ftp.mozilla.org/pub/mozilla.org/thunderbird/
 Disclaimer: The original upstream tarball is modified from upstream by
  removing a set of sourceless binary, non-free, and VCS-related files. You
  can find a repack.py script in the debian directory doing this cleanup,
@@ -13,31 +13,35 @@ Disclaimer: The original upstream tarball is modified from upstream by
  build the binary packages.
 
 Files: *
-Copyright: 1998-2015, Mozilla Project
+Copyright: 1998-2016, Mozilla Project
 License: MPL-2.0 or GPL-2 or LGPL-2.1
 
 Files: debian/*
 Copyright: 2003-2009, Alexander Sack <asac@debian.org>
            2008, Fabien Tassin <fta@sofaraway.org>
-           2013-2015, Carsten Schoenert <c.schoenert@t-online.de>
+           2013-2016, Carsten Schoenert <c.schoenert@t-online.de>
            2009-2013, Guido Günther <agx@sigxcpu.org>
-           2010-2015, Christoph Goehre <chris@sigxcpu.org>
-License: MPL-1.1 or GPL-2 or LGPL-2.1
+           2010-2016, Christoph Goehre <chris@sigxcpu.org>
+License: MPL-1.1 or MPL-2.0 or GPL-2 or LGPL-2.1
 
-Files: debian/logo/icedove_icon_plain.svg
-       debian/logo/icedove_icon_profile_plain.svg
-       debian/logo/icedove_icon_profile.svg
-       debian/logo/icedove_icon.svg
-       debian/logo/icedove_lettering.svg
-       debian/logo/icedove_logo_plain.svg
-       debian/logo/icedove_logo.svg
+Files: debian/logo/icedove/icedove_icon_plain.svg
+       debian/logo/icedove/icedove_icon_profile_plain.svg
+       debian/logo/icedove/icedove_icon_profile.svg
+       debian/logo/icedove/icedove_icon.svg
+       debian/logo/icedove/icedove_lettering.svg
+       debian/logo/icedove/icedove_logo_plain.svg
+       debian/logo/icedove/icedove_logo.svg
 Copyright: 2006-2007, Ricardo Fernández Fuentes
 License: MPL-1.1 or GPL-2 or LGPL-2.1
+
+Files: debian/logo/icedove/icedove_icon_plain.svg
+Copyright: 1998-2016, Mozilla Foundation
+License: MPL-2.0 or GPL-2 or LGPL-2.1
 
 Files: build/pypng/*
 Copyright: drj11 <drj@pobox.com>
            Mel Raab, David Jones
-License: MIT
+License: Expat
 
 Files: calendar/*
 Copyright: no-info-found
@@ -67,7 +71,7 @@ License: MPL-1.0
 Files: calendar/libical/src/libical/astime.h
        calendar/libical/src/libical/caldate.c
 Copyright: 1986-2000, Hiram Clawson
-License: BSD-2
+License: BSD-2-clause
 
 Files: calendar/libical/src/libical/icalarray.c
        calendar/libical/src/libical/icalarray.h
@@ -106,7 +110,7 @@ License: MPL-1.0 or LGPL-2.1
 
 Files: calendar/libical/src/libical/vsnprintf.c
 Copyright: 1997, Theo de Raadt
-License: BSD-2
+License: BSD-2-clause
 
 Files: chat/protocols/irc/test/test_sendBufferedCommand.js
        db/mork/*
@@ -142,133 +146,83 @@ Copyright: 2009, David Jones <drj@pobox.com>
   2006, Johann C. Rocholl <johann@browsershots.org>
 License: Expat
 
-Files: ldap/sdks/*
-Copyright: 1998-2000, Netscape Communications Coportation
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/docs/*
-Copyright: 2000-2007, Sun Microsystems
-           1999, Netscape Communications Coportation
-License: CC-BY-SA-2.5
-
-Files: ldap/sdks/c-sdk/ldap/clients/tools/ldappasswd.c
-       ldap/sdks/c-sdk/ldap/clients/tools/ldaptool-sasl.c
-       ldap/sdks/c-sdk/ldap/clients/tools/ldaptool-sasl.h
-       ldap/sdks/c-sdk/ldap/libraries/libldap/authzidctrl.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/geteffectiverightsctrl.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/pwmodext.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/pwpctrl.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/saslio.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/userstatusctrl.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/whoami.c
+Files: ldap/c-sdk/libraries/libldap/authzidctrl.c
+       ldap/c-sdk/libraries/libldap/geteffectiverightsctrl.c
+       ldap/c-sdk/libraries/libldap/pwmodext.c
+       ldap/c-sdk/libraries/libldap/pwpctrl.c
+       ldap/c-sdk/libraries/libldap/saslio.c
+       ldap/c-sdk/libraries/libldap/userstatusctrl.c
+       ldap/c-sdk/libraries/libldap/whoami.c
 Copyright: 2005, Sun Microsystems
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/include/disptmpl.h
-       ldap/sdks/c-sdk/ldap/include/ldif.h
-       ldap/sdks/c-sdk/ldap/include/portable.h
-       ldap/sdks/c-sdk/ldap/include/regex.h
-       ldap/sdks/c-sdk/ldap/include/srchpref.h
-       ldap/sdks/c-sdk/ldap/libraries/liblber/*
+Files: ldap/c-sdk/include/disptmpl.h
+       ldap/c-sdk/include/ldif.h
+       ldap/c-sdk/include/portable.h
+       ldap/c-sdk/include/regex.h
+       ldap/c-sdk/include/srchpref.h
+       ldap/c-sdk/libraries/liblber/*
 Copyright: 1998-1999, Netscape Communications Coportation
            1990-1996, Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/abandon.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/add.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/cldap.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/compare.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/friendly.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/getattr.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/getentry.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/getfilter.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/getvalues.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/modify.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/open.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/os-ip.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/rename.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/request.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/reslist.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/result.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/sbind.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/search.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/ufn.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/unbind.c
+Files: ldap/c-sdk/libraries/libldap/abandon.c
+       ldap/c-sdk/libraries/libldap/add.c
+       ldap/c-sdk/libraries/libldap/cldap.c
+       ldap/c-sdk/libraries/libldap/compare.c
+       ldap/c-sdk/libraries/libldap/friendly.c
+       ldap/c-sdk/libraries/libldap/getattr.c
+       ldap/c-sdk/libraries/libldap/getentry.c
+       ldap/c-sdk/libraries/libldap/getfilter.c
+       ldap/c-sdk/libraries/libldap/getvalues.c
+       ldap/c-sdk/libraries/libldap/modify.c
+       ldap/c-sdk/libraries/libldap/open.c
+       ldap/c-sdk/libraries/libldap/os-ip.c
+       ldap/c-sdk/libraries/libldap/rename.c
+       ldap/c-sdk/libraries/libldap/request.c
+       ldap/c-sdk/libraries/libldap/reslist.c
+       ldap/c-sdk/libraries/libldap/result.c
+       ldap/c-sdk/libraries/libldap/sbind.c
+       ldap/c-sdk/libraries/libldap/search.c
+       ldap/c-sdk/libraries/libldap/ufn.c
+       ldap/c-sdk/libraries/libldap/unbind.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1990, 1993-1995, Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/bind.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/delete.c
+Files: ldap/c-sdk/libraries/libldap/bind.c
+       ldap/c-sdk/libraries/libldap/delete.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1990, Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/cache.c
+Files: ldap/c-sdk/libraries/libldap/cache.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1993, The Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/charset.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/countvalues.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/disptmpl.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/dsparse.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/freevalues.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/getdxbyname.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/sort.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/srchpref.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/url.c
+Files: ldap/c-sdk/libraries/libldap/charset.c
+       ldap/c-sdk/libraries/libldap/countvalues.c
+       ldap/c-sdk/libraries/libldap/disptmpl.c
+       ldap/c-sdk/libraries/libldap/dsparse.c
+       ldap/c-sdk/libraries/libldap/freevalues.c
+       ldap/c-sdk/libraries/libldap/getdxbyname.c
+       ldap/c-sdk/libraries/libldap/sort.c
+       ldap/c-sdk/libraries/libldap/srchpref.c
+       ldap/c-sdk/libraries/libldap/url.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1990-1996, Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c
-       ldap/sdks/c-sdk/ldap/libraries/libldap/free.c
+Files: ldap/c-sdk/libraries/libldap/compat.c
+       ldap/c-sdk/libraries/libldap/free.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1994, The Regents of the University of Michigan
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: ldap/sdks/c-sdk/ldap/libraries/libldap/getdn.c
+Files: ldap/c-sdk/libraries/libldap/getdn.c
 Copyright: 1998-1999, Netscape Communications Coportation
            1994, Regents of the University of Michigan
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/c-sdk/ldap/libraries/libutil/*
-Copyright: 1998-1999, Netscape Communications Coportation
-           1987, Regents of the University of California
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/c-sdk/ldap/libraries/macintosh/getopt.c
-       ldap/sdks/c-sdk/ldap/libraries/macintosh/strings.c
-Copyright: 1998-1999, Netscape Communications Coportation
-           1987, Regents of the University of California
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/c-sdk/ldap/libraries/macintosh/kerberos-macos.c
-       ldap/sdks/c-sdk/ldap/libraries/macintosh/macos-ip.c
-Copyright: 1998-1999, Netscape Communications Coportation
-           1990, 1993-1995, Regents of the University of Michigan
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/c-sdk/ldap/libraries/macintosh/tcp-univhdrs/*
-Copyright: 1998-1999, Netscape Communications Coportation
-           1990-1996, Regents of the University of Michigan
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/c-sdk/ldap/libraries/macintosh/tcp-univhdrs/tcp.h
-Copyright: 1998-1999, Netscape Communications Coportation
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/java-sdk/*
-Copyright: 1999-2002, Sun Microsystems
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/perldap/*
-Copyright: 1998-2000, Netscape Communications Coportation
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
-Files: ldap/sdks/tools/*
-Copyright: 1996-2003, Netscape Communications Coportation
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
 Files: mail/app/png.py
@@ -350,37 +304,14 @@ Copyright: 2011, Patrick Brunschwig <patrick@enigmail.net>
            2011, Jan Gerber <j@mailb.org>
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-Files: mozilla/browser/components/loop/test/shared/vendor/sinon-1.12.2.js
-Copyright: 2010-2014, Christian Johansen, <christian@cjohansen.no>
-License: BSD-2
-
 Files: mozilla/browser/components/translation/cld2/*
        mozilla/browser/components/translation/test/unit/test_cld2.js
 Copyright: 2013-2014, Google Inc.
 License: Apache-2.0
 
-Files: mozilla/browser/components/translation/test/browser_translation_fhr.js
-       mozilla/browser/components/translation/test/unit/test_healthreport.js
-       mozilla/browser/devtools/commandline/test/*
-       mozilla/browser/extensions/pdfjs/test/*
+Files: mozilla/browser/extensions/pdfjs/test/*
 Copyright: no-info-found
-License: Public-Domain
-
-Files: mozilla/browser/devtools/commandline/test/browser_gcli_spell.js
-Copyright: 2009, Panagiotis Astithas
-License: ISC
-
-Files: mozilla/browser/devtools/shared/widgets/CubicBezierWidget.js
-Copyright: 2013, Lea Verou.
-License: Expat
-
-Files: mozilla/browser/devtools/tilt/tilt-math.js
-Copyright: 2011, Brandon Jones
-License: MPL-2.0
-
-Files: mozilla/browser/devtools/webaudioeditor/lib/*
-Copyright: 2012, 2013, Chris Pettitt
-License: Expat
+License: public-domain
 
 Files: mozilla/browser/extensions/pdfjs/content/*
        mozilla/browser/extensions/shumway/*
@@ -391,10 +322,6 @@ Files: mozilla/build/mobile/sutagent/android/Power.java
        mozilla/build/mobile/sutagent/android/WifiConfiguration.java
 Copyright: 2005-2013, The Android Open Source Project
 License: Apache-2.0
-
-Files: mozilla/build/unix/build-clang/tooltool.py
-Copyright: 2011, John H. Ford <john@johnford.info>
-License: MPL-2.0
 
 Files: mozilla/config/tests/unit-mozunit.py
        mozilla/config/tests/unitMozZipFile.py
@@ -414,13 +341,8 @@ Copyright: 2000, International Business Machines (IBM)
 License: MPL-2.0
 
 Files: mozilla/dom/bluetooth/bluedroid/BluetoothServiceBluedroid.cpp
-       mozilla/dom/bluetooth/bluedroid/b2g_bdroid_buildcfg.h
        mozilla/dom/bluetooth/bluez/BluetoothDBusService.cpp
        mozilla/dom/bluetooth/bluez/BluetoothUnixSocketConnector.cpp
-       mozilla/dom/bluetooth2/bluedroid/BluetoothServiceBluedroid.cpp
-       mozilla/dom/bluetooth2/bluedroid/b2g_bdroid_buildcfg.h
-       mozilla/dom/bluetooth2/bluez/BluetoothDBusService.cpp
-       mozilla/dom/bluetooth2/bluez/BluetoothUnixSocketConnector.cpp
        mozilla/dom/camera/GonkCameraListener.h
        mozilla/dom/camera/GonkCameraSource.h
        mozilla/dom/camera/GonkRecorder.h
@@ -452,12 +374,12 @@ Files: mozilla/dom/canvas/WebGLTexelConversions.h
 Copyright: 2010, Mozilla Corporation
            2010, Google Inc.
            2010, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/canvas/WebGLValidateStrings.h
 Copyright: 2011, Mozilla Corporation
            2011, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/canvas/test/webgl-conformance/conformance/more/*
 Copyright: 2011, Ilmari Heikkinen <ilmari.heikkinen@gmail.com>
@@ -466,7 +388,7 @@ License: Expat
 Files: mozilla/dom/canvas/test/webgl-conformance/conformance/resources/webgl-test.js
        mozilla/dom/canvas/test/webgl-conformance/resources/js-test-pre.js
 Copyright: 2009, 2011, Apple Computer, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/canvas/test/webgl-conformance/generate-wrappers-and-manifest.py
        mozilla/dom/canvas/test/webgl-conformance/resources/cors-util.js
@@ -489,314 +411,14 @@ Files: mozilla/dom/imptests/parseManifest.py
 Copyright: 2011-2013, Ms2ger
 License: Expat
 
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/*
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/avcodec.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/dxva2.h
-Copyright: 2009, Laurent Aimar
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/vaapi.h
-Copyright: 2008, 2009, Splitted-Desktop Systems
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/vda.h
-Copyright: 2011, Sebastien Zwickert
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/vdpau.h
-Copyright: 2008, NVIDIA
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavcodec/xvmc.h
-Copyright: 2003, Ivan Kalvachev
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavformat/*
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavformat/version.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/*
-Copyright: 2002-2003, 2005-2012, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/adler32.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/avstring.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/intfloat.h
-Copyright: 2006, 2007, 2011, Mans Rullgard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/audio_fifo.h
-Copyright: 2012, Justin Ruggles <justin.ruggles@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/audioconvert.h
-Copyright: 2008, Peter Ross
-           2006, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/base64.h
-Copyright: 2006, Ryan Martell. <rdm4@martellventures.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/blowfish.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/xtea.h
-Copyright: 2012, Samuel Pitoiset
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/bprint.h
-Copyright: 2012, Nicolas George
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/cpu.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/time.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/version.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/dict.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/error.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/fifo.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/file.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/imgutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/intreadwrite.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/parseutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/samplefmt.h
-       mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/timestamp.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/lfg.h
-Copyright: 2008, Michael Niedermayer
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/lzo.h
-Copyright: 2006, Reimar Doeffinger
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/random_seed.h
-Copyright: 2009, Baptiste Coudurier <baptiste.coudurier@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav53/include/libavutil/timecode.h
-Copyright: 2011-2012, Smartjog S.A.S, Clement Boesch <clement.boesch@smartjog.com>
-           2006, Smartjog S.A.S, Baptiste Coudurier <baptiste.coudurier@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/*
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/avcodec.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/dxva2.h
-Copyright: 2009, Laurent Aimar
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/vaapi.h
-Copyright: 2008, 2009, Splitted-Desktop Systems
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/vda.h
-Copyright: 2011, Sebastien Zwickert
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/vdpau.h
-Copyright: 2008, NVIDIA
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavcodec/xvmc.h
-Copyright: 2003, Ivan Kalvachev
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavformat/*
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavformat/version.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/*
-Copyright: 2002, 2003, 2005-2012, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/adler32.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/avstring.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/intfloat.h
-Copyright: 2006, 2007, 2011, Mans Rullgard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/audio_fifo.h
-Copyright: 2012, Justin Ruggles <justin.ruggles@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/base64.h
-Copyright: 2006, Ryan Martell. <rdm4@martellventures.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/blowfish.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/dict.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/error.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/fifo.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/file.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/imgutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/intreadwrite.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/old_pix_fmts.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/parseutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/samplefmt.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/time.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/version.h
-       mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/xtea.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/channel_layout.h
-Copyright: 2008, Peter Ross
-           2006, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/cpu.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/lfg.h
-Copyright: 2008, Michael Niedermayer
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/lzo.h
-Copyright: 2006, Reimar Doeffinger
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav54/include/libavutil/random_seed.h
-Copyright: 2009, Baptiste Coudurier <baptiste.coudurier@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/*
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/avcodec.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/dxva2.h
-Copyright: 2009, Laurent Aimar
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/vaapi.h
-Copyright: 2008, 2009, Splitted-Desktop Systems
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/vda.h
-Copyright: 2011, Sebastien Zwickert
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/vdpau.h
-Copyright: 2008, NVIDIA
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavcodec/xvmc.h
-Copyright: 2003, Ivan Kalvachev
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavformat/*
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavformat/version.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/*
-Copyright: 2002-2003, 2005-2012, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/adler32.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/avstring.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/intfloat.h
-Copyright: 2006-2007, 2011, Mans Rullgard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/audio_fifo.h
-Copyright: 2012, Justin Ruggles <justin.ruggles@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/base64.h
-Copyright: 2006, Ryan Martell. <rdm4@martellventures.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/blowfish.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/buffer.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/dict.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/error.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/fifo.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/file.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/frame.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/imgutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/intreadwrite.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/macros.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/old_pix_fmts.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/parseutils.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/samplefmt.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/time.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/version.h
-       mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/xtea.h
-Copyright: no-info-found
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/channel_layout.h
-Copyright: 2008, Peter Ross
-  2006, Michael Niedermayer <michaelni@gmx.at>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/cpu.h
-Copyright: 2000-2003, Fabrice Bellard
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/downmix_info.h
-Copyright: 2014, Tim Walker <tdskywalker@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/hmac.h
-Copyright: 2012, Martin Storsjo
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/lfg.h
-Copyright: 2008, Michael Niedermayer
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/lzo.h
-Copyright: 2006, Reimar Doeffinger
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/random_seed.h
-Copyright: 2009, Baptiste Coudurier <baptiste.coudurier@gmail.com>
-License: LGPL-2.1+
-
-Files: mozilla/dom/media/fmp4/ffmpeg/libav55/include/libavutil/stereo3d.h
-Copyright: 2013, Vittorio Giovara <vittorio.giovara@gmail.com>
-License: LGPL-2.1+
-
 Files: mozilla/dom/media/gmp-plugin/gmp-fake.cpp
 Copyright: 2014, Mozilla Foundation
            2009-2014, Cisco Systems
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/media/gmp/GMPVideoEncodedFrameImpl.h
 Copyright: 2014, Mozilla Corporation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/media/gmp/gmp-api/*
 Copyright: 2014, Mozilla Foundation
@@ -831,15 +453,8 @@ Files: mozilla/dom/media/omx/AudioOffloadPlayer.cpp
        mozilla/dom/media/omx/AudioOffloadPlayerBase.h
        mozilla/dom/media/omx/AudioOutput.cpp
        mozilla/dom/media/omx/AudioOutput.h
-       mozilla/dom/media/omx/AudioSink.h
 Copyright: 2014, The Linux Foundation.
            2007-2009, The Android Open Source Project
-License: Apache-2.0
-
-Files: mozilla/dom/media/omx/mediaresourcemanager/IMediaResourceManagerDeathNotifier.cpp
-       mozilla/dom/media/omx/mediaresourcemanager/IMediaResourceManagerDeathNotifier.h
-Copyright: 2012-2014, Mozilla Foundation
-           2007, 2009, 2010, 2012, The Android Open Source Project
 License: Apache-2.0
 
 Files: mozilla/dom/media/test/graph_latency.py
@@ -856,19 +471,9 @@ Files: mozilla/dom/media/webaudio/blink/DenormalDisabler.h
        mozilla/dom/media/webaudio/blink/HRTFPanner.cpp
        mozilla/dom/media/webaudio/blink/HRTFPanner.h
 Copyright: 2010-2011, Google Inc.
-License: BSD-2
-
-Files: mozilla/dom/media/webaudio/blink/DirectConvolver.cpp
-       mozilla/dom/media/webaudio/blink/DirectConvolver.h
-Copyright: 2012, Intel Inc.
-License: BSD-3-clause
+License: BSD-2-clause
 
 Files: mozilla/dom/media/webaudio/blink/IRC_Composite_C_R0195-incl.cpp
-Copyright: no-info-found
-License: MPL-2.0
-
-Files: mozilla/dom/media/webaudio/test/browser_mozAudioChannel.js
-       mozilla/dom/media/webaudio/test/browser_mozAudioChannel_muted.js
 Copyright: no-info-found
 License: MPL-2.0
 
@@ -898,7 +503,7 @@ License: Apache-2.0
 Files: mozilla/dom/plugins/base/android/ANPKeyCodes.h
        mozilla/dom/plugins/base/android/android_npapi.h
 Copyright: 2008-2010, The Android Open Source Project
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/plugins/base/npruntime.h
 Copyright: 2004, Apple Computer, Inc. and The Mozilla Foundation
@@ -919,7 +524,7 @@ License: MPL-2.0
 Files: mozilla/dom/plugins/test/testplugin/nptest_utils.cpp
        mozilla/dom/plugins/test/testplugin/nptest_utils.h
 Copyright: 2006-2009, 2012, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/dom/plugins/test/testplugin/secondplugin/*
        mozilla/dom/plugins/test/unit/*
@@ -937,12 +542,6 @@ Files: mozilla/dom/plugins/test/testplugin/secondplugin/*
        mozilla/dom/tests/unit/test_bug319968.js
        mozilla/dom/tests/unit/test_bug465752.js
        mozilla/dom/workers/test/gtest/*
-       mozilla/extensions/spellcheck/hunspell/src/RemoteSpellCheckEngineChild.cpp
-       mozilla/extensions/spellcheck/hunspell/src/RemoteSpellCheckEngineChild.h
-       mozilla/extensions/spellcheck/hunspell/src/RemoteSpellCheckEngineParent.cpp
-       mozilla/extensions/spellcheck/hunspell/src/RemoteSpellCheckEngineParent.h
-       mozilla/extensions/spellcheck/hunspell/src/hunspell_fopen_hooks.h
-       mozilla/extensions/spellcheck/hunspell/src/mozHunspellAllocator.h
 Copyright: no-info-found
 License: MPL-2.0
 
@@ -955,7 +554,6 @@ Files: mozilla/dom/system/gonk/AudioManager.cpp
        mozilla/dom/system/gonk/GonkGPSGeolocationProvider.cpp
        mozilla/dom/system/gonk/GonkGPSGeolocationProvider.h
        mozilla/dom/system/gonk/NetworkUtils.cpp
-       mozilla/dom/system/gonk/RILContentHelper.js
        mozilla/dom/system/gonk/RadioInterfaceLayer.js
        mozilla/dom/system/gonk/SystemWorkerManager.cpp
        mozilla/dom/system/gonk/SystemWorkerManager.h
@@ -971,7 +569,7 @@ License: Apache-2.0
 
 Files: mozilla/dom/tests/mochitest/ajax/jquery/dist/*
 Copyright: 2006-2008, John Resig (jquery.com)
-License: GPL-2 or MIT
+License: GPL-2 or Expat
 
 Files: mozilla/dom/tests/mochitest/ajax/prototype/test/lib/*
 Copyright: 2005, Thomas Fuchs (http://script.aculo.us, http://mir.aculo.us)
@@ -1020,15 +618,6 @@ Copyright: 2002-2005 Kevin B. Hendricks, Stratford, Ontario, Canada
            2002-2005 László Németh
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
-
-Files: mozilla/extensions/spellcheck/hunspell/src/hunspell_alloc_hooks.h
-       mozilla/extensions/spellcheck/hunspell/src/mozHunspell.cpp
-       mozilla/extensions/spellcheck/hunspell/src/mozHunspell.h
-       mozilla/extensions/spellcheck/hunspell/src/mozHunspellDirProvider.cpp
-       mozilla/extensions/spellcheck/hunspell/src/mozHunspellDirProvider.h
-Copyright: 2002-2005, 2011, Mozilla Foundation
-License: MPL-1.1 or GPL-2 or LGPL-2.1
-
 Files: mozilla/extensions/spellcheck/hunspell/src/phonet.cxx
        mozilla/extensions/spellcheck/hunspell/src/phonet.hxx
 Copyright: 2000, 2007 Bjoern Jacke <bjoern@j3e.de>
@@ -1064,7 +653,7 @@ License: GPL-3+
 
 Files: mozilla/gfx/angle/src/third_party/*
 Copyright: 2006-2009, 2012, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/gfx/cairo/cairo/*
 Copyright: 2005-2008, RedHat, Inc.
@@ -1689,7 +1278,7 @@ License: Expat
 
 Files: mozilla/gfx/ots/*
 Copyright: 2009 The Chromium Authors
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/gfx/ots/sync.sh
 Copyright: no-info-found
@@ -1711,14 +1300,6 @@ Files: mozilla/gfx/qcms/qcms.h
 Copyright: 1994-1996, SunSoft, Inc.
 License: Expat
 
-Files: mozilla/gfx/skia/trunk/src/images/SkImageDecoder_libwebp.cpp
-Copyright: 2005-2013, The Android Open Source Project
-License: Apache-2.0
-
-Files: mozilla/gfx/skia/trunk/src/views/unix/keysym2ucs.c
-Copyright: no-info-found
-License: public-domain
-
 Files: mozilla/gfx/thebes/gfxScriptItemizer.cpp
        mozilla/gfx/thebes/gfxScriptItemizer.h
 Copyright: 1995-2009, International Business Machines (IBM)
@@ -1726,7 +1307,7 @@ License: MPL-2.0 or Expat
 
 Files: mozilla/gfx/ycbcr/*
 Copyright: 2006-2008 The Chromium Authors
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/gfx/ycbcr/YCbCrUtils.cpp
        mozilla/gfx/ycbcr/YCbCrUtils.h
@@ -1742,14 +1323,6 @@ License: Apache-2.0
 Files: mozilla/hal/gonk/GonkDiskSpaceWatcher.cpp
 Copyright: no-info-found
 License: MPL-2.0
-
-Files: mozilla/intl/hyphenation/hyphen.c
-       mozilla/intl/hyphenation/hyphen.h
-Copyright: 2006-2008, 2010, László Németh
-           2001, Peter Novodvorsky (nidd@cs.msu.su)
-           2001, ALTLinux, Moscow (http://www.alt-linux.org)
-           1998, Raph Levien
-License: MPL-1.0 or GPL-2+
 
 Files: mozilla/intl/icu/source/tools/tzcode/*
        mozilla/intl/icu/source/tools/tzcode/zic.c
@@ -1787,7 +1360,7 @@ License: MPL-2.0
 
 Files: mozilla/ipc/chromium/*
 Copyright: 2006-2008 The Chromium Authors
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/ipc/chromium/src/base/atomicops_internals_mips_gcc.h
 Copyright: 2006-2013, The Chromium Authors
@@ -1806,11 +1379,11 @@ License: BSD-3-clause
 
 Files: mozilla/ipc/chromium/src/third_party/libevent/*
 Copyright: 2000-2002 Niels Provos <provos@citi.umich.edu>
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/ipc/chromium/src/third_party/libevent/WIN32-Code/tree.h
 Copyright: 2002, Niels Provos <provos@citi.umich.edu>
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/ipc/chromium/src/third_party/libevent/arc4random.c
 Copyright: 2010-2012, Niels Provos and Nick Mathewson
@@ -2190,12 +1763,11 @@ Copyright: 2013, Tensilica, Inc.
 License: Expat
 
 Files: mozilla/js/src/ctypes/libffi/texinfo.tex
-Copyright: 1985-1986, 1988, 1990-1995, 
+Copyright: 1985-1986, 1988, 1990-1995,
 License: GPL-3
 
 Files: mozilla/js/src/devtools/rootAnalysis/analyze.py
        mozilla/js/src/devtools/vprof/testVprofMT.c
-       mozilla/js/src/jit-test/tests/ion/inlining/*
        mozilla/js/src/jit/BacktrackingAllocator.h
 Copyright: no-info-found
 License: MPL-2.0
@@ -2208,53 +1780,13 @@ Files: mozilla/js/src/irregexp/*
 Copyright: 2006-2014, the V8 project authors
 License: BSD-3-clause
 
-Files: mozilla/js/src/jit-test/tests/basic/string-endswith.js
-       mozilla/js/src/jit-test/tests/basic/string-startswith.js
-Copyright: 2013, Mathias Bynens
-License: Expat
-
-Files: mozilla/js/src/jit-test/tests/sunspider/check-3d-morph.js
-       mozilla/js/src/jit-test/tests/sunspider/check-3d-raytrace.js
-       mozilla/js/src/jit-test/tests/sunspider/check-bitops-bitwise-and.js
-       mozilla/js/src/jit-test/tests/sunspider/check-string-tagcloud.js
-Copyright: 2006-2009, 2012, Apple Inc.
-License: BSD-2
-
-Files: mozilla/js/src/jit-test/tests/sunspider/check-date-format-xparb.js
-Copyright: 2004, Baron Schwartz <baron at sequent dot org>
-License: LGPL-2.1
-
-Files: mozilla/js/src/jit-test/tests/sunspider/check-math-cordic.js
-Copyright: Rich Moore
-License: BSD-2
-
-Files: mozilla/js/src/jit-test/tests/v8-v5/*
-Copyright: 2006-2014, the V8 project authors
-License: BSD-3-clause
-
-Files: mozilla/js/src/jit-test/tests/v8-v5/check-crypto.js
-       mozilla/js/src/octane/crypto.js
-Copyright: 2003-2005, Tom Wu
-License: Expat
-
-Files: mozilla/js/src/jit-test/tests/v8-v5/check-deltablue.js
-Copyright: 2008, the V8 project authors
-           1996, John Maloney and Mario Wolczko
-License: GPL-2+
-
 Files: mozilla/js/src/jit/ExecutableAllocator.cpp
        mozilla/js/src/jit/ExecutableAllocator.h
-       mozilla/js/src/jit/ExecutableAllocatorPosix.cpp
-       mozilla/js/src/jit/ExecutableAllocatorWin.cpp
-       mozilla/js/src/jit/shared/AssemblerBuffer-x86-shared.h
-       mozilla/js/src/jit/shared/BaseAssembler-x86-shared.h
 Copyright: 2006-2009, 2012, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/js/src/jit/arm/Simulator-arm.cpp
        mozilla/js/src/jit/arm/Simulator-arm.h
-       mozilla/js/src/jit/mips/Simulator-mips.cpp
-       mozilla/js/src/jit/mips/Simulator-mips.h
        mozilla/js/src/octane/*
 Copyright: 2006-2014, the V8 project authors
 License: BSD-3-clause
@@ -2316,7 +1848,6 @@ Files: mozilla/js/src/tests/ecma/Array/15.4.4.5-1.js
        mozilla/js/src/tests/ecma_6/shell.js
        mozilla/js/src/tests/ecma_7/shell.js
        mozilla/js/src/tests/js1_6/extensions/regress-456826.js
-       mozilla/js/src/tests/js1_7/block/regress-351606.js
        mozilla/js/src/tests/js1_8/extensions/regress-476414-01.js
        mozilla/js/src/tests/js1_8/extensions/regress-476414-02.js
        mozilla/js/src/tests/js1_8_5/regress/regress-355569.js
@@ -2420,7 +1951,7 @@ License: Apache-2.0
 
 Files: mozilla/media/gmp-clearkey/0.1/openaes/*
 Copyright: 2012-2013, Nabil S. Al Ramli, www.nalramli.com
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/kiss_fft/_kiss_fft_guts.h
        mozilla/media/kiss_fft/kiss_fft.c
@@ -2449,20 +1980,20 @@ License: ISC
 
 Files: mozilla/media/libnestegg/src/*
 Copyright: 2004-2010, Alex Pankratov
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/media/libogg/*
 Copyright: 2002-2007 Xiph.org Foundation
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/media/libopus/celt/*
 Copyright: 2007-2009, Xiph.Org Foundation
            2007-2008, CSIRO
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/_kiss_fft_guts.h
 Copyright: 2003, 2004, Mark Borgerding
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/arch.h
        mozilla/media/libopus/celt/fixed_generic.h
@@ -2471,25 +2002,25 @@ Files: mozilla/media/libopus/celt/arch.h
 Copyright: 2007-2009, Xiph.Org Foundation
            2007-2008, CSIRO
            2002-2008, Jean-Marc Valin
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/arm/*
 Copyright: 2013, Parrot
            2010, Xiph.Org Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/arm/fixed_armv4.h
        mozilla/media/libopus/celt/arm/kiss_fft_armv4.h
        mozilla/media/libopus/celt/arm/kiss_fft_armv5e.h
 Copyright: 2013, Xiph.Org Foundation and contributors
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/arm/fixed_armv5e.h
 Copyright: 2013, Parrot
            2007-2009, Xiph.Org Foundation
            2007-2008, CSIRO
            2003-2008, Jean-Marc Valin
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/bands.c
        mozilla/media/libopus/celt/bands.h
@@ -2502,24 +2033,24 @@ Files: mozilla/media/libopus/celt/bands.c
 Copyright: 2008-2012, Gregory Maxwell
            2007-2010, Xiph.Org Foundation
            2007-2008, CSIRO
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/celt_lpc.c
        mozilla/media/libopus/celt/celt_lpc.h
 Copyright: 1994-2002, 2009-2012, Xiph.Org Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/cpu_support.h
 Copyright: 2013, Parrot
            2010, Xiph.Org Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/cwrs.c
        mozilla/media/libopus/celt/cwrs.h
 Copyright: 2007-2009, Xiph.Org Foundation
            2007-2009, Timothy B. Terriberry
            2007-2008, CSIRO
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/ecintrin.h
        mozilla/media/libopus/celt/entcode.h
@@ -2530,89 +2061,89 @@ Files: mozilla/media/libopus/celt/ecintrin.h
        mozilla/media/libopus/celt/mfrngcod.h
 Copyright: 2008-2009, Xiph.Org Foundation
            2001-2011, Timothy B. Terriberry
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/entcode.c
 Copyright: 2001-2011, Timothy B. Terriberry
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/fixed_debug.h
        mozilla/media/libopus/celt/stack_alloc.h
 Copyright: 2007-2012, Xiph.Org Foundation
            2002-2008, Jean-Marc Valin
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/float_cast.h
 Copyright: 2001, Erik de Castro Lopo <erikd AT mega-nerd DOT com>
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/kiss_fft.c
        mozilla/media/libopus/celt/kiss_fft.h
 Copyright: 2008, Xiph.Org Foundation, CSIRO
            2005-2007, Xiph.Org Foundation
            2003-2004, Mark Borgerding
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/os_support.h
 Copyright: 2007, Jean-Marc Valin
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/celt/x86/*
 Copyright: 2013, Jean-Marc Valin and John Ridges
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/include/*
 Copyright: 1994-2002, 2009-2012, Xiph.Org Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/include/opus.h
        mozilla/media/libopus/include/opus_defines.h
 Copyright: 2010, 2011, Xiph.Org Foundation, Skype Limited
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/include/opus_custom.h
 Copyright: 2008-2012, Gregory Maxwell
            2007-2010, Xiph.Org Foundation
            2007-2008, CSIRO
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/silk/*
 Copyright: 2006-2011, Skype Limited
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/silk/MacroDebug.h
 Copyright: 2012, Xiph.Org Foundation
            2006-2011, Skype Limited
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/silk/arm/*
 Copyright: 2013, Parrot
            2006-2011, Skype Limited
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/silk/arm/SigProc_FIX_armv4.h
 Copyright: 2013, Xiph.Org Foundation and contributors
            2013, Parrot
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/silk/arm/macros_armv4.h
 Copyright: 2013, Xiph.Org Foundation and contributors
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/src/*
 Copyright: 1994-2002, 2009-2012, Xiph.Org Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/src/mlp.c
        mozilla/media/libopus/src/mlp.h
 Copyright: 2008-2011, Octasic Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libopus/src/opus.c
        mozilla/media/libopus/src/opus_decoder.c
        mozilla/media/libopus/src/opus_encoder.c
 Copyright: 2010, 2011, Xiph.Org Foundation, Skype Limited
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/libpng/*
 Copyright: 1998-2014, Glenn Randers-Pehrson
@@ -2667,15 +2198,15 @@ License: Apache-2.0
 
 Files: mozilla/media/libtheora/*
 Copyright: 2002-2007 Xiph.org Foundation
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/media/libvorbis/*
 Copyright: 2002-2007 Xiph.org Foundation
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/media/libvpx/*
 Copyright: 2010 Google Inc.
-License: BSD-3
+License: BSD-3-clause
 
 Files: mozilla/media/mtransport/nr_socket_prsock.cpp
 Copyright: 2007, Adobe Systems, Incorporated
@@ -2698,7 +2229,7 @@ License: MPL-2.0 or BSD-3-clause
 
 Files: mozilla/media/mtransport/nr_timer.cpp
 Copyright: 2004, 2006, Network Resonance, Inc.
-License: MPL-2.0 or BSD-2
+License: MPL-2.0 or BSD-2-clause
 
 Files: mozilla/media/mtransport/test/gtest_utils.h
 Copyright: 2004-2008, Google Inc.
@@ -2738,12 +2269,12 @@ License: BSD-3-clause
 
 Files: mozilla/media/mtransport/third_party/nrappkit/*
 Copyright: 2001-2007, Network Resonance, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/mtransport/third_party/nrappkit/src/log/*
 Copyright: 2002-2003, 2006, Network Resonance, Inc.
            1999-2001, RTFM, Inc
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/mtransport/third_party/nrappkit/src/port/generic/*
 Copyright: 1991, 1993, University of California
@@ -2759,17 +2290,17 @@ Files: mozilla/media/mtransport/third_party/nrappkit/src/util/libekr/r_assoc.c
        mozilla/media/mtransport/third_party/nrappkit/src/util/libekr/r_thread.h
 Copyright: 2002, 2003, 2006, Network Resonance, Inc.
            1999-2001, RTFM, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/mtransport/third_party/nrappkit/src/util/libekr/r_crc32.c
 Copyright: 2003, RTFM, Inc.
            2002-2003, 2006, Network Resonance, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/mtransport/third_party/nrappkit/src/util/libekr/r_memory.c
        mozilla/media/mtransport/third_party/nrappkit/src/util/libekr/r_memory.h
 Copyright: 2001-2007, Network Resonance, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/media/omx-plugin/include/*
 Copyright: 2005-2013, The Android Open Source Project
@@ -2857,24 +2388,22 @@ License: Apache-2.0
 
 Files: mozilla/media/webrtc/trunk/webrtc/system_wrappers/source/spreadsortlib/*
 Copyright: no-info-found
-License: BSL-1
- Please fill license BSL-1 from header of mozilla/media/webrtc/trunk/webrtc/system_wrappers/source/spreadsortlib/*
+License: BSL-1.0
 
 Files: mozilla/media/webrtc/trunk/webrtc/system_wrappers/source/spreadsortlib/spreadsort.hpp
 Copyright: Steven J. Ross 2001-2009
 License: BSL-1.0
- Please fill license BSL-1.0 from header of mozilla/media/webrtc/trunk/webrtc/system_wrappers/source/spreadsortlib/spreadsort.hpp
 
 Files: mozilla/memory/jemalloc/*
 Copyright: 2002-2015 Jason Evans <jasone@canonware.com>
            2002 Niels Provos
            2007-2012 Mozilla Foundation
            2009-2015 Facebook, Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/memory/jemalloc/src/include/*
 Copyright: 2006-2008, Alexander Chemeris
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/memory/jemalloc/src/test/include/*
 Copyright: 2006, 2007, Mutsuo Saito, Makoto Matsumoto and Hiroshima
@@ -2894,29 +2423,22 @@ License: Expat
 
 Files: mozilla/memory/mozjemalloc/*
 Copyright: 2006-2008, Jason Evans <jasone@FreeBSD.org>
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/memory/mozjemalloc/linkedlist.h
 Copyright: Mozilla Foundation
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/memory/mozjemalloc/ql.h
        mozilla/memory/mozjemalloc/qr.h
 Copyright: 2002, Jason Evans <jasone@canonware.com>
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/mfbt/decimal/*
 Copyright: 2005-2006, 2008-2013, Google Inc.
 License: BSD-3-clause
 
 Files: mozilla/mfbt/decimal/moz-decimal-utils.h
-       mozilla/mobile/android/base/sync/synchronizer/RecordsChannel.java
-       mozilla/mobile/android/base/tests/testSearchHistoryProvider.java
-       mozilla/mobile/android/base/util/ProxySelector.java
-       mozilla/mobile/android/tests/browser/junit3/src/TestDistribution.java
-       mozilla/mobile/android/tests/browser/junit3/src/TestGeckoBackgroundThread.java
-       mozilla/mobile/android/tests/browser/junit3/src/TestGeckoMenu.java
-       mozilla/mobile/android/tests/browser/junit3/src/TestGeckoProfilesProvider.java
        mozilla/mobile/android/thirdparty/com/googlecode/eyesfree/braille/selfbraille/ISelfBrailleService.java
 Copyright: no-info-found
 License: MPL-2.0
@@ -2928,17 +2450,9 @@ License: BSD-3-clause
 Files: mozilla/mfbt/lz4.c
        mozilla/mfbt/lz4.h
 Copyright: 2011-2014, Yann Collet
-License: BSD-2
+License: BSD-2-clause
 
-Files: mozilla/mobile/android/base/animation/Rotate3DAnimation.java
-       mozilla/mobile/android/base/background/preferences/*
-       mozilla/mobile/android/base/home/SimpleCursorLoader.java
-       mozilla/mobile/android/base/sqlite/MatrixBlobCursor.java
-       mozilla/mobile/android/base/widget/ActivityChooserModel.java
-       mozilla/mobile/android/base/widget/DateTimePicker.java
-       mozilla/mobile/android/base/widget/GeckoSwipeRefreshLayout.java
-       mozilla/mobile/android/stumbler/java/org/mozilla/mozstumbler/service/utils/PersistentIntentService.java
-       mozilla/mobile/android/tests/background/junit3/src/fxa/TestAccountLoader.java
+Files: mozilla/mobile/android/stumbler/java/org/mozilla/mozstumbler/service/utils/PersistentIntentService.java
        mozilla/mobile/android/thirdparty/ch/boye/httpclientandroidlib/androidextra/Base64.java
        mozilla/mobile/android/thirdparty/com/nineoldandroids/*
        mozilla/mobile/android/thirdparty/com/nineoldandroids/view/ViewPropertyAnimator.java
@@ -2946,20 +2460,6 @@ Files: mozilla/mobile/android/base/animation/Rotate3DAnimation.java
        mozilla/mobile/android/thirdparty/com/nineoldandroids/view/ViewPropertyAnimatorPreHC.java
        mozilla/mobile/android/thirdparty/com/squareup/picasso/LruCache.java
 Copyright: 2005-2013, The Android Open Source Project
-License: Apache-2.0
-
-Files: mozilla/mobile/android/base/toolbar/ToolbarProgressView.java
-Copyright: 2005-2013, The Android Open Source Project
-License: Apache-2.0
-
-Files: mozilla/mobile/android/base/widget/ButtonToast.java
-       mozilla/mobile/android/base/widget/SwipeDismissListViewTouchListener.java
-Copyright: 2012, Roman Nurik
-License: Apache-2.0
-
-Files: mozilla/mobile/android/base/widget/TwoWayView.java
-Copyright: 2013, Lucas Rocha
-           2012, The Android Open Source Project
 License: Apache-2.0
 
 Files: mozilla/mobile/android/thirdparty/*
@@ -3075,22 +2575,19 @@ License: Zlib
 Files: mozilla/mozglue/android/pbkdf2_sha256.c
        mozilla/mozglue/android/pbkdf2_sha256.h
 Copyright: 2003-2005, 2007, 2009, Colin Percival
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/mozglue/build/cpuacct.c
        mozilla/mozglue/build/cpuacct.h
 Copyright: 2008-2010, The Android Open Source Project
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/dns/nameprep.c
        mozilla/netwerk/dns/nameprepdata.c
        mozilla/netwerk/dns/nameprep_template.c
        mozilla/netwerk/dns/nsIDNKitInterface.h
-       mozilla/netwerk/dns/race.c
 Copyright: 2000-2002, Japan Network Information Center
 License: BSD-3-clause
-
-
 
 Files: mozilla/netwerk/dns/prepare_tlds.py
        mozilla/netwerk/protocol/rtsp/rtsp/RtspPrlog.h
@@ -3114,7 +2611,7 @@ Copyright: 2011-2012, Michael Tuexen
            2011-2012, Irene Ruengeler
            2009-2010, Humaira Kamal
            2009-2010, Brad Penoff
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/sctp/src/netinet/*
 Copyright: 2008-2012, Randall Stewart
@@ -3132,7 +2629,7 @@ License: BSD-3-clause
 
 Files: mozilla/netwerk/sctp/src/netinet/sctp_sha1.c
 Copyright: 2013, Lally Singh
-           2008-2013, Michael Tuexen 
+           2008-2013, Michael Tuexen
            2008-2012, Randall Stewart
            2001-2007, Cisco Systems, Inc.
 License: BSD-3-clause
@@ -3141,12 +2638,12 @@ Files: mozilla/netwerk/sctp/src/netinet/sctp_ss_functions.c
 Copyright: 2010-2012, Robin Seggelmann
            2010-2012, Randall Stewart
            2010-2012, Michael Tuexen
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/sctp/src/netinet/sctp_userspace.c
 Copyright: 2011, 2012, Michael Tuexen
            2011, 2012, Irene Ruengeler
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/sctp/src/netinet6/*
 Copyright: 2008-2012, Randall Stewart
@@ -3185,7 +2682,7 @@ License: BSD-3-clause
 Files: mozilla/netwerk/sctp/src/user_recv_thread.h
 Copyright: 2011-2012, Michael Tuexen
            2011-2012, Irene Ruengeler
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/sctp/src/user_route.h
 Copyright: 1980, 1986, 1993, University of California
@@ -3199,7 +2696,7 @@ Copyright: 2011, 2012, Michael Tuexen
            2004-2008, Robert N. M. Watson
            2004, The FreeBSD Foundation
            1982, 1986, 1988, 1990, 1993, University of California
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/netwerk/srtp/src/*
 Copyright: 2001-2006, Cisco Systems, Inc.
@@ -3298,7 +2795,7 @@ Files: mozilla/other-licenses/android/linker_format.h
        mozilla/other-licenses/android/res_state.c
        mozilla/other-licenses/android/resolv_cache.h
 Copyright: 2008-2010, The Android Open Source Project
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/other-licenses/android/res_comp.c
        mozilla/other-licenses/android/res_init.c
@@ -3343,7 +2840,7 @@ License: BSD-3-clause
 
 Files: mozilla/other-licenses/skia-npapi/*
 Copyright: 2008-2010, The Android Open Source Project
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/other-licenses/snappy/*
 Copyright: 2005, 2006, 2008-2013, Google Inc.
@@ -3363,7 +2860,7 @@ Files: mozilla/parser/expat/*
 Copyright: 1998, 1999, 2000 Thai Open Source Software Center Ltd
                             and Clark Cooper
            2001, 2002 Expat maintainers
-License: MIT
+License: Expat
 
 Files: mozilla/parser/expat/lib/moz_extensions.c
 Copyright: no-info-found
@@ -3492,14 +2989,12 @@ Files: mozilla/security/nss/lib/dbm/*
 Copyright: 1990, 1993-1994, University of California
 License: BSD-3-clause
 
-Files: mozilla/security/nss/lib/dbm/include/cdefs.h
-       mozilla/security/nss/lib/dbm/include/ncompat.h
+Files: mozilla/security/nss/lib/dbm/include/ncompat.h
        mozilla/security/nss/lib/dbm/include/queue.h
 Copyright: 1991, 1993, University of California
 License: BSD-3-clause
 
 Files: mozilla/security/nss/lib/dbm/include/extern.h
-       mozilla/security/nss/lib/dbm/include/mpool.h
 Copyright: 1991, 1993, 1994, University of California
 License: BSD-3-clause
 
@@ -3599,7 +3094,7 @@ License: BSD-3-clause
 
 Files: mozilla/security/sandbox/chromium/base/third_party/superfasthash/*
 Copyright: 2010, Paul Hsieh
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/services/sync/tps/extensions/mozmill/resource/modules/assertions.js
 Copyright: 2009, Thomas Robinson <280north.com>
@@ -3619,7 +3114,6 @@ Copyright: 1999-2013, Google Inc.
 License: BSD-3-clause
 
 Files: mozilla/testing/marionette/atoms/*
-       mozilla/testing/marionette/driver/marionette_driver/application_cache.py
 Copyright: 2011-2014, Software Freedom Conservancy
 License: Apache-2.0
 
@@ -3627,8 +3121,7 @@ Files: mozilla/testing/marionette/client/marionette/runner/mixins/xmlgen.py
 Copyright: no-info-found
 License: Expat
 
-Files: mozilla/testing/marionette/client/marionette/tests/unit/test_appcache.py
-       mozilla/testing/marionette/client/marionette/tests/unit/test_rendered_element.py
+Files: mozilla/testing/marionette/client/marionette/tests/unit/test_rendered_element.py
        mozilla/testing/marionette/driver/marionette_driver/by.py
 Copyright: 2007-2009, WebDriver committers
            2007-2009, Google Inc.
@@ -3636,12 +3129,6 @@ License: Apache-2.0
 
 Files: mozilla/testing/marionette/client/marionette/tests/unit/test_window_position.py
 Copyright: 2007-2009, WebDriver committers
-License: Apache-2.0
-
-Files: mozilla/testing/marionette/marionette-sendkeys.js
-Copyright: 2012, Software Freedom Conservancy
-           2007-2009, WebDriver committers
-           2007-2009, Google Inc.
 License: Apache-2.0
 
 Files: mozilla/testing/mochitest/pywebsocket/*
@@ -3687,7 +3174,6 @@ Files: mozilla/testing/mochitest/tests/SimpleTest/ChromePowers.js
        mozilla/toolkit/components/passwordmgr/test/browser/*
        mozilla/toolkit/components/places/tests/favicons/head_favicons.js
        mozilla/toolkit/components/places/tests/favicons/test_moz-anno_favicon_mime_type.js
-       mozilla/toolkit/components/url-classifier/tests/TestUrlClassifierUtils.cpp
        mozilla/toolkit/components/search/tests/xpcshell/test_645970.js
        mozilla/toolkit/components/search/tests/xpcshell/test_init_async_multiple.js
        mozilla/toolkit/components/search/tests/xpcshell/test_init_async_multiple_then_sync.js
@@ -3701,10 +3187,6 @@ License: MPL-2.0
 Files: mozilla/testing/mozbase/mozdevice/mozdevice/Zeroconf.py
 Copyright: 2003, Paul Scott-Murphy
 License: LGPL-2.1+
-
-Files: mozilla/testing/mozbase/mozlog/mozlog/structured/formatters/html/xmlgen.py
-Copyright: no-info-found
-License: Expat
 
 Files: mozilla/testing/tools/screenshot/*
 Copyright: 2009, The Mozilla Foundation
@@ -3798,7 +3280,7 @@ License: Apache-2.0
 Files: mozilla/toolkit/crashreporter/google-breakpad/src/common/mac/testing/GTMSenTestCase.h
 Copyright: 2007, 2008, Google Inc.
            1997-2005, Sen:te (Sente SA).
-License: Apache-2.0 or BSD-2
+License: Apache-2.0 or BSD-2-clause
 
 Files: mozilla/toolkit/crashreporter/google-breakpad/src/common/md5.cc
 Copyright: no-info-found
@@ -3837,33 +3319,8 @@ Files: mozilla/toolkit/crashreporter/test/browser/browser_clearReports.js
 Copyright: no-info-found
 License: MPL-2.0
 
-Files: mozilla/toolkit/devtools/gcli/source/*
-Copyright: 2012-2014, Mozilla Foundation and contributors
-License: Apache-2.0
-
-Files: mozilla/toolkit/devtools/gcli/source/lib/gcli/util/prism.js
-Copyright: no-info-found
-License: Expat
-
-Files: mozilla/toolkit/devtools/jsbeautify/src/*
-Copyright: 2007-2013, Einar Lielmanis and contributors
-License: Expat
-
-Files: mozilla/toolkit/devtools/qrcode/decoder/*
-Copyright: 2007, ZXing authors
-License: Apache-2.0
-
-Files: mozilla/toolkit/devtools/qrcode/encoder/*
-Copyright: 2009, Kazuhiko Arase
-License: Expat
-
-Files: mozilla/toolkit/devtools/server/tests/browser/head.js
-       mozilla/toolkit/devtools/server/tests/unit/test_get-executable-lines-source-map.js
-       mozilla/toolkit/devtools/server/tests/unit/test_get-executable-lines.js
-       mozilla/toolkit/identity/tests/unit/test_load_modules.js
+Files: mozilla/toolkit/identity/tests/unit/test_load_modules.js
        mozilla/toolkit/locales/compare-locales.pl
-       mozilla/toolkit/locales/en-US/chrome/global/devtools/*
-       mozilla/toolkit/modules/tests/xpcshell/test_dict.js
        mozilla/toolkit/modules/tests/xpcshell/test_propertyListsUtils.js
        mozilla/toolkit/mozapps/extensions/test/browser/browser_CTP_plugins.js
        mozilla/toolkit/mozapps/extensions/test/browser/browser_bug562992.js
@@ -3904,7 +3361,6 @@ Files: mozilla/toolkit/devtools/server/tests/browser/head.js
        mozilla/toolkit/mozapps/extensions/test/xpcshell/test_pluginBlocklistCtp.js
        mozilla/toolkit/mozapps/extensions/test/xpcshell/test_pluginInfoURL.js
        mozilla/toolkit/mozapps/update/tests/TestAUSReadStrings.cpp
-       mozilla/toolkit/mozapps/update/tests/shared.js
        mozilla/toolkit/mozapps/update/tests/unit_aus_update/*
        mozilla/toolkit/mozapps/update/tests/unit_base_updater/marFailurePartial.js
        mozilla/toolkit/mozapps/update/tests/unit_base_updater/marStageFailurePartial.js
@@ -3920,54 +3376,13 @@ Files: mozilla/toolkit/devtools/server/tests/browser/head.js
        mozilla/toolkit/mozapps/update/tests/unit_service_updater/marStageSuccessPartialSvc.js
        mozilla/toolkit/mozapps/update/tests/unit_service_updater/marSuccessCompleteSvc.js
        mozilla/toolkit/mozapps/update/tests/unit_service_updater/marSuccessPartialSvc.js
-       mozilla/toolkit/mozapps/update/tests/unit_timermanager/*
 Copyright: no-info-found
 License: MPL-2.0
-
-Files: mozilla/toolkit/devtools/webconsole/network-helper.js
-Copyright: 2007, Parakey Inc.
-License: BSD-3-clause
 
 Files: mozilla/toolkit/mozapps/update/updater/bspatch.cpp
        mozilla/toolkit/mozapps/update/updater/bspatch.h
 Copyright: 2003-2005, 2007, 2009, Colin Percival
-License: BSD-2
-
-Files: mozilla/tools/profiler/IntelPowerGadget.cpp
-       mozilla/tools/profiler/IntelPowerGadget.h
-Copyright: 2013, Intel Corporation
-License: Apache-2.0
-
-Files: mozilla/tools/profiler/LulCommon.cpp
-       mozilla/tools/profiler/LulElf.cpp
-       mozilla/tools/profiler/LulElfExt.h
-       mozilla/tools/profiler/LulElfInt.h
-Copyright: 1999-2013, Google Inc.
-License: BSD-3-clause
-
-Files: mozilla/tools/profiler/LulCommonExt.h
-Copyright: 1998-1999, Greg Colvin and Beman Dawes
-           2006, 2010, 2012-2013 Google Inc.
-           2001-2002 Peter Dimov
-License: BSD-3-clause
-
-Files: mozilla/tools/profiler/LulDwarf.cpp
-       mozilla/tools/profiler/LulDwarfExt.h
-       mozilla/tools/profiler/LulDwarfInt.h
-Copyright: 2005-2006, 2008-2013, Google Inc.
-License: BSD-3-clause
-
-Files: mozilla/tools/profiler/LulExidx.cpp
-       mozilla/tools/profiler/LulExidxExt.h
-Copyright: 2011, Linaro Limited
-           2010-2011, Google Inc.
-License: BSD-3-clause or Expat
-
-Files: mozilla/tools/profiler/platform-linux.cc
-       mozilla/tools/profiler/platform-win32.cc
-       mozilla/tools/profiler/platform.h
-Copyright: 2006-2013, The Chromium Authors
-License: BSD-3-clause
+License: BSD-2-clause
 
 Files: mozilla/tools/update-packaging/test/common.sh
        mozilla/tools/update-packaging/test/make_full_update.sh
@@ -3993,7 +3408,7 @@ License: Apache-2.0
 
 Files: mozilla/widget/cocoa/ComplexTextInputPanel.h
 Copyright: 2006-2009, 2012, Apple Inc.
-License: BSD-2
+License: BSD-2-clause
 
 Files: mozilla/widget/gonk/*
 Copyright: 2012-2014, Mozilla Foundation and Mozilla contributors
@@ -4116,7 +3531,7 @@ License: MPL-2.0
 
 Files: mozilla/xpcom/typelib/xpt/tools/*
 Copyright: 2010, 2011, Mozilla Foundation
-License: BSD-2
+License: BSD-2-clause
 
 License: Apache-2.0
  Licensed under the Apache License, Version 2.0 (the "License");
@@ -4170,32 +3585,32 @@ License: BZIP2
 Comment:
  Licensing details are available in mozilla/modules/libbz2/src/LICENSE.
 
-License: BSD-2
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions
- are met:
- 1. Redistributions of source code must retain the above copyright
-    notice(s), this list of conditions and the following disclaimer as
-    the first lines of this file unmodified other than the possible
-    addition of one or more copyright notices.
- 2. Redistributions in binary form must reproduce the above copyright
-    notice(s), this list of conditions and the following disclaimer in
-    the documentation and/or other materials provided with the
-    distribution.
+License: BSL-1.0
+ Boost Software License - Version 1.0 - August 17th, 2003
  .
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
- EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
- LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ Permission is hereby granted, free of charge, to any person or organization
+ obtaining a copy of the software and accompanying documentation covered by
+ this license (the "Software") to use, reproduce, display, distribute,
+ execute, and transmit the Software, and to prepare derivative works of the
+ Software, and to permit third-parties to whom the Software is furnished to
+ do so, all subject to the following:
+ .
+ The copyright notices in the Software and this entire statement, including
+ the above license grant, this restriction and the following disclaimer,
+ must be included in all copies of the Software, in whole or in part, and
+ all derivative works of the Software, unless such copies or derivative
+ works are solely in the form of machine-executable object code generated by
+ a source language processor.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+ SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
 
-License: BSD-3
+License: BSD-2-clause
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions
  are met:
@@ -4207,9 +3622,6 @@ License: BSD-3
     notice(s), this list of conditions and the following disclaimer in
     the documentation and/or other materials provided with the
     distribution.
- 3. Neither the name of the copyright holder nor the names of its
-    contributors may be used to endorse or promote products derived
-    from this software without specific prior written permission.
  .
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -4296,34 +3708,6 @@ License: BSD-4-clause
  OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-License: CC-BY-SA-2.5
- You are free to:
-  Share — copy and redistribute the material in any medium or format
-  Adapt — remix, transform, and build upon the material
-  for any purpose, even commercially.
- .
-  The licensor cannot revoke these freedoms as long as you follow the license
-  terms.
- .
- Under the following terms:
-  Attribution — You must give appropriate credit, provide a link to the
-  license, and indicate if changes were made. You may do so in any reasonable
-  manner, but not in any way that suggests the licensor endorses you or your
-  use.
-  ShareAlike — If you remix, transform, or build upon the material, you must
-  distribute your contributions under the same license as the original.
-  No additional restrictions — You may not apply legal terms or technological
-  measures that legally restrict others from doing anything the license
-  permits.
- .
- Notices:
-  You do not have to comply with the license for elements of the material in
-  the public domain or where your use is permitted by an applicable exception
-  or limitation.
-  No warranties are given. The license may not give you all of the permissions
-  necessary for your intended use. For example, other rights such as
-  publicity, privacy, or moral rights may limit how you use the material.
-
 License: Expat
  The MIT License
  .
@@ -4400,8 +3784,8 @@ License: LGPL-2+
  Software Foundation; version 2 of the License, or (at  your option) any later
  version.
  .
- On Debian systems, the complete text of version 2 of the GNU Library General
- Public License can be found in `/usr/share/common-licenses/LGPL-2'.
+ On Debian systems, the complete text of version 2 of the GNU Library
+ General Public License can be found in `/usr/share/common-licenses/LGPL-2'.
 
 License: LGPL-2.1
  On Debian systems, the complete text of the GNU Library General Public
@@ -4411,30 +3795,10 @@ License: LGPL-2.1+
  This program is free software; you can redistribute it and/or modify it under
  the terms of the GNU Library General Public License as published by the
  Free Software Foundation; version 2.1 of the License, or (at  your option) any
- later version. 
+ later version.
  .
- On Debian systems, the complete text of version 2.1 of the GNU Library General Public
- License can be found in `/usr/share/common-licenses/LGPL-2.1'.
-
-License: MIT
- Permission is hereby granted, free of charge, to any person obtaining
- a copy of this software and associated documentation files (the
- "Software"), to deal in the Software without restriction, including
- without limitation the rights to use, copy, modify, merge, publish,
- distribute, sublicense, and/or sell copies of the Software, and to
- permit persons to whom the Software is furnished to do so, subject to
- the following conditions:
- .
- The above copyright notice and this permission notice shall be
- included in all copies or substantial portions of the Software.
- .
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ On Debian systems, the complete text of version 2.1 of the GNU General
+ Public License can be found in `/usr/share/common-licenses/LGPL-2.1'.
 
 License: old-MIT
  Permission is hereby granted, without written agreement and without
@@ -4456,16 +3820,1258 @@ License: old-MIT
  PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 License: MPL-1.0
- The complete text of the Mozilla Public License 1.0 can be found in
- the `MPL-1.0' file in the same directory as this file.
+                          MOZILLA PUBLIC LICENSE
+                                Version 1.0
+ .
+                              ---------------
+ .
+ 1. Definitions.
+ .
+    1.1. "Contributor" means each entity that creates or contributes to
+         the creation of Modifications.
+ .
+    1.2. "Contributor Version" means the combination of the Original
+         Code, prior Modifications used by a Contributor, and the
+         Modifications made by that particular Contributor.
+ .
+    1.3. "Covered Code" means the Original Code or Modifications or the
+         combination of the Original Code and Modifications, in each
+         case including portions thereof.
+ .
+    1.4. "Electronic Distribution Mechanism" means a mechanism
+         generally accepted in the software development community for
+         the electronic transfer of data.
+ .
+    1.5. "Executable" means Covered Code in any form other than Source
+         Code.
+ .
+    1.6. "Initial Developer" means the individual or entity identified
+         as the Initial Developer in the Source Code notice required by
+         Exhibit A.
+ .
+    1.7. "Larger Work" means a work which combines Covered Code or
+         portions thereof with code not governed by the terms of this
+         License.
+ .
+    1.8. "License" means this document.
+ .
+    1.9. "Modifications" means any addition to or deletion from the
+         substance or structure of either the Original Code or any
+         previous Modifications. When Covered Code is released as a
+         series of files, a Modification is:
+ .
+        A. Any addition to or deletion from the contents of a file
+           containing Original Code or previous Modifications.
+ .
+        B. Any new file that contains any part of the Original Code
+           or previous Modifications.
+ .
+    1.10. "Original Code" means Source Code of computer software code
+          which is described in the Source Code notice required by
+          Exhibit A as Original Code, and which, at the time of its
+          release under this License is not already Covered Code
+          governed by this License.
+ .
+    1.11. "Source Code" means the preferred form of the Covered Code for
+          making modifications to it, including all modules it contains,
+          plus any associated interface definition files, scripts used
+          to control compilation and installation of an Executable, or a
+          list of source code differential comparisons against either
+          the Original Code or another well known, available Covered
+          Code of the Contributor's choice. The Source Code can be in a
+          compressed or archival form, provided the appropriate
+          decompression or de-archiving software is widely available for
+          no charge.
+ .
+    1.12. "You" means an individual or a legal entity exercising rights
+          under, and complying with all of the terms of, this License
+          or a future version of this License issued under Section 6.1.
+          For legal entities, "You" includes any entity which controls,
+          is controlled by, or is under common control with You. For
+          purposes of this definition, "control" means (a) the power,
+          direct or indirect, to cause the direction or management of
+          such entity, whether by contract or otherwise, or (b)
+          ownership of fifty percent (50%) or more of the outstanding
+          shares or beneficial ownership of such entity.
+ .
+ 2. Source Code License.
+ .
+    2.1. The Initial Developer Grant.
+    The Initial Developer hereby grants You a world-wide, royalty-free,
+    non-exclusive license, subject to third party intellectual property
+    claims:
+      (a) to use, reproduce, modify, display, perform, sublicense and
+          distribute the Original Code (or portions thereof) with or
+          without Modifications, or as part of a Larger Work; and
+      (b) under patents now or hereafter owned or controlled by
+          Initial Developer, to make, have made, use and sell
+          ("Utilize") the Original Code (or portions thereof), but
+          solely to the extent that any such patent is reasonably
+          necessary to enable You to Utilize the Original Code (or
+          portions thereof) and not to any greater extent that may be
+          necessary to Utilize further Modifications or combinations.
+ .
+    2.2. Contributor Grant.
+    Each Contributor hereby grants You a world-wide, royalty-free,
+    non-exclusive license, subject to third party intellectual
+    property claims:
+      (a) to use, reproduce, modify, display, perform,
+          sublicense and distribute the Modifications created by such
+          Contributor (or portions thereof) either on an unmodified
+          basis, with other Modifications, as Covered Code or as part of
+          a Larger Work; and
+      (b) under patents now or hereafter owned or controlled by
+          Contributor, to Utilize the Contributor Version (or portions
+          thereof), but solely to the extent that any such patent is
+          reasonably necessary to enable You to Utilize the Contributor
+          Version (or portions thereof), and not to any greater extent
+          that may be necessary to Utilize further Modifications or
+          combinations.
+ .
+ 3. Distribution Obligations.
+ .
+    3.1. Application of License.
+    The Modifications which You create or to which You contribute are
+    governed by the terms of this License, including without limitation
+    Section 2.2. The Source Code version of Covered Code may be
+    distributed only under the terms of this License or a future version
+    of this License released under Section 6.1, and You must include a
+    copy of this License with every copy of the Source Code You
+    distribute. You may not offer or impose any terms on any Source
+    Code version that alters or restricts the applicable version of
+    this License or the recipients' rights hereunder. However, You may
+    include an additional document offering the additional rights
+    described in Section 3.5.
+ .
+    3.2. Availability of Source Code.
+    Any Modification which You create or to which You contribute must be
+    made available in Source Code form under the terms of this License
+    either on the same media as an Executable version or via an accepted
+    Electronic Distribution Mechanism to anyone to whom you made an
+    Executable version available; and if made available via Electronic
+    Distribution Mechanism, must remain available for at least twelve
+    (12) months after the date it initially became available, or at
+    least six (6) months after a subsequent version of that particular
+    Modification has been made available to such recipients. You are
+    responsible for ensuring that the Source Code version remains
+    available even if the Electronic Distribution Mechanism is
+    maintained by a third party.
+ .
+    3.3. Description of Modifications.
+    You must cause all Covered Code to which you contribute to contain
+    a file documenting the changes You made to create that Covered Code
+    and the date of any change. You must include a prominent statement
+    that the Modification is derived, directly or indirectly, from
+    Original Code provided by the Initial Developer and including the
+    name of the Initial Developer in (a) the Source Code, and (b) in
+    any notice in an Executable version or related documentation in
+    which You describe the origin or ownership of the Covered Code.
+ .
+    3.4. Intellectual Property Matters
+      (a) Third Party Claims.
+          If You have knowledge that a party claims an intellectual
+          property right in particular functionality or code (or its
+          utilization under this License), you must include a text file
+          with the source code distribution titled "LEGAL" which
+          describes the claim and the party making the claim in
+          sufficient detail that a recipient will know whom to contact.
+          If you obtain such knowledge after You make Your Modification
+          available as described in Section 3.2, You shall promptly
+          modify the LEGAL file in all copies You make available
+          thereafter and shall take other steps (such as notifying
+          appropriate mailing lists or newsgroups) reasonably calculated
+          to inform those who received the Covered Code that new
+          knowledge has been obtained.
+      (b) Contributor APIs.
+          If Your Modification is an application programming interface
+          and You own or control patents which are reasonably necessary
+          to implement that API, you must also include this information
+          in the LEGAL file.
+ .
+    3.5. Required Notices.
+    You must duplicate the notice in Exhibit A in each file of the
+    Source Code, and this License in any documentation for the Source
+    Code, where You describe recipients' rights relating to Covered
+    Code. If You created one or more Modification(s), You may add your
+    name as a Contributor to the notice described in Exhibit A. If it
+    is not possible to put such notice in a particular Source Code file
+    due to its structure, then you must include such notice in a
+    location (such as a relevant directory file) where a user would be
+    likely to look for such a notice. You may choose to offer, and to
+    charge a fee for, warranty, support, indemnity or liability
+    obligations to one or more recipients of Covered Code. However, You
+    may do so only on Your own behalf, and not on behalf of the Initial
+    Developer or any Contributor. You must make it absolutely clear than
+    any such warranty, support, indemnity or liability obligation is
+    offered by You alone, and You hereby agree to indemnify the Initial
+    Developer and every Contributor for any liability incurred by the
+    Initial Developer or such Contributor as a result of warranty,
+    support, indemnity or liability terms You offer.
+ .
+    3.6. Distribution of Executable Versions.
+    You may distribute Covered Code in Executable form only if the
+    requirements of Section 3.1-3.5 have been met for that Covered Code,
+    and if You include a notice stating that the Source Code version of
+    the Covered Code is available under the terms of this License,
+    including a description of how and where You have fulfilled the
+    obligations of Section 3.2. The notice must be conspicuously
+    included in any notice in an Executable version, related
+    documentation or collateral in which You describe recipients'
+    rights relating to the Covered Code. You may distribute the
+    Executable version of Covered Code under a license of Your choice,
+    which may contain terms different from this License, provided that
+    You are in compliance with the terms of this License and that the
+    license for the Executable version does not attempt to limit or
+    alter the recipient's rights in the Source Code version from the
+    rights set forth in this License. If You distribute the Executable
+    version under a different license You must make it absolutely clear
+    that any terms which differ from this License are offered by You
+    alone, not by the Initial Developer or any Contributor. You hereby
+    agree to indemnify the Initial Developer and every Contributor for
+    any liability incurred by the Initial Developer or such Contributor
+    as a result of any such terms You offer.
+ .
+    3.7. Larger Works.
+    You may create a Larger Work by combining Covered Code with other
+    code not governed by the terms of this License and distribute the
+    Larger Work as a single product. In such a case, You must make sure
+    the requirements of this License are fulfilled for the Covered
+    Code.
+ .
+ 4. Inability to Comply Due to Statute or Regulation.
+ .
+    If it is impossible for You to comply with any of the terms of this
+    License with respect to some or all of the Covered Code due to
+    statute or regulation then You must: (a) comply with the terms of
+    this License to the maximum extent possible; and (b) describe the
+    limitations and the code they affect. Such description must be
+    included in the LEGAL file described in Section 3.4 and must be
+    included with all distributions of the Source Code. Except to the
+    extent prohibited by statute or regulation, such description must
+    be sufficiently detailed for a recipient of ordinary skill to be
+    able to understand it.
+ .
+ 5. Application of this License.
+ .
+    This License applies to code to which the Initial Developer has
+    attached the notice in Exhibit A, and to related Covered Code.
+ .
+ 6. Versions of the License.
+ .
+    6.1. New Versions.
+    Netscape Communications Corporation ("Netscape") may publish revised
+    and/or new versions of the License from time to time. Each version
+    will be given a distinguishing version number.
+ .
+    6.2. Effect of New Versions.
+    Once Covered Code has been published under a particular version of
+    the License, You may always continue to use it under the terms of
+    that version. You may also choose to use such Covered Code under
+    the terms of any subsequent version of the License published by
+    Netscape. No one other than Netscape has the right to modify the
+    terms applicable to Covered Code created under this License.
+ .
+    6.3. Derivative Works.
+    If you create or use a modified version of this License (which you
+    may only do in order to apply it to code which is not already
+    Covered Code governed by this License), you must (a) rename Your
+    license so that the phrases "Mozilla", "MOZILLAPL", "MOZPL",
+    "Netscape", "NPL" or any confusingly similar phrase do not appear
+    anywhere in your license and (b) otherwise make it clear that your
+    version of the license contains terms which differ from the Mozilla
+    Public License and Netscape Public License. (Filling in the name of
+    the Initial Developer, Original Code or Contributor in the notice
+    described in Exhibit A shall not of themselves be deemed to be
+    modifications of this License.)
+ .
+ 7. DISCLAIMER OF WARRANTY.
+ .
+    COVERED CODE IS PROVIDED UNDER THIS LICENSE ON AN "AS IS" BASIS,
+    WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED,
+    INCLUDING, WITHOUT LIMITATION, WARRANTIES THAT THE COVERED CODE IS
+    FREE OF DEFECTS, MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE OR
+    NON-INFRINGING. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF
+    THE COVERED CODE IS WITH YOU. SHOULD ANY COVERED CODE PROVE
+    DEFECTIVE IN ANY RESPECT, YOU (NOT THE INITIAL DEVELOPER OR ANY
+    OTHER CONTRIBUTOR) ASSUME THE COST OF ANY NECESSARY SERVICING,
+    REPAIR OR CORRECTION. THIS DISCLAIMER OF WARRANTY CONSTITUTES AN
+    ESSENTIAL PART OF THIS LICENSE. NO USE OF ANY COVERED CODE IS
+    AUTHORIZED HEREUNDER EXCEPT UNDER THIS DISCLAIMER.
+ .
+ 8. TERMINATION.
+ .
+    This License and the rights granted hereunder will terminate
+    automatically if You fail to comply with terms herein and fail to
+    cure such breach within 30 days of becoming aware of the breach.
+    All sublicenses to the Covered Code which are properly granted
+    shall survive any termination of this License. Provisions which, by
+    their nature, must remain in effect beyond the termination of this
+    License shall survive.
+ .
+ 9. LIMITATION OF LIABILITY.
+ .
+    UNDER NO CIRCUMSTANCES AND UNDER NO LEGAL THEORY, WHETHER TORT
+    (INCLUDING NEGLIGENCE), CONTRACT, OR OTHERWISE, SHALL THE INITIAL
+    DEVELOPER, ANY OTHER CONTRIBUTOR, OR ANY DISTRIBUTOR OF COVERED
+    CODE, OR ANY SUPPLIER OF ANY OF SUCH PARTIES, BE LIABLE TO YOU OR
+    ANY OTHER PERSON FOR ANY INDIRECT, SPECIAL, INCIDENTAL, OR
+    CONSEQUENTIAL DAMAGES OF ANY CHARACTER INCLUDING, WITHOUT
+    LIMITATION, DAMAGES FOR LOSS OF GOODWILL, WORK STOPPAGE, COMPUTER
+    FAILURE OR MALFUNCTION, OR ANY AND ALL OTHER COMMERCIAL DAMAGES OR
+    LOSSES, EVEN IF SUCH PARTY SHALL HAVE BEEN INFORMED OF THE
+    POSSIBILITY OF SUCH DAMAGES. THIS LIMITATION OF LIABILITY SHALL NOT
+    APPLY TO LIABILITY FOR DEATH OR PERSONAL INJURY RESULTING FROM SUCH
+    PARTY'S NEGLIGENCE TO THE EXTENT APPLICABLE LAW PROHIBITS SUCH
+    LIMITATION. SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR
+    LIMITATION OF INCIDENTAL OR CONSEQUENTIAL DAMAGES, SO THAT EXCLUSION
+    AND LIMITATION MAY NOT APPLY TO YOU.
+ .
+ 10. U.S. GOVERNMENT END USERS.
+ .
+    The Covered Code is a "commercial item," as that term is defined in
+    48 C.F.R. 2.101 (Oct. 1995), consisting of "commercial computer
+    software" and "commercial computer software documentation," as such
+    terms are used in 48 C.F.R. 12.212 (Sept. 1995). Consistent with 48
+    C.F.R. 12.212 and 48 C.F.R. 227.7202-1 through 227.7202-4 (June
+    1995), all U.S. Government End Users acquire Covered Code with only
+    those rights set forth herein.
+ .
+ 11. MISCELLANEOUS.
+ .
+    This License represents the complete agreement concerning subject
+    matter hereof. If any provision of this License is held to be
+    unenforceable, such provision shall be reformed only to the extent
+    necessary to make it enforceable. This License shall be governed by
+    California law provisions (except to the extent applicable law, if
+    any, provides otherwise), excluding its conflict-of-law provisions.
+    With respect to disputes in which at least one party is a citizen
+    of, or an entity chartered or registered to do business in, the
+    United States of America: (a) unless otherwise agreed in writing,
+    all disputes relating to this License (excepting any dispute
+    relating to intellectual property rights) shall be subject to final
+    and binding arbitration, with the losing party paying all costs of
+    arbitration; (b) any arbitration relating to this Agreement shall be
+    held in Santa Clara County, California, under the auspices of
+    JAMS/EndDispute; and (c) any litigation relating to this Agreement
+    shall be subject to the jurisdiction of the Federal Courts of the
+    Northern District of California, with venue lying in Santa Clara
+    County, California, with the losing party responsible for costs,
+    including without limitation, court costs and reasonable attorneys
+    fees and expenses. The application of the United Nations Convention
+    on Contracts for the International Sale of Goods is expressly
+    excluded. Any law or regulation which provides that the language of
+    a contract shall be construed against the drafter shall not apply
+    to this License.
+ .
+ 12. RESPONSIBILITY FOR CLAIMS.
+ .
+    Except in cases where another Contributor has failed to comply with
+    Section 3.4, You are responsible for damages arising, directly or
+    indirectly, out of Your utilization of rights under this License,
+    based on the number of copies of Covered Code you made available,
+    the revenues you received from utilizing such rights, and other
+    relevant factors. You agree to work with affected parties to
+    distribute responsibility on an equitable basis.
+ .
+ EXHIBIT A.
+ .
+    "The contents of this file are subject to the Mozilla Public License
+    Version 1.0 (the "License"); you may not use this file except in
+    compliance with the License. You may obtain a copy of the License
+    at http://www.mozilla.org/MPL/
+ .
+    Software distributed under the License is distributed on an "AS IS"
+    basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+    the License for the specific language governing rights and
+    limitations under the License.
+ .
+    The Original Code is ______________________________________.
+ .
+    The Initial Developer of the Original Code is ____________________.
+    Portions created by ______________________
+    are Copyright (C) ______ _______________________. All Rights
+    Reserved.
+ .
+    Contributor(s): ______________________________________."
+ .
+ The original content can be found on https://www.mozilla.org/MPL/1.0/
 
 License: MPL-1.1
- The complete text of the Mozilla Public License can be found in
- the `MPL-1.1' file in the same directory as this file.
+                           MOZILLA PUBLIC LICENSE
+                                Version 1.1
+ .
+                              ---------------
+ .
+ 1. Definitions.
+ .
+     1.0.1. "Commercial Use" means distribution or otherwise making the
+     Covered Code available to a third party.
+ .
+     1.1. "Contributor" means each entity that creates or contributes to
+     the creation of Modifications.
+ .
+     1.2. "Contributor Version" means the combination of the Original
+     Code, prior Modifications used by a Contributor, and the Modifications
+     made by that particular Contributor.
+ .
+     1.3. "Covered Code" means the Original Code or Modifications or the
+     combination of the Original Code and Modifications, in each case
+     including portions thereof.
+ .
+     1.4. "Electronic Distribution Mechanism" means a mechanism generally
+     accepted in the software development community for the electronic
+     transfer of data.
+ .
+     1.5. "Executable" means Covered Code in any form other than Source
+     Code.
+ .
+     1.6. "Initial Developer" means the individual or entity identified
+     as the Initial Developer in the Source Code notice required by Exhibit
+     A.
+ .
+     1.7. "Larger Work" means a work which combines Covered Code or
+     portions thereof with code not governed by the terms of this License.
+ .
+     1.8. "License" means this document.
+ .
+     1.8.1. "Licensable" means having the right to grant, to the maximum
+     extent possible, whether at the time of the initial grant or
+     subsequently acquired, any and all of the rights conveyed herein.
+ .
+     1.9. "Modifications" means any addition to or deletion from the
+     substance or structure of either the Original Code or any previous
+     Modifications. When Covered Code is released as a series of files, a
+     Modification is:
+          A. Any addition to or deletion from the contents of a file
+          containing Original Code or previous Modifications.
+ .
+          B. Any new file that contains any part of the Original Code or
+          previous Modifications.
+ .
+     1.10. "Original Code" means Source Code of computer software code
+     which is described in the Source Code notice required by Exhibit A as
+     Original Code, and which, at the time of its release under this
+     License is not already Covered Code governed by this License.
+ .
+     1.10.1. "Patent Claims" means any patent claim(s), now owned or
+     hereafter acquired, including without limitation,  method, process,
+     and apparatus claims, in any patent Licensable by grantor.
+ .
+     1.11. "Source Code" means the preferred form of the Covered Code for
+     making modifications to it, including all modules it contains, plus
+     any associated interface definition files, scripts used to control
+     compilation and installation of an Executable, or source code
+     differential comparisons against either the Original Code or another
+     well known, available Covered Code of the Contributor's choice. The
+     Source Code can be in a compressed or archival form, provided the
+     appropriate decompression or de-archiving software is widely available
+     for no charge.
+ .
+     1.12. "You" (or "Your")  means an individual or a legal entity
+     exercising rights under, and complying with all of the terms of, this
+     License or a future version of this License issued under Section 6.1.
+     For legal entities, "You" includes any entity which controls, is
+     controlled by, or is under common control with You. For purposes of
+     this definition, "control" means (a) the power, direct or indirect,
+     to cause the direction or management of such entity, whether by
+     contract or otherwise, or (b) ownership of more than fifty percent
+     (50%) of the outstanding shares or beneficial ownership of such
+     entity.
+ .
+ 2. Source Code License.
+ .
+     2.1. The Initial Developer Grant.
+     The Initial Developer hereby grants You a world-wide, royalty-free,
+     non-exclusive license, subject to third party intellectual property
+     claims:
+          (a)  under intellectual property rights (other than patent or
+          trademark) Licensable by Initial Developer to use, reproduce,
+          modify, display, perform, sublicense and distribute the Original
+          Code (or portions thereof) with or without Modifications, and/or
+          as part of a Larger Work; and
+ .
+          (b) under Patents Claims infringed by the making, using or
+          selling of Original Code, to make, have made, use, practice,
+          sell, and offer for sale, and/or otherwise dispose of the
+          Original Code (or portions thereof).
+ .
+          (c) the licenses granted in this Section 2.1(a) and (b) are
+          effective on the date Initial Developer first distributes
+          Original Code under the terms of this License.
+ .
+          (d) Notwithstanding Section 2.1(b) above, no patent license is
+          granted: 1) for code that You delete from the Original Code; 2)
+          separate from the Original Code;  or 3) for infringements caused
+          by: i) the modification of the Original Code or ii) the
+          combination of the Original Code with other software or devices.
+ .
+     2.2. Contributor Grant.
+     Subject to third party intellectual property claims, each Contributor
+     hereby grants You a world-wide, royalty-free, non-exclusive license
+ .
+          (a)  under intellectual property rights (other than patent or
+          trademark) Licensable by Contributor, to use, reproduce, modify,
+          display, perform, sublicense and distribute the Modifications
+          created by such Contributor (or portions thereof) either on an
+          unmodified basis, with other Modifications, as Covered Code
+          and/or as part of a Larger Work; and
+ .
+          (b) under Patent Claims infringed by the making, using, or
+          selling of  Modifications made by that Contributor either alone
+          and/or in combination with its Contributor Version (or portions
+          of such combination), to make, use, sell, offer for sale, have
+          made, and/or otherwise dispose of: 1) Modifications made by that
+          Contributor (or portions thereof); and 2) the combination of
+          Modifications made by that Contributor with its Contributor
+          Version (or portions of such combination).
+ .
+          (c) the licenses granted in Sections 2.2(a) and 2.2(b) are
+          effective on the date Contributor first makes Commercial Use of
+          the Covered Code.
+ .
+          (d) Notwithstanding Section 2.2(b) above, no patent license is
+          granted: 1) for any code that Contributor has deleted from the
+          Contributor Version; 2)  separate from the Contributor Version;
+          3)  for infringements caused by: i) third party modifications of
+          Contributor Version or ii)  the combination of Modifications made
+          by that Contributor with other software  (except as part of the
+          Contributor Version) or other devices; or 4) under Patent Claims
+          infringed by Covered Code in the absence of Modifications made by
+          that Contributor.
+ .
+ 3. Distribution Obligations.
+ .
+     3.1. Application of License.
+     The Modifications which You create or to which You contribute are
+     governed by the terms of this License, including without limitation
+     Section 2.2. The Source Code version of Covered Code may be
+     distributed only under the terms of this License or a future version
+     of this License released under Section 6.1, and You must include a
+     copy of this License with every copy of the Source Code You
+     distribute. You may not offer or impose any terms on any Source Code
+     version that alters or restricts the applicable version of this
+     License or the recipients' rights hereunder. However, You may include
+     an additional document offering the additional rights described in
+     Section 3.5.
+ .
+     3.2. Availability of Source Code.
+     Any Modification which You create or to which You contribute must be
+     made available in Source Code form under the terms of this License
+     either on the same media as an Executable version or via an accepted
+     Electronic Distribution Mechanism to anyone to whom you made an
+     Executable version available; and if made available via Electronic
+     Distribution Mechanism, must remain available for at least twelve (12)
+     months after the date it initially became available, or at least six
+     (6) months after a subsequent version of that particular Modification
+     has been made available to such recipients. You are responsible for
+     ensuring that the Source Code version remains available even if the
+     Electronic Distribution Mechanism is maintained by a third party.
+ .
+     3.3. Description of Modifications.
+     You must cause all Covered Code to which You contribute to contain a
+     file documenting the changes You made to create that Covered Code and
+     the date of any change. You must include a prominent statement that
+     the Modification is derived, directly or indirectly, from Original
+     Code provided by the Initial Developer and including the name of the
+     Initial Developer in (a) the Source Code, and (b) in any notice in an
+     Executable version or related documentation in which You describe the
+     origin or ownership of the Covered Code.
+ .
+     3.4. Intellectual Property Matters
+          (a) Third Party Claims.
+          If Contributor has knowledge that a license under a third party's
+          intellectual property rights is required to exercise the rights
+          granted by such Contributor under Sections 2.1 or 2.2,
+          Contributor must include a text file with the Source Code
+          distribution titled "LEGAL" which describes the claim and the
+          party making the claim in sufficient detail that a recipient will
+          know whom to contact. If Contributor obtains such knowledge after
+          the Modification is made available as described in Section 3.2,
+          Contributor shall promptly modify the LEGAL file in all copies
+          Contributor makes available thereafter and shall take other steps
+          (such as notifying appropriate mailing lists or newsgroups)
+          reasonably calculated to inform those who received the Covered
+          Code that new knowledge has been obtained.
+ .
+          (b) Contributor APIs.
+          If Contributor's Modifications include an application programming
+          interface and Contributor has knowledge of patent licenses which
+          are reasonably necessary to implement that API, Contributor must
+          also include this information in the LEGAL file.
+ .
+          (c) Representations.
+          Contributor represents that, except as disclosed pursuant to
+          Section 3.4(a) above, Contributor believes that Contributor's
+          Modifications are Contributor's original creation(s) and/or
+          Contributor has sufficient rights to grant the rights conveyed by
+          this License.
+ .
+     3.5. Required Notices.
+     You must duplicate the notice in Exhibit A in each file of the Source
+     Code.  If it is not possible to put such notice in a particular Source
+     Code file due to its structure, then You must include such notice in a
+     location (such as a relevant directory) where a user would be likely
+     to look for such a notice.  If You created one or more Modification(s)
+     You may add your name as a Contributor to the notice described in
+     Exhibit A.  You must also duplicate this License in any documentation
+     for the Source Code where You describe recipients' rights or ownership
+     rights relating to Covered Code.  You may choose to offer, and to
+     charge a fee for, warranty, support, indemnity or liability
+     obligations to one or more recipients of Covered Code. However, You
+     may do so only on Your own behalf, and not on behalf of the Initial
+     Developer or any Contributor. You must make it absolutely clear than
+     any such warranty, support, indemnity or liability obligation is
+     offered by You alone, and You hereby agree to indemnify the Initial
+     Developer and every Contributor for any liability incurred by the
+     Initial Developer or such Contributor as a result of warranty,
+     support, indemnity or liability terms You offer.
+ .
+     3.6. Distribution of Executable Versions.
+     You may distribute Covered Code in Executable form only if the
+     requirements of Section 3.1-3.5 have been met for that Covered Code,
+     and if You include a notice stating that the Source Code version of
+     the Covered Code is available under the terms of this License,
+     including a description of how and where You have fulfilled the
+     obligations of Section 3.2. The notice must be conspicuously included
+     in any notice in an Executable version, related documentation or
+     collateral in which You describe recipients' rights relating to the
+     Covered Code. You may distribute the Executable version of Covered
+     Code or ownership rights under a license of Your choice, which may
+     contain terms different from this License, provided that You are in
+     compliance with the terms of this License and that the license for the
+     Executable version does not attempt to limit or alter the recipient's
+     rights in the Source Code version from the rights set forth in this
+     License. If You distribute the Executable version under a different
+     license You must make it absolutely clear that any terms which differ
+     from this License are offered by You alone, not by the Initial
+     Developer or any Contributor. You hereby agree to indemnify the
+     Initial Developer and every Contributor for any liability incurred by
+     the Initial Developer or such Contributor as a result of any such
+     terms You offer.
+ .
+     3.7. Larger Works.
+     You may create a Larger Work by combining Covered Code with other code
+     not governed by the terms of this License and distribute the Larger
+     Work as a single product. In such a case, You must make sure the
+     requirements of this License are fulfilled for the Covered Code.
+ .
+ 4. Inability to Comply Due to Statute or Regulation.
+ .
+     If it is impossible for You to comply with any of the terms of this
+     License with respect to some or all of the Covered Code due to
+     statute, judicial order, or regulation then You must: (a) comply with
+     the terms of this License to the maximum extent possible; and (b)
+     describe the limitations and the code they affect. Such description
+     must be included in the LEGAL file described in Section 3.4 and must
+     be included with all distributions of the Source Code. Except to the
+     extent prohibited by statute or regulation, such description must be
+     sufficiently detailed for a recipient of ordinary skill to be able to
+     understand it.
+ .
+ 5. Application of this License.
+ .
+     This License applies to code to which the Initial Developer has
+     attached the notice in Exhibit A and to related Covered Code.
+ .
+ 6. Versions of the License.
+ .
+     6.1. New Versions.
+     Netscape Communications Corporation ("Netscape") may publish revised
+     and/or new versions of the License from time to time. Each version
+     will be given a distinguishing version number.
+ .
+     6.2. Effect of New Versions.
+     Once Covered Code has been published under a particular version of the
+     License, You may always continue to use it under the terms of that
+     version. You may also choose to use such Covered Code under the terms
+     of any subsequent version of the License published by Netscape. No one
+     other than Netscape has the right to modify the terms applicable to
+     Covered Code created under this License.
+ .
+     6.3. Derivative Works.
+     If You create or use a modified version of this License (which you may
+     only do in order to apply it to code which is not already Covered Code
+     governed by this License), You must (a) rename Your license so that
+     the phrases "Mozilla", "MOZILLAPL", "MOZPL", "Netscape",
+     "MPL", "NPL" or any confusingly similar phrase do not appear in your
+     license (except to note that your license differs from this License)
+     and (b) otherwise make it clear that Your version of the license
+     contains terms which differ from the Mozilla Public License and
+     Netscape Public License. (Filling in the name of the Initial
+     Developer, Original Code or Contributor in the notice described in
+     Exhibit A shall not of themselves be deemed to be modifications of
+     this License.)
+ .
+ 7. DISCLAIMER OF WARRANTY.
+ .
+     COVERED CODE IS PROVIDED UNDER THIS LICENSE ON AN "AS IS" BASIS,
+     WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING,
+     WITHOUT LIMITATION, WARRANTIES THAT THE COVERED CODE IS FREE OF
+     DEFECTS, MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE OR NON-INFRINGING.
+     THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE COVERED CODE
+     IS WITH YOU. SHOULD ANY COVERED CODE PROVE DEFECTIVE IN ANY RESPECT,
+     YOU (NOT THE INITIAL DEVELOPER OR ANY OTHER CONTRIBUTOR) ASSUME THE
+     COST OF ANY NECESSARY SERVICING, REPAIR OR CORRECTION. THIS DISCLAIMER
+     OF WARRANTY CONSTITUTES AN ESSENTIAL PART OF THIS LICENSE. NO USE OF
+     ANY COVERED CODE IS AUTHORIZED HEREUNDER EXCEPT UNDER THIS DISCLAIMER.
+ .
+ 8. TERMINATION.
+ .
+     8.1.  This License and the rights granted hereunder will terminate
+     automatically if You fail to comply with terms herein and fail to cure
+     such breach within 30 days of becoming aware of the breach. All
+     sublicenses to the Covered Code which are properly granted shall
+     survive any termination of this License. Provisions which, by their
+     nature, must remain in effect beyond the termination of this License
+     shall survive.
+ .
+     8.2.  If You initiate litigation by asserting a patent infringement
+     claim (excluding declatory judgment actions) against Initial Developer
+     or a Contributor (the Initial Developer or Contributor against whom
+     You file such action is referred to as "Participant")  alleging that:
+ .
+     (a)  such Participant's Contributor Version directly or indirectly
+     infringes any patent, then any and all rights granted by such
+     Participant to You under Sections 2.1 and/or 2.2 of this License
+     shall, upon 60 days notice from Participant terminate prospectively,
+     unless if within 60 days after receipt of notice You either: (i)
+     agree in writing to pay Participant a mutually agreeable reasonable
+     royalty for Your past and future use of Modifications made by such
+     Participant, or (ii) withdraw Your litigation claim with respect to
+     the Contributor Version against such Participant.  If within 60 days
+     of notice, a reasonable royalty and payment arrangement are not
+     mutually agreed upon in writing by the parties or the litigation claim
+     is not withdrawn, the rights granted by Participant to You under
+     Sections 2.1 and/or 2.2 automatically terminate at the expiration of
+     the 60 day notice period specified above.
+ .
+     (b)  any software, hardware, or device, other than such Participant's
+     Contributor Version, directly or indirectly infringes any patent, then
+     any rights granted to You by such Participant under Sections 2.1(b)
+     and 2.2(b) are revoked effective as of the date You first made, used,
+     sold, distributed, or had made, Modifications made by that
+     Participant.
+ .
+     8.3.  If You assert a patent infringement claim against Participant
+     alleging that such Participant's Contributor Version directly or
+     indirectly infringes any patent where such claim is resolved (such as
+     by license or settlement) prior to the initiation of patent
+     infringement litigation, then the reasonable value of the licenses
+     granted by such Participant under Sections 2.1 or 2.2 shall be taken
+     into account in determining the amount or value of any payment or
+     license.
+ .
+     8.4.  In the event of termination under Sections 8.1 or 8.2 above,
+     all end user license agreements (excluding distributors and resellers)
+     which have been validly granted by You or any distributor hereunder
+     prior to termination shall survive termination.
+ .
+ 9. LIMITATION OF LIABILITY.
+ .
+     UNDER NO CIRCUMSTANCES AND UNDER NO LEGAL THEORY, WHETHER TORT
+     (INCLUDING NEGLIGENCE), CONTRACT, OR OTHERWISE, SHALL YOU, THE INITIAL
+     DEVELOPER, ANY OTHER CONTRIBUTOR, OR ANY DISTRIBUTOR OF COVERED CODE,
+     OR ANY SUPPLIER OF ANY OF SUCH PARTIES, BE LIABLE TO ANY PERSON FOR
+     ANY INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY
+     CHARACTER INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF GOODWILL,
+     WORK STOPPAGE, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL OTHER
+     COMMERCIAL DAMAGES OR LOSSES, EVEN IF SUCH PARTY SHALL HAVE BEEN
+     INFORMED OF THE POSSIBILITY OF SUCH DAMAGES. THIS LIMITATION OF
+     LIABILITY SHALL NOT APPLY TO LIABILITY FOR DEATH OR PERSONAL INJURY
+     RESULTING FROM SUCH PARTY'S NEGLIGENCE TO THE EXTENT APPLICABLE LAW
+     PROHIBITS SUCH LIMITATION. SOME JURISDICTIONS DO NOT ALLOW THE
+     EXCLUSION OR LIMITATION OF INCIDENTAL OR CONSEQUENTIAL DAMAGES, SO
+     THIS EXCLUSION AND LIMITATION MAY NOT APPLY TO YOU.
+ .
+ 10. U.S. GOVERNMENT END USERS.
+ .
+     The Covered Code is a "commercial item," as that term is defined in
+     48 C.F.R. 2.101 (Oct. 1995), consisting of "commercial computer
+     software" and "commercial computer software documentation," as such
+     terms are used in 48 C.F.R. 12.212 (Sept. 1995). Consistent with 48
+     C.F.R. 12.212 and 48 C.F.R. 227.7202-1 through 227.7202-4 (June 1995),
+     all U.S. Government End Users acquire Covered Code with only those
+     rights set forth herein.
+ .
+ 11. MISCELLANEOUS.
+ .
+     This License represents the complete agreement concerning subject
+     matter hereof. If any provision of this License is held to be
+     unenforceable, such provision shall be reformed only to the extent
+     necessary to make it enforceable. This License shall be governed by
+     California law provisions (except to the extent applicable law, if
+     any, provides otherwise), excluding its conflict-of-law provisions.
+     With respect to disputes in which at least one party is a citizen of,
+     or an entity chartered or registered to do business in the United
+     States of America, any litigation relating to this License shall be
+     subject to the jurisdiction of the Federal Courts of the Northern
+     District of California, with venue lying in Santa Clara County,
+     California, with the losing party responsible for costs, including
+     without limitation, court costs and reasonable attorneys' fees and
+     expenses. The application of the United Nations Convention on
+     Contracts for the International Sale of Goods is expressly excluded.
+     Any law or regulation which provides that the language of a contract
+     shall be construed against the drafter shall not apply to this
+     License.
+ .
+ 12. RESPONSIBILITY FOR CLAIMS.
+ .
+     As between Initial Developer and the Contributors, each party is
+     responsible for claims and damages arising, directly or indirectly,
+     out of its utilization of rights under this License and You agree to
+     work with Initial Developer and Contributors to distribute such
+     responsibility on an equitable basis. Nothing herein is intended or
+     shall be deemed to constitute any admission of liability.
+ .
+ 13. MULTIPLE-LICENSED CODE.
+ .
+     Initial Developer may designate portions of the Covered Code as
+     "Multiple-Licensed".  "Multiple-Licensed" means that the Initial
+     Developer permits you to utilize portions of the Covered Code under
+     Your choice of the NPL or the alternative licenses, if any, specified
+     by the Initial Developer in the file described in Exhibit A.
+ .
+ EXHIBIT A -Mozilla Public License.
+ .
+     ``The contents of this file are subject to the Mozilla Public License
+     Version 1.1 (the "License"); you may not use this file except in
+     compliance with the License. You may obtain a copy of the License at
+     http://www.mozilla.org/MPL/
+ .
+     Software distributed under the License is distributed on an "AS IS"
+     basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+     License for the specific language governing rights and limitations
+     under the License.
+ .
+     The Original Code is ______________________________________.
+ .
+     The Initial Developer of the Original Code is ________________________.
+     Portions created by ______________________ are Copyright (C) ______
+     _______________________. All Rights Reserved.
+ .
+     Contributor(s): ______________________________________.
+ .
+     Alternatively, the contents of this file may be used under the terms
+     of the _____ license (the  "[___] License"), in which case the
+     provisions of [______] License are applicable instead of those
+     above.  If you wish to allow use of your version of this file only
+     under the terms of the [____] License and not to allow others to use
+     your version of this file under the MPL, indicate your decision by
+     deleting  the provisions above and replace  them with the notice and
+     other provisions required by the [___] License.  If you do not delete
+     the provisions above, a recipient may use your version of this file
+     under either the MPL or the [___] License."
+ .
+     [NOTE: The text of this Exhibit A may differ slightly from the text of
+     the notices in the Source Code files of the Original Code. You should
+     use the text of this Exhibit A rather than the text found in the
+     Original Code Source Code for Your Modifications.]
+ .
+     ----------------------------------------------------------------------
+ .
+     AMENDMENTS
+ .
+     The Netscape Public License Version 1.1 ("NPL") consists of the
+     Mozilla Public License Version 1.1 with the following Amendments,
+     including Exhibit A-Netscape Public License.  Files identified with
+     "Exhibit A-Netscape Public License" are governed by the Netscape
+     Public License Version 1.1.
+ .
+     Additional Terms applicable to the Netscape Public License.
+          I. Effect.
+          These additional terms described in this Netscape Public
+          License -- Amendments shall apply to the Mozilla Communicator
+          client code and to all Covered Code under this License.
+ .
+          II. "Netscape's Branded Code" means Covered Code that Netscape
+          distributes and/or permits others to distribute under one or more
+          trademark(s) which are controlled by Netscape but which are not
+          licensed for use under this License.
+ .
+          III. Netscape and logo.
+          This License does not grant any rights to use the trademarks
+          "Netscape", the "Netscape N and horizon" logo or the "Netscape
+          lighthouse" logo, "Netcenter", "Gecko", "Java" or "JavaScript",
+          "Smart Browsing" even if such marks are included in the Original
+          Code or Modifications.
+ .
+          IV. Inability to Comply Due to Contractual Obligation.
+          Prior to licensing the Original Code under this License, Netscape
+          has licensed third party code for use in Netscape's Branded Code.
+          To the extent that Netscape is limited contractually from making
+          such third party code available under this License, Netscape may
+          choose to reintegrate such code into Covered Code without being
+          required to distribute such code in Source Code form, even if
+          such code would otherwise be considered "Modifications" under
+          this License.
+ .
+          V. Use of Modifications and Covered Code by Initial Developer.
+               V.1. In General.
+               The obligations of Section 3 apply to Netscape, except to
+               the extent specified in this Amendment, Section V.2 and V.3.
+ .
+              V.2. Other Products.
+               Netscape may include Covered Code in products other than the
+               Netscape's Branded Code which are released by Netscape
+               during the two (2) years following the release date of the
+               Original Code, without such additional products becoming
+               subject to the terms of this License, and may license such
+               additional products on different terms from those contained
+               in this License.
+ .
+               V.3. Alternative Licensing.
+               Netscape may license the Source Code of Netscape's Branded
+               Code, including Modifications incorporated therein, without
+               such Netscape Branded Code becoming subject to the terms of
+               this License, and may license such Netscape Branded Code on
+               different terms from those contained in this License.
+ .
+          VI. Litigation.
+          Notwithstanding the limitations of Section 11 above, the
+          provisions regarding litigation in Section 11(a), (b) and (c) of
+          the License shall apply to all disputes relating to this License.
+ .
+     EXHIBIT A-Netscape Public License.
+ .
+          "The contents of this file are subject to the Netscape Public
+          License Version 1.1 (the "License"); you may not use this file
+          except in compliance with the License. You may obtain a copy of
+          the License at http://www.mozilla.org/NPL/
+ .
+          Software distributed under the License is distributed on an "AS
+          IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+          implied. See the License for the specific language governing
+          rights and limitations under the License.
+ .
+          The Original Code is Mozilla Communicator client code, released
+          March 31, 1998.
+ .
+          The Initial Developer of the Original Code is Netscape
+          Communications Corporation. Portions created by Netscape are
+          Copyright (C) 1998-1999 Netscape Communications Corporation. All
+          Rights Reserved.
+ .
+          Contributor(s): ______________________________________.
+ .
+          Alternatively, the contents of this file may be used under the
+          terms of the _____ license (the "[___] License"), in which case
+          the provisions of [______] License are applicable  instead of
+          those above.  If you wish to allow use of your version of this
+          file only under the terms of the [____] License and not to allow
+          others to use your version of this file under the NPL, indicate
+          your decision by deleting  the provisions above and replace  them
+          with the notice and other provisions required by the [___]
+          License.  If you do not delete the provisions above, a recipient
+          may use your version of this file under either the NPL or the
+          [___] License."
 
 License: MPL-2.0
- The complete text of the Mozilla Public License can be found in
- the `MPL2.0' file in the same directory as this file.
+ Mozilla Public License
+ Version 2.0
+ https://www.mozilla.org/MPL/2.0/
+ .
+ 1. Definitions
+ .
+ 1.1. “Contributor”
+   means each individual or legal entity that creates, contributes to the
+   creation of, or owns Covered Software.
+ .
+ 1.2. “Contributor Version”
+   means the combination of the Contributions of others (if any) used by a
+   Contributor and that particular Contributor’s Contribution.
+ .
+ 1.3. “Contribution”
+   means Covered Software of a particular Contributor.
+ .
+ 1.4. “Covered Software”
+   means Source Code Form to which the initial Contributor has attached the
+   notice in Exhibit A, the Executable Form of such Source Code Form, and
+   Modifications of such Source Code Form, in each case including portions
+   thereof.
+ .
+ 1.5. “Incompatible With Secondary Licenses”
+   means
+   a. that the initial Contributor has attached the notice described in
+      Exhibit B to the Covered Software; or
+   b. that the Covered Software was made available under the terms
+      of version 1.1 or earlier of the License, but not also under the
+      terms of a Secondary License.
+ .
+ 1.6. “Executable Form”
+   means any form of the work other than Source Code Form.
+ .
+ 1.7. “Larger Work”
+   means a work that combines Covered Software with other material, in a
+   separate file or files, that is not Covered Software.
+ .
+ 1.8. “License”
+   means this document.
+ .
+ 1.9. “Licensable”
+   means having the right to grant, to the maximum extent possible, whether at
+   the time of the initial grant or subsequently, any and all of the rights
+   conveyed by this License.
+ .
+ 1.10. “Modifications”
+   means any of the following:
+   a. any file in Source Code Form that results from an addition to, deletion
+      from, or modification of the contents of Covered Software; or
+   b. any new file in Source Code Form that contains any Covered Software.
+ .
+ 1.11. “Patent Claims” of a Contributor
+   means any patent claim(s), including without limitation, method, process, and
+   apparatus claims, in any patent Licensable by such Contributor that would be
+   infringed, but for the grant of the License, by the making, using, selling,
+   offering for sale, having made, import, or transfer of either its
+   Contributions or its Contributor Version.
+ .
+ 1.12. “Secondary License”
+   means either the GNU General Public License, Version 2.0, the GNU Lesser
+   General Public License, Version 2.1, the GNU Affero General Public License,
+   Version 3.0, or any later versions of those licenses.
+ .
+ 1.13. “Source Code Form”
+   means the form of the work preferred for making modifications.
+ .
+ 1.14. “You” (or “Your”)
+   means an individual or a legal entity exercising rights under this License.
+   For legal entities, “You” includes any entity that controls, is controlled
+   by, or is under common control with You. For purposes of this definition,
+   “control” means (a) the power, direct or indirect, to cause the direction or
+   management of such entity, whether by contract or otherwise, or (b) ownership
+   of more than fifty percent (50%) of the outstanding shares or beneficial
+   ownership of such entity.
+ .
+ 2. License Grants and Conditions
+ 2.1. Grants
+   Each Contributor hereby grants You a world-wide, royalty-free, non-exclusive
+   license:
+ .
+   a. under intellectual property rights (other than patent or trademark)
+      Licensable by such Contributor to use, reproduce, make available, modify,
+      display, perform, distribute, and otherwise exploit its Contributions, either
+      on an unmodified basis, with Modifications, or as part of a Larger Work; and
+ .
+   b. under Patent Claims of such Contributor to make, use, sell, offer for
+      sale, have made, import, and otherwise transfer either its Contributions or
+      its Contributor Version.
+ .
+ 2.2. Effective Date
+   The licenses granted in Section 2.1 with respect to any Contribution become
+   effective for each Contribution on the date the Contributor first distributes
+   such Contribution.
+ .
+ 2.3. Limitations on Grant Scope
+   The licenses granted in this Section 2 are the only rights granted under this
+   License. No additional rights or licenses will be implied from the
+   distribution or licensing of Covered Software under this License.
+   Notwithstanding Section 2.1(b) above, no patent license is granted by a
+   Contributor:
+ .
+   a. for any code that a Contributor has removed from Covered Software; or
+ .
+   b. for infringements caused by: (i) Your and any other third party’s
+      modifications of Covered Software, or (ii) the combination of its
+      Contributions with other software (except as part of its Contributor
+      Version); or
+ .
+   c. under Patent Claims infringed by Covered Software in the absence of its
+      Contributions.
+ .
+   This License does not grant any rights in the trademarks, service marks, or
+   logos of any Contributor (except as may be necessary to comply with the
+   notice requirements in Section 3.4).
+ .
+ 2.4. Subsequent Licenses
+   No Contributor makes additional grants as a result of Your choice to
+   distribute the Covered Software under a subsequent version of this License
+   (see Section 10.2) or under the terms of a Secondary License (if permitted
+   under the terms of Section 3.3).
+ .
+ 2.5. Representation
+   Each Contributor represents that the Contributor believes its Contributions
+   are its original creation(s) or it has sufficient rights to grant the rights
+   to its Contributions conveyed by this License.
+ .
+ 2.6. Fair Use
+   This License is not intended to limit any rights You have under applicable
+   copyright doctrines of fair use, fair dealing, or other equivalents.
+ .
+ 2.7. Conditions
+   Sections 3.1, 3.2, 3.3, and 3.4 are conditions of the licenses granted in
+   Section 2.1.
+ .
+ 3. Responsibilities
+ 3.1. Distribution of Source Form
+   All distribution of Covered Software in Source Code Form, including any
+   Modifications that You create or to which You contribute, must be under the
+   terms of this License. You must inform recipients that the Source Code Form
+   of the Covered Software is governed by the terms of this License, and how
+   they can obtain a copy of this License. You may not attempt to alter or
+   restrict the recipients’ rights in the Source Code Form.
+ .
+ 3.2. Distribution of Executable Form
+   If You distribute Covered Software in Executable Form then:
+ .
+   a. such Covered Software must also be made available in Source Code Form, as
+      described in Section 3.1, and You must inform recipients of the Executable
+      Form how they can obtain a copy of such Source Code Form by reasonable means
+      in a timely manner, at a charge no more than the cost of distribution to the
+      recipient; and
+ .
+   b. You may distribute such Executable Form under the terms of this License,
+      or sublicense it under different terms, provided that the license for the
+      Executable Form does not attempt to limit or alter the recipients’ rights in
+      the Source Code Form under this License.
+ .
+ 3.3. Distribution of a Larger Work
+   You may create and distribute a Larger Work under terms of Your choice,
+   provided that You also comply with the requirements of this License for the
+   Covered Software. If the Larger Work is a combination of Covered Software
+   with a work governed by one or more Secondary Licenses, and the Covered
+   Software is not Incompatible With Secondary Licenses, this License permits
+   You to additionally distribute such Covered Software under the terms of such
+   Secondary License(s), so that the recipient of the Larger Work may, at their
+   option, further distribute the Covered Software under the terms of either
+   this License or such Secondary License(s).
+ .
+ 3.4. Notices
+   You may not remove or alter the substance of any license notices (including
+   copyright notices, patent notices, disclaimers of warranty, or limitations of
+   liability) contained within the Source Code Form of the Covered Software,
+   except that You may alter any license notices to the extent required to
+   remedy known factual inaccuracies.
+ .
+ 3.5. Application of Additional Terms
+   You may choose to offer, and to charge a fee for, warranty, support,
+   indemnity or liability obligations to one or more recipients of Covered
+   Software. However, You may do so only on Your own behalf, and not on behalf
+   of any Contributor. You must make it absolutely clear that any such warranty,
+   support, indemnity, or liability obligation is offered by You alone, and You
+   hereby agree to indemnify every Contributor for any liability incurred by
+   such Contributor as a result of warranty, support, indemnity or liability
+   terms You offer. You may include additional disclaimers of warranty and
+   limitations of liability specific to any jurisdiction.
+ .
+ 4. Inability to Comply Due to Statute or Regulation
+   If it is impossible for You to comply with any of the terms of this License
+   with respect to some or all of the Covered Software due to statute, judicial
+   order, or regulation then You must: (a) comply with the terms of this License
+   to the maximum extent possible; and (b) describe the limitations and the code
+   they affect. Such description must be placed in a text file included with all
+   distributions of the Covered Software under this License. Except to the
+   extent prohibited by statute or regulation, such description must be
+   sufficiently detailed for a recipient of ordinary skill to be able to
+   understand it.
+ .
+ 5. Termination
+   5.1. The rights granted under this License will terminate automatically if
+   You fail to comply with any of its terms. However, if You become compliant,
+   then the rights granted under this License from a particular Contributor are
+   reinstated (a) provisionally, unless and until such Contributor explicitly
+   and finally terminates Your grants, and (b) on an ongoing basis, if such
+   Contributor fails to notify You of the non-compliance by some reasonable
+   means prior to 60 days after You have come back into compliance. Moreover,
+   Your grants from a particular Contributor are reinstated on an ongoing basis
+   if such Contributor notifies You of the non-compliance by some reasonable
+   means, this is the first time You have received notice of non-compliance with
+   this License from such Contributor, and You become compliant prior to 30 days
+   after Your receipt of the notice.
+ .
+   5.2. If You initiate litigation against any entity by asserting a patent
+   infringement claim (excluding declaratory judgment actions, counter-claims,
+   and cross-claims) alleging that a Contributor Version directly or indirectly
+   infringes any patent, then the rights granted to You by any and all
+   Contributors for the Covered Software under Section 2.1 of this License shall
+   terminate.
+ .
+   5.3. In the event of termination under Sections 5.1 or 5.2 above, all end
+   user license agreements (excluding distributors and resellers) which have
+   been validly granted by You or Your distributors under this License prior to
+   termination shall survive termination.
+ .
+ 6. Disclaimer of Warranty
+   Covered Software is provided under this License on an “as is” basis, without
+   warranty of any kind, either expressed, implied, or statutory, including,
+   without limitation, warranties that the Covered Software is free of defects,
+   merchantable, fit for a particular purpose or non-infringing. The entire risk
+   as to the quality and performance of the Covered Software is with You. Should
+   any Covered Software prove defective in any respect, You (not any
+   Contributor) assume the cost of any necessary servicing, repair, or
+   correction. This disclaimer of warranty constitutes an essential part of this
+   License. No use of any Covered Software is authorized under this License
+   except under this disclaimer.
+ .
+ 7. Limitation of Liability
+   Under no circumstances and under no legal theory, whether tort (including
+   negligence), contract, or otherwise, shall any Contributor, or anyone who
+   distributes Covered Software as permitted above, be liable to You for any
+   direct, indirect, special, incidental, or consequential damages of any
+   character including, without limitation, damages for lost profits, loss of
+   goodwill, work stoppage, computer failure or malfunction, or any and all
+   other commercial damages or losses, even if such party shall have been
+   informed of the possibility of such damages. This limitation of liability
+   shall not apply to liability for death or personal injury resulting from such
+   party’s negligence to the extent applicable law prohibits such limitation.
+   Some jurisdictions do not allow the exclusion or limitation of incidental or
+   consequential damages, so this exclusion and limitation may not apply to You.
+ .
+ 8. Litigation
+   Any litigation relating to this License may be brought only in the courts of
+   a jurisdiction where the defendant maintains its principal place of business
+   and such litigation shall be governed by laws of that jurisdiction, without
+   reference to its conflict-of-law provisions. Nothing in this Section shall
+   prevent a party’s ability to bring cross-claims or counter-claims.
+ .
+ 9. Miscellaneous
+   This License represents the complete agreement concerning the subject matter
+   hereof. If any provision of this License is held to be unenforceable, such
+   provision shall be reformed only to the extent necessary to make it
+   enforceable. Any law or regulation which provides that the language of a
+   contract shall be construed against the drafter shall not be used to construe
+   this License against a Contributor.
+ .
+ 10. Versions of the License
+ 10.1. New Versions
+   Mozilla Foundation is the license steward. Except as provided in Section
+   10.3, no one other than the license steward has the right to modify or
+   publish new versions of this License. Each version will be given a
+   distinguishing version number.
+ .
+ 10.2. Effect of New Versions
+   You may distribute the Covered Software under the terms of the version of the
+   License under which You originally received the Covered Software, or under
+   the terms of any subsequent version published by the license steward.
+ .
+ 10.3. Modified Versions
+   If you create software not governed by this License, and you want to create a
+   new license for such software, you may create and use a modified version of
+   this License if you rename the license and remove any references to the name
+   of the license steward (except to note that such modified license differs
+   from this License).
+ .
+ 10.4. Distributing Source Code Form that is Incompatible With Secondary Licenses
+   If You choose to distribute Source Code Form that is Incompatible With
+   Secondary Licenses under the terms of this version of the License, the notice
+   described in Exhibit B of this License must be attached.
+ .
+ Exhibit A - Source Code Form License Notice
+ .
+   This Source Code Form is subject to the terms of the Mozilla Public
+   License, v. 2.0. If a copy of the MPL was not distributed with this file,
+   You can obtain one at http://mozilla.org/MPL/2.0/.
+ .
+   If it is not possible or desirable to put the notice in a particular file,
+   then You may include the notice in a location (such as a LICENSE file in a
+   relevant directory) where a recipient would be likely to look for such a
+   notice.
+ .
+   You may add additional accurate notices of copyright ownership.
+ .
+ Exhibit B - “Incompatible With Secondary Licenses” Notice
+ .
+   This Source Code Form is “Incompatible With Secondary Licenses”, as
+   defined by the Mozilla Public License, v. 2.0.
 
 License: Zlib
  The zlib License
@@ -4490,8 +5096,118 @@ License: Zlib
       distribution.
 
 License: libpng
- The complete text of the libpng License can be found in the `libpng' file in
- the same directory as this file.
+ This copy of the libpng notices is provided for your convenience.  In case of
+ any discrepancy between this copy and the notices in the file png.h that is
+ included in the libpng distribution, the latter shall prevail.
+ .
+ COPYRIGHT NOTICE, DISCLAIMER, and LICENSE:
+ .
+ If you modify libpng you may insert additional notices immediately following
+ this sentence.
+ .
+ This code is released under the libpng license.
+ .
+ libpng versions 1.2.6, August 15, 2004, through 1.6.17, March 26, 2015, are
+ Copyright (c) 2004, 2006-2015 Glenn Randers-Pehrson, and are
+ distributed according to the same disclaimer and license as libpng-1.2.5
+ with the following individual added to the list of Contributing Authors
+ .
+   Cosmin Truta
+ .
+ libpng versions 1.0.7, July 1, 2000, through 1.2.5 - October 3, 2002, are
+ Copyright (c) 2000-2002 Glenn Randers-Pehrson, and are
+ distributed according to the same disclaimer and license as libpng-1.0.6
+ with the following individuals added to the list of Contributing Authors
+ .
+   Simon-Pierre Cadieux
+   Eric S. Raymond
+   Gilles Vollant
+ .
+ and with the following additions to the disclaimer:
+ .
+   There is no warranty against interference with your enjoyment of the
+   library or against infringement.  There is no warranty that our
+   efforts or the library will fulfill any of your particular purposes
+   or needs.  This library is provided with all faults, and the entire
+   risk of satisfactory quality, performance, accuracy, and effort is with
+   the user.
+ .
+ libpng versions 0.97, January 1998, through 1.0.6, March 20, 2000, are
+ Copyright (c) 1998, 1999 Glenn Randers-Pehrson, and are
+ distributed according to the same disclaimer and license as libpng-0.96,
+ with the following individuals added to the list of Contributing Authors:
+ .
+   Tom Lane
+   Glenn Randers-Pehrson
+   Willem van Schaik
+ .
+ libpng versions 0.89, June 1996, through 0.96, May 1997, are
+ Copyright (c) 1996, 1997 Andreas Dilger
+ Distributed according to the same disclaimer and license as libpng-0.88,
+ with the following individuals added to the list of Contributing Authors:
+ .
+   John Bowler
+   Kevin Bracey
+   Sam Bushell
+   Magnus Holmgren
+   Greg Roelofs
+   Tom Tanner
+ .
+ libpng versions 0.5, May 1995, through 0.88, January 1996, are
+ Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.
+ .
+ For the purposes of this copyright and license, "Contributing Authors"
+ is defined as the following set of individuals:
+ .
+   Andreas Dilger
+   Dave Martindale
+   Guy Eric Schalnat
+   Paul Schmidt
+   Tim Wegner
+ .
+ The PNG Reference Library is supplied "AS IS".  The Contributing Authors
+ and Group 42, Inc. disclaim all warranties, expressed or implied,
+ including, without limitation, the warranties of merchantability and of
+ fitness for any purpose.  The Contributing Authors and Group 42, Inc.
+ assume no liability for direct, indirect, incidental, special, exemplary,
+ or consequential damages, which may result from the use of the PNG
+ Reference Library, even if advised of the possibility of such damage.
+ .
+ Permission is hereby granted to use, copy, modify, and distribute this
+ source code, or portions hereof, for any purpose, without fee, subject
+ to the following restrictions:
+ .
+ 1. The origin of this source code must not be misrepresented.
+ .
+ 2. Altered versions must be plainly marked as such and must not
+    be misrepresented as being the original source.
+ .
+ 3. This Copyright notice may not be removed or altered from any
+    source or altered source distribution.
+ .
+ The Contributing Authors and Group 42, Inc. specifically permit, without
+ fee, and encourage the use of this source code as a component to
+ supporting the PNG file format in commercial products.  If you use this
+ source code in a product, acknowledgment is not required but would be
+ appreciated.
+ .
+ A "png_get_copyright" function is available, for convenient use in "about"
+ boxes and the like:
+ .
+   printf("%s",png_get_copyright(NULL));
+ .
+ Also, the PNG logo (in PNG format, of course) is supplied in the
+ files "pngbar.png" and "pngbar.jpg (88x31) and "pngnow.png" (98x31).
+ .
+ Libpng is OSI Certified Open Source Software.  OSI Certified Open Source is
+ a certification mark of the Open Source Initiative.
+ .
+ Glenn Randers-Pehrson
+ glennrp at users.sourceforge.net
+ March 26, 2015
+ .
+ The original content can be found on
+ http://www.libpng.org/pub/png/src/libpng-LICENSE.txt
 
 License: public-domain
  They may be distributed freely and/or modified as long as the original

@@ -1,0 +1,34 @@
+# ignoring files within the test cases
+source: source-is-missing mailnews/addrbook/test/*
+source: source-is-missing mozilla/js/src/jit-test/*
+source: source-is-missing mozilla/testing/*
+source: source-is-missing mozilla/*/tests/*
+source: source-is-missing mozilla/*/test/*
+source: source-is-missing mozilla/devtools/*
+
+# all are under BSD-3 license some long lines
+source: source-is-missing mozilla/browser/extensions/loop/chrome/content/shared/*
+source: source-is-missing mozilla/browser/extensions/loop/chrome/content/preferences/*
+
+# TexZilla isn't packaged yet too
+source: source-is-missing editor/ui/texzilla/content/TeXZilla.js *
+
+# files are under Public Domain license with some long lines
+source: source-is-missing mozilla/layout/reftests/svg/nesting-invalid-01.js *
+
+# files are under MPL-2 license with some long lines
+source: source-is-missing mozilla/addon-sdk/source/lib/dev/volcan.js *
+
+# files under Apache-2 license with some long lines
+source: source-is-missing mozilla/services/common/moz-kinto-client.js *
+
+# files under GPL-2+ license with some long lines
+source: source-is-missing mozilla/js/src/octane/*
+
+# no JS files
+source: source-is-missing mozilla/modules/libpref/init/all.js *
+source: source-is-missing mozilla/browser/app/profile/firefox.js *
+
+# this is no brace expansion
+source: brace-expansion-in-debhelper-config-file debian/calendar-google-provider.links
+source: brace-expansion-in-debhelper-config-file debian/lightning.links

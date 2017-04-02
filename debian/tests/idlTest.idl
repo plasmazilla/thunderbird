@@ -1,0 +1,10 @@
+// Include a file from icedove so we're sure these ended up in the right
+// location
+#include "nsIMsgIncomingServer.idl"
+
+[scriptable, uuid(1b9d7057-90f5-4ca5-a379-a59aa47acbd2)]
+interface IdlTestIncomingServer : nsIMsgIncomingServer
+{
+  readonly attribute boolean thisIsATest;
+};
+

@@ -9,13 +9,14 @@ Squashed kFreeBSD/Hurd related fixes:
 - Build fixes for GNU/kFreeBSD in directory/
 - Missing bits for Hurd support
 ---
- ldap/c-sdk/include/portable.h                 | 26 +++++++++++++++-----------
+ ldap/c-sdk/include/portable.h                 | 32 +++++++++++++++++----------
  ldap/c-sdk/libraries/libldap/compat.c         |  2 +-
  ldap/c-sdk/libraries/libprldap/ldappr-error.c |  2 +-
- 3 files changed, 17 insertions(+), 13 deletions(-)
+ mozilla/nsprpub/config/nsinstall.c            | 24 ++++++++++++++++++++
+ 4 files changed, 46 insertions(+), 14 deletions(-)
 
 diff --git a/ldap/c-sdk/include/portable.h b/ldap/c-sdk/include/portable.h
-index 5269886..0f20bd7 100644
+index 5269886..ab2c7fa 100644
 --- a/ldap/c-sdk/include/portable.h
 +++ b/ldap/c-sdk/include/portable.h
 @@ -122,7 +122,7 @@
@@ -27,7 +28,23 @@ index 5269886..0f20bd7 100644
  #define NEED_BSDREGEX
  #endif
  #endif
-@@ -169,7 +169,7 @@
+@@ -150,10 +150,14 @@
+ /*
+  * Is snprintf() part of the standard C runtime library?
+  */
++#if !defined(HAVE_SNPRINTF)
++#if defined(SOLARIS) || defined(LINUX) || defined(__GNU__) || defined(__GLIBC__) || defined(HPUX) || defined(AIX)
++#define HAVE_SNPRINTF
++#endif
+ #if defined(_WINDOWS)
+ #define snprintf _snprintf
+ #endif
+-
++#endif
+ 
+ /*
+  * Async IO.  Use a non blocking implementation of connect() and 
+@@ -169,7 +173,7 @@
   * for select()
   */
  #if !defined(WINSOCK) && !defined(_WINDOWS) && !defined(macintosh) && !defined(XP_OS2)
@@ -36,7 +53,7 @@ index 5269886..0f20bd7 100644
  #include <sys/time.h>
  #else
  #include <sys/select.h>
-@@ -241,15 +241,14 @@
+@@ -241,15 +245,14 @@
  #define HAVE_TIME_R
  #endif
  
@@ -56,7 +73,7 @@ index 5269886..0f20bd7 100644
  
  #if defined(_WINDOWS) || defined(macintosh) || defined(XP_OS2) || defined(DARWIN)
  #define GETHOSTBYNAME( n, r, b, l, e )  gethostbyname( n )
-@@ -267,7 +266,12 @@ int strncasecmp(const char *, const char *, size_t);
+@@ -267,7 +270,12 @@ int strncasecmp(const char *, const char *, size_t);
  #define NSLDAPI_NETDB_BUF_SIZE	1024
  #endif
  
@@ -70,7 +87,7 @@ index 5269886..0f20bd7 100644
      defined(UNIXWARE) || defined(SUNOS4) || defined(SNI) || defined(BSDI) || \
      defined(NCR) || defined(OSF1) || defined(NEC) || defined(VMS) || \
      ( defined(HPUX10) && !defined(_REENTRANT)) || defined(HPUX11) || \
-@@ -289,7 +293,7 @@ typedef char GETHOSTBYNAME_buf_t [NSLDAPI_NETDB_BUF_SIZE];
+@@ -289,7 +297,7 @@ typedef char GETHOSTBYNAME_buf_t [NSLDAPI_NETDB_BUF_SIZE];
  #elif defined(HPUX10)
  #define GETHOSTBYNAME_BUF_T struct hostent_data
  #define GETHOSTBYNAME( n, r, b, l, e )	nsldapi_compat_gethostbyname_r( n, r, (char *)&b, l, e )
@@ -79,7 +96,7 @@ index 5269886..0f20bd7 100644
  typedef char GETHOSTBYNAME_buf_t [NSLDAPI_NETDB_BUF_SIZE];
  #define GETHOSTBYNAME_BUF_T GETHOSTBYNAME_buf_t
  #define GETHOSTBYNAME( n, r, b, l, rp, e )  gethostbyname_r( n, r, b, l, rp, e )
-@@ -311,7 +315,7 @@ typedef char GETHOSTBYNAME_buf_t [NSLDAPI_NETDB_BUF_SIZE];
+@@ -311,7 +319,7 @@ typedef char GETHOSTBYNAME_buf_t [NSLDAPI_NETDB_BUF_SIZE];
  	|| defined(OSF1V4) || defined(AIX) || defined(UnixWare) \
          || defined(hpux) || defined(HPUX11) || defined(NETBSD) \
          || defined(IRIX6) || defined(FREEBSD) || defined(VMS) \
@@ -88,7 +105,7 @@ index 5269886..0f20bd7 100644
  #define NSLDAPI_CTIME( c, b, l )        ctime_r( c, b )
  #elif defined( OSF1V3 )
  #define NSLDAPI_CTIME( c, b, l )	(ctime_r( c, b, l ) ? NULL : b)
-@@ -452,7 +456,7 @@ int select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+@@ -452,7 +460,7 @@ int select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
  #define NSLDAPI_FOPEN( filename, mode )	fopen( filename, mode )
  #endif
  
@@ -121,5 +138,40 @@ index b0cb6ed..16e9d59 100644
 -  defined(OPENBSD) || defined(NETBSD)
 +  defined(OPENBSD) || defined(NETBSD) || defined(__FreeBSD_kernel__)
  #define EDEADLOCK       -1
+ #endif
+ 
+diff --git a/mozilla/nsprpub/config/nsinstall.c b/mozilla/nsprpub/config/nsinstall.c
+index f1d2cff..d965112 100644
+--- a/mozilla/nsprpub/config/nsinstall.c
++++ b/mozilla/nsprpub/config/nsinstall.c
+@@ -43,6 +43,30 @@
+ #endif
+ 
+ #if defined(LINUX) || defined(__GNU__) || defined(__GLIBC__) 
++#ifdef NEXTSTEP
++#include <bsd/libc.h>
++
++/*
++** balazs.pataki@sztaki.hu: The getcwd is broken in NEXTSTEP (returns 0),
++** when called on a mounted fs. Did anyone notice this? Here's an ugly
++** workaround ...
++*/
++#define getcwd(b,s)   my_getcwd(b,s)
++
++static char *
++my_getcwd (char *buf, size_t size)
++{
++    FILE *pwd = popen("pwd", "r");
++    char *result = fgets(buf, size, pwd);
++
++    if (result) {
++        buf[strlen(buf)-1] = '\0';
++    }
++    pclose (pwd);
++    return buf;
++}
++#endif /* NEXTSTEP */
++
+ #include <getopt.h>
  #endif
  

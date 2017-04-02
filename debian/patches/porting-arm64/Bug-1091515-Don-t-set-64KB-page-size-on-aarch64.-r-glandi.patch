@@ -1,0 +1,40 @@
+From: Makoto Kato <m_kato@ga2.so-net.ne.jp>
+Date: Tue, 5 Apr 2016 18:54:42 +0900
+Subject: Bug 1091515 - Don't set 64KB page size on aarch64. r=glandium
+
+Linux/aarch64 supports vairous page size configuration.
+
+(From https://www.kernel.org/doc/Documentation/arm64/memory.txt)
+- 4KB + 3 levels
+- 4KB + 4 levels
+- 64KB + 2 leves
+
+So we shouldn't set fixed 64KB page size on aarch64.
+
+MozReview-Commit-ID: 8IdwBMUW4me
+---
+ mozilla/memory/mozjemalloc/jemalloc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/memory/mozjemalloc/jemalloc.c b/mozilla/memory/mozjemalloc/jemalloc.c
+index b2e0f10..cd101dd 100644
+--- a/mozilla/memory/mozjemalloc/jemalloc.c
++++ b/mozilla/memory/mozjemalloc/jemalloc.c
+@@ -1089,7 +1089,7 @@ static const bool config_recycle = false;
+  * controlling the malloc behavior are defined as compile-time constants
+  * for best performance and cannot be altered at runtime.
+  */
+-#if !defined(__ia64__) && !defined(__sparc__) && !defined(__mips__) && !defined(__powerpc__)
++#if !defined(__ia64__) && !defined(__sparc__) && !defined(__mips__) && !defined(__powerpc__) && !defined(__aarch64__)
+ #define MALLOC_STATIC_SIZES 1
+ #endif
+ 
+@@ -1103,7 +1103,7 @@ static const bool config_recycle = false;
+ #if (defined(SOLARIS) || defined(__FreeBSD__)) && \
+     (defined(__sparc) || defined(__sparcv9) || defined(__ia64))
+ #define pagesize_2pow			((size_t) 13)
+-#elif defined(__powerpc64__) || defined(__aarch64__)
++#elif defined(__powerpc64__)
+ #define pagesize_2pow			((size_t) 16)
+ #elif defined(__alpha__)
+ #define pagesize_2pow			((size_t) 13)

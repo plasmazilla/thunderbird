@@ -1,6 +1,0 @@
-debian/icedove.pc                  usr/lib/pkgconfig/
-debian/tmp/usr/include/icedove/*   usr/include/icedove/
-debian/tmp/usr/lib/icedove-devel   usr/lib/
-debian/tmp/usr/share/idl/icedove/* usr/share/idl/icedove/
-mozilla/python/mozbuild/mozbuild/action/buildlist.py        usr/lib/icedove-devel/config/
-mozilla/config/MozZipFile.py       usr/lib/icedove-devel/config/

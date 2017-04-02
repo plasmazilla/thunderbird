@@ -1,13 +1,90 @@
-== Importing a new upstream tarball ==
+This package is maintained with git-buildpackage(1).
 
-After downlading the sources debian/repack.py is used 
-to repackage the tarball
+It uses pristine-tar(1) to store enough information in git to generate
+bit identical tarballs when building the package without having
+downloaded an upstream tarball first.
 
-    icedove/debian/repack.py -p icedove -u 16.0.1 -c xz \
-           thunderbird-31.1.1.source.tar.bz2
-    cd icedove
-    git-import-orig ../icedove_31.1.1.orig.tar.xz
-    
-Alternatively uscan should do the right thing:
+When working with patches it is recommended to use "gbp pq import" to
+import the patches, modify the source and then use "gbp pq export
+--commit" to commit the modifications.
 
-    git-import-orig --uscan
+The changelog is generated using "gbp dch" so if you submit any
+changes don't bother to add changelog entries but rather provide
+a nice git commit message that can then end up in the changelog.
+
+It is recommended to build the package with pbuilder using:
+
+    gbp builpackage --git-pbuilder
+
+For information on how to set up a pbuilder environment see the
+git-pbuilder(1) manpage. In short:
+
+    DIST=sid git-pbuilder create
+    gbp clone <project-url>
+    cd <project>
+    gbp buildpackage --git-pbuilder
+
+src:icedove uses component tarballs for the l10n packages (see below).
+
+
+Creating a source tarball thunderbird
+=====================================
+
+Download the source from the Mozilla CDN [1], then use debian/repack.py
+to repackage the Thunderbird upstream tarball:
+
+ debian/repack.py -p thunderbird -u 45.5.1 -c xz ../thunderbird-45.5.1.source.tar.xz
+
+[1] http://ftp.mozilla.org/pub/thunderbird/releases/
+
+
+Creating a source tarball thunderbird-l10n
+==========================================
+
+We need to create the component tarball for the thunderbird l10n:
+
+  thunderbird_[xx].orig-thunderbird-l10n.tar.xz
+
+using
+
+  debian/create-thunderbird-l10n-tarball.sh
+
+You need to run the script on top of the Icedove Git repository.
+
+
+Creating asource tarball lightning-l10n
+=======================================
+
+As before we need to create the component tarball for the iceowl l10n:
+
+ thunderbird_[xx].orig-lightning-l10n.tar.xz
+
+The helper script
+
+ debian/create-lightning-l10n-tarball.sh
+
+You need to run the script on top of the Icedove Git repository.
+
+
+Importing the source tarballs
+=============================
+
+Since version 45.0 the source package Icedove is using component
+tarballs to include the l10n source for iceowl-extension and thunderbird.
+
+git-buildpackage supports component tarballs since version 0.8.0 so
+you can import the tarballs using "gbp import-orig". Make sure the
+component tarballs are placed in the same folder as
+thunderbird_[version].orig.tar.xz then import the new upstream version as
+usual:
+
+ gbp import-orig --sign-tags --no-pristine-tar /path/to/thunderbird_[version].orig.tar.xz
+
+Due a issue [1] inside git-buildpackage you need to commit the various tarballs
+manually to the pristine-tar branch.
+
+ pristine-tar --commit /path/to/thunderbird_[version].orig.tar.xz
+ pristine-tar --commit /path/to/thunderbird_[version].orig-thunderbird-l10n.tar.xz
+ pristine-tar --commit /path/to/thunderbird_[version].orig-lightning-l10n.tar.xz
+
+[1] https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=840602

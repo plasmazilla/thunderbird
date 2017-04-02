@@ -1,0 +1,7 @@
+# The embedded libjpeg is libjpeg-turbo, not libjpeg.
+thunderbird: embedded-library usr/lib/thunderbird/libxul.so: libjpeg
+# Upstream code is not ready to use system library
+thunderbird: embedded-library usr/lib/thunderbird/libxul.so: srtp
+#thunderbird: embedded-library usr/lib/thunderbird/libxul.so: libtheora
+# The embedded libpng is patched for APNG support
+thunderbird: embedded-library usr/lib/thunderbird/libxul.so: libpng

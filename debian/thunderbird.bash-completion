@@ -1,0 +1,65 @@
+# bash completion for thunderbird(1)                    -*- shell-script -*-
+#
+# Copyright (C) 2017 Carsten Schoenert <c.schoenert@t-online.de>
+
+_thunderbird() {
+local cur prev OPTS FLAG_FIXMIME FLAG_SHOW_BACKUP
+COMPREPLY=()
+cur="${COMP_WORDS[COMP_CWORD]}"
+prev="${COMP_WORDS[COMP_CWORD-1]}"
+OPTS="--fixmime --help --show-backup -g --verbose"
+
+case $prev in
+    '--fixmime')
+        # Check if '--verbose' is already given, this is the  only option that
+        # '--fixmime' should be combined
+        if [ ! $(compgen -W "${COMP_WORDS[*]}" -- "--verbose") ]; then
+            COMPREPLY=( $(compgen -W "--verbose" -- $cur) )
+        fi
+        return 0
+        ;;
+
+    '--help'|'-g')
+        return 0
+        ;;
+
+    '--show-backup')
+        # Check if '--verbose' is already given, this is the only option that
+        # --show-backup should be combined
+        if [ ! $(compgen -W "${COMP_WORDS[*]}" -- "--verbose") ]; then
+            COMPREPLY=( $(compgen -W "--verbose" -- $cur) )
+        fi
+        return 0
+        ;;
+
+    '--verbose')
+        FLAG_FIXMIME=""
+        FLAG_SHOW_BACKUP=""
+
+        # Check if '--fixmime' is already given
+        if [ $(compgen -W "${COMP_WORDS[*]}" -- "--fixmime") ]; then
+            # Yes, we have seen '-fixmime'
+            FLAG_FIXMIME=1
+        fi
+
+        # Check if '--show-backup' is already given
+        if [ $(compgen -W "${COMP_WORDS[*]}" -- "--show-backup") ]; then
+            # Yes, we have seen '--show-backup'
+            FLAG_SHOW_BACKUP=1
+        fi
+
+        if [ "$FLAG_FIXMIME" != "1" ] && [ "$FLAG_SHOW_BACKUP" != "1" ]; then
+            COMPREPLY=( $(compgen -W "--fixmime --show-backup" -- $cur) )
+        fi
+        return 0
+        ;;
+
+esac
+
+    COMPREPLY=( $(compgen -W "${OPTS[*]}" -- $cur) )
+    return 0
+
+} &&
+complete -F _thunderbird thunderbird
+
+# ex: ts=4 sw=4 et filetype=sh

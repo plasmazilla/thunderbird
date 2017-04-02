@@ -1,3 +1,143 @@
+icedove (1:45.8.0-3) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [d923505] AppArmor: be more flexible on profile folders
+    (Closes: #858735, #858737)
+  * [1e04099] tb-wrapper: use readlink also on ${ID_PROFILE_FOLDER}
+    (Closes: #858771)
+  * [9f6b771] tb-wrapper: correct check for -dbg package (Closes: #858804)
+  * [8b5271a] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-1273020-Add-missing-null-checks-in-ApplicationAccessi.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 29 Mar 2017 19:28:32 -0400
+
+icedove (1:45.8.0-2) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [c2a1d77] tb-helper: pass arguments correctly through tb call
+    (Closes: #855334)
+  * [5c49348] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-1340724-fix-SMTP-server-name-output-in-SMTP-logging.patch
+    (Closes: #855470)
+  * [9d420c0] Revert "register MIME type application/octet-stream for
+    Thunderbird" (Closes: #857755)
+  * [c9960e5] tb-helper: pass arguments by using a array to TB call
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 14 Mar 2017 20:37:48 -0400
+
+icedove (1:45.8.0-1) unstable; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [3388899] New upstream version 45.8.0
+  * [24d25e9] tb-helper*: fix up that silly comments behind the if statement
+    (Closes: #857029, #857032, #857098, #857112)
+  * [788b7fa] bash-completion: adding a completion script for /u/b/thunderbird
+  * [9ac9d07] rebuild patch queue from patch-queue branch
+    added patches:
+    - p-arm64/Bug-1091515-Don-t-set-64KB-page-size-on-aarch64.-r-glandi.patch
+    - p-arm64/Bug-1257055-Use-jit-arm64-Architecture-arm64.h-on-non-JIT.patch
+  * [ad0860b] copyright: small updates reflecting upstream changes
+
+  [ Christoph Goehre ]
+  * [69577cf] lintian: replace hardlink in thunderbird-dev with symbolic link
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 09 Mar 2017 20:24:49 -0500
+
+icedove (1:45.7.1-2) unstable; urgency=medium
+
+  [ Christoph Goehre ]
+  * [5e2c618] crashreporter: build only on amd64, armel, armhf and i386
+  * [36a922f] Apparmor: replace '·' with spaces (Closes: #855343)
+  * [bbbc917] rebuild patch queue from patch-queue branch
+    added patches:
+    - p-hppa/FTBFS-hppa-xpcshell-segfaulting-during-make-install.patch
+  * [8b5d601] icedove|thunderbird.desktop: update danish (da) translation
+
+  [ Carsten Schoenert ]
+  * [f8debbd] debian/control: separate transitional mark by extra line
+    (Closes: #855806)
+  * [583c798] {tb,id}.maintscript: modify start-version (Closes: #854587)
+  * [94e557c] thunderbird: adding x11-utils to Depends (Closes: #854488)
+  * [dc878e7] thunderbird-wrapper.sh: fix command line transfer to TB
+    (Closes: #855334)
+  * [9734349] thunderbird helper: split helper function into extra file
+    (Closes: #855286)
+  * [3089a97] tb-helper*: wrapping X11 dialog calls
+  * [e0331e1] tb-helper*: rework option parsing for wrapper script
+    (Closes: #855872)
+  * [31d9899] thunderbird.postinst: try to remove empty profile folder
+    (Closes: #855228)
+  * [c9e5b70] tb-wrapper*: complete rework and moving over for symlinking
+    (Closes: #855265, #855391, #855501, #856490)
+  * [9ef920f] README.Debian: adopt content to current wrapper script behavior
+  * [4cf88e5] icedove|thunderbird.desktop: adopt binary call
+  * [101e0ad] tb-helper*: call subfunctions not within the case loop
+  * [c061107] register MIME type application/octet-stream for Thunderbird
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 06 Mar 2017 20:39:23 -0500
+
+icedove (1:45.7.1-1) unstable; urgency=medium
+
+  * Bye-bye Icedove (Closes: #749965, #776359, #816679, #363811)
+
+  [ Carsten Schoenert ]
+  * [90c0d6f] New upstream version 45.7.1
+  * [a6d21de] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-497488-Implement-verify-mode-in-the-subscribe-dialog-.patch
+    - fixes/Bug-497488-RSS-feeds-with-an-invalid-certificate-fail-wit-1.patch
+    - fixes/Bug-497488-RSS-feeds-with-an-invalid-certificate-fail-wit.patch
+    (Closes: #837177)
+    removed patches (fixed upstream):
+    - debian-hacks/icu.m4-adding-extra-bracket-to-not-confuse-grep.patch
+  * [8572e34] lintian: adding a semi automated lintian-override
+  * [aa2bda2] crashreporter: enable the reporter for thunderbird
+  * [b96ae57] move icedove.desktop into package icedove
+    (Closes: #850865, #851829)
+  * [304921f] debian/rules: set SHELL explicit to /bin/bash (Closes: #852867)
+  * [072b899] thunderbird: adding extra check while migration
+  * [284912d] debian/README.Debian: update after recent changes
+  * [6dc7e32] icedove-l10n-bn-bd: fix typo in Depends field (Closes: #854135)
+  * [c5d4bf5] {tb,id}.maintscript: modify start-version (Closes: #854587)
+  * [f3d64ae] thunderbird-wrapper.sh: adding extra information window
+    (Closes: #854488)
+  * [6b432c7] README.Debian: hint about issue in global configuration
+
+  [ Douglas Bagnall ]
+  * [e2c8a23] Apparmor: allowing exo-open-ixr launcher (Closes: #853929)
+
+  [ Christoph Goehre ]
+  * [ef36e0b] thunderbird-wrapper.sh: fix typos
+  * [f98d5d1] thunderbird-wrapper.sh: add small changes from Guido and Carsten
+  * [7dd6841] README.Debian: fix/correct spelling
+  * [e038694] debian/control: remove depends-on-essential-package 'sed'
+
+  [ Jens Reyer ]
+  * [ea58e17] thunderbird-wrapper.sh: add extra function for migration
+    (Closes: #849592)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 14 Feb 2017 18:46:23 -0500
+
+icedove (1:45.6.0-3) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [78b3296] rebuild patch queue from patch-queue branch
+    added patch:
+    - debian-hacks/icu.m4-adding-extra-bracket-to-not-confuse-grep.patch
+  * [a272f85] thunderbird-wrapper.sh: also migrate mimeapps.list
+    (Closes: #850864)
+  * [3d4e303] icedove.desktop: don't use categories and mimetypes
+    (Closes: #850866)
+  * [db15d43] icedove: link icedove to thunderbird
+  * [59a9e05] debian/control: change Replaces and Breaks versions
+
+  [ Christoph Goehre ]
+  * [55cce4a] thunderbird-wrapper.sh: remove 'set -e'
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 17 Jan 2017 18:26:06 -0500
+
 icedove (1:45.6.0-1~deb8u1) stable-security; urgency=medium
 
   [ Carsten Schoenert ]
@@ -7,6 +147,105 @@ icedove (1:45.6.0-1~deb8u1) stable-security; urgency=medium
       CVE-2016-9893
 
  -- Christoph Goehre <chris@sigxcpu.org>  Sun, 08 Jan 2017 12:39:35 -0500
+
+icedove (1:45.6.0-1) experimental; urgency=medium
+
+  [ Carsten Schoenert ]
+  * [26f8f2d] New upstream version 45.6.0
+  * [15b7797] iceowl-l10n-*: rearrange Recommends field for various packages
+    (Closes: #824727, #824750, #824763, #824764, #824768, #824780)
+  * [3f75b56] debian/vendor.js: adjust to new version related wiki site
+  * [6bd7f89] d/c-id-l10n: adjusting download URL for stable versions
+  * [f15d1a2] icedove-l10n-all: change Section into metapackages
+    (Closes: #824785)
+  * [25c3ba1] debian/README.source: info about import of multitarballs
+  * [3ebcf59] debian/control: adding Recommends to icedove-l10n-uk
+    (Closes: #825806)
+  * [3e57d5e] debian/control: Icedove, adding dependency on libatk-adaptor
+  * [e19c59d] debian/control: rework Recommends for icedove-l10n-*
+  * [4741d80] debian/control: small fixup Recommends on iceowl-l10n-*
+  * [f9f5193] debian/control: sort iceowl-l10n-* alphabetical
+  * [5220187] de-branding: move iceowl* back to lightning*
+  * [6e28ce5] de-branding: remove Icedove naming from icedove-l10n*
+  * [3dc3b4b] de-branding: remove Icedove branding in the main binary
+  * [8b715cf] de-branding: remove hard name branding in addon managger
+  * [9f609fa] de-branding: adopting dh files for icedove package
+  * [caba322] de-branding: adopting dh files for icedove-dev package
+  * [6538f66] de-branding: change debian/rules to reflect appname change
+  * [871588d] de-branding: adopting dh files for iceowl-extension package
+  * [a0b20e7] debian/tests/*: adopt change of the binary icedove
+  * [29025cc] de-branding: adjust icedove-l10n installation folder
+  * [2b8dd99] de-branding: adjust iceowl-l10n installation folder
+  * [1f3043c] de-branding: remove the Debian visual branding
+  * [272e420] de-branding: removing icedove branding files and folder
+  * [093bc58] de-branding: revitalize *.desktop file with Thunderbird
+  * [4a35d9d] de-branding: move iceowl-l10n-* into lightning-l10n-*
+  * [68d8d79] de-branding: adding transitional iceowl-l10n packages
+  * [4b2febd] de-branding: adding 'Breaks', 'Replaces', 'Provides' to
+    lightning-l10n-*
+  * [9cdb427] de-branding: rework d/r to reflect changes for lightning-l10n
+  * [ec3b427] de-branding: move icedove-l10n-* into thunderbird-l10n-*
+  * [387bfa2] de-branding: adding transitional icedove-l10n packages
+  * [f3cfecb] de-branding: adding 'Breaks', 'Replaces', 'Provides' to
+    thunderbird-l10n-*
+  * [03b222e] de-branding: rework d/r to reflect changes for thunderbird-l10n
+  * [0c9a6ab] de-branding: (re)adding a wrapper script for TB starting
+  * [f9c8aef] de-branding: move icedove-dev to thunderbird-dev
+  * [a4313e6] de-branding: adding transitional icedove-dev package
+  * [0508866] de-branding: rework d/r to reflect changes for thunderbird-dev
+  * [048b29f] de-branding: move icedove-dbg to thunderbird-dbg
+  * [da01077] de-branding: adding transitional icedove-dbg package
+  * [a371079] de-branding: rework d/r to reflect changes for thunderbird-dbg
+  * [b34b8f8] de-branding: move iceowl-extension to lightning
+  * [fa8f9b3] de-branding: adding transitional iceowl-extension package
+  * [848f178] de-branding: rework d/r to reflect changes for lightning
+  * [a708c35] de-branding: move icedove to thunderbird
+  * [cccef90] de-branding: moving icedove dh files into thunderbird
+  * [8c2b27d] de-branding: rework icedove.1 into thunderbird.1
+  * [19406fe] de-branding: transition of mozconfig.*
+  * [88ed684] de-branding: rework d/r to reflect changes for thunderbird
+  * [c8011d3] de-branding: adding transitional icedove package
+  * [5e399aa] de-branding: adjusting package calendar-google-provider
+  * [a03329c] debian/tests/help.sh: use absolute path for binary call
+  * [10adb34] move old icedove graphic stuff into own folder
+  * [abc6c8c] create various thunderbird png graphics from SVG file
+  * [a2067ae] debian/copyright: update copyright information
+  * [a9c6f9f] de-branding: add own created thunderbird icons to install
+  * [1d8b524] mozconfig.default: enable the official brandind
+  * [9f3a673] debian/control: adding dh-exec to the Build-Depends
+  * [cddbc63] move Thunderbird install files into thunderbird.install
+  * [5037bb5] de-branding: transition of apparmor profile for TB
+  * [14f094d] de-branding: remove extra URL for What's New inside
+  * [c2a06db] manpage thunderbird; adjust and correct manpage entries
+  * [8fa3365] debian/control: adding package dpkg to Build-Depends
+  * [ba84ede] thunderbird: switching dpkg-maintscript-helper to *.maintscript
+  * [d0e675b] debian/thunderbird.postinst: adding some moving mechanism
+  * [cbae415] de-branding: let helper scripts reflect thunderbird change
+  * [da402a4] thunderbird-wrapper.sh: adding fixing inside mimeTypes.rdf
+    (Closes: #837516)
+  * [030d49e] de-branding: adding some hints about the debranding
+  * [662f7af] debian/README.source: adjusting hints due name changes
+  * [8fbedc1] debian/thunderbird.install: install additional icedove.desktop
+  * [9089d9f] debian/*lintian-overrides: adopt name changes
+  * [b9b7665] debian/rules: use the old profile folder for wheezy and jessie
+  * [f9c137e] fix *.desktop files for proper GNOME app mechanism
+    (Closes: #817973, #832302)
+  * [1c85ff7] debian/rules: chmod certain *.py tb-devel files
+  * [356694a] thunderbird.links: linking the default TB icon to u/s/p
+
+  [ Guido Günther ]
+  * [24bbee9] Wrap and sort control information (Closes: #825806)
+  * [fcfe4ac] Add minimalistic autopkgtest
+  * [f7a32e8] Add autopkgtest to test header and typelib generation
+  * [189d835] Add autopkgtest to smoke test xpcshell
+
+  [ Christoph Goehre ]
+  * [354f836] turn the reduce of memory usage of the linker on again
+  * [5e48e17] don't build dbgsym packages on unreleased builds
+  * [09679eb] rebuild patch queue from patch-queue branch (Closes: #808183)
+  * [ec3a50b] debian/NEWS: change urgency to medium
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 31 Dec 2016 10:26:36 +0100
 
 icedove (1:45.5.1-1~deb8u1) stable-security; urgency=medium
 

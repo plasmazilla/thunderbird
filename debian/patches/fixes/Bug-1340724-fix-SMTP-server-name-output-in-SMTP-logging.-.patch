@@ -1,0 +1,31 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Sat, 11 Mar 2017 11:02:15 +0100
+Subject: Bug 1340724 - fix SMTP server name output in SMTP logging. r=jorgk
+ a=jorgk
+
+Origin: https://hg.mozilla.org/releases/comm-beta/rev/fc0070ab1372eacf3489fddce8923a856d60701d
+Bug-Debian: https://bugs.debian.org/855470
+Bug: https://bugzilla.mozilla.org/show_bug.cgi?id=1340724
+Applied-Upstream: Thunderbird 52.0
+---
+ mailnews/compose/src/nsSmtpProtocol.cpp | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/mailnews/compose/src/nsSmtpProtocol.cpp b/mailnews/compose/src/nsSmtpProtocol.cpp
+index 9dfd21f..ab9d53a 100644
+--- a/mailnews/compose/src/nsSmtpProtocol.cpp
++++ b/mailnews/compose/src/nsSmtpProtocol.cpp
+@@ -1321,8 +1321,12 @@ nsresult nsSmtpProtocol::AuthLoginStep1()
+     if (username.IsEmpty() || password.IsEmpty())
+       return NS_ERROR_SMTP_PASSWORD_UNDEFINED;
+   }
++
++  nsCString hostname;
++  smtpServer->GetHostname(hostname);
++
+   MOZ_LOG(SMTPLogModule, mozilla::LogLevel::Debug, ("SMTP AuthLoginStep1() for %s@%s",
+-      username.get(), smtpServer.get()));
++      username.get(), hostname.get()));
+ 
+   GetPassword(password);
+   if (password.IsEmpty())
