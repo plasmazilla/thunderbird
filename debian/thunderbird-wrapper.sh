@@ -22,13 +22,11 @@
 
 TB_HELPER=${TB_HELPER:-"/usr/lib/thunderbird/thunderbird-wrapper-helper.sh"}
 # sourcing external variables and helper functions
-if [ -f "${TB_HELPER}" ]; then
-    # hide the sourcing for http://www.shellcheck.net/
-    # shellcheck source=/dev/null
-    . "${TB_HELPER}"
-else
-    # this needs improving, the user isn't normally seeing this error!
-    echo "helper ${TB_HELPER} not found!"
+# hide the sourcing for http://www.shellcheck.net/
+# shellcheck source=/dev/null
+. "${TB_HELPER}"
+if [ $? -ne 0 ]; then
+    echo "sourcing ${TB_HELPER} failed - giving up."
     exit 1
 fi
 
