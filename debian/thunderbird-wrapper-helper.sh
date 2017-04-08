@@ -4,9 +4,8 @@
 #   /usr/lib/thunderbird/thunderbird-wrapper-helper.sh
 #
 # Purpose:
-#   This shell script is holding some additional helper functions and
-#   variables that are used or called from the main wrapper-script in
-#   /usr/bin/thunderbird.
+#   This shell script has helper functions and variables that are used or
+#   called from the main wrapper-script /usr/bin/thunderbird.
 #
 # Copyright:
 #   Licensed under the terms of GPLv2+.
@@ -30,35 +29,34 @@ DESKTOP=$(echo "$DESKTOP" | tr '[:upper:]' '[:lower:]')
 #########################################
 
 DEFAULT_X11_MSG="\
-If you see this message box something went wrong while
-adopting your Icedove profile(s) into the Thunderbird
-profile folder!
+If you see this message something went wrong while
+migrating your Icedove profile(s) into the Thunderbird
+profile folder.
 
-The following error happened:"
+The following error occured:"
 
 DOT_THUNDERBIRD_EXISTS="\
 ${DEFAULT_X11_MSG}
 
 An existing profile folder (or symlink) '.thunderbird' and a folder
-(or symlink) '.icedove' was found in your Home directory '${HOME}/'
-while trying to migrate the Icedove profile(s) folder!
+(or symlink) '.icedove' was found in your home directory '${HOME}/'
+while trying to migrate the Icedove profile(s) folder.
 
-This could be an old, currently not used profile folder or you might
-be using a Thunderbird installation from the Mozilla packages.
+This can be caused by an old, currently unused profile folder or you might
+be using Thunderbird as provided by upstream Mozilla.
 If you don't need this old profile folder, you can remove or backup
 it and start Thunderbird again.
 
-Sorry, but please investigate the situation by yourself.
+Sorry, but please investigate the situation yourself.
 
-The Debian wiki is also holding extra information about the migration of
+The Debian wiki has extra information about the migration from
 Icedove to Thunderbird.
 
   https://wiki.debian.org/Thunderbird
 
-Please mind also the information in section 'Profile Migration'
-given in the file
+Please also read the information in section 'Profile Migration' in
 
-/usr/share/doc/thunderbird/README.Debian.gz
+  /usr/share/doc/thunderbird/README.Debian.gz
 "
 
 THUNDERBIRD_PROFILE_LINKING_ERROR="\
@@ -72,24 +70,24 @@ Sorry, but please investigate the situation by yourself.
 Please mind also the information in section 'Profile Migration'
 given in the file
 
-/usr/share/doc/thunderbird/README.Debian.gz
+  /usr/share/doc/thunderbird/README.Debian.gz
 "
 
 START_MIGRATION="\
-You see this window because you're starting Thunderbird probably for the
-first time with underlaying profile(s) from Icedove.
+You see this window because you're starting Thunderbird for the
+first time and have profile(s) for Icedove.
 The Debian Icedove package is de-branded back to Thunderbird.
 
-The Icedove profile(s) will now be adopted to the Thunderbird folder
-structure. This will take a short time!
+The Icedove profile(s) will now be migrated to the Thunderbird folder.
+This will take a short time!
 
 Please be patient, the Thunderbird program will be started right after
 the changes.
 
-If you need more information about the de-branding and changes of the
-Icedove package please take a look into
+If you need more information on the de-branding and migration please
+read
 
-/usr/share/doc/thunderbird/README.Debian.gz
+  /usr/share/doc/thunderbird/README.Debian.gz
 
 The Debian wiki is also holding extra information about the migration of
 Icedove to Thunderbird.
@@ -97,7 +95,7 @@ Icedove to Thunderbird.
   https://wiki.debian.org/Thunderbird
 "
 
-TITLE="Icedove to Thunderbird Profile adoption"
+TITLE="Icedove to Thunderbird Profile migration"
 
 ###################
 # local functions #
@@ -105,10 +103,10 @@ TITLE="Icedove to Thunderbird Profile adoption"
 
 # Simple search all files where we made a backup from
 do_collect_backup_files () {
-output_debug "Collect all files we've made a backup."
+output_debug "Collecting all files we've made a backup of."
 BACKUP_FILES=$(find -L "${TB_PROFILE_FOLDER}/" -type f -name "*backup_thunderbird_migration*")
 if [ "${BACKUP_FILES}" != "" ]; then
-    output_info "The following backups related to the Icedove to Thunderbird transition are existing:"
+    output_info "The following backups related to the Icedove to Thunderbird transition exist:"
     output_info ""
     cat << EOF
 ${BACKUP_FILES}
@@ -122,12 +120,12 @@ fi
 # Create the file .thunderbird/.migrated with some content
 do_create_migrated_mark_file (){
 cat <<EOF > "${TB_PROFILE_FOLDER}/.migrated"
-This is an automatically created file by /usr/bin/thunderbird, it will be
-recreated by every start of Thunderbird if the wrapper is not find it.
+This file is automatically created by /usr/bin/thunderbird, it will be
+created on every start of Thunderbird if does not exist.
 Remove that file only if you know the propose of this file.
 
-/usr/share/doc/thunderbird/README.Debian.gz will hold some useful information
-about this dot file.
+/usr/share/doc/thunderbird/README.Debian.gz has some information about this
+dot file.
 EOF
 }
 
@@ -174,7 +172,7 @@ esac
 
 # Function that will do the fixing of mimeapps.list files
 do_migrate_old_icedove_desktop() {
-# Fixing mimeapps.list files in the following folders which may still have
+# Fix mimeapps.list files in the following folders which may still have
 # icedove.desktop associations
 #
 #   ~/.config/
@@ -190,7 +188,7 @@ if [ ! -f "${TB_PROFILE_FOLDER}/.migrated" ] || [ "${FORCE_MIMEAPPS_MIGRATE}" = 
     if [ ! -f "${TB_PROFILE_FOLDER}/.migrated" ]; then
         output_debug "No migration mark '${TB_PROFILE_FOLDER}/.migrated' found, checking mimeapps.list files for possible migration."
     elif [ "${FORCE_MIMEAPPS_MIGRATE}" = "1" ]; then
-        output_debug "Migration enforced by user! Checking mimeapps.list files once again for possible migration."
+        output_debug "Migration enforced by user. Checking mimeapps.list files once again for possible migration."
     fi
     for MIMEAPPS_LIST in ${HOME}/.config/mimeapps.list ${HOME}/.local/share/applications/mimeapps.list; do
         # Check if file exists and has old icedove entry
@@ -212,7 +210,7 @@ if [ ! -f "${TB_PROFILE_FOLDER}/.migrated" ] || [ "${FORCE_MIMEAPPS_MIGRATE}" = 
                 exit 1
             else
                 output_debug "A copy of the configuration file of default applications for some MIME types"
-                output_debug "was saved into '${MIMEAPPS_LIST_COPY}'."
+                output_debug "was saved to '${MIMEAPPS_LIST_COPY}'."
             fi
         else
             output_info "No fix up for ${MIMEAPPS_LIST} needed."
@@ -223,11 +221,11 @@ if [ ! -f "${TB_PROFILE_FOLDER}/.migrated" ] || [ "${FORCE_MIMEAPPS_MIGRATE}" = 
 fi
 
 # Migrate old user specific *.desktop entries
-# Users could have always been created own desktop shortcuts for Icedove in
+# Users may have created custom desktop shortcuts for Icedove in
 # the past. These associations (files named like 'userapp-Icedove-*.desktop')
 # are done in the folder $(HOME)/.local/share/applications/.
 
-# Remove such old icedove.desktop files, superseded by system-wide
+# Remove such old icedove.desktop files, superseeded by system-wide
 # /usr/share/applications/thunderbird.desktop. The old ones in $HOME don't
 # receive updates and might have missing/outdated fields.
 # *.desktop files and their reverse mimeinfo cache provide information
@@ -246,7 +244,7 @@ for ICEDOVE_DESKTOP in $(find "${HOME}/.local/share/applications/" -iname "*iced
 done
 }
 
-# Print out an error message about not possible adoption
+# Print out an error message about failed migration
 do_thunderbird2icedove_error_out (){
 case "${DESKTOP}" in
     gnome|mate|xfce)
@@ -272,9 +270,9 @@ esac
 
 # Symlink .thunderbird to .icedove
 do_thunderbird2icedove_symlink () {
-output_debug "Try to symlink '${TB_PROFILE_FOLDER}' to '${ID_PROFILE_FOLDER}'"
+output_debug "Trying to symlink '${TB_PROFILE_FOLDER}' to '${ID_PROFILE_FOLDER}'"
 if ln -s "${ID_PROFILE_FOLDER}" "${TB_PROFILE_FOLDER}"; then
-    output_debug "Success!"
+    output_debug "success."
     return 0
 else
     case "${DESKTOP}" in
@@ -297,7 +295,7 @@ else
             FAIL=1
             ;;
     esac
-    output_debug "Ohh, that wasn't working, sorry! We have access rights to create a symlink?"
+    output_debug "Ohh, that wasn't working, sorry! Do you have access rights to create a symlink?"
     return 1
 fi
 }
