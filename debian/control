@@ -183,6 +183,8 @@ Package: thunderbird-dev
 Architecture: any
 Depends:
  thunderbird (= ${binary:Version}),
+ libnspr4-dev,
+ libnss3-dev,
  python,
  ${misc:Depends},
  ${shlibs:Depends},
