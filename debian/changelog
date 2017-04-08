@@ -1,3 +1,37 @@
+icedove (1:45.8.0-3~deb7u1) UNRELEASED; urgency=medium
+
+  * New upstream version 45.8.0 fixes
+    CVE-2017-5400: asm.js JIT-spray bypass of ASLR and DEP
+    CVE-2017-5401: Memory Corruption when handling ErrorResult
+    CVE-2017-5402: Use-after-free working with events in FontFace objects
+    CVE-2017-5404: Use-after-free working with ranges in selections
+    CVE-2017-5407: Pixel and history stealing via floating-point timing side
+                   channel with SVG filters
+    CVE-2017-5410: Memory corruption during JavaScript garbage collection
+                   incremental sweeping
+    CVE-2017-5408: Cross-origin reading of video captions in violation of CORS
+    CVE-2017-5405: FTP response codes can cause use of uninitialized values
+                   for ports
+    CVE-2017-5398: Memory safety bugs fixed in Thunderbird 45.8
+    CVE-2017-5375: Excessive JIT code allocation allows bypass of ASLR and DEP
+    CVE-2017-5376: Use-after-free in XSL
+    CVE-2017-5378: Pointer and frame data leakage of Javascript objects
+    CVE-2017-5380: Potential use-after-free during DOM manipulations
+    CVE-2017-5390: Insecure communication methods in Developer Tools JSON viewer
+    CVE-2017-5396: Use-after-free with Media Decoder
+    CVE-2017-5383: Location bar spoofing with unicode characters
+    CVE-2017-5373: Memory safety bugs fixed in Thunderbird 45.7
+  * Switch back to debhelper version 9
+  * dh-exec: avoid multiple spaces around filenames since they break the
+    wheezy version of dh-exec
+  * Drop crash reporter.  The syntax is not supported by dh-exec and we don't
+    want to send reports from weezy to Mozilla.
+  * Don't drop deps on libspr,nss
+  * Drop replaces on packages no longer in any release
+  * Copy-edit thunderbird-wrapper-helper.sh
+
+ -- Guido Günther <agx@sigxcpu.org>  Sat, 08 Apr 2017 22:01:14 +0200
+
 icedove (1:45.8.0-3) unstable; urgency=medium
 
   [ Carsten Schoenert ]
