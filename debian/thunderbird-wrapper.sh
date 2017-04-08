@@ -20,7 +20,7 @@
 
 #set -x
 
-TB_HELPER="/usr/lib/thunderbird/thunderbird-wrapper-helper.sh"
+TB_HELPER=${TB_HELPER:-"/usr/lib/thunderbird/thunderbird-wrapper-helper.sh"}
 # sourcing external variables and helper functions
 if [ -f "${TB_HELPER}" ]; then
     # hide the sourcing for http://www.shellcheck.net/
