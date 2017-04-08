@@ -42,13 +42,10 @@ LDFLAGS += -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
 # Add execution time and memory usage stats in the logs
 LDFLAGS += -Wl,--stats
 
-# Change the profile folder for the security releases before stretch
-ifeq ($(RELEASE),wheezy-security)
-	export MOZ_APP_PROFILE := .icedove
-endif
-ifeq ($(RELEASE),jessie-security)
-	export MOZ_APP_PROFILE := .icedove
-endif
+# We don't need to set MOZ_APP_PROFILE to .icedove in any release as we decided
+# to only use ~/.thunderbird as home for the profiles.
+# export  MOZ_APP_PROFILE := .icedove
+
 export MOZ_BUILD_DATE := $(shell TZ=UTC date -d "$(shell dpkg-parsechangelog -S Date)" +%Y%m%d%H%M%S)
 export MOZCONFIG=$(shell pwd)/mozconfig.thunderbird
 export MOZILLA_OFFICIAL=1
