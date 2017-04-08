@@ -1,2 +1,0 @@
-locale calendar ##LANG## jar:chrome/##LANG##.jar!/locale/##LANG##/calendar/
-locale lightning ##LANG## jar:chrome/##LANG##.jar!/locale/##LANG##/lightning/
