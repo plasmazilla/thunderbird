@@ -1,0 +1,5 @@
+usr/lib/thunderbird/libldap60.so     usr/lib/thunderbird-devel/sdk/lib/libldap60.so
+usr/lib/thunderbird/libldif60.so     usr/lib/thunderbird-devel/sdk/lib/libldif60.so
+usr/lib/thunderbird/libprldap60.so   usr/lib/thunderbird-devel/sdk/lib/libprldap60.so
+usr/lib/thunderbird/libxul.so        usr/lib/thunderbird-devel/sdk/lib/libxul.so
+usr/include/thunderbird/mozilla/MediaStreamAudioDestinationNode.h usr/include/thunderbird/mozilla/dom/MediaStreamAudioDestinationNode.h

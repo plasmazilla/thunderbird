@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+symlink_dir() {
+    LNSOURCE=$1
+    DIR=$2
+    if [ ! -L $DIR ]; then
+        rmdir $DIR
+        ln -s $LNSOURCE $DIR
+    fi
+}
+
+if test -e /usr/lib/thunderbird/.autoreg; then
+  touch /usr/lib/thunderbird/.autoreg
+fi
+
+if [ "$1" = "configure" ] && dpkg --compare-versions "$2" lt "31.0-2"; then
+    symlink_dir "/usr/share/lightning/chrome/icons" "/usr/lib/lightning/chrome/icons"
+    symlink_dir "/usr/share/lightning/chrome/skin" "/usr/lib/lightning/chrome/skin"
+fi
+
+#DEBHELPER#

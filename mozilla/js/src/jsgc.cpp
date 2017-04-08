@@ -238,6 +238,7 @@ using namespace js;
 using namespace js::gc;
 
 using mozilla::ArrayLength;
+using mozilla::HashCodeScrambler;
 using mozilla::Maybe;
 using mozilla::Swap;
 
@@ -2333,8 +2334,9 @@ GCRuntime::relocateArenas(Zone* zone, JS::gcreason::Reason reason, ArenaHeader*&
 void
 MovingTracer::onObjectEdge(JSObject** objp)
 {
-    if (IsForwarded(*objp))
-        *objp = Forwarded(*objp);
+    JSObject* obj = *objp;
+    if (obj->runtimeFromAnyThread() == runtime() && IsForwarded(obj))
+        *objp = Forwarded(obj);
 }
 
 void
@@ -3794,9 +3796,11 @@ GCRuntime::purgeRuntime()
 
 bool
 GCRuntime::shouldPreserveJITCode(JSCompartment* comp, int64_t currentTime,
-                                 JS::gcreason::Reason reason)
+                                 JS::gcreason::Reason reason, bool canAllocateMoreCode)
 {
     if (cleanUpEverything)
+        return false;
+    if (!canAllocateMoreCode)
         return false;
 
     if (alwaysPreserveCode)
@@ -3944,15 +3948,19 @@ GCRuntime::beginMarkPhase(JS::gcreason::Reason reason)
         zone->setPreservingCode(false);
     }
 
+    // Discard JIT code more aggressively if the process is approaching its
+    // executable code limit.
+    bool canAllocateMoreCode = jit::CanLikelyAllocateMoreExecutableMemory();
+
     for (CompartmentsIter c(rt, WithAtoms); !c.done(); c.next()) {
         c->marked = false;
         c->scheduledForDestruction = false;
         c->maybeAlive = false;
-        if (shouldPreserveJITCode(c, currentTime, reason))
+        if (shouldPreserveJITCode(c, currentTime, reason, canAllocateMoreCode))
             c->zone()->setPreservingCode(true);
     }
 
-    if (!rt->gc.cleanUpEverything) {
+    if (!rt->gc.cleanUpEverything && canAllocateMoreCode) {
         if (JSCompartment* comp = jit::TopmostIonActivationCompartment(rt))
             comp->zone()->setPreservingCode(true);
     }
@@ -4310,7 +4318,7 @@ js::gc::MarkingValidator::nonIncrementalMark()
      * For saving, smush all of the keys into one big table and split them back
      * up into per-zone tables when restoring.
      */
-    gc::WeakKeyTable savedWeakKeys;
+    gc::WeakKeyTable savedWeakKeys(SystemAllocPolicy(), runtime->randomHashCodeScrambler());
     if (!savedWeakKeys.init())
         return;
 
@@ -4583,7 +4591,6 @@ Zone::findOutgoingEdges(ComponentFinder<JS::Zone>& finder)
         if (r.front()->isGCMarking())
             finder.addEdgeTo(r.front());
     }
-    gcZoneGroupEdges.clear();
 
     Debugger::findZoneEdges(this, finder);
 }
@@ -4612,6 +4619,11 @@ GCRuntime::findZoneEdgesForWeakMaps()
 void
 GCRuntime::findZoneGroups()
 {
+#ifdef DEBUG
+    for (ZonesIter zone(rt, WithAtoms); !zone.done(); zone.next())
+        MOZ_ASSERT(zone->gcZoneGroupEdges.empty());
+#endif
+
     ComponentFinder<Zone> finder(rt->mainThread.nativeStackLimit[StackForSystemCode]);
     if (!isIncremental || !findZoneEdgesForWeakMaps())
         finder.useOneComponent();
@@ -4624,12 +4636,19 @@ GCRuntime::findZoneGroups()
     currentZoneGroup = zoneGroups;
     zoneGroupIndex = 0;
 
+    for (GCZonesIter zone(rt); !zone.done(); zone.next())
+        zone->gcZoneGroupEdges.clear();
+
+#ifdef DEBUG
     for (Zone* head = currentZoneGroup; head; head = head->nextGroup()) {
         for (Zone* zone = head; zone; zone = zone->nextNodeInGroup())
             MOZ_ASSERT(zone->isGCMarking());
     }
 
     MOZ_ASSERT_IF(!isIncremental, !currentZoneGroup->nextGroup());
+    for (ZonesIter zone(rt, WithAtoms); !zone.done(); zone.next())
+        MOZ_ASSERT(zone->gcZoneGroupEdges.empty());
+#endif
 }
 
 static void
@@ -4799,11 +4818,11 @@ MarkIncomingCrossCompartmentPointers(JSRuntime* rt, const uint32_t color)
             MOZ_ASSERT(dst->compartment() == c);
 
             if (color == GRAY) {
-                if (IsMarkedUnbarriered(&src) && src->asTenured().isMarked(GRAY))
+                if (IsMarkedUnbarriered(rt, &src) && src->asTenured().isMarked(GRAY))
                     TraceManuallyBarrieredEdge(&rt->gc.marker, &dst,
                                                "cross-compartment gray pointer");
             } else {
-                if (IsMarkedUnbarriered(&src) && !src->asTenured().isMarked(GRAY))
+                if (IsMarkedUnbarriered(rt, &src) && !src->asTenured().isMarked(GRAY))
                     TraceManuallyBarrieredEdge(&rt->gc.marker, &dst,
                                                "cross-compartment black pointer");
             }

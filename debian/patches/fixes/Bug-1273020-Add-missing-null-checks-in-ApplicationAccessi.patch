@@ -1,0 +1,79 @@
+From: Carsten Schoenert <c.schoenert@t-online.de>
+Date: Tue, 28 Mar 2017 18:48:46 +0200
+Subject: Bug 1273020 - Add missing null checks in ApplicationAccessible.
+ r=surkov.
+
+Origin: https://hg.mozilla.org/mozilla-central/rev/8bfdf5dfcf6b
+Origin: https://hg.mozilla.org/mozilla-central/rev/798f02387d36
+Bug-Debian: https://bugs.debian.org/852149
+Bug: https://bugzilla.mozilla.org/show_bug.cgi?id=1273020
+Applied-Upstream: Firefox 49.0
+---
+ .../accessible/generic/ApplicationAccessible.cpp   |  1 +
+ mozilla/accessible/generic/ApplicationAccessible.h | 30 +++++++++++++++-------
+ 2 files changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/mozilla/accessible/generic/ApplicationAccessible.cpp b/mozilla/accessible/generic/ApplicationAccessible.cpp
+index 69537e2..60b83bd 100644
+--- a/mozilla/accessible/generic/ApplicationAccessible.cpp
++++ b/mozilla/accessible/generic/ApplicationAccessible.cpp
+@@ -28,6 +28,7 @@ ApplicationAccessible::ApplicationAccessible() :
+ {
+   mType = eApplicationType;
+   mAppInfo = do_GetService("@mozilla.org/xre/app-info;1");
++  MOZ_ASSERT(mAppInfo, "no application info");
+ }
+ 
+ NS_IMPL_ISUPPORTS_INHERITED0(ApplicationAccessible, Accessible)
+diff --git a/mozilla/accessible/generic/ApplicationAccessible.h b/mozilla/accessible/generic/ApplicationAccessible.h
+index cee5051..04f3b52 100644
+--- a/mozilla/accessible/generic/ApplicationAccessible.h
++++ b/mozilla/accessible/generic/ApplicationAccessible.h
+@@ -60,16 +60,24 @@ public:
+   // ApplicationAccessible
+   void AppName(nsAString& aName) const
+   {
+-    nsAutoCString cname;
+-    mAppInfo->GetName(cname);
+-    AppendUTF8toUTF16(cname, aName);
++    MOZ_ASSERT(mAppInfo, "no application info");
++
++    if (mAppInfo) {
++      nsAutoCString cname;
++      mAppInfo->GetName(cname);
++      AppendUTF8toUTF16(cname, aName);
++    }
+   }
+ 
+   void AppVersion(nsAString& aVersion) const
+   {
+-    nsAutoCString cversion;
+-    mAppInfo->GetVersion(cversion);
+-    AppendUTF8toUTF16(cversion, aVersion);
++    MOZ_ASSERT(mAppInfo, "no application info");
++
++    if (mAppInfo) {
++      nsAutoCString cversion;
++      mAppInfo->GetVersion(cversion);
++      AppendUTF8toUTF16(cversion, aVersion);
++    }
+   }
+ 
+   void PlatformName(nsAString& aName) const
+@@ -79,9 +87,13 @@ public:
+ 
+   void PlatformVersion(nsAString& aVersion) const
+   {
+-    nsAutoCString cversion;
+-    mAppInfo->GetPlatformVersion(cversion);
+-    AppendUTF8toUTF16(cversion, aVersion);
++    MOZ_ASSERT(mAppInfo, "no application info");
++
++    if (mAppInfo) {
++      nsAutoCString cversion;
++      mAppInfo->GetPlatformVersion(cversion);
++      AppendUTF8toUTF16(cversion, aVersion);
++    }
+   }
+ 
+ protected:

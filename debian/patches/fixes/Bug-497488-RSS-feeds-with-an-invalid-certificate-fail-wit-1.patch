@@ -1,0 +1,40 @@
+From: alta88 <alta88@gmail.com>
+Date: Tue, 18 Oct 2016 12:01:00 +0200
+Subject: Bug 497488 - RSS feeds with an invalid certificate fail with a
+ misleading message. r=IanN a=IanN
+
+Origin: https://hg.mozilla.org/comm-central/rev/324728b47409a90d5feeba83566db016b3da826c
+Bug-Debian: https://bugs.debian.org/837177
+Bug: https://bugzilla.mozilla.org/show_bug.cgi?id=497488
+Applied-Upstream: Thunderbird 52.0
+
+Signed-off-by: Jens Reyer <jre.winesim@gmail.com>
+---
+ suite/locales/en-US/chrome/mailnews/newsblog/newsblog.properties | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/suite/locales/en-US/chrome/mailnews/newsblog/newsblog.properties b/suite/locales/en-US/chrome/mailnews/newsblog/newsblog.properties
+index 47e38fd..c1a3c97 100644
+--- a/suite/locales/en-US/chrome/mailnews/newsblog/newsblog.properties
++++ b/suite/locales/en-US/chrome/mailnews/newsblog/newsblog.properties
+@@ -13,7 +13,9 @@ subscribe-feedMoved=Feed subscription moved.
+ subscribe-feedCopied=Feed subscription copied.
+ subscribe-feedRemoved=Feed unsubscribed.
+ subscribe-feedNotValid=The Feed URL is not a valid feed.
++subscribe-feedVerified=The Feed URL has been verified.
+ subscribe-networkError=The Feed URL could not be found. Please check the name and try again.
++subscribe-noAuthError=The Feed URL is not authorized.
+ subscribe-loading=Loading, please wait…
+ 
+ subscribe-OPMLImportTitle=Select OPML file to import
+@@ -66,6 +68,10 @@ newsblog-noNewArticlesForFeed=There are no new articles for this feed.
+ newsblog-networkError=%S could not be found. Please check the name and try again.
+ ## LOCALIZATION NOTE(newsblog-feedNotValid): %S is the feed URL
+ newsblog-feedNotValid=%S is not a valid feed.
++## LOCALIZATION NOTE(newsblog-badCertError): %S is the feed URL host
++newsblog-badCertError=%S uses an invalid security certificate.
++## LOCALIZATION NOTE(newsblog-noAuthError): %S is the feed URL
++newsblog-noAuthError=%S is not authorized.
+ newsblog-getNewMsgsCheck=Checking feeds for new items…
+ 
+ ## LOCALIZATION NOTE(feeds-accountname): This string should be the same as feeds.accountName in am-newsblog.dtd

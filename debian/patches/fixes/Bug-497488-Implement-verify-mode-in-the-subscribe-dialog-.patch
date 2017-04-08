@@ -1,0 +1,335 @@
+From: alta88 <alta88@gmail.com>
+Date: Tue, 18 Oct 2016 12:02:00 +0200
+Subject: Bug 497488 - Implement verify mode in the subscribe dialog for
+ existing feed urls. r=mkmelin
+
+Origin: https://hg.mozilla.org/comm-central/rev/141676b80c81e2a3daeeac6ad21da35086ae0240
+Bug-Debian: https://bugs.debian.org/837177
+Bug: https://bugzilla.mozilla.org/show_bug.cgi?id=497488
+Applied-Upstream: Thunderbird 52.0
+
+Signed-off-by: Jens Reyer <jre.winesim@gmail.com>
+
+# Conflicts:
+#	mailnews/extensions/newsblog/content/FeedUtils.jsm
+---
+ .../chrome/messenger-newsblog/newsblog.properties  |   1 +
+ mailnews/extensions/newsblog/content/Feed.js       |  30 +++---
+ mailnews/extensions/newsblog/content/FeedUtils.jsm |   2 +-
+ .../newsblog/content/feed-subscriptions.js         | 119 ++++++++++++++-------
+ .../newsblog/content/feed-subscriptions.xul        |   2 +-
+ 5 files changed, 102 insertions(+), 52 deletions(-)
+
+diff --git a/mail/locales/en-US/chrome/messenger-newsblog/newsblog.properties b/mail/locales/en-US/chrome/messenger-newsblog/newsblog.properties
+index 3abbc23..c1a3c97 100644
+--- a/mail/locales/en-US/chrome/messenger-newsblog/newsblog.properties
++++ b/mail/locales/en-US/chrome/messenger-newsblog/newsblog.properties
+@@ -13,6 +13,7 @@ subscribe-feedMoved=Feed subscription moved.
+ subscribe-feedCopied=Feed subscription copied.
+ subscribe-feedRemoved=Feed unsubscribed.
+ subscribe-feedNotValid=The Feed URL is not a valid feed.
++subscribe-feedVerified=The Feed URL has been verified.
+ subscribe-networkError=The Feed URL could not be found. Please check the name and try again.
+ subscribe-noAuthError=The Feed URL is not authorized.
+ subscribe-loading=Loading, please wait…
+diff --git a/mailnews/extensions/newsblog/content/Feed.js b/mailnews/extensions/newsblog/content/Feed.js
+index a4b8555..7e47260 100755
+--- a/mailnews/extensions/newsblog/content/Feed.js
++++ b/mailnews/extensions/newsblog/content/Feed.js
+@@ -20,6 +20,7 @@ var FeedCache =
+     let index = this.normalizeHost(aUrl);
+     if (index in this.mFeeds)
+       return this.mFeeds[index];
++
+     return null;
+   },
+ 
+@@ -111,13 +112,10 @@ Feed.prototype =
+     // Before we do anything, make sure the url is an http url.  This is just
+     // a sanity check so we don't try opening mailto urls, imap urls, etc. that
+     // the user may have tried to subscribe to as an rss feed.
+-    let uri = Cc["@mozilla.org/network/standard-url;1"].
+-              createInstance(Ci.nsIURI);
+-    uri.spec = this.url;
+-    if (!FeedUtils.isValidScheme(uri))
++    if (!FeedUtils.isValidScheme(this.url))
+     {
+        // Simulate an invalid feed error.
+-      FeedUtils.log.info("Feed.download: invalid protocol for - " + uri.spec);
++      FeedUtils.log.info("Feed.download: invalid protocol for - " + this.url);
+       this.onParseError(this);
+       return;
+     }
+@@ -174,7 +172,7 @@ Feed.prototype =
+   onDownloaded: function(aEvent)
+   {
+     let request = aEvent.target;
+-    let isHttp = /^http(s?)/.test(request.channel.originalURI.scheme);
++    let isHttp = request.channel.originalURI.scheme.startsWith("http");
+     let url = request.channel.originalURI.spec;
+     if (isHttp && (request.status < 200 || request.status >= 300))
+     {
+@@ -317,6 +315,7 @@ Feed.prototype =
+                                     true);
+     if (lastModified)
+       lastModified = lastModified.QueryInterface(Ci.nsIRDFLiteral).Value;
++
+     return lastModified;
+   },
+ 
+@@ -586,15 +585,20 @@ Feed.prototype =
+   {
+     // Now that we are done parsing the feed, remove the feed from the cache.
+     FeedCache.removeFeed(aFeed.url);
+-    aFeed.removeInvalidItems(false);
+ 
+-    if (aCode == FeedUtils.kNewsBlogSuccess && aFeed.mLastModified)
+-      aFeed.lastModified = aFeed.mLastModified;
++    if (aFeed.parseItems)
++    {
++      // Do this only if we're in parse/store mode.
++      aFeed.removeInvalidItems(false);
+ 
+-    // Flush any feed item changes to disk.
+-    let ds = FeedUtils.getItemsDS(aFeed.server);
+-    ds.Flush();
+-    FeedUtils.log.debug("Feed.cleanupParsingState: items stored - " + this.itemsStored);
++      if (aCode == FeedUtils.kNewsBlogSuccess && aFeed.mLastModified)
++        aFeed.lastModified = aFeed.mLastModified;
++
++      // Flush any feed item changes to disk.
++      let ds = FeedUtils.getItemsDS(aFeed.server);
++      ds.Flush();
++      FeedUtils.log.debug("Feed.cleanupParsingState: items stored - " + this.itemsStored);
++    }
+ 
+     // Force the xml http request to go away.  This helps reduce some nasty
+     // assertions on shut down.
+diff --git a/mailnews/extensions/newsblog/content/FeedUtils.jsm b/mailnews/extensions/newsblog/content/FeedUtils.jsm
+index c29d840..8c45451 100644
+--- a/mailnews/extensions/newsblog/content/FeedUtils.jsm
++++ b/mailnews/extensions/newsblog/content/FeedUtils.jsm
+@@ -240,8 +240,8 @@ var FeedUtils = {
+ 
+     aFolder.ListDescendants(allFolders);
+ 
++    let folder;
+     function feeder() {
+-      let folder;
+       let numFolders = allFolders.length;
+       for (let i = 0; i < numFolders; i++) {
+         folder = allFolders.queryElementAt(i, Ci.nsIMsgFolder);
+diff --git a/mailnews/extensions/newsblog/content/feed-subscriptions.js b/mailnews/extensions/newsblog/content/feed-subscriptions.js
+index 45044cc..34bf954 100644
+--- a/mailnews/extensions/newsblog/content/feed-subscriptions.js
++++ b/mailnews/extensions/newsblog/content/feed-subscriptions.js
+@@ -25,6 +25,7 @@ var FeedSubscriptions = {
+   kMoveMode      : 3,
+   kCopyMode      : 4,
+   kImportingOPML : 5,
++  kVerifyUrlMode : 6,
+ 
+   get FOLDER_ACTIONS()
+   {
+@@ -1016,9 +1017,10 @@ var FeedSubscriptions = {
+     }
+   },
+ 
+-  setNewFolder: function(aFolder)
++  setNewFolder: function(aEvent)
+   {
+-    this.setFolderPicker(aFolder, true);
++    aEvent.stopPropagation();
++    this.setFolderPicker(aEvent.target._folder, true);
+     this.editFeed();
+   },
+ 
+@@ -1285,6 +1287,13 @@ var FeedSubscriptions = {
+       return false;
+     }
+ 
++    if (!FeedUtils.isValidScheme(feedLocation))
++    {
++      message = FeedUtils.strings.GetStringFromName("subscribe-feedNotValid");
++      this.updateStatusItem("statusText", message);
++      return false;
++    }
++
+     let addFolder;
+     if (aFolder)
+     {
+@@ -1402,8 +1411,7 @@ var FeedSubscriptions = {
+     let resource = FeedUtils.rdf.GetResource(itemToEdit.url);
+     let currentFolderServer = itemToEdit.parentFolder.server;
+     let ds = FeedUtils.getSubscriptionsDS(currentFolderServer);
+-    let currentFolder = ds.GetTarget(resource, FeedUtils.FZ_DESTFOLDER, true);
+-    let currentFolderURI = currentFolder.QueryInterface(Ci.nsIRDFResource).ValueUTF8;
++    let currentFolderURI = itemToEdit.parentFolder.URI;
+     let feed = new Feed(resource, currentFolderServer);
+     feed.folder = itemToEdit.parentFolder;
+ 
+@@ -1421,7 +1429,38 @@ var FeedSubscriptions = {
+       return;
+     }
+ 
++    // Did the user change the folder URI for storing the feed?
++    let editFolderURI = selectFolder.getAttribute("uri");
++    if (currentFolderURI != editFolderURI)
++    {
++      // Make sure the new folderpicked folder is visible.
++      this.selectFolder(selectFolder._folder);
++      // Now go back to the feed item.
++      this.selectFeed(feed, null);
++      // We need to find the index of the new parent folder.
++      let newParentIndex = this.mView.kRowIndexUndefined;
++      for (let index = 0; index < this.mView.rowCount; index++)
++      {
++        let item = this.mView.getItemAtIndex(index);
++        if (item && item.container && item.url == editFolderURI)
++        {
++          newParentIndex = index;
++          break;
++        }
++      }
++
++      if (newParentIndex != this.mView.kRowIndexUndefined)
++        this.moveCopyFeed(seln.currentIndex, newParentIndex, "move");
++
++      return;
++    }
++
+     let updated = false;
++    let message = "";
++    // Disable the button until the update completes and we process the async
++    // verify response.
++    document.getElementById("editFeed").setAttribute("disabled", true);
++
+     // Check to see if the title value changed, no blank title allowed.
+     if (feed.title != editNameValue)
+     {
+@@ -1447,44 +1486,32 @@ var FeedSubscriptions = {
+     }
+ 
+     // Check to see if the categoryPrefs custom prefix string value changed.
+-    if (itemToEdit.options.category.prefix != editAutotagPrefix)
++    if (itemToEdit.options.category.prefix != editAutotagPrefix &&
++        itemToEdit.options.category.prefix != null &&
++        editAutotagPrefix != "")
+     {
+       itemToEdit.options.category.prefix = editAutotagPrefix;
+       feed.options = itemToEdit.options;
+       updated = true;
+     }
+ 
+-    // Did the user change the folder URI for storing the feed?
+-    let editFolderURI = selectFolder.getAttribute("uri");
+-    if (currentFolderURI != editFolderURI)
+-    {
+-      // Make sure the new folderpicked folder is visible.
+-      this.selectFolder(selectFolder._folder);
+-      // Now go back to the feed item.
+-      this.selectFeed(feed, null);
+-      // We need to find the index of the new parent folder.
+-      let newParentIndex = this.mView.kRowIndexUndefined;
+-      for (let index = 0; index < this.mView.rowCount; index++)
+-      {
+-        let item = this.mView.getItemAtIndex(index);
+-        if (item && item.container && item.url == editFolderURI)
+-        {
+-          newParentIndex = index;
+-          break;
+-        }
+-      }
+-
+-      if (newParentIndex != this.mView.kRowIndexUndefined)
+-        this.moveCopyFeed(seln.currentIndex, newParentIndex, "move");
++    let verifyDelay = 0;
++    if (updated) {
++      ds.Flush();
++      message = FeedUtils.strings.GetStringFromName("subscribe-feedUpdated");
++      this.updateStatusItem("statusText", message);
++      verifyDelay = 1500;
+     }
+ 
+-    if (!updated)
+-      return;
+-
+-    ds.Flush();
+-
+-    let message = FeedUtils.strings.GetStringFromName("subscribe-feedUpdated");
+-    this.updateStatusItem("statusText", message);
++    // Now we want to verify if the stored feed url still works. If it
++    // doesn't, show the error. Delay a bit to leave Updated message visible.
++    message = FeedUtils.strings.GetStringFromName("subscribe-validating-feed");
++    this.mActionMode = this.kVerifyUrlMode;
++    setTimeout(() => {
++      this.updateStatusItem("statusText", message);
++      this.updateStatusItem("progressMeter", "?");
++      feed.download(false, this.mFeedDownloadCallback);
++    }, verifyDelay);
+   },
+ 
+ /**
+@@ -1652,10 +1679,22 @@ var FeedSubscriptions = {
+       // Feed is null if our attempt to parse the feed failed.
+       let message = "";
+       let win = FeedSubscriptions;
+-      if (aErrorCode == FeedUtils.kNewsBlogSuccess)
++      if (aErrorCode == FeedUtils.kNewsBlogSuccess ||
++          aErrorCode == FeedUtils.kNewsBlogNoNewItems)
+       {
+         win.updateStatusItem("progressMeter", 100);
+ 
++        if (win.mActionMode == win.kVerifyUrlMode) {
++          // Just checking for errors, if none bye. The (non error) code
++          // kNewsBlogNoNewItems can only happen in verify mode.
++          win.mActionMode = null;
++          win.clearStatusInfo();
++          message = FeedUtils.strings.GetStringFromName("subscribe-feedVerified");
++          win.updateStatusItem("statusText", message);
++          document.getElementById("editFeed").removeAttribute("disabled");
++          return;
++        }
++
+         // Add the feed to the databases.
+         FeedUtils.addFeed(feed);
+ 
+@@ -1731,7 +1770,9 @@ var FeedSubscriptions = {
+       else
+       {
+         // Non success.  Remove intermediate traces from the feeds database.
+-        if (feed && feed.url && feed.server)
++        // But only if we're not in verify mode.
++        if (win.mActionMode != win.kVerifyUrlMode &&
++            feed && feed.url && feed.server)
+           FeedUtils.deleteFeed(FeedUtils.rdf.GetResource(feed.url),
+                                feed.server,
+                                feed.server.rootFolder);
+@@ -1754,9 +1795,13 @@ var FeedSubscriptions = {
+           message = FeedUtils.strings.GetStringFromName(
+                       "subscribe-noAuthError");
+ 
+-        if (win.mActionMode != win.kUpdateMode)
++        if (win.mActionMode != win.kUpdateMode &&
++            win.mActionMode != win.kVerifyUrlMode)
+           // Re-enable the add button if subscribe failed.
+           document.getElementById("addFeed").removeAttribute("disabled");
++        if (win.mActionMode == win.kVerifyUrlMode)
++          // Re-enable the update button if verify failed.
++          document.getElementById("editFeed").removeAttribute("disabled");
+       }
+ 
+       win.mActionMode = null;
+diff --git a/mailnews/extensions/newsblog/content/feed-subscriptions.xul b/mailnews/extensions/newsblog/content/feed-subscriptions.xul
+index 5ccf9c8..a67943a 100644
+--- a/mailnews/extensions/newsblog/content/feed-subscriptions.xul
++++ b/mailnews/extensions/newsblog/content/feed-subscriptions.xul
+@@ -132,7 +132,7 @@
+                              mode="feeds"
+                              showFileHereLabel="true"
+                              showAccountsFileHere="true"
+-                             oncommand="FeedSubscriptions.setNewFolder(event.target._folder)"/>
++                             oncommand="FeedSubscriptions.setNewFolder(event)"/>
+                 </menulist>
+                 <textbox id="selectFolderValue"
+                          flex="1"

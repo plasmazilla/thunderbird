@@ -31,4 +31,4 @@ source: source-is-missing mozilla/browser/app/profile/firefox.js *
 
 # this is no brace expansion
 source: brace-expansion-in-debhelper-config-file debian/calendar-google-provider.links
-source: brace-expansion-in-debhelper-config-file debian/iceowl-extension.links
+source: brace-expansion-in-debhelper-config-file debian/lightning.links

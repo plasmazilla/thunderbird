@@ -1,7 +1,1 @@
-/etc/icedove/pref               /usr/share/icedove/defaults/syspref
-/usr/share/hunspell             /usr/lib/icedove/dictionaries
-usr/lib/icedove/icedove         usr/bin/icedove
-usr/share/icedove/chrome        usr/lib/icedove/chrome
-usr/share/icedove/defaults      usr/lib/icedove/defaults
-usr/share/icedove/isp           usr/lib/icedove/isp
-usr/share/icedove/omni.ja       usr/lib/icedove/omni.ja
+usr/bin/thunderbird usr/bin/icedove

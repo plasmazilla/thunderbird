@@ -611,6 +611,14 @@ struct JSCompartment
     void ensureRandomNumberGenerator();
 
   private:
+    mozilla::non_crypto::XorShift128PlusRNG randomKeyGenerator_;
+
+  public:
+    js::HashNumber randomHashCode();
+
+    mozilla::HashCodeScrambler randomHashCodeScrambler();
+
+  private:
     JSCompartment* thisForCtor() { return this; }
 
   public:

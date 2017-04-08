@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e
+
+LIBDIR=/usr/lib/thunderbird
+
+if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ] || [ "$1" = upgrade ]; then
+    rm -f $LIBDIR/.autoreg
+fi
+
+#DEBHELPER#

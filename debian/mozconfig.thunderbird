@@ -1,0 +1,17 @@
+# -*- mode: makefile; coding: utf-8 -*-
+
+# mozconfig.thunderbird
+# settings for the build of Icedove
+# 
+# This file set up extra config options for the build of the Thunderbird
+# application.
+# Remember, options here will be overriden by sourcing any file later!
+
+# sourcing the default common settings
+. $topsrcdir/mozconfig.default
+
+# Debian specific things
+ac_add_options --enable-application=mail         # enable Thunderbird
+ac_add_options --enable-calendar                 # enable Lightning
+
+# setting the obj-dir (build directory, filled in by debian/rules)
