@@ -1,4 +1,3 @@
-#!/bin/sh
 # vim: autoindent tabstop=4 shiftwidth=4 expandtab softtabstop=4 filetype=sh textwidth=76
 #
 # File:
@@ -66,7 +65,7 @@ THUNDERBIRD_PROFILE_LINKING_ERROR="\
 ${DEFAULT_X11_MSG}
 
 A needed symlink for the Thunderbird profile(s) folder '.thunderbird'
-to the old existing Icedove profile '.icedove' couldn't created. 
+to the old existing Icedove profile '.icedove' couldn't created.
 
 Sorry, but please investigate the situation by yourself.
 
@@ -345,34 +344,33 @@ if [ "${VERBOSE}" = "1" ]; then
 fi
 }
 
-# Giving out an information how this script can be called
+# How this script can be called
 usage () {
 cat << EOF
 
-Usage: ${0##*/} [--help|? | --verbose | -g | \$thunderbird-arguments]
+Usage: ${0##*/} [--help|-? ] | [--verbose ] [ -g ] [args-passed-to-thunderbird...]
 
-Options for this script and Thunderbird specific arguments can be mixed up.
-Note that some Thunderbird options needs an additional argument that can't
-be naturally mixed up with other options!
+This script parses its command line options and passes everything else on to
+Thunderbird.  Note that some Thunderbird options need an additional argument
+that can't be naturally mixed with other options!
 
-  -g          Starts Thunderbird within gdb (needs package thunderbird-dbg!)
+  -g          Starts Thunderbird within gdb (needs package thunderbird-dbg)
 
   --help or ? Display this help and exit
 
   --verbose   Verbose mode, increase the output messages to stdout
-              (Logging to /var/log/syslog - if nessesary - isn't touched or
-               increased by this option!)
+              (Logging to /var/log/syslog isn't touched or increased by this
+              option!)
 
 Additional options:
 
-  --fixmime      Only calls the subrotine to fix MIME associations in
+  --fixmime      Only fixes MIME associations in
                  ~/.thunderbird/$profile/mimeTypes.rdf and exits. Can be
                  combined with '--verbose'.
 
   --show-backup  Collect the backup files which where made and print them to
-                 stdout and exits immediately.
+                 stdout and exits.
 EOF
-#    -d      starts Thunderbird with specific debugger
 cat << EOF
 
 Examples:
@@ -380,19 +378,18 @@ Examples:
  ${0##*/} --help
 
     Writes this help messages on stdout. If any other option is given it
-    will be ignored. Note that Thunderbird also has an option '-h' which needs
-    explictely given if want the help output for Thunderbird!
+    will be ignored. Note that Thunderbird has a '-h' option which needs
+    to be used if you want the help output for Thunderbird.
 
  ${0##*/} --verbose
 
-    Enable some debug messages on stdout. Only useful while developing the
-    thunderbird packages or while the profile migration to see some more
-    messages on stdout.
+    Enable more debug messages on stdout. Only useful while developing the
+    thunderbird packages or during profile migration.
 
  ${0##*/} -g
 
     Starts Thunderbird in a GDB session if packages gdb and thunderbird-dbg
-    is installed.
+    are installed.
 EOF
 # other debuggers will be added later, we need maybe a separate valgrind
 # package! Note MDN site for valgrind
@@ -409,12 +406,10 @@ EOF
 #      ${0##*/} -d 'valgrind --arg1 --arg2' -thunderbird-arg1
 cat << EOF
 
- ${0##*/} \$thunderbird-arguments
+ ${0##*/} [args-passed-to-thunderbird...]
 
-    Adding some thunderbird command line specific arguments, like e.g.
-    calling the ProfileManager or safe-mode in case of trouble. Would look
-    like this if you need to run in safe-mode with the JS Error console,
-    that can be combined with the -g option:
+    Some example for invoking Thunderbird from the ommand line:
+    Run in safe-mode with the JS Error console:
 
       ${0##*/} --safe-mode -jsconsole
 
@@ -423,8 +418,7 @@ cat << EOF
 
       ${0##*/} -compose "to='recipient@tld.org','attachment=/path/attachment'"
 
-    Or to see the possible arguments for thunderbird that could be added
-    here:
+    See the all possible arguments for Thunderbird:
 
       ${0##*/} -h
 
@@ -432,4 +426,3 @@ EOF
 }
 
 # end local functions
-
